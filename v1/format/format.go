@@ -61,6 +61,11 @@ type Opts struct {
 	FailFast bool
 
 	Capabilities *ast.Capabilities
+
+	// srcCheck carries the source text that FailFast compares against. It stays unexported so
+	// that only SourceWithOpts can set it, since the comparison is only sound when the bytes
+	// are the ones x was parsed from.
+	srcCheck *srcChecker
 }
 
 // UnformattedError is returned by the Source* functions when [Opts.FailFast] is set and the formatted output
@@ -126,7 +131,11 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		}
 	}
 
-	formatted, err := astWithOpts(module, opts, src)
+	if opts.FailFast {
+		opts.srcCheck = &srcChecker{src: src}
+	}
+
+	formatted, err := AstWithOpts(module, opts)
 	if err != nil {
 		if unformatted, ok := errors.AsType[UnformattedError](err); ok {
 			return nil, unformatted
@@ -199,13 +208,6 @@ func (o fmtOpts) keywords() []string {
 }
 
 func AstWithOpts(x any, opts Opts) ([]byte, error) {
-	// No source text to compare against, so [Opts.FailFast] can't be honoured here.
-	return astWithOpts(x, opts, nil)
-}
-
-// astWithOpts formats x. src, when non-nil, is the source text x was parsed from,
-// and is only used to serve [Opts.FailFast].
-func astWithOpts(x any, opts Opts, src []byte) ([]byte, error) {
 	// The node has to be deep copied because it may be mutated below. Alternatively,
 	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
@@ -309,9 +311,7 @@ func astWithOpts(x any, opts Opts, src []byte) ([]byte, error) {
 		fmtOpts: o,
 	}
 
-	if opts.FailFast && src != nil {
-		w.check = &srcChecker{src: src}
-	}
+	w.check = opts.srcCheck
 
 	switch x := x.(type) {
 	case *ast.Module:

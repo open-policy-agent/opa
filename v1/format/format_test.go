@@ -1640,10 +1640,14 @@ func BenchmarkFormatLargePolicy(b *testing.B) {
 	}
 }
 
+// Parsing always runs in full, before any layout, and it is the bulk of the cost below: roughly 30k
+// of these allocs. BenchmarkFormatLargePolicy lays out the same module pre-parsed for 3188 allocs,
+// so the layout is all FailFast can skip, and the savings on the last row are the layout it skipped.
+//
 // formatted/fail_fast=false  	3156799 ns/op	 2038109 B/op	   33208 allocs/op
 // formatted/fail_fast=true   	3183775 ns/op	 2038132 B/op	   33209 allocs/op // no overhead beyond noise
 // unformatted/fail_fast=false	3163590 ns/op	 2038238 B/op	   33209 allocs/op
-// unformatted/fail_fast=true 	2546876 ns/op	 1795916 B/op	   30340 allocs/op // stops at the package
+// unformatted/fail_fast=true 	2546876 ns/op	 1795916 B/op	   30340 allocs/op // layout stops at the package
 func BenchmarkFormatLargePolicySource(b *testing.B) {
 	contents, err := os.ReadFile("testdata/bench.rego")
 	if err != nil {
