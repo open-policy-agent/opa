@@ -2652,6 +2652,97 @@ func TestEvalRuleCompileError(t *testing.T) {
 	}
 }
 
+func TestEvalPastedRulesReferenceEachOther(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// A bracketed paste hands the whole block to OneShot as one input. The
+	// first rule references a rule that is only defined later in the block.
+	policy := `default allow := false
+
+allow if user_is_owner
+
+user_is_owner if input.user == "bob"`
+
+	buffer.Reset()
+	if err := repl.OneShot(ctx, policy); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "Rule 'allow' defined in package repl. Type 'show' to see rules.\n"+
+		"Rule 'allow' defined in package repl. Type 'show' to see rules.\n"+
+		"Rule 'user_is_owner' defined in package repl. Type 'show' to see rules.\n")
+
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `allow with input as {"user": "bob"}`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "true\n")
+
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `allow with input as {"user": "alice"}`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "false\n")
+}
+
+func TestEvalPastedAssignmentRulesAndQuery(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// "is_admin := ..." parses as a body, not a rule, and the trailing query
+	// must see both rules.
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "allow if is_admin\n\nis_admin := input.role == \"admin\"\n\nallow with input as {\"role\": \"admin\"}"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "Rule 'allow' defined in package repl. Type 'show' to see rules.\n"+
+		"Rule 'is_admin' defined in package repl. Type 'show' to see rules.\n"+
+		"true\n")
+}
+
+func TestEvalPastedRulesCompileErrorRollsBack(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	err := repl.OneShot(ctx, "p if true\n\nq contains x if { true }")
+	expected := "x is unsafe"
+	if err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Expected OneShot to return error %v but got: %v", expected, err)
+	}
+
+	// A block that fails to compile must not leave any of its rules behind.
+	if rules := repl.modules[repl.currentModuleID].Rules; len(rules) != 0 {
+		t.Fatalf("Expected no rules to be defined after failed paste but got: %v", rules)
+	}
+
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "p if true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "Rule 'p' defined in package repl. Type 'show' to see rules.\n")
+}
+
 func TestEvalBodyCompileError(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore()

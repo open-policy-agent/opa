@@ -916,21 +916,28 @@ func (r *REPL) compileBody(_ context.Context, compiler *ast.Compiler, body ast.B
 	return body, qc.TypeEnv(), err
 }
 
-func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
-
-	var unset bool
+// compileRules adds rules to the current module and compiles the result. The
+// rules are compiled together so that they may reference each other regardless
+// of the order they are defined in. If compilation fails none of them is added.
+func (r *REPL) compileRules(ctx context.Context, rules []*ast.Rule) error {
 
 	if r.regoVersion == ast.RegoV1 {
-		if errs := ast.CheckRegoV1(rule); errs != nil {
-			return errs
+		for _, rule := range rules {
+			if errs := ast.CheckRegoV1(rule); errs != nil {
+				return errs
+			}
 		}
 	}
 
-	if rule.Head.Assign {
-		var err error
-		unset, err = r.unsetRule(ctx, rule.Head.Ref())
-		if err != nil {
-			return err
+	unset := make([]bool, len(rules))
+
+	for i, rule := range rules {
+		if rule.Head.Assign {
+			var err error
+			unset[i], err = r.unsetRule(ctx, rule.Head.Ref())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -943,11 +950,13 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
-	mod.Rules = append(mod.Rules, rule)
-	ast.WalkRules(rule, func(r *ast.Rule) bool {
-		r.Module = mod
-		return false
-	})
+	mod.Rules = append(mod.Rules, rules...)
+	for _, rule := range rules {
+		ast.WalkRules(rule, func(r *ast.Rule) bool {
+			r.Module = mod
+			return false
+		})
+	}
 
 	policies, err := r.loadModules(ctx, r.txn)
 	if err != nil {
@@ -973,11 +982,13 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 	switch r.outputFormat {
 	case "json":
 	default:
-		msg := "defined"
-		if unset {
-			msg = "re-defined"
+		for i, rule := range rules {
+			msg := "defined"
+			if unset[i] {
+				msg = "re-defined"
+			}
+			fmt.Fprintf(r.output, "Rule '%v' %v in %v. Type 'show' to see rules.\n", rule.Head.Ref().String(), msg, mod.Package)
 		}
-		fmt.Fprintf(r.output, "Rule '%v' %v in %v. Type 'show' to see rules.\n", rule.Head.Ref().String(), msg, mod.Package)
 	}
 
 	return nil
@@ -1013,13 +1024,7 @@ func (r *REPL) evalBufferOne(ctx context.Context) error {
 
 	r.buffer = []string{}
 
-	for _, stmt := range stmts {
-		if err := r.evalStatement(ctx, stmt); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return r.evalStatements(ctx, stmts)
 }
 
 func (r *REPL) evalBufferMulti(ctx context.Context) error {
@@ -1044,13 +1049,7 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 		return err
 	}
 
-	for _, stmt := range stmts {
-		if err := r.evalStatement(ctx, stmt); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return r.evalStatements(ctx, stmts)
 }
 
 func (r *REPL) parserOptions() (ast.ParserOptions, error) {
@@ -1128,6 +1127,54 @@ func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value
 	return qrs[0][ast.Var("x")].Value, nil
 }
 
+// evalStatements evaluates the statements parsed from one input in order.
+// Consecutive rule definitions are compiled together so that a pasted block of
+// rules may reference rules defined later in the same block.
+func (r *REPL) evalStatements(ctx context.Context, stmts []ast.Statement) error {
+
+	var rules []*ast.Rule
+
+	compileRules := func() error {
+		if len(rules) == 0 {
+			return nil
+		}
+		err := r.compileRules(ctx, rules)
+		rules = nil
+		return err
+	}
+
+	for _, stmt := range stmts {
+		switch stmt := stmt.(type) {
+		case *ast.Rule:
+			rules = append(rules, stmt)
+			continue
+		case ast.Body:
+			// "p := 1" parses as a body but defines a rule. Equalities are left
+			// to evalStatement because "p = 1" may also be a query.
+			if len(stmt) == 1 && stmt[0].IsAssignment() {
+				rule, err := r.ruleFromExpr(stmt[0])
+				if err != nil {
+					return err
+				}
+				if rule != nil {
+					rules = append(rules, rule)
+					continue
+				}
+			}
+		}
+
+		if err := compileRules(); err != nil {
+			return err
+		}
+
+		if err := r.evalStatement(ctx, stmt); err != nil {
+			return err
+		}
+	}
+
+	return compileRules()
+}
+
 func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 	switch stmt := stmt.(type) {
 	case ast.Body:
@@ -1161,7 +1208,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 
 		return err
 	case *ast.Rule:
-		return r.compileRule(ctx, stmt)
+		return r.compileRules(ctx, []*ast.Rule{stmt})
 	case *ast.Import:
 		return r.evalImport(ctx, stmt)
 	case *ast.Package:
@@ -1367,23 +1414,38 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 		return false, nil
 	}
 
-	rule, err := ast.ParseRuleFromExpr(r.getCurrentOrDefaultModule(), expr)
+	rule, err := r.ruleFromExpr(expr)
 	if rule == nil || err != nil {
 		return false, err
+	}
+
+	if err := r.compileRules(ctx, []*ast.Rule{rule}); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// ruleFromExpr returns the rule defined by an assignment or equality expression,
+// or nil if the expression is a query.
+func (r *REPL) ruleFromExpr(expr *ast.Expr) (*ast.Rule, error) {
+	if len(expr.Operands()) != 2 {
+		return nil, nil
+	}
+
+	rule, err := ast.ParseRuleFromExpr(r.getCurrentOrDefaultModule(), expr)
+	if rule == nil || err != nil {
+		return nil, err
 	}
 
 	// Statements about a root document are queries, never rule definitions:
 	// "data.foo.bar = 1" asks if data.foo.bar is 1. The single-term case is
 	// excluded so that `input = {...}` keeps defining a rule.
 	if ref := rule.Head.Ref(); len(ref) > 1 && ast.RootDocumentNames.Contains(ref[0]) {
-		return false, nil
+		return nil, nil
 	}
 
-	if err := r.compileRule(ctx, rule); err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return rule, nil
 }
 
 func (r *REPL) getPrompt() string {
