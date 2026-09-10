@@ -116,7 +116,6 @@ const exitPromptMessage = "Do you want to exit ([y]/n)? "
 
 // New returns a new instance of the REPL.
 func New(store storage.Store, historyPath string, output io.Writer, outputFormat string, errLimit int, banner string) *REPL {
-
 	return &REPL{
 		output:       output,
 		input:        os.Stdin,
@@ -256,7 +255,6 @@ func (r *REPL) loopPiped(ctx context.Context) error {
 
 // loopInteractive will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
 func (r *REPL) loopInteractive(ctx context.Context) error {
-
 	line := r.newShell()
 
 	if len(r.banner) > 0 {
@@ -345,7 +343,6 @@ exit:
 // OneShot evaluates the line and prints the result. If an error occurs it is
 // returned for the caller to display.
 func (r *REPL) OneShot(ctx context.Context, line string) error {
-
 	var err error
 	r.txn, err = r.store.NewTransaction(ctx)
 	if err != nil {
@@ -1110,7 +1107,6 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 // loadInput returns the input defined in the REPL. The REPL loads the
 // input from the data.repl.input document.
 func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value, error) {
-
 	q := topdown.NewQuery(ast.MustParseBody("data.repl.input = x")).
 		WithCompiler(compiler).
 		WithStore(r.store).
@@ -1171,7 +1167,6 @@ func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 }
 
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
-
 	var tracebuf *topdown.BufferTracer
 	var prof *profiler.Profiler
 
@@ -1232,7 +1227,12 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderrWriter(), output)
+		return pr.PrettyWithOptions(r.output, r.stderrWriter(), output, pr.PrettyOptions{
+			UndefinedPrintsEmpty: r.undefinedDisabled,
+			TraceOpts: topdown.PrettyTraceOptions{
+				Locations: true,
+			},
+		})
 	}
 }
 
@@ -1285,7 +1285,12 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderrWriter(), output)
+		return pr.PrettyWithOptions(r.output, r.stderrWriter(), output, pr.PrettyOptions{
+			UndefinedPrintsEmpty: r.undefinedDisabled,
+			TraceOpts: topdown.PrettyTraceOptions{
+				Locations: true,
+			},
+		})
 	}
 }
 
@@ -1716,7 +1721,6 @@ func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transacti
 // that the module already defines rules for. Statements about such documents
 // are evaluated as queries rather than interpreted as rule definitions.
 func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term) bool {
-
 	var ref ast.Ref
 
 	switch v := term.Value.(type) {
@@ -1781,11 +1785,10 @@ func printHelp(output io.Writer, initPrompt string, report [][2]string) {
 }
 
 func printHelpExamples(output io.Writer, promptSymbol string) {
-
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 	fmt.Fprintln(output, "Examples")
 	fmt.Fprintln(output, "========")
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	maxLength := 0
 	for _, ex := range examples {
@@ -1800,11 +1803,10 @@ func printHelpExamples(output io.Writer, promptSymbol string) {
 		fmt.Fprintf(output, f, ex.example, ex.comment)
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
 
 func printHelpCommands(output io.Writer) {
-
 	all := append(extra[:], builtin[:]...)
 
 	// Compute max length of all command and topic names.
@@ -1831,28 +1833,27 @@ func printHelpCommands(output io.Writer) {
 	// Print out command help.
 	fmt.Fprintln(output, "Commands")
 	fmt.Fprintln(output, "========")
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	for _, c := range all {
 		fmt.Fprintf(output, f, c.syntax(), c.help)
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	// Print out topic help.
 	fmt.Fprintln(output, "Additional Topics")
 	fmt.Fprintln(output, "=================")
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	for key, desc := range topics {
 		fmt.Fprintf(output, f, "help "+key, desc.comment)
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
 
 func printOPAReleaseInfo(output io.Writer, report [][2]string) {
-
 	fmt.Fprintln(output, "Version Info")
 	fmt.Fprintln(output, "============")
 	fmt.Fprintln(output)
@@ -1872,7 +1873,7 @@ func printOPAReleaseInfo(output io.Writer, report [][2]string) {
 		fmt.Fprintf(output, fmtStr, pair[0], pair[1])
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
 
 func printHelpInput(output io.Writer) error {
@@ -1946,8 +1947,8 @@ For example:
 }
 
 func printHelpTitle(output io.Writer, title string) {
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 	fmt.Fprintln(output, title)
 	fmt.Fprintln(output, strings.Repeat("=", len(title)))
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
