@@ -56,6 +56,30 @@ collection for emptiness without asserting its type. Sets are unaffected here:
 `set[string]` describes any set of strings, the empty one included, so
 `{"foo"} == set()` still compiles.
 
+### Rule index candidates are returned in declaration order
+
+The rule index returned a ruleset's definitions in whatever order its trie happened to
+reach them. It now returns them in the order they were declared, which is what it
+documented but did not do. Numbering the rules once, rather than sorting the candidates
+of every lookup, is also what makes building an index and reading a lookup's result
+cheaper.
+
+Two things follow from the order. A `complete rules must not produce multiple outputs`
+error now points at the first of the conflicting definitions rather than the second:
+
+```rego
+package example
+
+p := 1 if input.x # reported here now
+
+p := 2 if input.y # reported here before
+```
+
+And partial evaluation numbers the local variables of its support rules in evaluation
+order, so `opa eval --partial` and `opa build --optimize` emit the same rules under
+different generated names, and in a different order. What a policy evaluates to is
+unaffected either way.
+
 ## 1.20.2
 
 This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency
