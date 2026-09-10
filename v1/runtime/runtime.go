@@ -383,6 +383,16 @@ type Runtime struct {
 	serverInitMtx sync.RWMutex
 	done          chan struct{}
 	repl          *repl.REPL
+
+	// appliedConfig is the configuration in effect, lastConfig the one most
+	// recently read from disk. They differ while a reload is failing.
+	appliedConfig []byte
+	lastConfig    []byte
+	configMtx     sync.Mutex
+
+	// Non-nil once the configuration file watcher is running.
+	configWatcherStop chan struct{}
+	configWatcherDone chan struct{}
 }
 
 // NewRuntime returns a new Runtime object initialized with params. Clients must
@@ -615,6 +625,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		meterProvider:     meterProvider,
 		loadedPathsResult: loaded,
 		serverTracingOpts: serverTracingOpts,
+		appliedConfig:     config,
+		lastConfig:        config,
 	}
 
 	return rt, nil
@@ -776,6 +788,12 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open watch.")
 			return err
 		}
+		if err := rt.startConfigWatcher(ctx, rt.onConfigReloadLogger); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open config watch.")
+			return err
+		}
+		// Registered after the deferred Manager.Stop so it runs before it.
+		defer rt.stopConfigWatcher()
 	}
 
 	if rt.Params.EnableVersionCheck {
@@ -893,6 +911,11 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
 			return err
 		}
+		if err := rt.startConfigWatcher(ctx, onConfigReloadPrinter(rt.Params.Output)); err != nil {
+			fmt.Fprintln(rt.Params.Output, "error opening config watch:", err)
+			return err
+		}
+		defer rt.stopConfigWatcher()
 	}
 
 	if rt.Params.EnableVersionCheck {
@@ -1152,6 +1175,16 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 			fmt.Fprintf(output, "\n# reload error (took %v): %v", d, err)
 		} else {
 			fmt.Fprintf(output, "\n# reloaded files (took %v)", d)
+		}
+	}
+}
+
+func onConfigReloadPrinter(output io.Writer) func(time.Duration, error) {
+	return func(d time.Duration, err error) {
+		if err != nil {
+			fmt.Fprintf(output, "\n# config reload error (took %v): %v", d, err)
+		} else {
+			fmt.Fprintf(output, "\n# reloaded config (took %v)", d)
 		}
 	}
 }

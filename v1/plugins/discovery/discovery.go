@@ -20,6 +20,7 @@ import (
 
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	cfg "github.com/open-policy-agent/opa/internal/config"
+	"github.com/open-policy-agent/opa/internal/pluginset"
 	"github.com/open-policy-agent/opa/v1/ast"
 	bundleApi "github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
@@ -30,7 +31,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/bundle"
-	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -120,7 +120,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.factories, manager, managerConfig, result.metrics, result.logger, nil); err != nil {
+		if _, err := pluginset.Get(result.factories, manager, managerConfig, result.metrics, result.logger, nil); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -168,7 +168,7 @@ func (c *Discovery) Start(ctx context.Context) error {
 		c.loadAndActivateBundleFromDisk(ctx)
 	} else {
 		// If bundle persistence isn't enabled, initialise plugins before starting the downloader
-		ps, err := getPluginSet(c.factories, c.manager, c.manager.GetConfig(), c.metrics, c.logger, nil)
+		ps, err := pluginset.Get(c.factories, c.manager, c.manager.GetConfig(), c.metrics, c.logger, nil)
 		if err != nil {
 			return err
 		}
@@ -423,17 +423,7 @@ func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 		return err
 	}
 
-	for _, p := range ps.Start {
-		if err := p.Start(ctx); err != nil {
-			return err
-		}
-	}
-
-	for _, p := range ps.Reconfig {
-		p.Plugin.Reconfigure(ctx, p.Config)
-	}
-
-	return nil
+	return ps.Apply(ctx)
 }
 
 func (c *Discovery) applyLocalPluginConfigOverride(conf *config.Config) (*config.Config, []string, error) {
@@ -463,7 +453,7 @@ func (c *Discovery) applyLocalPluginConfigOverride(conf *config.Config) (*config
 	return parsedConf, overriddenKeys, nil
 }
 
-func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginSet, error) {
+func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginset.Set, error) {
 	config, err := evaluateBundle(ctx, c.manager.ID, c.manager.Info, b, c.config.query)
 	if err != nil {
 		return nil, err
@@ -534,7 +524,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		return nil, err
 	}
 
-	ps, err := getPluginSet(c.factories, c.manager, overriddenConfig, c.metrics, c.logger, c.config.Trigger)
+	ps, err := pluginset.Get(c.factories, c.manager, overriddenConfig, c.metrics, c.logger, c.config.Trigger)
 	if err != nil {
 		return nil, err
 	}
@@ -591,185 +581,6 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 
 	processedConf := cfg.SubEnvVars(string(bs))
 	return config.ParseConfig([]byte(processedConf), id)
-}
-
-type pluginSet struct {
-	Start    []plugins.Plugin
-	Reconfig []pluginreconfig
-}
-
-type pluginreconfig struct {
-	Config any
-	Plugin plugins.Plugin
-}
-
-type pluginfactory struct {
-	name    string
-	factory plugins.Factory
-	config  any
-}
-
-func getPluginSet(
-	factories map[string]plugins.Factory,
-	manager *plugins.Manager,
-	config *config.Config,
-	m metrics.Metrics,
-	l logging.Logger,
-	trigger *plugins.TriggerMode,
-) (*pluginSet, error) {
-	// Parse and validate plugin configurations.
-	pluginNames := []string{}
-	pluginFactories := []pluginfactory{}
-	serviceNames := manager.Services()
-
-	for k := range config.Plugins {
-		f, ok := factories[k]
-		if !ok {
-			return nil, fmt.Errorf("plugin %q not registered", k)
-		}
-
-		c, err := f.Validate(manager, config.Plugins[k])
-		if err != nil {
-			return nil, err
-		}
-
-		pluginFactories = append(pluginFactories, pluginfactory{
-			name:    k,
-			factory: f,
-			config:  c,
-		})
-
-		pluginNames = append(pluginNames, k)
-	}
-
-	// Parse and validate bundle/logs/status configurations.
-
-	// If `bundle` was configured use that, otherwise try the new `bundles` option
-	bundleConfig, err := bundle.ParseConfig(config.Bundle, serviceNames) //nolint:staticcheck
-	if err != nil {
-		return nil, err
-	}
-	if bundleConfig == nil {
-		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(serviceNames).
-			WithKeyConfigs(manager.PublicKeys()).WithTriggerMode(trigger).Parse()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		manager.Logger().Warn("Deprecated 'bundle' configuration specified. Use 'bundles' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#bundles")
-	}
-
-	decisionLogsConfig, err := logs.NewConfigBuilder().WithBytes(config.DecisionLogs).WithServices(serviceNames).
-		WithPlugins(pluginNames).WithTriggerMode(trigger).WithLogger(l).Parse()
-	if err != nil {
-		return nil, err
-	}
-
-	statusConfig, err := status.NewConfigBuilder().WithBytes(config.Status).WithServices(serviceNames).
-		WithPlugins(pluginNames).WithTriggerMode(trigger).Parse()
-	if err != nil {
-		return nil, err
-	}
-
-	// Accumulate plugins to start or reconfigure.
-	starts := []plugins.Plugin{}
-	reconfigs := []pluginreconfig{}
-
-	if bundleConfig != nil {
-		p, created := getBundlePlugin(manager, bundleConfig)
-		if created {
-			starts = append(starts, p)
-		} else if p != nil {
-			reconfigs = append(reconfigs, pluginreconfig{Config: bundleConfig, Plugin: p})
-		}
-	}
-
-	if decisionLogsConfig != nil {
-		p, created := getDecisionLogsPlugin(manager, decisionLogsConfig, m)
-		if created {
-			starts = append(starts, p)
-		} else if p != nil {
-			reconfigs = append(reconfigs, pluginreconfig{Config: decisionLogsConfig, Plugin: p})
-		}
-	}
-
-	if statusConfig != nil {
-		p, created := getStatusPlugin(manager, statusConfig, m)
-		if created {
-			starts = append(starts, p)
-		} else if p != nil {
-			reconfigs = append(reconfigs, pluginreconfig{Config: statusConfig, Plugin: p})
-		}
-	}
-
-	result := &pluginSet{Start: starts, Reconfig: reconfigs}
-
-	getCustomPlugins(manager, pluginFactories, result)
-
-	return result, nil
-}
-
-func getBundlePlugin(m *plugins.Manager, config *bundle.Config) (plugin *bundle.Plugin, created bool) {
-	plugin = bundle.Lookup(m)
-	if plugin == nil {
-		plugin = bundle.New(config, m)
-		m.Register(bundle.Name, plugin)
-		registerBundleStatusUpdates(m)
-		created = true
-	}
-	return plugin, created
-}
-
-func getDecisionLogsPlugin(m *plugins.Manager, config *logs.Config, metrics metrics.Metrics) (plugin *logs.Plugin, created bool) {
-	plugin = logs.Lookup(m)
-	if plugin == nil {
-		plugin = logs.New(config, m).WithMetrics(metrics)
-		m.Register(logs.Name, plugin)
-		created = true
-	}
-	return plugin, created
-}
-
-func getStatusPlugin(m *plugins.Manager, config *status.Config, metrics metrics.Metrics) (plugin *status.Plugin, created bool) {
-	plugin = status.Lookup(m)
-
-	if plugin == nil {
-		plugin = status.New(config, m).WithMetrics(metrics)
-		m.Register(status.Name, plugin)
-		registerBundleStatusUpdates(m)
-		created = true
-	}
-
-	return plugin, created
-}
-
-func getCustomPlugins(manager *plugins.Manager, factories []pluginfactory, result *pluginSet) {
-	for _, pf := range factories {
-		if plugin := manager.Plugin(pf.name); plugin != nil {
-			result.Reconfig = append(result.Reconfig, pluginreconfig{Config: pf.config, Plugin: plugin})
-		} else {
-			plugin := pf.factory.New(manager, pf.config)
-			manager.Register(pf.name, plugin)
-			result.Start = append(result.Start, plugin)
-		}
-	}
-}
-
-func registerBundleStatusUpdates(m *plugins.Manager) {
-	bp := bundle.Lookup(m)
-	sp := status.Lookup(m)
-	if bp == nil || sp == nil {
-		return
-	}
-	type pluginlistener string
-
-	// Depending on how the plugin was configured we will want to use different listeners
-	// for backwards compatibility.
-	if !bp.Config().IsMultiBundle() {
-		bp.Register(pluginlistener(status.Name), sp.UpdateBundleStatus) //nolint:staticcheck
-	} else {
-		bp.RegisterBulkListener(pluginlistener(status.Name), sp.BulkUpdateBundleStatus)
-	}
 }
 
 // mergeValuesAndListOverrides will merge source and destination map, preferring values from the source map.
