@@ -87,9 +87,8 @@ func generateFile(path string, mode fs.FileMode) error {
 			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the modules compile", path, tc.Note)
 
 		case len(reported) == 0:
-			// A clean compile is a transformation case. Unlike want_errors,
-			// want_modules is regenerated every time: it is the compiled form, and
-			// review of the diff is the gate.
+			// A clean compile is a transformation case. Unlike want_errors, want is
+			// regenerated every time; review of the diff is the gate.
 			if err := fillTransform(tc, caseNodes.Content[i]); err != nil {
 				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
 			}
@@ -138,9 +137,8 @@ func fillTransform(tc *compilecases.TestCase, node *yaml.Node) error {
 	return nil
 }
 
-// wantNode renders the entries, with the reason on any that had to fall back to the
-// AST form so that a reader of an unreadable fixture does not have to reproduce the
-// failure to find out why it is not Rego.
+// wantNode renders the entries, with the reason on any that fell back to the AST
+// form.
 func wantNode(want []compilecases.Want, reasons []string) *yaml.Node {
 	seq := &yaml.Node{Kind: yaml.SequenceNode}
 
@@ -159,7 +157,7 @@ func wantNode(want []compilecases.Want, reasons []string) *yaml.Node {
 		if len(w.Imports) > 0 {
 			corpusgen.SetMapValue(entry, "imports", corpusgen.StringsNode(w.Imports))
 			corpusgen.SetComment(entry,
-				"The compiler drops directive imports. A consumer has to put them in effect for parsing.")
+				"The compiler drops directive imports; a consumer must put them in effect.")
 		}
 		corpusgen.SetMapValue(entry, "module", corpusgen.Literal(w.Module))
 

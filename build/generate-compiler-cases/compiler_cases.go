@@ -39,17 +39,13 @@ type config struct {
 	directiveImports bool
 }
 
-// WithDirectiveImports rewrites want_modules to carry the imports the case declares
-// in want_modules_imports, and clears the field.
+// WithDirectiveImports rewrites each want entry's Module to carry its own imports,
+// and clears them, for a consumer that cannot put the directives in effect out of
+// band.
 //
-// For a consumer that cannot put those directives in effect out of band — because
-// its parser takes no such option, or because its compiler does not strip the
-// imports in the first place. The trade is that the expected module then has an
-// *import* OPA's compiled module does not, so it no longer parses to the same AST
-// OPA produces: use it when your pipeline keeps its imports, not to compare against
-// OPA.
-//
-// Nothing lands in the corpus; this is applied to what the loader returns.
+// The result then has imports OPA's compiled module does not, so it no longer parses
+// to the AST OPA produces: use it when your pipeline keeps its imports, not to
+// compare against OPA. Nothing lands in the corpus.
 func WithDirectiveImports() Option {
 	return func(c *config) { c.directiveImports = true }
 }
@@ -170,10 +166,8 @@ func readSets() ([]CompilerSet, error) {
 	return results, err
 }
 
-// addDirectiveImports puts back the imports the compiler resolved away, so that
-// want_modules parses with no options beyond its rego version. The result is a
-// module with imports the compiled one does not have, which is the point: it matches
-// a pipeline that keeps its imports rather than OPA, which does not.
+// addDirectiveImports puts back the imports the compiler dropped, so each expected
+// module parses with nothing but its rego version.
 func addDirectiveImports(sets []CompilerSet) error {
 	for _, set := range sets {
 		for _, tc := range set.Cases {
@@ -201,8 +195,8 @@ func addDirectiveImports(sets []CompilerSet) error {
 	return nil
 }
 
-// withImports inserts the imports after the package clause, which is where a
-// hand-written module carries them and the only place they are legal.
+// withImports inserts the imports after the package clause, the only place they are
+// legal.
 func withImports(module string, imports []string) (string, error) {
 	head, rest, found := strings.Cut(module, "\n")
 	if !found || !strings.HasPrefix(head, "package ") {

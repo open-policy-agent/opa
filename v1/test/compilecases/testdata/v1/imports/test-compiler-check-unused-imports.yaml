@@ -9,7 +9,7 @@ cases:
         import rego.v1
         r if { 10 == 10 }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [rego.v1]
         module: |
           package p

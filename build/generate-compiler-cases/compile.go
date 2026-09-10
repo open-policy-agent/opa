@@ -32,11 +32,9 @@ func parserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
 	return popts, nil
 }
 
-// caseDiagnostics compiles a case's modules and returns the diagnostics, sorted.
-// It is the counterpart of compiledModules, which returns what those modules
-// compiled to.
-// A module that does not parse is an error rather than a diagnostic: parse
-// behaviour belongs to the parser corpus, and this corpus does not re-assert it.
+// caseDiagnostics compiles a case's modules and returns the diagnostics, sorted. A
+// module that does not parse is an error rather than a diagnostic: parse behaviour
+// belongs to the parser corpus.
 func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 	popts, err := parserOptions(tc)
 	if err != nil {
@@ -53,9 +51,7 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 		reported = append(reported, caseError(e))
 	}
 
-	// The order the compiler reports in is not part of the contract — the runner
-	// matches as a set — but a generated file has to be stable, and a sorted one
-	// reads in source order.
+	// The runner matches as a set, but a generated file has to be stable.
 	slices.SortFunc(reported, func(a, b conformance.Error) int {
 		return cmp.Or(
 			cmp.Compare(a.ModuleOrDefault(), b.ModuleOrDefault()),
@@ -79,11 +75,9 @@ func caseError(e *ast.Error) conformance.Error {
 	return out
 }
 
-// compileCase parses and compiles a case's modules.
-//
-// Without lifting the error limit the compiler stops at CompileErrorLimitDefault
-// and appends a "too many errors" diagnostic of its own, so a case with more than
-// ten would record a truncated set. The runner lifts it for the same reason.
+// compileCase parses and compiles a case's modules. The error limit is lifted, or a
+// case with more than ten diagnostics would record a truncated set plus OPA's own
+// "too many errors"; the runner lifts it too.
 func compileCase(tc compilecases.TestCase, popts ast.ParserOptions) (*ast.Compiler, error) {
 	modules := make(map[string]*ast.Module, len(tc.Modules))
 	for i, src := range tc.Modules {
@@ -106,16 +100,9 @@ func compileCase(tc compilecases.TestCase, popts ast.ParserOptions) (*ast.Compil
 }
 
 // compiledWant returns what each of a case's modules compiles to: Rego where OPA's
-// printer can express it, and a marshalled AST where it cannot. Printing enters here
-// and nowhere else — the comparison the runner performs is between ASTs, so this is a
-// convenience for authoring a fixture, not part of the contract.
-//
-// The choice is made per module. A compiled form that has no Rego spelling does not
-// drag its neighbours into the AST form with it.
-//
-// formatModule checks its own output rather than assuming it: OPA's printer does not
-// always produce text that parses back to the AST it came from, and a fixture that
-// did not round-trip would assert something the compiler never produced.
+// printer can express it, marshalled AST where it cannot, chosen per module.
+// formatModule checks its own output, so a fixture never asserts something the
+// compiler did not produce.
 func compiledWant(tc compilecases.TestCase) ([]compilecases.Want, []string, error) {
 	popts, err := parserOptions(tc)
 	if err != nil {
@@ -165,8 +152,7 @@ func compiledWant(tc compilecases.TestCase) ([]compilecases.Want, []string, erro
 	return want, reasons, nil
 }
 
-// reasonFor is the short form of why a module could not be written as Rego, for the
-// comment the entry carries.
+// reasonFor is the short form of why, for the comment the entry carries.
 func reasonFor(err error) string {
 	if np, ok := errors.AsType[notPrintableError](err); ok {
 		return np.Reason()
@@ -174,8 +160,8 @@ func reasonFor(err error) string {
 	return err.Error()
 }
 
-// wantParserOptions is how the i-th Want entry's Module has to be parsed, as the
-// schema reads it.
+// wantParserOptions is how the i-th entry's Module has to be parsed, as the schema
+// reads it.
 func wantParserOptions(tc compilecases.TestCase, imports [][]string, i int) (ast.ParserOptions, error) {
 	with := tc
 	with.Want = make([]compilecases.Want, len(imports))
@@ -221,19 +207,13 @@ func marshalModule(mod *ast.Module) (string, error) {
 	return conformance.FormatAST(bs)
 }
 
-// directiveImports returns the directive imports a case's modules carry, as
-// written. The compiler resolves each away once it has taken effect, so the printed
-// output depends on them with nothing left to say so.
+// directiveImports returns the directive imports each of a case's modules carries, as
+// written, one list per module.
 //
-// Every one is reported, whether or not the compiled form still depends on it.
-// Deciding which are redundant would mean modelling what the compiler does to each,
-// and a case that quietly under-declares is worse than one asking a consumer for a
-// directive it did not need — the extra is harmless, the omission is a fixture
-// nobody can parse.
-//
-// An import under `future` or `rego` that the schema cannot interpret is an error
-// rather than something to skip: a new directive the harness does not know about
-// would otherwise vanish from the fixture silently.
+// Every one is reported, whether or not the compiled form still depends on it:
+// working out which are redundant would mean modelling what the compiler does to
+// each, and under-declaring leaves a fixture nobody can parse. An import the schema
+// cannot interpret is an error, so a new directive cannot vanish silently.
 func directiveImports(tc compilecases.TestCase, popts ast.ParserOptions) ([][]string, error) {
 	out := make([][]string, len(tc.Modules))
 
@@ -262,8 +242,7 @@ func directiveImports(tc compilecases.TestCase, popts ast.ParserOptions) ([][]st
 				continue
 			}
 
-			// Interpreted by the schema, so that what the generator writes and what a
-			// consumer reads cannot drift apart.
+			// Interpreted by the schema, so writer and reader cannot drift apart.
 			probe := compilecases.TestCase{Modules: []string{src}, Want: []compilecases.Want{{Imports: []string{path}}}}
 			if _, err := probe.WantParserOptions(0); err != nil {
 				return nil, fmt.Errorf("%s: %w; teach the generator and the schema what it means", name, err)
@@ -275,14 +254,11 @@ func directiveImports(tc compilecases.TestCase, popts ast.ParserOptions) ([][]st
 		slices.Sort(out[i])
 	}
 
-	// Always one list per module, empty where there is nothing to declare: the
-	// caller indexes it, and an entry with no imports simply writes none.
 	return out, nil
 }
 
-// importPath renders a directive import the way it is written, which Ref.String does
-// not: it renders the components after the first in bracket notation, so
-// `future.keywords.every` comes back as `future.keywords["every"]`.
+// importPath renders a directive import as written. Ref.String uses bracket notation
+// for the components after the first.
 func importPath(ref ast.Ref) (string, bool) {
 	v, ok := ref[0].Value.(ast.Var)
 	if !ok {

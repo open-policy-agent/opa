@@ -33,15 +33,10 @@ const DefaultModuleName = conformance.DefaultModuleName
 // RegoVersions are the accepted values of a case's rego_version.
 var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
 
-// Accepted values of a case's strict field. Strict mode is a boolean in the
-// compiler; these say whether the case's expectations depend on which way it is
-// set, which is what lets a consumer whose own strict mode is not switchable
-// decide which cases it can run.
-//
-// An absent value means strict mode is immaterial: the case asserts the same
-// thing either way, so any consumer can run it however its own compiler is
-// configured. OPA's runner compiles those with strict mode off, the compiler's
-// default.
+// Accepted values of a case's strict field. They say whether the case's
+// expectations depend on the setting, so a consumer whose own strict mode is not
+// switchable can tell which cases it can run. Absent means immaterial; OPA's runner
+// compiles those with strict mode off.
 const (
 	StrictEnabled  = "enabled"  // compile with strict mode on; the expectations depend on it
 	StrictDisabled = "disabled" // compile with strict mode off; the expectations depend on it
@@ -69,11 +64,8 @@ type TestCase struct {
 	WantErrors []Error `json:"want_errors,omitempty"  yaml:"want_errors,omitempty"` // diagnostics the compilation must produce
 	Exhaustive bool    `json:"exhaustive,omitempty"   yaml:"exhaustive,omitempty"`  // require want_errors to be the complete set, not a subset
 
-	// Want is what compiling produces, one entry per entry in Modules and in the
-	// same order.
-	//
-	// Generated, not authored: write the modules and the configuration, run
-	// `make generate`, and review the diff.
+	// Want is what compiling produces, one entry per module, in the same order.
+	// Generated, not authored: run `make generate` and review the diff.
 	Want []Want `json:"want,omitempty"  yaml:"want,omitempty"`
 }
 
@@ -93,37 +85,21 @@ func (tc TestCase) Failure() bool {
 	return len(tc.WantErrors) > 0
 }
 
-// Want is what one module compiles to, as Rego where OPA's printer can express it
-// and as a marshalled AST where it cannot. Exactly one of the two.
-//
-// The two live in one entry, rather than in lists a case has to keep aligned by
-// index, so that a module needing the AST form does not drag its neighbours into it —
-// and so that Imports sits with the module it belongs to.
+// Want is what one module compiles to: Rego where OPA's printer can express it,
+// marshalled AST where it cannot. Exactly one of the two, per module, so that an
+// unprintable module does not drag its neighbours into the AST form.
 type Want struct {
-	// Module is the Rego the corresponding input module compiles to. It is parsed
-	// and compared as an AST: how an implementation arrives at that AST, and whether
-	// it can print it back, is its own business.
+	// Module is compared as an AST. The Rego is only how it is written down.
 	Module string `json:"module,omitempty"  yaml:"module,omitempty"`
 
-	// Imports are the directive imports the input module carried, as written, which
-	// have to be in effect to parse Module.
-	//
-	// The compiler resolves a directive away once it has taken effect:
-	// `import future.keywords.or` disappears and the compiled form uses `or` as an
-	// operator with no import in sight, and `import rego.v1` disappears from a v0
-	// module whose compiled form then only parses as v1. There is no import to write
-	// back — adding one would produce a module whose AST has an import the compiled
-	// one does not.
-	//
-	// Per entry because directives do not carry across modules: one module may
-	// import `future.keywords.not` while its neighbour uses `not` as ordinary
-	// negation, and activating it for both would read the neighbour's `not q` as a
-	// Not node instead of a negated expression.
+	// Imports are the directive imports the input module carried, which the compiler
+	// dropped and which have to be in effect to parse Module. Per entry: they do not
+	// carry across modules, and `not` means different things with and without its
+	// import.
 	Imports []string `json:"imports,omitempty"  yaml:"imports,omitempty"`
 
-	// AST is the same assertion as Module, marshalled, for a compiled form that has
-	// no Rego spelling that parses back to it. Less legible and no weaker, so the
-	// generator reaches for it only where the round-trip fails.
+	// AST is the same assertion marshalled, for a compiled form with no Rego
+	// spelling that parses back to it.
 	AST string `json:"ast,omitempty"  yaml:"ast,omitempty"`
 }
 
@@ -200,21 +176,16 @@ func (tc TestCase) Validate() error {
 	return nil
 }
 
-// WantOptions is how one Want entry's Module has to be parsed: the case's own
-// rego_version unless a directive import overrides it, plus whatever keyword
-// activation those imports ask for.
-//
-// Expressed without reference to v1/ast, so that both OPA's runner and a consumer's
-// own tooling can map it onto their parser without this package depending on either.
+// WantOptions is how a Want entry's Module has to be parsed. Stated without
+// reference to v1/ast, so a consumer can map it onto its own parser.
 type WantOptions struct {
-	RegoVersion       string   // v0, v1 or v0-compat-v1
-	FutureKeywords    []string // keywords to activate by name
-	AllFutureKeywords bool     // activate every future keyword the version has
+	RegoVersion       string
+	FutureKeywords    []string
+	AllFutureKeywords bool
 }
 
-// WantParserOptions interprets the imports declared on the i-th Want entry. An
-// import it does not recognise is an error: these are directives, and one the corpus
-// cannot explain is one a consumer cannot honour.
+// WantParserOptions interprets the imports on the i-th Want entry. An import it does
+// not recognise is an error rather than a no-op.
 func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
 	out := WantOptions{RegoVersion: tc.RegoVersion}
 
@@ -225,9 +196,8 @@ func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
 	for _, imp := range tc.Want[i].Imports {
 		switch {
 		case imp == "rego.v1":
-			// The dialect the import selected, which the compiled module keeps and
-			// the printed form no longer says. v0-compat-v1 is not it: that mode
-			// requires the import, and the printed form does not carry one.
+			// Not v0-compat-v1: that mode requires the import the printed form no
+			// longer carries.
 			out.RegoVersion = "v1"
 
 		case imp == "future.keywords":

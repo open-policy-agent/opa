@@ -356,7 +356,7 @@ cases:
         	not { input := 1; data := 2 }
         }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.not]
         module: |
           package test
@@ -397,7 +397,7 @@ cases:
         	{ input := 1 } and { data := 2 }
         }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.and]
         module: |
           package test
@@ -438,7 +438,7 @@ cases:
         	{ input := 1 } or { data := 2 }
         }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.or]
         module: |
           package test

@@ -218,7 +218,7 @@ cases:
         	every x in foo { x > 1 }
         }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.every]
         module: |
           package p
@@ -239,7 +239,7 @@ cases:
         	every x in [1,2,3] { x > foo }
         }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.every]
         module: |
           package p
@@ -258,7 +258,7 @@ cases:
 
         r { true }
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords]
         module: |
           package p

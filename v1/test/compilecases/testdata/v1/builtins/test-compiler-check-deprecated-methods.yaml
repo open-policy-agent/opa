@@ -22,7 +22,7 @@ cases:
         all(arr) = {x | some x in arr} == {true}
         p := all([true, false])
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.in]
         module: |
           package test
@@ -56,7 +56,7 @@ cases:
         any(arr) := true in arr
         p := any([true, false])
     want:
-      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      # The compiler drops directive imports; a consumer must put them in effect.
       - imports: [future.keywords.in]
         module: |
           package test
