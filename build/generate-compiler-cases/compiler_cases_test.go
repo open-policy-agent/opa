@@ -5,8 +5,11 @@
 package cases
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 )
@@ -27,8 +30,8 @@ func TestLoadCompilerTestCases(t *testing.T) {
 			if tc.Ignore {
 				t.Errorf("%s: expected an unfiltered load to ignore nothing", tc.Note)
 			}
-			if !tc.Failure() && !tc.Transform() && !tc.Compiles {
-				t.Errorf("%s: expected want_errors, want_modules or compiles", tc.Note)
+			if !tc.Failure() && !tc.Transform() {
+				t.Errorf("%s: expected want_errors, want_modules or want_ast", tc.Note)
 			}
 			if other, ok := notes[tc.Note]; ok {
 				t.Errorf("%s: note is already used by %s", tc.Note, other)
@@ -221,4 +224,100 @@ func TestStrictModeFilterRejectsSomething(t *testing.T) {
 	if rejected == 0 {
 		t.Error("no committed case pins strict: disabled, so the filter is untested")
 	}
+}
+
+func TestWithDirectiveImports(t *testing.T) {
+	plain, err := LoadCompilerTestCases()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imported, err := LoadCompilerTestCases(WithDirectiveImports())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var rewritten int
+
+	for i, set := range imported {
+		for j, c := range set.Cases {
+			ref := plain[i].Cases[j]
+			if c.Note != ref.Note {
+				t.Fatalf("expected the option to preserve order, got %q where %q was", c.Note, ref.Note)
+			}
+
+			for k, want := range c.Want {
+				refWant := ref.Want[k]
+
+				if len(refWant.Imports) == 0 {
+					if want.Module != refWant.Module {
+						t.Errorf("%s: want[%d] declares no imports but was rewritten", c.Note, k)
+					}
+					continue
+				}
+				rewritten++
+
+				if len(want.Imports) > 0 {
+					t.Errorf("%s: want[%d] expected the declarations to be cleared, got %v", c.Note, k, want.Imports)
+				}
+
+				for _, path := range refWant.Imports {
+					if imp := "import " + path; !strings.Contains(want.Module, imp) {
+						t.Errorf("%s: want[%d] does not carry %q:\n%s", c.Note, k, imp, want.Module)
+					}
+				}
+
+				// The point of the option: it parses with nothing but the case's own
+				// rego version, no keyword activation and no dialect override.
+				v, verr := corpusgen.RegoVersion(c.RegoVersion)
+				if verr != nil {
+					t.Fatal(verr)
+				}
+				if _, perr := ast.ParseModuleWithOpts("want.rego", want.Module, ast.ParserOptions{RegoVersion: v}); perr != nil {
+					t.Errorf("%s: want[%d] does not parse unaided: %v\n%s", c.Note, k, perr, want.Module)
+				}
+			}
+		}
+	}
+
+	if rewritten == 0 {
+		t.Fatal("expected some entries to declare imports, so the option is exercised")
+	}
+}
+
+// TestDirectiveImportsDivergeFromOPA states the trade the option makes, so it is not
+// mistaken for a way to compare against OPA: the imported form has an import OPA's
+// compiled module does not, so the ASTs differ by exactly that.
+func TestDirectiveImportsDivergeFromOPA(t *testing.T) {
+	imported, err := LoadCompilerTestCases(WithDirectiveImports())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, set := range imported {
+		for _, c := range set.Cases {
+			idx := slices.IndexFunc(c.Want, func(w compilecases.Want) bool {
+				return strings.Contains(w.Module, "\nimport ")
+			})
+			if idx < 0 {
+				continue
+			}
+
+			v, verr := corpusgen.RegoVersion(c.RegoVersion)
+			if verr != nil {
+				t.Fatal(verr)
+			}
+
+			m, perr := ast.ParseModuleWithOpts("want.rego", c.Want[idx].Module, ast.ParserOptions{RegoVersion: v})
+			if perr != nil {
+				t.Fatal(perr)
+			}
+			if len(m.Imports) == 0 {
+				t.Errorf("%s: expected the rewritten module to carry imports", c.Note)
+			}
+			return
+		}
+	}
+
+	t.Fatal("expected at least one rewritten entry")
 }

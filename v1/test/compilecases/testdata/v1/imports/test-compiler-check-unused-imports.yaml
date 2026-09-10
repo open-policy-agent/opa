@@ -8,7 +8,15 @@ cases:
 
         import rego.v1
         r if { 10 == 10 }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [rego.v1]
+        module: |
+          package p
+
+          r = true if {
+          	10 = 10
+          }
   - note: imports/import-used-as-function-operand
     modules:
       - |
@@ -16,12 +24,27 @@ cases:
 
         import data.foo
         r = count(foo) > 1 # only one operand
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = __local1__ if {
+          	__local2__ = data.foo
+          	count(__local2__, __local0__)
+          	gt(__local0__, 1, __local1__)
+          }
   - note: imports/import-used-as-function-operand-compount-term
     modules:
-      - |
+      - |-
         package p
 
         import data.foo
         r = sprintf("%v %d", [foo, 0])
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = __local0__ if {
+          	__local1__ = data.foo
+          	sprintf("%v %d", [__local1__, 0], __local0__)
+          }

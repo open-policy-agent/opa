@@ -29,7 +29,13 @@ cases:
         r {
         	input.bar == 11
         }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	input.bar = 11
+          }
   - note: imports/unused-import-but-imported-ref-used-strict
     rego_version: v0
     strict: enabled
@@ -54,7 +60,13 @@ cases:
 
         import data.foo # unused
         r { data.foo == 10 }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.foo = 10
+          }
   - note: imports/one-of-two-unused-strict
     rego_version: v0
     strict: enabled
@@ -81,7 +93,13 @@ cases:
         import data.foo
         import data.x.power #unused
         r { foo == 10 }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.foo = 10
+          }
   - note: imports/multiple-unused-with-input-ref-of-same-name-strict
     rego_version: v0
     strict: enabled
@@ -112,7 +130,13 @@ cases:
         import data.foo
         import data.x.power
         r { input.foo == 10 }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	input.foo = 10
+          }
   - note: imports/import-used-in-comparison
     rego_version: v0
     modules:
@@ -121,7 +145,13 @@ cases:
 
         import data.foo.x
         r { x == 10 }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.foo.x = 10
+          }
   - note: imports/multiple-used-imports-in-one-rule
     rego_version: v0
     modules:
@@ -131,7 +161,13 @@ cases:
         import data.foo.x
         import data.power.ranger
         r { ranger == x }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.power.ranger = data.foo.x
+          }
   - note: imports/multiple-used-imports-in-separate-rules
     rego_version: v0
     modules:
@@ -142,7 +178,17 @@ cases:
         import data.power.ranger
         r { ranger == 23 }
         t { x == 1 }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.power.ranger = 23
+          }
+
+          t = true {
+          	data.foo.x = 1
+          }
   - note: imports/import-used-as-plain-term
     rego_version: v0
     modules:
@@ -153,7 +199,13 @@ cases:
         r {
         	foo
         }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.foo
+          }
   - note: imports/import-used-in-every-domain
     rego_version: v0
     modules:
@@ -165,7 +217,16 @@ cases:
         r {
         	every x in foo { x > 1 }
         }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.every]
+        module: |
+          package p
+
+          r = true {
+          	__local2__ = data.foo
+          	every __local0__, __local1__ in __local2__ { gt(__local1__, 1) }
+          }
   - note: imports/import-used-in-every-body
     rego_version: v0
     modules:
@@ -177,7 +238,16 @@ cases:
         r {
         	every x in [1,2,3] { x > foo }
         }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.every]
+        module: |
+          package p
+
+          r = true {
+          	__local2__ = [1, 2, 3]
+          	every __local0__, __local1__ in __local2__ { __local3__ = data.foo; gt(__local1__, __local3__) }
+          }
   - note: imports/future-import-kept-even-if-unused
     rego_version: v0
     modules:
@@ -187,7 +257,15 @@ cases:
         import future.keywords
 
         r { true }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords]
+        module: |
+          package p
+
+          r = true {
+          	true
+          }
   - note: imports/shadowed-var-name-in-function-arg-strict
     rego_version: v0
     strict: enabled
@@ -216,7 +294,17 @@ cases:
 
         r { f(1) }
         f(foo) = foo == 1
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	data.p.f(1)
+          }
+
+          f(__local0__) = __local1__ {
+          	equal(__local0__, 1, __local1__)
+          }
   - note: imports/shadowed-assigned-var-name-strict
     rego_version: v0
     strict: enabled
@@ -243,7 +331,14 @@ cases:
         import data.foo # unused
 
         r { foo := true; foo }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = true {
+          	__local0__ = true
+          	__local0__
+          }
   - note: imports/used-as-rule-value-strict
     rego_version: v0
     strict: enabled
@@ -272,7 +367,13 @@ cases:
         import data.foo
 
         r = foo { true }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = __local0__ {
+          	__local0__ = data.foo
+          }
   - note: imports/unused-as-rule-value-but-same-data-ref-strict
     rego_version: v0
     strict: enabled
@@ -298,11 +399,17 @@ cases:
     rego_version: v0
     strict: disabled
     modules:
-      - |
+      - |-
         package p
 
         import data.bar # unused
         import data.foo # unused
 
         r = data.foo { true }
-    compiles: true
+    want:
+      - module: |
+          package p
+
+          r = __local0__ {
+          	__local0__ = data.foo
+          }

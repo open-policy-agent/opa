@@ -5,6 +5,7 @@
 package cases
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -263,8 +264,8 @@ func TestFormatModuleRejectsWhatItCannotVerify(t *testing.T) {
 }
 
 // TestFormatModuleRejectsUnparseableOutput covers the other branch. The compiler
-// rewrites the operands of `and` into bodies with local assignments, and the
-// printer renders a body in that position as `{ ... }`, which reparses as a set.
+// resolves `import future.keywords.and` away and the printer does not put it back,
+// so the text only parses with the keyword already active.
 func TestFormatModuleRejectsUnparseableOutput(t *testing.T) {
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV0}
 
@@ -282,7 +283,72 @@ func TestFormatModuleRejectsUnparseableOutput(t *testing.T) {
 
 	if _, err := formatModule(c.Modules["t.rego"], popts); err == nil {
 		t.Error("expected the check to reject this")
-	} else if want := "does not parse"; !strings.Contains(err.Error(), want) {
+	} else if want := "needs `import future.keywords.and`"; !strings.Contains(err.Error(), want) {
 		t.Errorf("expected an error containing %q, got %v", want, err)
+	}
+}
+
+// TestParseFailureReasonNamesTheMissingImport pins the diagnosis, because the
+// parse error it replaces points somewhere else entirely: without `or` active,
+// `{ x = 1 } or { y = 2 }` reads as an unterminated set, and the message says so
+// rather than saying the import is missing.
+func TestParseFailureReasonNamesTheMissingImport(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		keyword string
+	}{
+		{
+			note:    "or",
+			module:  "package test\n\nimport future.keywords.or\np {\n\t{ input := 1 } or { data := 2 }\n}\n",
+			keyword: "or",
+		},
+		{
+			note:    "and",
+			module:  "package test\n\nimport future.keywords.and\np {\n\t{ input := 1 } and { data := 2 }\n}\n",
+			keyword: "and",
+		},
+		{
+			note:    "not",
+			module:  "package test\n\nimport future.keywords.not\np {\n\tnot { input := 1; data := 2 }\n}\n",
+			keyword: "not",
+		},
+		{
+			note:    "every",
+			module:  "package test\n\nimport future.keywords.every\np {\n\tevery x in [1, 2] { x > 1 }\n}\n",
+			keyword: "every",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := ast.ParserOptions{RegoVersion: ast.RegoV0}
+
+			m, err := ast.ParseModuleWithOpts("t.rego", tc.module, popts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			c := ast.NewCompiler().SetErrorLimit(0)
+			c.Compile(map[string]*ast.Module{"t.rego": m})
+			if c.Failed() {
+				t.Fatalf("unexpected compile errors: %v", c.Errors)
+			}
+
+			_, ferr := formatModule(c.Modules["t.rego"], popts)
+			if ferr == nil {
+				t.Fatal("expected the module to be unprintable")
+			}
+
+			np, ok := errors.AsType[notPrintableError](ferr)
+			if !ok {
+				t.Fatalf("expected a notPrintableError, got %T", ferr)
+			}
+
+			want := "`import future.keywords." + tc.keyword + "`"
+			if !strings.Contains(np.Reason(), want) {
+				t.Errorf("expected the reason to name %s, got: %s", want, np.Reason())
+			}
+		})
 	}
 }

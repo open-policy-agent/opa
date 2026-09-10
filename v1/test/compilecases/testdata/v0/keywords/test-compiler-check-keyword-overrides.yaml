@@ -31,7 +31,21 @@ cases:
         input { true }
         p { true }
         data { true }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          input = true {
+          	true
+          }
+
+          p = true {
+          	true
+          }
+
+          data = true {
+          	true
+          }
   - note: keywords/rule-names-set-construction-strict
     rego_version: v0
     strict: enabled
@@ -62,7 +76,21 @@ cases:
         input.a { true }
         p { true }
         data.b { true }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          input["a"] {
+          	true
+          }
+
+          p = true {
+          	true
+          }
+
+          data["b"] {
+          	true
+          }
   - note: keywords/rule-names-object-construction-strict
     rego_version: v0
     strict: enabled
@@ -93,7 +121,21 @@ cases:
         input.a := 1 { true }
         p { true }
         data.b := 2 { true }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          input.a := 1 {
+          	true
+          }
+
+          p = true {
+          	true
+          }
+
+          data.b := 2 {
+          	true
+          }
   - note: keywords/leading-term-in-rule-refs-strict
     rego_version: v0
     strict: enabled
@@ -124,7 +166,21 @@ cases:
         input.a.b { true }
         p { true }
         data.b.c := "foo" { true }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          input.a.b = true {
+          	true
+          }
+
+          p = true {
+          	true
+          }
+
+          data.b.c := "foo" {
+          	true
+          }
   - note: keywords/global-assignments-non-strict
     rego_version: v0
     strict: disabled
@@ -135,7 +191,21 @@ cases:
         input = 1
         p := 2
         data := 3
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          input = 1 {
+          	true
+          }
+
+          p := 2 {
+          	true
+          }
+
+          data := 3 {
+          	true
+          }
   - note: keywords/rule-local-assignments-strict
     rego_version: v0
     strict: enabled
@@ -182,7 +252,20 @@ cases:
         q {
         	input := 4
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p = true {
+          	__local0__ = 1
+          	__local1__ = 2
+          } else = true {
+          	__local2__ = 3
+          }
+
+          q = true {
+          	__local3__ = 4
+          }
   - note: keywords/array-comprehension-local-assignments-non-strict
     rego_version: v0
     strict: disabled
@@ -195,7 +278,13 @@ cases:
         	x := 2
         	data := 3
         ]
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p = __local3__ {
+          	__local3__ = [__local1__ | __local0__ = 1; __local1__ = 2; __local2__ = 3]
+          }
   - note: keywords/set-comprehension-local-assignments-non-strict
     rego_version: v0
     strict: disabled
@@ -208,7 +297,13 @@ cases:
         	x := 2
         	data := 3
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p = __local3__ {
+          	__local3__ = {__local1__ | __local0__ = 1; __local1__ = 2; __local2__ = 3}
+          }
   - note: keywords/object-comprehension-local-assignments-non-strict
     rego_version: v0
     strict: disabled
@@ -221,7 +316,13 @@ cases:
         	x := 2
         	data := 3
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p = __local3__ {
+          	__local3__ = {__local1__: 1 | __local0__ = 1; __local1__ = 2; __local2__ = 3}
+          }
   - note: keywords/not-local-assignments-strict
     rego_version: v0
     strict: enabled
@@ -254,7 +355,15 @@ cases:
         p {
         	not { input := 1; data := 2 }
         }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.not]
+        module: |
+          package test
+
+          p = true {
+          	not {__local0__ = 1; __local1__ = 2}
+          }
   - note: keywords/and-local-assignments-strict
     rego_version: v0
     strict: enabled
@@ -287,7 +396,15 @@ cases:
         p {
         	{ input := 1 } and { data := 2 }
         }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.and]
+        module: |
+          package test
+
+          p = true {
+          	{ __local0__ = 1 } and { __local1__ = 2 }
+          }
   - note: keywords/or-local-assignments-strict
     rego_version: v0
     strict: enabled
@@ -320,7 +437,15 @@ cases:
         p {
         	{ input := 1 } or { data := 2 }
         }
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true {
+          	{ __local0__ = 1 } or { __local1__ = 2 }
+          }
   - note: keywords/nested-override-strict
     rego_version: v0
     strict: enabled
@@ -349,7 +474,7 @@ cases:
     rego_version: v0
     strict: disabled
     modules:
-      - |
+      - |-
         package test
 
         p {
@@ -359,4 +484,10 @@ cases:
         		data := 3
         	]
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p = true {
+          	[__local1__ | __local0__ = 1; __local1__ = 2; __local2__ = 3]
+          }

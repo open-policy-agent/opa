@@ -115,8 +115,8 @@ func TestGenerateReproducesCommittedFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Only a failure case has want_errors to strip; a compiles case asserts that
-	// there is nothing to fill in.
+	// Only a failure case has want_errors to strip; a transformation case asserts
+	// what its modules compile to instead.
 	var failures int
 	for _, tc := range committed.Cases {
 		if tc.Failure() {
@@ -380,11 +380,10 @@ cases:
 	}
 }
 
-func TestGenerateAcceptsCompiles(t *testing.T) {
+func TestGenerateFillsInACleanCompile(t *testing.T) {
 	corpus := `---
 cases:
-  - note: safety/compiles
-    compiles: true
+  - note: transforms/clean-compile
     modules:
       - |
         package test
@@ -405,21 +404,24 @@ cases:
 		t.Fatal(err)
 	}
 
-	// The assertion is that there is nothing to fill in, so the file is untouched.
-	bs, err := os.ReadFile(path)
+	set, err := compilecases.Load(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(bs) != corpus {
-		t.Errorf("expected the file to be untouched, got:\n%s", string(bs))
+	if !set.Cases[0].Transform() {
+		t.Errorf("expected the clean compile to be filled in as a transformation, got %#v", set.Cases[0])
 	}
 }
 
-func TestGenerateRejectsCompilesThatDoesNot(t *testing.T) {
+func TestGenerateRejectsATransformThatReportsDiagnostics(t *testing.T) {
 	corpus := `---
 cases:
   - note: safety/does-not-compile
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p = true if { true }
     modules:
       - |
         package test
@@ -438,14 +440,14 @@ cases:
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
-	if want := "asserts 'compiles', but the modules report 1 diagnostic(s)"; !strings.Contains(err.Error(), want) {
+	if want := "they report 1 diagnostic(s)"; !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected an error containing %q, got %v", want, err)
 	}
 }
 
 func TestGenerateSeedsWantModules(t *testing.T) {
-	// A case with no want_errors and no compiles is a transformation case: the
-	// generator fills in what the modules compile to.
+	// A case with no want_errors is a transformation case: the generator fills in
+	// what the modules compile to.
 	corpus := `---
 cases:
   - note: transforms/import-resolved
@@ -476,8 +478,8 @@ cases:
 	}
 
 	want := "package test\n\np = true if {\n\tdata.other.thing = 1\n}\n"
-	if got := set.Cases[0].WantModules; len(got) != 1 || got[0] != want {
-		t.Errorf("expected %q, got %q", want, got)
+	if got := set.Cases[0].Want; len(got) != 1 || got[0].Module != want {
+		t.Errorf("expected %q, got %+v", want, got)
 	}
 
 	first, err := os.ReadFile(path)
@@ -513,11 +515,11 @@ cases:
         p if {
         	true
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = "something else entirely" if { true }
+          p = "something else entirely" if { true }
 `
 
 	dir := t.TempDir()
@@ -533,7 +535,7 @@ cases:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := set.Cases[0].WantModules[0]; strings.Contains(got, "something else") {
+	if got := set.Cases[0].Want[0].Module; strings.Contains(got, "something else") {
 		t.Errorf("expected the stale expectation to be regenerated, got %q", got)
 	}
 }
@@ -549,11 +551,11 @@ cases:
         p if {
         	x == 2
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if { true }
+          p = true if { true }
 `
 
 	dir := t.TempDir()
@@ -565,15 +567,16 @@ cases:
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
-	if want := "asserts 'want_modules', but the modules report 1 diagnostic(s)"; !strings.Contains(err.Error(), want) {
+	if want := "they report 1 diagnostic(s)"; !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected an error containing %q, got %v", want, err)
 	}
 }
 
-// TestGenerateRefusesToSeedWhatItCannotRoundTrip pins the check that makes a
-// seeded want_modules trustworthy: Module.String() does not always produce text
-// that parses back to the AST it came from, and `else :=` is one such case.
-func TestGenerateRefusesToSeedWhatItCannotRoundTrip(t *testing.T) {
+// TestGenerateFallsBackToWantAST covers the choice the generator makes for the
+// author. `else :=` is a compiled form OPA's printer cannot write as Rego that
+// parses back to it, so the case gets a marshalled AST instead — and the decision
+// is taken by attempting the round-trip, not by anything in the case.
+func TestGenerateFallsBackToWantAST(t *testing.T) {
 	corpus := `---
 cases:
   - note: transforms/else-assign
@@ -591,11 +594,124 @@ cases:
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
-	if err == nil {
-		t.Fatal("expected generation to be rejected")
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
 	}
-	if want := "parses to a different AST"; !strings.Contains(err.Error(), want) {
-		t.Fatalf("expected an error containing %q, got %v", want, err)
+
+	set, err := compilecases.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tc := set.Cases[0]
+	if len(tc.Want) != 1 {
+		t.Fatalf("expected one entry, got %d", len(tc.Want))
+	}
+	if tc.Want[0].Module != "" {
+		t.Errorf("expected no module, got %q", tc.Want[0].Module)
+	}
+	if !strings.Contains(tc.Want[0].AST, `"assign": true`) {
+		t.Errorf("expected the AST to record the assignment the printer drops, got:\n%s", tc.Want[0].AST)
+	}
+}
+
+// TestGenerateSwitchesBackFromWantAST checks the other direction: a case whose
+// compiled form becomes printable loses its want_ast rather than carrying both.
+func TestGenerateSwitchesBackFromWantAST(t *testing.T) {
+	corpus := `---
+cases:
+  - note: transforms/printable
+    modules:
+      - |
+        package test
+
+        p if {
+        	true
+        }
+    want:
+      - ast: |
+          {}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	set, err := compilecases.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tc := set.Cases[0]
+	if len(tc.Want) != 1 {
+		t.Fatalf("expected one entry, got %d", len(tc.Want))
+	}
+	if tc.Want[0].AST != "" {
+		t.Errorf("expected the AST form to be dropped, got %q", tc.Want[0].AST)
+	}
+	if tc.Want[0].Module == "" {
+		t.Error("expected a module")
+	}
+}
+
+// TestGenerateExplainsTheWantASTFallback checks that an unreadable fixture says
+// why it is unreadable. Without it a reader has to reproduce the printer failure
+// to find out why the case is not want_modules.
+func TestGenerateExplainsTheWantASTFallback(t *testing.T) {
+	corpus := `---
+cases:
+  - note: transforms/else-assign
+    modules:
+      - |
+        package test
+
+        p := 1 if {
+        	input.x
+        } else := 2
+`
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-cases.yaml")
+	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{
+		"# ast rather than module",
+		"parses to a different AST",
+		// The disqualifying expression, so the reason is checkable rather than
+		// merely stated. The printer wrote `else = 2` where the source says `:=`.
+		// Matched in a fragment that survives the comment being wrapped.
+		"else = 2",
+	} {
+		if !bytes.Contains(bs, []byte(want)) {
+			t.Errorf("expected the fixture to explain the fallback with %q, got:\n%s", want, bs)
+		}
+	}
+
+	// Regenerating replaces the comment rather than stacking another copy.
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
+	}
+	again, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := bytes.Count(again, []byte("ast rather than module")); n != 1 {
+		t.Errorf("expected one explanation, got %d:\n%s", n, again)
 	}
 }

@@ -42,7 +42,8 @@ place that says so. To re-seed a case after a deliberate change, delete its
 `want_errors` and regenerate.
 
 A case has to assert something, so one that neither reports diagnostics nor states
-what compiling its modules produces is rejected.
+what compiling its modules produces is rejected. An absent `want_errors` is itself
+an assertion: nothing may be reported.
 
 A module must not carry trailing whitespace on a line. A YAML emitter will not
 write a block scalar for such a value, so the generator — which rewrites the
@@ -60,7 +61,7 @@ so the module stays exactly as authored.
 | `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
 | `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
-| `want_modules` | the Rego each module compiles to, one per module — see [Transformations](#transformations) |
+| `want` | what compiling produces, one entry per module — see [Transformations](#transformations) |
 
 Activate a future keyword with an `import` in the module rather than a field on
 the case, for the reason the [parser corpus](../parsercases/README.md#future-keywords)
@@ -69,8 +70,8 @@ it. `experimental_keywords` has no import form, so it stays a field.
 
 ## Transformations
 
-`want_modules` says what compiling the case's modules produces, one entry per
-entry in `modules` and in the same order:
+`want` says what compiling the case's modules produces, one entry per entry in
+`modules` and in the same order:
 
 ```yaml
     modules:
@@ -82,59 +83,137 @@ entry in `modules` and in the same order:
         p if {
         	thing == 1
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if { data.other.thing = 1 }
+          p = true if {
+          	data.other.thing = 1
+          }
 ```
 
 The import is resolved and dropped, the implied rule value is made explicit, and
 `==` becomes unification — three things the compiler does that an implementation
 has to do too.
 
-**The comparison is between ASTs, not between text.** `want_modules` is parsed
-under the case's `rego_version` and compared to the compiled module; the Rego is
-only how the expectation is written down. An implementation that never prints Rego
-can compare however it likes, and one whose printer differs from OPA's is not
-penalised for it.
+**The comparison is between ASTs, not between text.** `module` is parsed under the
+case's `rego_version` and compared to the compiled module; the Rego is only how the
+expectation is written down. An implementation that never prints Rego can compare
+however it likes, and one whose printer differs from OPA's is not penalised for it.
 
-A case with `want_modules` and no `want_errors` also asserts that nothing was
-reported: an absent `want_errors` means no diagnostics.
+A case with `want` and no `want_errors` also asserts that nothing was reported: an
+absent `want_errors` means no diagnostics.
 
 **Generated, not authored.** Write `modules` plus the configuration, run
-`make generate`, and review what comes out. Unlike `want_errors`, `want_modules`
-is regenerated every time — it is the compiled form, so review of the diff is the
-gate, and CI fails if someone changes the compiler without regenerating.
+`make generate`, and review what comes out. Unlike `want_errors`, `want` is
+regenerated every time — it is the compiled form, so review of the diff is the gate,
+and CI fails if someone changes the compiler without regenerating.
 
-The layout is one expression per line, which is how the Rego was written before
-the compiler got to it. That is not `v1/format` — the formatter normalises as it
-prints, so its output parses to a *different* AST than the one it was given, and
-only two thirds of modules survive it. The generator instead breaks the bodies of
-OPA's own one-line rendering, so every token still comes from OPA's printer and
-nothing about v0 or v1 syntax is reimplemented.
+The layout is one expression per line, which is how the Rego was written before the
+compiler got to it. That is not `v1/format` — the formatter normalises as it prints,
+so its output parses to a *different* AST than the one it was given, and only two
+thirds of modules survive it. The generator instead breaks the bodies of OPA's own
+one-line rendering, so every token still comes from OPA's printer and nothing about
+v0 or v1 syntax is reimplemented.
 
-The seed comes from printing the compiled AST, and the generator checks the
-round-trip rather than assuming it: the text is parsed back and compared to the AST
-it came from, and the case is rejected if they differ. OPA's printer does not
-always survive that — `else :=` is emitted as `else =`, for one — and a fixture
-that did not round-trip would assert something the compiler never produced.
-
-**Generated variable names are part of the assertion.** Hoisting and local
-rewriting introduce variables, and the AST comparison includes their names:
+**Generated variable names are part of the assertion.** Hoisting and local rewriting
+introduce variables, and the AST comparison includes their names:
 
 ```yaml
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if { __local0__ = data.test.q; [__local0__] }
+          p = true if {
+          	__local0__ = data.test.q
+          	[__local0__]
+          }
 ```
 
-That does hold an implementation to OPA's naming, which is more than the corpus
-asks anywhere else. There is no way around it while the assertion is an AST: a
+That does hold an implementation to OPA's naming, which is more than the corpus asks
+anywhere else. There is no way around it while the assertion is an AST: a
 transformation that introduces a variable has to name it. Worth knowing before
 running these cases rather than discovering it in a diff.
+
+### `imports`: directives the compiler resolved away
+
+The compiler resolves a directive import away once it has taken effect.
+`import future.keywords.or` disappears and the compiled form uses `or` as an operator
+with no import in sight; `import rego.v1` disappears from a v0 module whose compiled
+form then only parses as v1. The entry records what was there:
+
+```yaml
+    want:
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true {
+          	{ __local0__ = 1 } or { __local1__ = 2 }
+          }
+```
+
+| entry | effect on parsing `module` |
+| - | - |
+| `future.keywords.<kw>` | activate that keyword |
+| `future.keywords` | activate every future keyword the version has |
+| `rego.v1` | parse as `v1`, whatever the case's `rego_version` says |
+
+Writing the import back into `module` is not an option: a module carrying one has an
+import the compiled module does not, so it would no longer parse to the AST OPA
+produced. Declaring it is also the more useful of the two, because it says out loud
+what a consumer's parser has to have in effect — which an import buried in generated
+Rego would not.
+
+**It sits on the entry, not on the case**, because directives do not carry across
+modules. One module may import `future.keywords.not` while its neighbour uses `not`
+as ordinary negation; activating it for both would read the neighbour's `not q` as a
+`Not` node instead of a negated expression, and its expected form would no longer
+match what the compiler produced. `TestCompilerNotImport` alone has 41 such cases
+waiting to be externalized.
+
+**Every directive the module imports is listed**, whether or not the compiled form
+still depends on it. Deciding which are redundant would mean modelling what the
+compiler does to each; an extra entry costs a consumer nothing, while a missing one
+leaves a fixture nobody can parse. An import the schema cannot interpret fails
+generation rather than being skipped, so a directive the corpus does not know about
+cannot vanish from a fixture silently.
+
+If your parser cannot be told any of this, or your compiler does not strip the
+imports in the first place, the loader will put them back:
+
+```go
+sets, err := cases.LoadCompilerTestCases(cases.WithDirectiveImports())
+```
+
+That rewrites each `module` to carry its own imports and clears the field. The trade
+is that the result then has imports OPA's compiled module does not, so it no longer
+parses to the AST OPA produces — use it when your pipeline keeps its imports, not to
+compare against OPA.
+
+### `ast`: where the compiled form has no Rego spelling
+
+The seed for `module` comes from printing the compiled AST, and the generator checks
+the round-trip rather than assuming it: the text is parsed back and compared to the
+AST it came from. OPA's printer does not always survive that — `else :=` is emitted as
+`else =` — and a fixture that did not round-trip would assert something the compiler
+never produced.
+
+Where it does not survive, the entry carries **`ast`** instead: the same assertion,
+marshalled. Less legible and no weaker, so it is the fallback rather than the default,
+and the generator picks per module by attempting the round-trip. One module needing it
+does not drag its neighbours in.
+
+Such an entry carries a generated comment naming what disqualified it, so an
+unreadable fixture says why it is unreadable:
+
+```yaml
+    want:
+      # ast rather than module: the compiled rule `p := 1 if { input.x } else = 2
+      # if { true }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+```
 
 ## Several modules
 

@@ -16,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -76,7 +77,7 @@ func generateFile(path string, mode fs.FileMode) error {
 		tc := &set.Cases[i]
 		*tc = tc.WithFilename(path)
 
-		astJSON.SetOptions(parsercases.MarshalOptions(tc.Locations, false))
+		astJSON.SetOptions(conformance.MarshalOptions(tc.Locations, false))
 		module, perr := parseModule(*tc, tc.Module)
 
 		switch {

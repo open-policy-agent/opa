@@ -76,7 +76,14 @@ cases:
         	input.test == "foo"
         	x = 1
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          func(__local0__, __local1__) = true if {
+          	input.test = "foo"
+          	__local0__ = 1
+          }
   - note: functions/wildcard-argvar-that-s-ignored-issue-5602-regression-test-2
     strict: enabled
     modules:
@@ -100,7 +107,13 @@ cases:
         func(x) := x if {
         	input.test == "foo"
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          func(__local0__) := __local0__ if {
+          	input.test = "foo"
+          }
   - note: functions/argvar-not-used-in-body-but-in-head-value-comprehension
     modules:
       - |
@@ -110,7 +123,18 @@ cases:
         func(x) := { x: v | v := a[x] } if {
         	input.test == "foo"
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          a := {"foo": 1} if {
+          	true
+          }
+
+          func(__local0__) := __local2__ if {
+          	input.test = "foo"
+          	__local2__ = {__local0__: __local1__ | __local1__ = data.test.a[__local0__]}
+          }
   - note: functions/argvar-not-used-in-body-but-in-else-head-value-comprehension
     modules:
       - |
@@ -122,7 +146,246 @@ cases:
         } else := { x: v | v := a[x] } if {
         	input.test == "bar"
         }
-    compiles: true
+    want:
+      # ast rather than module: the compiled rule `func(__local0__) = true if {
+      # input.test = "foo" } else = __local2__ if { input.test = "bar"; __local2__
+      # = {__local0__: __local1__ | __local1__ = data.test.a[__local0__]} }`
+      # prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "name": "a",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    }
+                  ],
+                  "value": {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "string",
+                          "value": "foo"
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "value": "bar"
+                        }
+                      ]
+                    },
+                    {
+                      "generated": true,
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local2__"
+                        },
+                        {
+                          "type": "objectcomprehension",
+                          "value": {
+                            "body": [
+                              {
+                                "index": 0,
+                                "terms": [
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "eq"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "__local1__"
+                                  },
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "data"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "value": "test"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "value": "a"
+                                      },
+                                      {
+                                        "type": "var",
+                                        "value": "__local0__"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "key": {
+                              "type": "var",
+                              "value": "__local0__"
+                            },
+                            "value": {
+                              "type": "var",
+                              "value": "__local1__"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ],
+                    "assign": true,
+                    "name": "func",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "func"
+                      }
+                    ],
+                    "value": {
+                      "type": "var",
+                      "value": "__local2__"
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  ],
+                  "name": "func",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "func"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
   - note: functions/argvar-not-used-in-body-and-shadowed-in-head-value-comprehension
     strict: enabled
     modules:
@@ -149,7 +412,136 @@ cases:
         } else := false if {
         	input.test == "foo"
         }
-    compiles: true
+    want:
+      # ast rather than module: the compiled rule `func(__local0__) = true if {
+      # input.test = __local0__ } else = false if { input.test = "foo" }` prints
+      # as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "value": "foo"
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ],
+                    "assign": true,
+                    "name": "func",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "func"
+                      }
+                    ],
+                    "value": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  ],
+                  "name": "func",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "func"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
   - note: functions/argvar-used-in-primary-body-but-not-in-else-body-with-wildcard
     modules:
       - |
@@ -160,7 +552,144 @@ cases:
         } else := false if {
         	input.test == "foo"
         }
-    compiles: true
+    want:
+      # ast rather than module: the compiled rule `func(__local0__, __local1__) =
+      # true if { input.test = __local0__ } else = false if { input.test = "foo"
+      # }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "value": "foo"
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$1"
+                      }
+                    ],
+                    "assign": true,
+                    "name": "func",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "func"
+                      }
+                    ],
+                    "value": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    },
+                    {
+                      "type": "var",
+                      "value": "__local1__"
+                    }
+                  ],
+                  "name": "func",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "func"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
   - note: functions/argvar-not-used-in-primary-body-but-in-else-body
     modules:
       - |
@@ -171,7 +700,136 @@ cases:
         } else := false if {
         	input.test == x
         }
-    compiles: true
+    want:
+      # ast rather than module: the compiled rule `func(__local0__) = true if {
+      # input.test = "foo" } else = false if { input.test = __local0__ }` prints
+      # as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local0__"
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ],
+                    "assign": true,
+                    "name": "func",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "func"
+                      }
+                    ],
+                    "value": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  ],
+                  "name": "func",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "func"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
   - note: functions/argvar-not-used-in-primary-body-but-in-else-body-with-wildcard
     modules:
       - |
@@ -182,7 +840,144 @@ cases:
         } else := false if {
         	input.test == x
         }
-    compiles: true
+    want:
+      # ast rather than module: the compiled rule `func(__local0__, __local1__) =
+      # true if { input.test = "foo" } else = false if { input.test = __local0__
+      # }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local0__"
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$1"
+                      }
+                    ],
+                    "assign": true,
+                    "name": "func",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "func"
+                      }
+                    ],
+                    "value": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    },
+                    {
+                      "type": "var",
+                      "value": "__local1__"
+                    }
+                  ],
+                  "name": "func",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "func"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
   - note: functions/argvar-used-in-primary-body-but-not-in-implicit-else-body
     modules:
       - |
@@ -191,7 +986,112 @@ cases:
         func(x) if {
         	input.test == x
         } else := false
-    compiles: true
+    want:
+      # ast rather than module: the compiled rule `func(__local0__) = true if {
+      # input.test = __local0__ } else = false if { true }` prints as Rego that
+      # parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "boolean",
+                        "value": true
+                      }
+                    }
+                  ],
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ],
+                    "assign": true,
+                    "name": "func",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "func"
+                      }
+                    ],
+                    "value": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  ],
+                  "name": "func",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "func"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
   - note: functions/argvars-usage-spread-over-multiple-bodies
     modules:
       - |
@@ -204,7 +1104,17 @@ cases:
         } else if {
         	input.test == z
         }
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          func(__local0__, __local1__, __local2__) = true if {
+          	input.test = __local0__
+          } else = true if {
+          	input.test = __local1__
+          } else = true if {
+          	input.test = __local2__
+          }
   - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-first
     strict: enabled
     modules:

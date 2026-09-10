@@ -15,13 +15,13 @@ cases:
         p if {
         	thing == 1
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if {
-        	data.other.thing = 1
-        }
+          p = true if {
+          	data.other.thing = 1
+          }
   - note: transforms/import-alias-resolved
     modules:
       - |
@@ -32,13 +32,13 @@ cases:
         p if {
         	t == 1
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if {
-        	data.other.thing = 1
-        }
+          p = true if {
+          	data.other.thing = 1
+          }
   - note: transforms/rule-head-value-made-explicit
     # A rule with no value is a rule whose value is true, and the compiler says so
     # rather than leaving it implied.
@@ -49,13 +49,13 @@ cases:
         p if {
         	true
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if {
-        	true
-        }
+          p = true if {
+          	true
+          }
   - note: transforms/double-eq-becomes-unification
     # `==` is a builtin call and `=` is unification. Where the result is not used,
     # the compiler rewrites the comparison to the cheaper form.
@@ -67,14 +67,14 @@ cases:
         	x := 1
         	x == 1
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if {
-        	__local0__ = 1
-        	__local0__ = 1
-        }
+          p = true if {
+          	__local0__ = 1
+          	__local0__ = 1
+          }
   - note: transforms/dynamic-term-hoisted-out-of-a-collection
     # A ref inside a composite cannot be evaluated in place, so it is hoisted into
     # a local assignment ahead of the expression that uses it.
@@ -87,18 +87,18 @@ cases:
         p if {
         	[q]
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        q := 1 if {
-        	true
-        }
+          q := 1 if {
+          	true
+          }
 
-        p = true if {
-        	__local0__ = data.test.q
-        	[__local0__]
-        }
+          p = true if {
+          	__local0__ = data.test.q
+          	[__local0__]
+          }
   - note: transforms/print-erased-when-not-enabled
     # print() is not part of a policy's meaning, so it is erased unless the caller
     # asks for it. The rule keeps its other expressions.
@@ -110,13 +110,13 @@ cases:
         	print("hello")
         	1 == 1
         }
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = true if {
-        	1 = 1
-        }
+          p = true if {
+          	1 = 1
+          }
   - note: transforms/else-chain-gains-an-explicit-body
     # The last branch of an else chain has no body of its own, and the compiler
     # gives it the one it means: `true`.
@@ -125,7 +125,7 @@ cases:
     # `else :=` head as `else =`, so a `:=` chain cannot be seeded here until that
     # is fixed — see tmp/external_compilers/opa_bugs.md.
     modules:
-      - |
+      - |-
         package test
 
         p = 1 if {
@@ -133,14 +133,14 @@ cases:
         } else = 2 if {
         	input.y
         } else = 3
-    want_modules:
-      - |
-        package test
+    want:
+      - module: |
+          package test
 
-        p = 1 if {
-        	input.x
-        } else = 2 if {
-        	input.y
-        } else = 3 if {
-        	true
-        }
+          p = 1 if {
+          	input.x
+          } else = 2 if {
+          	input.y
+          } else = 3 if {
+          	true
+          }

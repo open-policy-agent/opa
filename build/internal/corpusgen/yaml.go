@@ -126,3 +126,68 @@ func ModulesNode(modules []string) *yaml.Node {
 	}
 	return seq
 }
+
+// SetMapComment attaches a comment above key on the mapping n, wrapping it at a
+// width a reviewer can read. Setting it again replaces it, so a regenerated
+// fixture does not accumulate stale explanations.
+func SetMapComment(n *yaml.Node, key, comment string) {
+	if i := keyIndex(n, key); i >= 0 {
+		SetComment(n.Content[i], comment)
+	}
+}
+
+// SetComment attaches a comment above n itself, which is where it belongs for a
+// sequence entry: a comment on the entry's first key would render after the dash.
+func SetComment(n *yaml.Node, comment string) {
+	if comment == "" {
+		n.HeadComment = ""
+		return
+	}
+
+	n.HeadComment = strings.Join(wrap(comment, 74), "\n")
+}
+
+// wrap breaks text on word boundaries, leaving a word longer than width on its
+// own line rather than splitting it — a printed Rego expression is one word here
+// and is more use whole.
+func wrap(text string, width int) []string {
+	var lines []string
+	line := ""
+
+	for word := range strings.FieldsSeq(text) {
+		switch {
+		case line == "":
+			line = word
+		case len(line)+1+len(word) <= width:
+			line += " " + word
+		default:
+			lines = append(lines, line)
+			line = word
+		}
+	}
+
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// StringsNode renders a list of short strings as a flow sequence, which is how a
+// handful of keywords reads best.
+func StringsNode(values []string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+	for _, v := range values {
+		seq.Content = append(seq.Content, Scalar("!!str", v))
+	}
+	return seq
+}
+
+// StringListsNode renders a list of short string lists, one flow sequence per line,
+// which is how a per-module field of a handful of entries each reads best.
+func StringListsNode(values [][]string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, v := range values {
+		seq.Content = append(seq.Content, StringsNode(v))
+	}
+	return seq
+}

@@ -5,10 +5,12 @@
 package cases
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
 	"slices"
+	"strings"
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -27,6 +29,29 @@ type CompilerTestCase struct {
 // CompilerSet is the set of cases loaded from one corpus file.
 type CompilerSet struct {
 	Cases []*CompilerTestCase `json:"cases"`
+}
+
+// Option configures what LoadCompilerTestCases returns on top of the committed
+// corpus.
+type Option func(*config)
+
+type config struct {
+	directiveImports bool
+}
+
+// WithDirectiveImports rewrites want_modules to carry the imports the case declares
+// in want_modules_imports, and clears the field.
+//
+// For a consumer that cannot put those directives in effect out of band — because
+// its parser takes no such option, or because its compiler does not strip the
+// imports in the first place. The trade is that the expected module then has an
+// *import* OPA's compiled module does not, so it no longer parses to the same AST
+// OPA produces: use it when your pipeline keeps its imports, not to compare against
+// OPA.
+//
+// Nothing lands in the corpus; this is applied to what the loader returns.
+func WithDirectiveImports() Option {
+	return func(c *config) { c.directiveImports = true }
 }
 
 // Filters are functions that will return true if a test case should be filtered out
@@ -66,17 +91,28 @@ func StrictModeFilter(supported ...string) Filters {
 // LoadCompilerTestCases returns the compiler conformance corpus, which is the
 // committed cases unchanged — a consumer that wants only those can read the
 // embedded YAML directly and skip this package entirely.
-func LoadCompilerTestCases() ([]CompilerSet, error) {
-	return LoadCompilerTestCasesFiltered(nil)
+func LoadCompilerTestCases(opts ...Option) ([]CompilerSet, error) {
+	return LoadCompilerTestCasesFiltered(nil, opts...)
 }
 
 // LoadCompilerTestCasesFiltered returns the compiler conformance corpus with
 // Ignore set on every case rejected by one of filters. The case itself is kept,
 // so the corpus stays addressable by index.
-func LoadCompilerTestCasesFiltered(filters []Filters) ([]CompilerSet, error) {
+func LoadCompilerTestCasesFiltered(filters []Filters, opts ...Option) ([]CompilerSet, error) {
+	cfg := &config{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	sets, err := readSets()
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.directiveImports {
+		if err := addDirectiveImports(sets); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, set := range sets {
@@ -132,4 +168,46 @@ func readSets() ([]CompilerSet, error) {
 	})
 
 	return results, err
+}
+
+// addDirectiveImports puts back the imports the compiler resolved away, so that
+// want_modules parses with no options beyond its rego version. The result is a
+// module with imports the compiled one does not have, which is the point: it matches
+// a pipeline that keeps its imports rather than OPA, which does not.
+func addDirectiveImports(sets []CompilerSet) error {
+	for _, set := range sets {
+		for _, tc := range set.Cases {
+			for i := range tc.Want {
+				want := &tc.Want[i]
+				if len(want.Imports) == 0 {
+					continue
+				}
+
+				imports := make([]string, 0, len(want.Imports))
+				for _, path := range want.Imports {
+					imports = append(imports, "import "+path)
+				}
+
+				with, err := withImports(want.Module, imports)
+				if err != nil {
+					return fmt.Errorf("%s: %s: want[%d]: %w", tc.Filename, tc.Note, i, err)
+				}
+
+				want.Module, want.Imports = with, nil
+			}
+		}
+	}
+
+	return nil
+}
+
+// withImports inserts the imports after the package clause, which is where a
+// hand-written module carries them and the only place they are legal.
+func withImports(module string, imports []string) (string, error) {
+	head, rest, found := strings.Cut(module, "\n")
+	if !found || !strings.HasPrefix(head, "package ") {
+		return "", errors.New("the expected module does not open with a package clause")
+	}
+
+	return head + "\n\n" + strings.Join(imports, "\n") + "\n" + rest, nil
 }

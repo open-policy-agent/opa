@@ -9,7 +9,13 @@ cases:
         package test
 
         p := all([true, false])
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p := __local0__ {
+          	all([true, false], __local0__)
+          }
   - note: builtins/any-built-in-non-strict
     rego_version: v0
     strict: disabled
@@ -18,13 +24,25 @@ cases:
         package test
 
         p := any([true, false])
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p := __local0__ {
+          	any([true, false], __local0__)
+          }
   - note: builtins/re-match-built-in-non-strict
     rego_version: v0
     strict: disabled
     modules:
-      - |
+      - |-
         package test
 
         p := re_match("[a]", "a")
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p := __local0__ {
+          	re_match("[a]", "a", __local0__)
+          }

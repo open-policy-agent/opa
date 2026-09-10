@@ -80,36 +80,28 @@ func generateFile(path string, mode fs.FileMode) error {
 
 		switch {
 		case tc.Transform() && len(reported) > 0:
-			return fmt.Errorf("%s: %s: the case asserts 'want_modules', but the modules report %d diagnostic(s), starting with %s",
+			return fmt.Errorf("%s: %s: the case asserts what its modules compile to, but they report %d diagnostic(s), starting with %s",
 				path, tc.Note, len(reported), reported[0])
-
-		case tc.Compiles && len(reported) > 0:
-			return fmt.Errorf("%s: %s: the case asserts 'compiles', but the modules report %d diagnostic(s), starting with %s",
-				path, tc.Note, len(reported), reported[0])
-
-		case tc.Compiles:
-			// Nothing to fill in: the assertion is that there is nothing to fill in.
-
-		case len(reported) == 0 && !tc.Failure():
-			// A clean compile with no 'compiles' assertion is a transformation
-			// case. Unlike want_errors, want_modules is regenerated every time:
-			// it is the compiled form, and review of the diff is the gate.
-			want, err := compiledModules(*tc)
-			if err != nil {
-				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
-			}
-			tc.WantModules = want
-			corpusgen.SetMapValue(caseNodes.Content[i], "want_modules", corpusgen.ModulesNode(want))
 
 		case len(reported) == 0 && tc.Failure():
 			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the modules compile", path, tc.Note)
 
-		case !tc.Failure():
+		case len(reported) == 0:
+			// A clean compile is a transformation case. Unlike want_errors,
+			// want_modules is regenerated every time: it is the compiled form, and
+			// review of the diff is the gate.
+			if err := fillTransform(tc, caseNodes.Content[i]); err != nil {
+				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
+			}
+
+		default:
 			// Fill in the diagnostics only where the case has none. A message
 			// that changes has to fail the runner, not be quietly rewritten
 			// underneath it, so an existing want_errors is never touched.
-			tc.WantErrors = reported
-			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(reported), "exhaustive")
+			if !tc.Failure() {
+				tc.WantErrors = reported
+				corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(reported), "exhaustive")
+			}
 		}
 
 		if err := tc.Validate(); err != nil {
@@ -127,4 +119,52 @@ func generateFile(path string, mode fs.FileMode) error {
 	}
 
 	return os.WriteFile(path, out, mode)
+}
+
+// fillTransform writes what the case's modules compile to, as Rego where OPA's
+// printer can express it and as marshalled AST where it cannot. Whichever it
+// writes, the other is removed, so a case that becomes printable — or stops being
+// printable — does not end up carrying both.
+func fillTransform(tc *compilecases.TestCase, node *yaml.Node) error {
+	want, reasons, err := compiledWant(*tc)
+	if err != nil {
+		return err
+	}
+
+	tc.Want = want
+
+	corpusgen.SetMapValue(node, "want", wantNode(want, reasons))
+
+	return nil
+}
+
+// wantNode renders the entries, with the reason on any that had to fall back to the
+// AST form so that a reader of an unreadable fixture does not have to reproduce the
+// failure to find out why it is not Rego.
+func wantNode(want []compilecases.Want, reasons []string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode}
+
+	for i, w := range want {
+		entry := &yaml.Node{Kind: yaml.MappingNode}
+
+		if w.AST != "" {
+			corpusgen.SetMapValue(entry, "ast", corpusgen.Literal(w.AST))
+			if reasons[i] != "" {
+				corpusgen.SetComment(entry, "ast rather than module: "+reasons[i]+".")
+			}
+			seq.Content = append(seq.Content, entry)
+			continue
+		}
+
+		if len(w.Imports) > 0 {
+			corpusgen.SetMapValue(entry, "imports", corpusgen.StringsNode(w.Imports))
+			corpusgen.SetComment(entry,
+				"The compiler drops directive imports. A consumer has to put them in effect for parsing.")
+		}
+		corpusgen.SetMapValue(entry, "module", corpusgen.Literal(w.Module))
+
+		seq.Content = append(seq.Content, entry)
+	}
+
+	return seq
 }

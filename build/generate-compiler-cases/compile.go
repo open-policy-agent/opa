@@ -6,12 +6,15 @@ package cases
 
 import (
 	"cmp"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
+	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
@@ -40,28 +43,13 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 		return nil, err
 	}
 
-	modules := make(map[string]*ast.Module, len(tc.Modules))
-	for i, module := range tc.Modules {
-		name := compilecases.ModuleName(i)
-		parsed, perr := ast.ParseModuleWithOpts(name, module, popts)
-		if perr != nil {
-			return nil, fmt.Errorf("%s does not parse: %w", name, perr)
-		}
-		modules[name] = parsed
+	compiled, err := compileCase(tc, popts)
+	if err != nil {
+		return nil, err
 	}
 
-	// Without this the compiler stops at CompileErrorLimitDefault and appends a
-	// "too many errors" diagnostic of its own, so a case with more than ten would
-	// record a truncated set. The runner lifts the limit for the same reason.
-	c := ast.NewCompiler().
-		SetErrorLimit(0).
-		WithStrict(tc.StrictMode()).
-		WithEnablePrintStatements(tc.PrintStatements)
-
-	c.Compile(modules)
-
-	reported := make([]conformance.Error, 0, len(c.Errors))
-	for _, e := range c.Errors {
+	reported := make([]conformance.Error, 0, len(compiled.Errors))
+	for _, e := range compiled.Errors {
 		reported = append(reported, caseError(e))
 	}
 
@@ -91,20 +79,12 @@ func caseError(e *ast.Error) conformance.Error {
 	return out
 }
 
-// compiledModules returns the Rego each of a case's modules compiles to, seeded
-// by printing the compiled AST. Printing enters here and nowhere else: the
-// comparison the runner performs is between ASTs, so this is a convenience for
-// authoring a fixture, not part of the contract.
+// compileCase parses and compiles a case's modules.
 //
-// formatModule checks its own output rather than assuming it: OPA's printer does
-// not always produce text that parses back to the AST it came from, and a fixture
-// that did not round-trip would assert something the compiler never produced.
-func compiledModules(tc compilecases.TestCase) ([]string, error) {
-	popts, err := parserOptions(tc)
-	if err != nil {
-		return nil, err
-	}
-
+// Without lifting the error limit the compiler stops at CompileErrorLimitDefault
+// and appends a "too many errors" diagnostic of its own, so a case with more than
+// ten would record a truncated set. The runner lifts it for the same reason.
+func compileCase(tc compilecases.TestCase, popts ast.ParserOptions) (*ast.Compiler, error) {
 	modules := make(map[string]*ast.Module, len(tc.Modules))
 	for i, src := range tc.Modules {
 		name := compilecases.ModuleName(i)
@@ -122,17 +102,201 @@ func compiledModules(tc compilecases.TestCase) ([]string, error) {
 
 	c.Compile(modules)
 
-	out := make([]string, 0, len(tc.Modules))
-	for i := range tc.Modules {
-		name := compilecases.ModuleName(i)
+	return c, nil
+}
 
-		text, ferr := formatModule(c.Modules[name], popts)
-		if ferr != nil {
-			return nil, fmt.Errorf("'want_modules' cannot be seeded from the compiled %s: %w", name, ferr)
-		}
-
-		out = append(out, strings.TrimRight(text, "\n"))
+// compiledWant returns what each of a case's modules compiles to: Rego where OPA's
+// printer can express it, and a marshalled AST where it cannot. Printing enters here
+// and nowhere else — the comparison the runner performs is between ASTs, so this is a
+// convenience for authoring a fixture, not part of the contract.
+//
+// The choice is made per module. A compiled form that has no Rego spelling does not
+// drag its neighbours into the AST form with it.
+//
+// formatModule checks its own output rather than assuming it: OPA's printer does not
+// always produce text that parses back to the AST it came from, and a fixture that
+// did not round-trip would assert something the compiler never produced.
+func compiledWant(tc compilecases.TestCase) ([]compilecases.Want, []string, error) {
+	popts, err := parserOptions(tc)
+	if err != nil {
+		return nil, nil, err
 	}
 
+	compiled, err := compileCase(tc, popts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	imports, err := directiveImports(tc, popts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	want := make([]compilecases.Want, len(tc.Modules))
+	reasons := make([]string, len(tc.Modules))
+
+	for i := range tc.Modules {
+		name := compilecases.ModuleName(i)
+		mod := compiled.Modules[name]
+
+		wantOpts, oerr := wantParserOptions(tc, imports, i)
+		if oerr != nil {
+			return nil, nil, oerr
+		}
+
+		text, ferr := formatModule(mod, wantOpts)
+		if ferr == nil {
+			want[i] = compilecases.Want{
+				Module:  strings.TrimRight(text, "\n") + "\n",
+				Imports: imports[i],
+			}
+			continue
+		}
+
+		marshalled, merr := marshalModule(mod)
+		if merr != nil {
+			return nil, nil, fmt.Errorf("%s: %w", name, merr)
+		}
+
+		want[i] = compilecases.Want{AST: marshalled}
+		reasons[i] = reasonFor(ferr)
+	}
+
+	return want, reasons, nil
+}
+
+// reasonFor is the short form of why a module could not be written as Rego, for the
+// comment the entry carries.
+func reasonFor(err error) string {
+	if np, ok := errors.AsType[notPrintableError](err); ok {
+		return np.Reason()
+	}
+	return err.Error()
+}
+
+// wantParserOptions is how the i-th Want entry's Module has to be parsed, as the
+// schema reads it.
+func wantParserOptions(tc compilecases.TestCase, imports [][]string, i int) (ast.ParserOptions, error) {
+	with := tc
+	with.Want = make([]compilecases.Want, len(imports))
+	for j := range imports {
+		with.Want[j] = compilecases.Want{Imports: imports[j]}
+	}
+
+	opts, err := with.WantParserOptions(i)
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+
+	version, err := corpusgen.RegoVersion(opts.RegoVersion)
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+
+	popts := ast.ParserOptions{
+		RegoVersion:       version,
+		FutureKeywords:    opts.FutureKeywords,
+		AllFutureKeywords: opts.AllFutureKeywords,
+	}
+	if tc.ExperimentalKeywords {
+		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+	}
+
+	return popts, nil
+}
+
+// marshalModule renders a compiled module as the AST form of a Want entry.
+func marshalModule(mod *ast.Module) (string, error) {
+	restore := astJSON.GetOptions()
+	astJSON.SetOptions(conformance.MarshalOptions(false, false))
+	defer astJSON.SetOptions(restore)
+
+	mod.Comments = nil
+
+	bs, err := json.Marshal(mod)
+	if err != nil {
+		return "", err
+	}
+
+	return conformance.FormatAST(bs)
+}
+
+// directiveImports returns the directive imports a case's modules carry, as
+// written. The compiler resolves each away once it has taken effect, so the printed
+// output depends on them with nothing left to say so.
+//
+// Every one is reported, whether or not the compiled form still depends on it.
+// Deciding which are redundant would mean modelling what the compiler does to each,
+// and a case that quietly under-declares is worse than one asking a consumer for a
+// directive it did not need — the extra is harmless, the omission is a fixture
+// nobody can parse.
+//
+// An import under `future` or `rego` that the schema cannot interpret is an error
+// rather than something to skip: a new directive the harness does not know about
+// would otherwise vanish from the fixture silently.
+func directiveImports(tc compilecases.TestCase, popts ast.ParserOptions) ([][]string, error) {
+	out := make([][]string, len(tc.Modules))
+
+	for i, src := range tc.Modules {
+		name := compilecases.ModuleName(i)
+
+		mod, err := ast.ParseModuleWithOpts(name, src, popts)
+		if err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", name, err)
+		}
+
+		for _, imp := range mod.Imports {
+			ref, ok := imp.Path.Value.(ast.Ref)
+			if !ok || len(ref) == 0 {
+				continue
+			}
+			if !ast.FutureRootDocument.Equal(ref[0]) && !ast.RegoRootDocument.Equal(ref[0]) {
+				continue
+			}
+
+			path, ok := importPath(ref)
+			if !ok {
+				return nil, fmt.Errorf("%s: cannot read the import path `%s`; teach the generator what it means", name, ref)
+			}
+			if slices.Contains(out[i], path) {
+				continue
+			}
+
+			// Interpreted by the schema, so that what the generator writes and what a
+			// consumer reads cannot drift apart.
+			probe := compilecases.TestCase{Modules: []string{src}, Want: []compilecases.Want{{Imports: []string{path}}}}
+			if _, err := probe.WantParserOptions(0); err != nil {
+				return nil, fmt.Errorf("%s: %w; teach the generator and the schema what it means", name, err)
+			}
+
+			out[i] = append(out[i], path)
+		}
+
+		slices.Sort(out[i])
+	}
+
+	// Always one list per module, empty where there is nothing to declare: the
+	// caller indexes it, and an entry with no imports simply writes none.
 	return out, nil
+}
+
+// importPath renders a directive import the way it is written, which Ref.String does
+// not: it renders the components after the first in bracket notation, so
+// `future.keywords.every` comes back as `future.keywords["every"]`.
+func importPath(ref ast.Ref) (string, bool) {
+	v, ok := ref[0].Value.(ast.Var)
+	if !ok {
+		return "", false
+	}
+
+	parts := []string{string(v)}
+	for _, term := range ref[1:] {
+		s, ok := term.Value.(ast.String)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, string(s))
+	}
+
+	return strings.Join(parts, "."), true
 }

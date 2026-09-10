@@ -9,6 +9,7 @@ import (
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 )
 
@@ -53,5 +54,5 @@ func MarshalAST(m *ast.Module) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return parsercases.FormatAST(bs)
+	return conformance.FormatAST(bs)
 }

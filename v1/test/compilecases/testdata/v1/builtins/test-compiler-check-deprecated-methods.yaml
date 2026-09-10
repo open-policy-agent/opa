@@ -21,7 +21,20 @@ cases:
         import future.keywords.in
         all(arr) = {x | some x in arr} == {true}
         p := all([true, false])
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.in]
+        module: |
+          package test
+
+          all(__local0__) = __local4__ if {
+          	__local6__ = {__local3__ | __local3__ = __local0__[__local2__]}
+          	equal(__local6__, {true}, __local4__)
+          }
+
+          p := __local5__ if {
+          	data.test.all([true, false], __local5__)
+          }
   - note: builtins/any-built-in-strict
     modules:
       - |
@@ -42,7 +55,19 @@ cases:
         import future.keywords.in
         any(arr) := true in arr
         p := any([true, false])
-    compiles: true
+    want:
+      # The compiler drops directive imports. A consumer has to put them in effect for parsing.
+      - imports: [future.keywords.in]
+        module: |
+          package test
+
+          any(__local0__) := __local1__ if {
+          	internal.member_2(true, __local0__, __local1__)
+          }
+
+          p := __local2__ if {
+          	data.test.any([true, false], __local2__)
+          }
   - note: builtins/re-match-built-in-strict
     modules:
       - |

@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ir"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 	"github.com/open-policy-agent/opa/v1/test/parsercases/testdata"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -267,7 +268,7 @@ func readSets() ([]ParserSet, error) {
 // whole pass rather than per case.
 func regenerateAST(sets []ParserSet, cfg *config) error {
 	restore := astJSON.GetOptions()
-	astJSON.SetOptions(parsercases.MarshalOptions(true, cfg.locationText))
+	astJSON.SetOptions(conformance.MarshalOptions(true, cfg.locationText))
 	defer astJSON.SetOptions(restore)
 
 	for _, set := range sets {

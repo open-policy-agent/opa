@@ -15,12 +15,22 @@ cases:
 
         p := noconflict
         q := foo
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p := __local0__ {
+          	__local0__ = input.noconflict
+          }
+
+          q := __local1__ {
+          	__local1__ = data.bar.foo
+          }
   - note: imports/alias-shadow-non-strict
     rego_version: v0
     strict: disabled
     modules:
-      - |
+      - |-
         package test
 
         import input.noconflict
@@ -29,4 +39,14 @@ cases:
 
         p := noconflict
         q := foo
-    compiles: true
+    want:
+      - module: |
+          package test
+
+          p := __local0__ {
+          	__local0__ = input.noconflict
+          }
+
+          q := __local1__ {
+          	__local1__ = input.bar
+          }

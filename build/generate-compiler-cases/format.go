@@ -5,7 +5,9 @@
 package cases
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -37,15 +39,111 @@ func formatModule(mod *ast.Module, popts ast.ParserOptions) (string, error) {
 	// the annotations and the rules, none of which carry it.
 	reparsed, err := ast.ParseModuleWithOpts("formatted.rego", text, popts)
 	if err != nil {
-		return "", fmt.Errorf("the formatted module does not parse:\n%s\n%w", text, err)
+		reason, keyword := parseFailureReason(text, err, popts)
+		return "", notPrintableError{reason: reason, text: text, keyword: keyword}
 	}
 
 	if !mod.Equal(reparsed) {
-		return "", fmt.Errorf("the formatted module parses to a different AST:\n--- formatted\n%s\n--- reparsed\n%v",
-			text, reparsed)
+		return "", notPrintableError{reason: divergenceReason(mod, reparsed), text: text}
 	}
 
 	return text, nil
+}
+
+// notPrintableError says that a compiled module has no Rego spelling that parses
+// back to it. Reason is a sentence short enough to carry into a corpus comment, so
+// that a reader of a want_ast fixture can see why it is not want_modules without
+// reproducing the failure.
+type notPrintableError struct {
+	reason string
+	text   string
+
+	// keyword is the future keyword whose activation would make the text parse,
+	// where one would. The caller declares it on the case rather than falling back
+	// to want_ast, so this is the difference between a readable fixture and an
+	// unreadable one.
+	keyword string
+}
+
+func (e notPrintableError) Error() string {
+	return fmt.Sprintf("%s\n--- printed as\n%s", e.reason, e.text)
+}
+
+// Keyword returns the future keyword whose activation would make the text parse,
+// or "" where activating one is not what it needs.
+func (e notPrintableError) Keyword() string { return e.keyword }
+
+// Reason returns the short form.
+func (e notPrintableError) Reason() string { return e.reason }
+
+// parseFailureReason names the printed line the parser choked on, which is more
+// use than the position: the positions are into text nobody has in front of them.
+func parseFailureReason(text string, err error, popts ast.ParserOptions) (string, string) {
+	message, line := "does not parse", ""
+
+	if errs, ok := errors.AsType[ast.Errors](err); ok && len(errs) > 0 {
+		message = errs[0].Message
+		if loc := errs[0].Location; loc != nil {
+			if lines := strings.Split(text, "\n"); loc.Row >= 1 && loc.Row <= len(lines) {
+				line = strings.TrimSpace(lines[loc.Row-1])
+			}
+		}
+	}
+
+	// A future keyword whose import the compiler resolved away is the usual cause,
+	// and the parse error for it points somewhere else entirely: without `or`
+	// active, `{ x = 1 } or { y = 2 }` reads as an unterminated set. Say what is
+	// actually missing rather than repeating a message that misleads.
+	//
+	// Reaching this means the keywords derived from the case's imports were not
+	// enough, so it points at the derivation rather than at the printer.
+	if kw := missingFutureKeyword(text, popts); kw != "" {
+		where := "the compiled module"
+		if line != "" {
+			where = fmt.Sprintf("`%s`", line)
+		}
+		return fmt.Sprintf("%s needs `import future.keywords.%s`, which the compiler resolves away "+
+			"and the printer does not put back", where, kw), kw
+	}
+
+	if line == "" {
+		return "the compiled module prints as Rego that does not parse: " + message, ""
+	}
+	return fmt.Sprintf("the compiled module prints as `%s`, which does not parse: %s", line, message), ""
+}
+
+// futureKeywordCandidates are the keywords worth trying to activate.
+//
+// ast.Keywords is KeywordsForRegoVersion(DefaultRegoVersion), which covers `if`,
+// `contains`, `in` and `every` but not `and` or `or`: those are future keywords
+// that never became standard in any version, so they appear in neither
+// KeywordsV0 nor KeywordsV1 and have to be named here.
+var futureKeywordCandidates = append(slices.Clone(ast.Keywords), "and", "or")
+
+// missingFutureKeyword returns the one future keyword whose activation makes text
+// parse, or "" if activating one is not what it needs.
+func missingFutureKeyword(text string, popts ast.ParserOptions) string {
+	for _, kw := range futureKeywordCandidates {
+		with := popts
+		with.FutureKeywords = append(slices.Clone(popts.FutureKeywords), kw)
+
+		if _, err := ast.ParseModuleWithOpts("formatted.rego", text, with); err == nil {
+			return kw
+		}
+	}
+	return ""
+}
+
+// divergenceReason names the rule that survived printing but not reparsing. This
+// is the harder failure to see, because the text usually looks right — `else :=`
+// prints as `else =`, so only the AST differs.
+func divergenceReason(mod, reparsed *ast.Module) string {
+	for i, rule := range mod.Rules {
+		if i >= len(reparsed.Rules) || rule.Compare(reparsed.Rules[i]) != 0 {
+			return fmt.Sprintf("the compiled rule `%s` prints as Rego that parses to a different AST", rule)
+		}
+	}
+	return "the compiled module prints as Rego that parses to a different AST"
 }
 
 // layout does the rendering. It is separate from the check so that the check

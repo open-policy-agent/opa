@@ -43,7 +43,7 @@ func TestParseCases(t *testing.T) {
 				continue
 			}
 
-			astJSON.SetOptions(parsercases.MarshalOptions(locations, false))
+			astJSON.SetOptions(conformance.MarshalOptions(locations, false))
 			t.Run(fmt.Sprintf("%s/locations=%t", dir, locations), func(t *testing.T) {
 				for _, tc := range group {
 					t.Run(tc.Note, func(t *testing.T) {
@@ -104,7 +104,7 @@ func assertWantAST(t *testing.T, tc parsercases.TestCase, what string, module *M
 		t.Fatalf("%s: marshal %s: %v", tc.Filename, what, err)
 	}
 
-	got, err := parsercases.FormatAST(bs)
+	got, err := conformance.FormatAST(bs)
 	if err != nil {
 		t.Fatalf("%s: format %s: %v", tc.Filename, what, err)
 	}
