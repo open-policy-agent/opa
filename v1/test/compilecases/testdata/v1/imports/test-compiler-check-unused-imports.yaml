@@ -35,7 +35,7 @@ cases:
           }
   - note: imports/import-used-as-function-operand-compount-term
     modules:
-      - |-
+      - |
         package p
 
         import data.foo

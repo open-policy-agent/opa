@@ -1,0 +1,28 @@
+---
+# The v0 dialect, and what `import rego.v1` does to it. Filed here rather than under
+# v1 because rego_version is v0; the import is what makes the compiled form v1.
+cases:
+  - note: transforms/rego-v1-import-selects-the-v1-dialect
+    # `import rego.v1` makes a v0 module conform to v1, and the compiler resolves it
+    # away like any other directive. The expected module is v1 whatever the case's
+    # rego_version says, which is what want.imports records.
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import rego.v1
+
+        p contains x if {
+        	some x in [1, 2]
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package test
+
+          p contains __local2__ if {
+          	__local3__ = [1, 2]
+          	__local2__ = __local3__[__local1__]
+          }

@@ -4593,7 +4593,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 			},
 		},
 		{
-			note: "rule (object) shadows input",
+			note: "rule (object) shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
 					import rego.v1
@@ -4607,7 +4607,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 			},
 		},
 		{
-			note: "rule (set) shadows input",
+			note: "rule (set) shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
 					import rego.v1
@@ -4621,7 +4621,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 			},
 		},
 		{
-			note: "rule ref shadows input",
+			note: "rule ref shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
 					import rego.v1

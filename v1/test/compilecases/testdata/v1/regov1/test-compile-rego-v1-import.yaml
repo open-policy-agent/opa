@@ -1,0 +1,396 @@
+---
+# Generated externalized tests from TestCompileRegoV1Import
+cases:
+  - note: regov1/duplicate-imports
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        import data.foo
+        import data.bar.foo
+        p if {
+        	foo == "bar"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import data.foo
+    exhaustive: true
+  - note: regov1/duplicate-imports-alias
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        import data.foo
+        import data.bar as foo
+        p if {
+        	foo == "bar"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import data.foo
+    exhaustive: true
+  - note: regov1/duplicate-imports-alias-different-order
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        import data.bar as foo
+        import data.foo
+        p if {
+        	foo == "bar"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import data.bar as foo
+    exhaustive: true
+  - note: regov1/duplicate-imports-repeat
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        import data.foo
+        import data.foo
+        p if {
+        	foo == "bar"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import data.foo
+    exhaustive: true
+  - note: regov1/duplicate-imports-multiple-modules
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        import data.foo
+        import data.bar.foo
+        p if {
+        	foo == "bar"
+        }
+      - |
+        package test
+
+        import rego.v1
+        import data.foo
+        import data.bar.foo
+        q if {
+        	foo == "bar"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import data.foo
+      - module: test-1.rego
+        code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import data.foo
+    exhaustive: true
+  - note: regov1/var-shadows-input
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p if {
+        	input := 1
+        	input == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: variables must not shadow input (use a different variable name)
+    exhaustive: true
+  - note: regov1/var-shadows-input-multiple-modules
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p if {
+        	input := 1
+        	input == 1
+        }
+      - |
+        package test
+
+        import rego.v1
+        q if {
+        	input := 1
+        	input == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: variables must not shadow input (use a different variable name)
+      - module: test-1.rego
+        code: rego_compile_error
+        row: 5
+        col: 2
+        message: variables must not shadow input (use a different variable name)
+    exhaustive: true
+  - note: regov1/var-shadows-data
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p if {
+        	data := 1
+        	data == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: variables must not shadow data (use a different variable name)
+    exhaustive: true
+  - note: regov1/var-shadows-data-multiple-modules
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p if {
+        	data := 1
+        	data == 1
+        }
+      - |
+        package test
+
+        import rego.v1
+        q if {
+        	data := 1
+        	data == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: variables must not shadow data (use a different variable name)
+      - module: test-1.rego
+        code: rego_compile_error
+        row: 5
+        col: 2
+        message: variables must not shadow data (use a different variable name)
+    exhaustive: true
+  - note: regov1/rule-shadows-input
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        input := 1
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow input (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-object-shadows-input
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        input.a := "b" if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow input (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-set-shadows-input
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        input contains "a" if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow input (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-ref-shadows-input
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        input.a.b.c := 1
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow input (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-shadows-input-multiple-modules
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        input := 1
+      - |
+        package test2
+
+        import rego.v1
+        input := 2
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow input (use a different rule name)
+      - module: test-1.rego
+        code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow input (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-shadows-data
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        data := 1
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow data (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-object-shadows-data
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        data.a := "b" if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow data (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-set-shadows-data
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        data contains "a" if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow data (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-ref-shadows-data
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        data.a.b.c := 1
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow data (use a different rule name)
+    exhaustive: true
+  - note: regov1/rule-shadows-data-multiple-modules
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        data := 1
+      - |
+        package test2
+
+        import rego.v1
+        data := 2
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow data (use a different rule name)
+      - module: test-1.rego
+        code: rego_compile_error
+        row: 4
+        col: 1
+        message: rules must not shadow data (use a different rule name)
+    exhaustive: true
+  - note: regov1/deprecated-built-in
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p := all([true, false])
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 6
+        message: 'deprecated built-in function calls in expression: all'
+    exhaustive: true
+  - note: regov1/deprecated-built-in-multiple
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p := all([true, false])
+        q := any([true, false])
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 6
+        message: 'deprecated built-in function calls in expression: all'
+      - code: rego_type_error
+        row: 5
+        col: 6
+        message: 'deprecated built-in function calls in expression: any'
+    exhaustive: true
+  - note: regov1/deprecated-built-in-multiple-modules
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        p := all([true, false])
+      - |
+        package test
+
+        import rego.v1
+        q := all([true, false])
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 6
+        message: 'deprecated built-in function calls in expression: all'
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 6
+        message: 'deprecated built-in function calls in expression: all'
+    exhaustive: true

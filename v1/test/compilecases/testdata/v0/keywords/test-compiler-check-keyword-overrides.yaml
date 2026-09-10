@@ -474,7 +474,7 @@ cases:
     rego_version: v0
     strict: disabled
     modules:
-      - |-
+      - |
         package test
 
         p {

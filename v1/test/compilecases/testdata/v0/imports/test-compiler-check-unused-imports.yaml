@@ -399,7 +399,7 @@ cases:
     rego_version: v0
     strict: disabled
     modules:
-      - |-
+      - |
         package p
 
         import data.bar # unused
