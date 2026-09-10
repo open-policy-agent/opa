@@ -55,6 +55,10 @@ type (
 		defaultRule    *Rule
 		kind           RuleKind
 		onlyGroundRefs bool
+		// rules holds one entry per rule and else branch the trie carries, groups
+		// the position of its ruleset among the rules Build was given.
+		rules  []*Rule
+		groups []int32
 	}
 )
 
@@ -109,22 +113,32 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	levels := indices.Sorted()
 
 	for idx := range rules {
-		var prio int
 		WalkRules(rules[idx], func(rule *Rule) bool {
 			if rule.Default {
 				return false
 			}
+
+			// Ids are minted in WalkRules' order, so they ascend with priority
+			// within a ruleset -- the (insertion, priority) pair a node used to
+			// carry, in one integer:
+			//
+			//	f(x) := 1 if x == "a"  # group 0, id 0
+			//	else := 2 if x == "b"  #          id 1
+			//	f(x) := 3 if x == "c"  # group 1, id 2
+			id := int32(len(i.rules))
+			i.rules = append(i.rules, rule)
+			i.groups = append(i.groups, int32(idx))
+
 			// Each set of indices the rule can be reached through gets its own
-			// path. They share a priority, so a lookup arriving at the rule down
+			// path. They share an id, so a lookup arriving at the rule down
 			// several of them still reports it once (see trieTraversalResult.Add).
 			if len(indices.disjunctions[rule]) == 0 {
-				i.insertPath(indices.table, levels, indices.rules[rule], [...]int{idx, prio}, rule)
+				i.insertPath(indices.table, levels, indices.rules[rule], id, rule)
 			} else {
 				for _, path := range indices.paths(rule) {
-					i.insertPath(indices.table, levels, path, [...]int{idx, prio}, rule)
+					i.insertPath(indices.table, levels, path, id, rule)
 				}
 			}
-			prio++
 			return false
 		})
 	}
@@ -134,7 +148,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	return true
 }
 
-func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*refindex, prio [2]int, rule *Rule) {
+func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*refindex, id int32, rule *Rule) {
 	node := i.root
 
 	// The path stops at the last level it constrains. A rule that constrains
@@ -201,7 +215,7 @@ func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*ref
 				// goes looking for them.
 				for _, val := range oneAffixEnd(values) {
 					child := val.insertInto(node, ref)
-					child.append(prio, rule)
+					child.append(id, rule)
 				}
 				return
 			} else {
@@ -212,14 +226,12 @@ func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*ref
 		}
 	}
 
-	// Insert rule into trie with (insertion order, priority order)
-	// tuple. Retaining the insertion order allows us to return rules
-	// in the order they were passed to this function.
-	node.append(prio, rule)
+	node.append(id, rule)
 }
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	tr := ttrPool.Get().(*trieTraversalResult)
+	tr.groups = i.groups
 
 	defer func() {
 		// Note(anderseknert): `clear`ing the map is not good enough here, as it'd mean
@@ -229,6 +241,7 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 			tr.unordered[i] = tr.unordered[i][:0]
 		}
 		tr.ordering = tr.ordering[:0]
+		tr.groups = nil
 		tr.multiple = false
 		tr.exist = nil
 
@@ -254,26 +267,7 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 
 	clear(result.Else)
 
-	for _, pos := range tr.ordering {
-		if len(tr.unordered[pos]) == 0 {
-			continue
-		}
-
-		nodes := util.SortedFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		root := nodes[0].rule
-
-		result.Rules = append(result.Rules, root)
-		if len(nodes) > 1 {
-			if result.Else == nil {
-				result.Else = map[*Rule][]*Rule{}
-			}
-
-			result.Else[root] = make([]*Rule, len(nodes)-1)
-			for i := 1; i < len(nodes); i++ {
-				result.Else[root][i-1] = nodes[i].rule
-			}
-		}
-	}
+	i.gather(tr, result)
 
 	if !tr.multiple {
 		// even when the indexer hasn't seen multiple values, the rule itself could be one
@@ -299,8 +293,36 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	return result, nil
 }
 
+// gather reads the rules a traversal reached into result, a group at a time. Ids
+// ascend with priority, so a group's lowest is the rule to evaluate and the rest
+// are its else branches.
+func (i *baseDocEqIndex) gather(tr *trieTraversalResult, result *IndexResult) {
+	for _, group := range tr.ordering {
+		ids := tr.unordered[group]
+		if len(ids) == 0 {
+			continue
+		}
+
+		slices.Sort(ids)
+		root := i.rules[ids[0]]
+
+		result.Rules = append(result.Rules, root)
+		if len(ids) > 1 {
+			if result.Else == nil {
+				result.Else = map[*Rule][]*Rule{}
+			}
+
+			result.Else[root] = make([]*Rule, len(ids)-1)
+			for pos, id := range ids[1:] {
+				result.Else[root][pos] = i.rules[id]
+			}
+		}
+	}
+}
+
 func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	tr := newTrieTraversalResult()
+	tr.groups = i.groups
 
 	// Walk over the rule trie and accumulate _all_ rules
 	rw := &ruleWalker{result: tr}
@@ -311,25 +333,7 @@ func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	result.OnlyGroundRefs = i.onlyGroundRefs
 	result.Rules = make([]*Rule, 0, len(tr.ordering))
 
-	for _, pos := range tr.ordering {
-		if len(tr.unordered[pos]) == 0 {
-			continue
-		}
-		slices.SortFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		nodes := tr.unordered[pos]
-		root := nodes[0].rule
-		result.Rules = append(result.Rules, root)
-		if len(nodes) > 1 {
-			if result.Else == nil {
-				result.Else = map[*Rule][]*Rule{}
-			}
-
-			result.Else[root] = make([]*Rule, len(nodes)-1)
-			for i := 1; i < len(nodes); i++ {
-				result.Else[root][i-1] = nodes[i].rule
-			}
-		}
-	}
+	i.gather(tr, result)
 
 	result.EarlyExit = !tr.multiple
 
@@ -1203,8 +1207,11 @@ type trieWalker interface {
 }
 
 type trieTraversalResult struct {
-	unordered map[int][]*ruleNode
-	ordering  []int
+	// groups is the index's group per rule id; unordered holds the ids reached
+	// per group, ordered by which group traversal reached first.
+	groups    []int32
+	unordered map[int32][]int32
+	ordering  []int32
 	exist     *Term
 	multiple  bool
 }
@@ -1217,18 +1224,18 @@ var ttrPool = &sync.Pool{
 
 func newTrieTraversalResult() *trieTraversalResult {
 	return &trieTraversalResult{
-		unordered: make(map[int][]*ruleNode, 16),
+		unordered: make(map[int32][]int32, 16),
 	}
 }
 
 func (tr *trieTraversalResult) Add(t *trieNode) {
-	for _, node := range t.rules {
-		root := node.prio[0]
-		if nodes, ok := tr.unordered[root]; !ok || len(nodes) == 0 {
-			tr.ordering = append(tr.ordering, root)
-			tr.unordered[root] = append(nodes, node)
-		} else if !slices.ContainsFunc(nodes, node.prioEqual) {
-			tr.unordered[root] = append(nodes, node)
+	for _, id := range t.rules {
+		group := tr.groups[id]
+		if ids, ok := tr.unordered[group]; !ok || len(ids) == 0 {
+			tr.ordering = append(tr.ordering, group)
+			tr.unordered[group] = append(ids, id)
+		} else if !slices.Contains(ids, id) {
+			tr.unordered[group] = append(ids, id)
 		}
 	}
 	if t.multiple {
@@ -1246,14 +1253,16 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 
 type trieNode struct {
 	// next is the level below this node, nil where the paths under it end.
-	next     *levelDetail
-	rules    []*ruleNode
+	next *levelDetail
+	// rules are the ids of the rules whose path ends here, see
+	// baseDocEqIndex.rules.
+	rules    []int32
 	value    *Term
 	multiple bool
 }
 
-func (node *trieNode) append(prio [2]int, rule *Rule) {
-	node.rules = append(node.rules, &ruleNode{prio, rule})
+func (node *trieNode) append(id int32, rule *Rule) {
+	node.rules = append(node.rules, id)
 
 	if node.value != nil && rule.Head.Value != nil && !node.value.Equal(rule.Head.Value) {
 		node.multiple = true
@@ -1262,19 +1271,6 @@ func (node *trieNode) append(prio [2]int, rule *Rule) {
 	if node.value == nil && rule.Head.DocKind() == CompleteDoc {
 		node.value = rule.Head.Value
 	}
-}
-
-type ruleNode struct {
-	prio [2]int
-	rule *Rule
-}
-
-func (a *ruleNode) prio1Cmp(b *ruleNode) int {
-	return a.prio[1] - b.prio[1]
-}
-
-func (a *ruleNode) prioEqual(b *ruleNode) bool {
-	return a.prio == b.prio
 }
 
 // levelDetail is everything a trieNode has by virtue of being a *level* -- the
