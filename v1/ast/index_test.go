@@ -6,6 +6,7 @@ package ast
 
 import (
 	"errors"
+	"math/bits"
 	"slices"
 	"strconv"
 	"testing"
@@ -1822,6 +1823,19 @@ func TestRefIndicesSorted(t *testing.T) {
 		}
 		prevCount = count
 	}
+}
+
+// collected returns the rule ids a traversal reached, in the order gather reads
+// them back.
+func collected(tr *trieTraversalResult) []int32 {
+	var ids []int32
+	slices.Sort(tr.touched)
+	for _, w := range tr.touched {
+		for word := tr.hits[w]; word != 0; word &= word - 1 {
+			ids = append(ids, w<<6|int32(bits.TrailingZeros64(word)))
+		}
+	}
+	return ids
 }
 
 func TestSplitStringEscaped(t *testing.T) {
