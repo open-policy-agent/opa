@@ -247,3 +247,138 @@ func writePrefixList(sb *strings.Builder, prefixes []string) {
 func benchPrefix(i int) string {
 	return fmt.Sprintf("/service/v1/tenant/%07d", i)
 }
+
+// siblingShapes write the rule's second, single-valued constraint either side
+// of its prefix set. Which comes first decides what a candidate costs when the
+// index hands topdown a rule that cannot hold: the method comparison fails on
+// the first expression, the prefix scan walks the rule's whole base first.
+var siblingShapes = []struct {
+	note        string
+	prefixFirst bool
+}{
+	{"method-first", false},
+	{"prefix-first", true},
+}
+
+// BenchmarkRuleIndexPrefixMatchSibling is the shape the rest of this file does
+// not have: a rule that constrains something besides its prefix set. Every rule
+// here admits a request by (method, path prefix), the way an authorization
+// policy does, and the query presents a path one rule admits under a method
+// none of them do.
+//
+// The prefix set gives the rule several values for input.path, which is where
+// insertPath stops building its path (see refindices.alternated) -- so whether
+// input.method is indexed at all depends on the two being ordered the right way
+// round. Where BenchmarkRuleIndexPrefixMatch measures the trie walk, this
+// measures what that ordering is worth: the rule topdown does not evaluate.
+//
+//	                 ranked last            by frequency
+//	method-first     527 ns  1097 B     1152 ns  2235 B
+//	prefix-first     532 ns  1097 B     2345 ns  4936 B
+//
+// Both shapes hold the same policy and return the same answer. That they cost
+// the same is the point: with input.method indexed the rule is not a candidate,
+// so it no longer matters which of its two constraints the author wrote first.
+// 1097 B and 20 allocs is what a query that reaches no rule at all costs -- the
+// same as the indexing=true rows of BenchmarkRuleIndexPrefixMatch, whose rules
+// have nothing besides their prefix set to be excluded on.
+//
+// Ranked by frequency the prefix reference comes first, because insertPrefixes
+// records one value per base string, so the rule is reached by its prefixes
+// alone and input.method never joins its path. What that costs is then down to
+// which constraint topdown evaluates first: the method comparison fails
+// immediately, the prefix scan walks all 100 base strings before it does.
+func BenchmarkRuleIndexPrefixMatchSibling(b *testing.B) {
+	const (
+		rules   = 250
+		perRule = 100
+	)
+
+	for _, shape := range siblingShapes {
+		b.Run(shape.note, func(b *testing.B) {
+			benchmarkPrefixMatchSibling(b, rules, perRule, shape.prefixFirst)
+		})
+	}
+}
+
+func benchmarkPrefixMatchSibling(b *testing.B, rules, perRule int, prefixFirst bool) {
+	b.Helper()
+
+	ctx := b.Context()
+
+	compiler := ast.NewCompiler()
+	mods := map[string]*ast.Module{
+		"policy": ast.MustParseModule(siblingPolicy(rules, perRule, prefixFirst)),
+	}
+	if compiler.Compile(mods); compiler.Failed() {
+		b.Fatalf("unexpected compiler error: %v", compiler.Errors)
+	}
+
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	// A path the fourth rule admits, under a method no rule admits.
+	input := ast.NewTerm(ast.MustInterfaceToValue(map[string]any{
+		"path":   benchPrefix(3*perRule+7) + "/some/request",
+		"method": "NO_SUCH_METHOD",
+	}))
+
+	query := NewQuery(ast.MustParseBody("data.bench.allow = x")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(input).
+		WithIndexing(true)
+
+	rs, err := query.Run(ctx)
+	if err != nil {
+		b.Fatalf("unexpected topdown query error: %v", err)
+	}
+	if len(rs) != 0 {
+		b.Fatalf("expected the query to be undefined, got %v", rs)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		if _, err := query.Run(ctx); err != nil {
+			b.Fatalf("unexpected topdown query error: %v", err)
+		}
+	}
+}
+
+// siblingPolicy renders a rule per (method, prefix set). The prefixes are
+// distinct across the whole policy, as in prefixMatchPolicy, and each rule
+// takes a method of its own so that a query naming none of them is a miss on
+// every rule.
+func siblingPolicy(rules, perRule int, prefixFirst bool) string {
+	var sb strings.Builder
+	sb.WriteString("package bench\n\nimport rego.v1\n\n")
+
+	batch := make([]string, perRule)
+	next := 0
+
+	for r := range rules {
+		for i := range batch {
+			batch[i] = benchPrefix(next)
+			next++
+		}
+
+		var prefix strings.Builder
+		prefix.WriteString("strings.any_prefix_match(input.path, [")
+		writePrefixList(&prefix, batch)
+		prefix.WriteString("])")
+
+		method := fmt.Sprintf("input.method == %q", fmt.Sprintf("METHOD_%d", r))
+
+		first, second := method, prefix.String()
+		if prefixFirst {
+			first, second = prefix.String(), method
+		}
+
+		fmt.Fprintf(&sb, "allow if {\n\t%s\n\t%s\n}\n\n", first, second)
+	}
+
+	return sb.String()
+}
