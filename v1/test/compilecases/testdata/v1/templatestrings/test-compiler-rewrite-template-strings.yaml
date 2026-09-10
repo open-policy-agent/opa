@@ -1,0 +1,1519 @@
+---
+# Generated externalized tests from TestCompilerRewriteTemplateStrings
+cases:
+  - note: templatestrings/empty template string, head value
+    modules:
+      - |
+        package test
+
+        p := $""
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	internal.template_string([""], __local0__)
+          }
+  - note: templatestrings/empty template string, head set value
+    modules:
+      - |
+        package test
+
+        p contains $""
+    want:
+      - module: |
+          package test
+
+          p contains __local0__ if {
+          	internal.template_string([""], __local0__)
+          }
+  - note: templatestrings/empty template string, head map key
+    modules:
+      - |
+        package test
+
+        p[$""] := true
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := true if {
+          	internal.template_string([""], __local1__)
+          	__local0__ = __local1__
+          }
+  - note: templatestrings/empty template string, in body
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $""
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	internal.template_string([""], __local1__)
+          	__local0__ = __local1__
+          }
+  - note: templatestrings/empty template string, in body, no output arg
+    modules:
+      - |
+        package test
+
+        p if {
+        	$""
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	internal.template_string([""], __local0__)
+          	__local0__
+          }
+  - note: templatestrings/non-empty template string, no template expression, head value
+    modules:
+      - |
+        package test
+
+        p := $"foo bar"
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	internal.template_string(["foo bar"], __local0__)
+          }
+  - note: templatestrings/non-empty template string, no template expression, head set value
+    modules:
+      - |
+        package test
+
+        p contains $"foo bar"
+    want:
+      - module: |
+          package test
+
+          p contains __local0__ if {
+          	internal.template_string(["foo bar"], __local0__)
+          }
+  - note: templatestrings/non-empty template string, no template expression, head map key
+    modules:
+      - |
+        package test
+
+        p[$"foo bar"] := true
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := true if {
+          	internal.template_string(["foo bar"], __local1__)
+          	__local0__ = __local1__
+          }
+  - note: templatestrings/non-empty template string, no template expression, in body
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $"foo bar"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	internal.template_string(["foo bar"], __local1__)
+          	__local0__ = __local1__
+          }
+  - note: templatestrings/non-empty template string, no template expression, in body, no output arg
+    modules:
+      - |
+        package test
+
+        p if {
+        	$"foo bar"
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	internal.template_string(["foo bar"], __local0__)
+          	__local0__
+          }
+  - note: templatestrings/single template expression, ref, head value
+    modules:
+      - |
+        package test
+
+        p := $"{input.x}"
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local2__ = {__local0__ | __local0__ = input.x}
+          	internal.template_string([__local2__], __local1__)
+          }
+  - note: templatestrings/single template expression, ref, head set value
+    modules:
+      - |
+        package test
+
+        p contains $"{input.x}"
+    want:
+      - module: |
+          package test
+
+          p contains __local1__ if {
+          	__local2__ = {__local0__ | __local0__ = input.x}
+          	internal.template_string([__local2__], __local1__)
+          }
+  - note: templatestrings/single template expression, ref, head map key
+    modules:
+      - |
+        package test
+
+        p[$"{input.x}"] := true
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := true if {
+          	__local3__ = {__local1__ | __local1__ = input.x}
+          	internal.template_string([__local3__], __local2__)
+          	__local0__ = __local2__
+          }
+  - note: templatestrings/single template expression, ref, in body
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $"{input.x}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	__local3__ = {__local1__ | __local1__ = input.x}
+          	internal.template_string([__local3__], __local2__)
+          	__local0__ = __local2__
+          }
+  - note: templatestrings/single template expression, ref, in body, no output arg
+    modules:
+      - |
+        package test
+
+        p if {
+        	$"{input.x}"
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = {__local0__ | __local0__ = input.x}
+          	internal.template_string([__local2__], __local1__)
+          	__local1__
+          }
+  - note: templatestrings/single template expression, ref, in function arg
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f($"{input.x}") := 42
+    want:
+      - module: |
+          package test
+
+          f(__local1__) := 42 if {
+          	__local2__ = {__local0__ | __local0__ = input.x}
+          	internal.template_string([__local2__], __local1__)
+          }
+  - note: templatestrings/single template expression, var, head value
+    modules:
+      - |
+        package test
+
+        p := $"{x}" if {
+        	x := 42
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local0__ = 42
+          	internal.template_string([{__local0__}], __local1__)
+          }
+  - note: templatestrings/single template expression, var, indirection, head value
+    modules:
+      - |
+        package test
+
+        p := $"{x}" if {
+        	x := input.x
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local0__ = input.x
+          	internal.template_string([{__local0__}], __local1__)
+          }
+  - note: templatestrings/single template expression, var, head set value
+    modules:
+      - |
+        package test
+
+        p contains $"{x}" if {
+        	x := 42
+        }
+    want:
+      - module: |
+          package test
+
+          p contains __local1__ if {
+          	__local0__ = 42
+          	internal.template_string([{__local0__}], __local1__)
+          }
+  - note: templatestrings/single template expression, var, head map key
+    modules:
+      - |
+        package test
+
+        p[$"{x}"] := true if {
+        	x := 42
+        }
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := true if {
+          	__local1__ = 42
+          	internal.template_string([{__local1__}], __local2__)
+          	__local0__ = __local2__
+          }
+  - note: templatestrings/single template expression, var, in body
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	x := 42
+        	y := $"{x}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local0__ = 42
+          	internal.template_string([{__local0__}], __local2__)
+          	__local1__ = __local2__
+          }
+  - note: templatestrings/single template expression, var, in body, no output arg
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 42
+        	$"{x}"
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 42
+          	internal.template_string([{__local0__}], __local1__)
+          	__local1__
+          }
+  - note: templatestrings/single template expression, var from function args, in head args
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f($"{x}") := 42 if {
+        	x := "foo"
+        }
+    want:
+      - module: |
+          package test
+
+          f(__local1__) := 42 if {
+          	__local0__ = "foo"
+          	internal.template_string([{__local0__}], __local1__)
+          }
+  - note: templatestrings/single template expression, var from function args, in head value
+    modules:
+      - |
+        package test
+
+        f(x) := $"{x}"
+    want:
+      - module: |
+          package test
+
+          f(__local0__) := __local1__ if {
+          	internal.template_string([{__local0__}], __local1__)
+          }
+  - note: templatestrings/single template expression, var from function args, in body
+    modules:
+      - |
+        package test
+
+        f(x) := y if {
+        	y := $"{x}"
+        }
+    want:
+      - module: |
+          package test
+
+          f(__local0__) := __local1__ if {
+          	internal.template_string([{__local0__}], __local2__)
+          	__local1__ = __local2__
+          }
+  - note: templatestrings/primitives
+    modules:
+      - |
+        package test
+
+        p := $"{false}, {42}, {13.37}, {"foo"}, {`bar`}, {null}"
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	internal.template_string([false, ", ", 42, ", ", 13.37, ", ", "foo", ", ", "bar", ", ", null], __local0__)
+          }
+  - note: templatestrings/collections
+    modules:
+      - |
+        package test
+
+        p := $"{[1, 2, 3]}, {{false, true}}, {{"a": "b"}}"
+    want:
+      - module: |
+          package test
+
+          p := __local3__ if {
+          	__local4__ = {__local0__ | __local0__ = [1, 2, 3]}
+          	__local5__ = {__local1__ | __local1__ = {false, true}}
+          	__local6__ = {__local2__ | __local2__ = {"a": "b"}}
+          	internal.template_string([__local4__, ", ", __local5__, ", ", __local6__], __local3__)
+          }
+  - note: templatestrings/single template expression, call, head value
+    modules:
+      - |
+        package test
+
+        f(x) := x
+        p := $"{f(input.x)}"
+    want:
+      - module: |
+          package test
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p := __local3__ if {
+          	__local5__ = {__local1__ | __local4__ = input.x; data.test.f(__local4__, __local2__); __local1__ = __local2__}
+          	internal.template_string([__local5__], __local3__)
+          }
+  - note: templatestrings/single template expression, call, head set value
+    modules:
+      - |
+        package test
+
+        f(x) := x
+        p contains $"{f(input.x)}"
+    want:
+      - module: |
+          package test
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p contains __local3__ if {
+          	__local5__ = {__local1__ | __local4__ = input.x; data.test.f(__local4__, __local2__); __local1__ = __local2__}
+          	internal.template_string([__local5__], __local3__)
+          }
+  - note: templatestrings/single template expression, call, head map key
+    modules:
+      - |
+        package test
+
+        f(x) := x
+        p[$"{f(input.x)}"] := true
+    want:
+      - module: |
+          package test
+
+          f(__local1__) := __local1__ if {
+          	true
+          }
+
+          p[__local0__] := true if {
+          	__local6__ = {__local2__ | __local5__ = input.x; data.test.f(__local5__, __local3__); __local2__ = __local3__}
+          	internal.template_string([__local6__], __local4__)
+          	__local0__ = __local4__
+          }
+  - note: templatestrings/single template expression, call, in body
+    modules:
+      - |
+        package test
+
+        f(x) := x
+        p := x if {
+        	x := $"{f(input.x)}"
+        }
+    want:
+      - module: |
+          package test
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p := __local1__ if {
+          	__local6__ = {__local2__ | __local5__ = input.x; data.test.f(__local5__, __local3__); __local2__ = __local3__}
+          	internal.template_string([__local6__], __local4__)
+          	__local1__ = __local4__
+          }
+  - note: templatestrings/single template expression, infix, head value
+    modules:
+      - |
+        package test
+
+        p := $"{input.x + 2}"
+    want:
+      - module: |
+          package test
+
+          p := __local2__ if {
+          	__local4__ = {__local0__ | __local3__ = input.x; plus(__local3__, 2, __local1__); __local0__ = __local1__}
+          	internal.template_string([__local4__], __local2__)
+          }
+  - note: templatestrings/single template expression, infix, head set value
+    modules:
+      - |
+        package test
+
+        p contains $"{input.x + 2}"
+    want:
+      - module: |
+          package test
+
+          p contains __local2__ if {
+          	__local4__ = {__local0__ | __local3__ = input.x; plus(__local3__, 2, __local1__); __local0__ = __local1__}
+          	internal.template_string([__local4__], __local2__)
+          }
+  - note: templatestrings/single template expression, infix, head map key
+    modules:
+      - |
+        package test
+
+        p[$"{input.x + 2}"] := true
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := true if {
+          	__local5__ = {__local1__ | __local4__ = input.x; plus(__local4__, 2, __local2__); __local1__ = __local2__}
+          	internal.template_string([__local5__], __local3__)
+          	__local0__ = __local3__
+          }
+  - note: templatestrings/single template expression, infix, in body
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $"{input.x + 2}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	__local5__ = {__local1__ | __local4__ = input.x; plus(__local4__, 2, __local2__); __local1__ = __local2__}
+          	internal.template_string([__local5__], __local3__)
+          	__local0__ = __local3__
+          }
+  - note: templatestrings/single template expression, infix, equal (==), in body
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $"{input.x == 2}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	__local5__ = {__local1__ | __local4__ = input.x; equal(__local4__, 2, __local2__); __local1__ = __local2__}
+          	internal.template_string([__local5__], __local3__)
+          	__local0__ = __local3__
+          }
+  - note: templatestrings/single template expression, reference to default rule, not wrapped
+    modules:
+      - |
+        package test
+
+        default x := 42
+
+        p := $"{x}"
+    want:
+      - module: |
+          package test
+
+          default x := 42
+
+          p := __local0__ if {
+          	__local1__ = data.test.x
+          	internal.template_string([{__local1__}], __local0__)
+          }
+  - note: templatestrings/single template expression, no exact reference to default rule, wrapped
+    modules:
+      - |
+        package test
+
+        default a.b := {"c": 1}
+        a.b := {"d": 2} if input.x
+
+        p := $"{a.b.c}"
+    want:
+      - module: |
+          package test
+
+          default a.b := {"c": 1}
+
+          a.b := {"d": 2} if {
+          	input.x
+          }
+
+          p := __local1__ if {
+          	__local2__ = {__local0__ | __local0__ = data.test.a.b.c}
+          	internal.template_string([__local2__], __local1__)
+          }
+  - note: templatestrings/inside array comprehension, body
+    modules:
+      - |
+        package test
+
+        p if {
+        	[x | x := $"{input.x}"]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	[__local0__ | __local3__ = {__local1__ | __local1__ = input.x}; internal.template_string([__local3__], __local2__); __local0__ = __local2__]
+          }
+  - note: templatestrings/inside array comprehension, body, nested
+    modules:
+      - |
+        package test
+
+        p if {
+        	a := 1
+        	[x |
+        		b := 2
+        		x := [y | y := $"{a} {b}"]
+        	]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 1
+          	[__local3__ | __local1__ = 2; __local3__ = [__local2__ | internal.template_string([{__local0__}, " ", {__local1__}], __local4__); __local2__ = __local4__]]
+          }
+  - note: templatestrings/inside array comprehension, head
+    modules:
+      - |
+        package test
+
+        p if {
+        	[$"{x} {input.y}" | x := input.x]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	[__local2__ | __local0__ = input.x; __local3__ = {__local1__ | __local1__ = input.y}; internal.template_string([{__local0__}, " ", __local3__], __local2__)]
+          }
+  - note: templatestrings/inside array comprehension, head, nested
+    modules:
+      - |
+        package test
+
+        p if {
+        	a := 1
+        	[x |
+        		b := 2
+        		x := [$"{a} {b} {c}" | c := 3 ]
+        	]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 1
+          	[__local3__ | __local1__ = 2; __local3__ = [__local4__ | __local2__ = 3; internal.template_string([{__local0__}, " ", {__local1__}, " ", {__local2__}], __local4__)]]
+          }
+  - note: templatestrings/inside set comprehension, body
+    modules:
+      - |
+        package test
+
+        p if {
+        	{x | x := $"{input.x}"}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	{__local0__ | __local3__ = {__local1__ | __local1__ = input.x}; internal.template_string([__local3__], __local2__); __local0__ = __local2__}
+          }
+  - note: templatestrings/inside set comprehension, head
+    modules:
+      - |
+        package test
+
+        p if {
+        	{$"{x} {input.y}" | x := input.x}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	{__local2__ | __local0__ = input.x; __local3__ = {__local1__ | __local1__ = input.y}; internal.template_string([{__local0__}, " ", __local3__], __local2__)}
+          }
+  - note: templatestrings/inside object comprehension, body
+    modules:
+      - |
+        package test
+
+        p if {
+        	{x: y |
+        		x := $"{input.x}"
+        		y := $"{input.y}"
+        	}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	{__local0__: __local1__ | __local6__ = {__local2__ | __local2__ = input.x}; internal.template_string([__local6__], __local4__); __local0__ = __local4__; __local7__ = {__local3__ | __local3__ = input.y}; internal.template_string([__local7__], __local5__); __local1__ = __local5__}
+          }
+  - note: templatestrings/inside object comprehension, head
+    modules:
+      - |
+        package test
+
+        p if {
+        	{$"{input.x} {y}": $"{x} {input.y}" |
+        		x := input.x
+        		y := input.y
+        	}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	{__local4__: __local5__ | __local0__ = input.x; __local1__ = input.y; __local6__ = {__local2__ | __local2__ = input.x}; internal.template_string([__local6__, " ", {__local1__}], __local4__); __local7__ = {__local3__ | __local3__ = input.y}; internal.template_string([{__local0__}, " ", __local7__], __local5__)}
+          }
+  - note: templatestrings/single template expression, nested comprehension with local var, in function arg
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f($"{[x | y := input.ys[_]; x := y]}") := 42
+    want:
+      - module: |
+          package test
+
+          f(__local3__) := 42 if {
+          	__local4__ = {__local2__ | __local2__ = [__local1__ | __local0__ = input.ys[_]; __local1__ = __local0__]}
+          	internal.template_string([__local4__], __local3__)
+          }
+  - note: templatestrings/inside every expression, body
+    modules:
+      - |
+        package test
+
+        p if {
+        	every i, x in input.l1 {
+        		x == $"<{input.l2[i]}>"
+        	}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local3__ = input.l1
+          	every __local0__, __local1__ in __local3__ { __local5__ = {__local2__ | __local2__ = input.l2[__local0__]}; internal.template_string(["<", __local5__, ">"], __local4__); __local1__ = __local4__ }
+          }
+  - note: templatestrings/inside every expression, domain
+    modules:
+      - |
+        package test
+
+        p if {
+        	every _, x in [$"{42} {input.x}"] {
+        		x == $"42 foo"
+        	}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local5__ = {__local1__ | __local1__ = input.x}
+          	internal.template_string([42, " ", __local5__], __local3__)
+          	__local2__ = [__local3__]
+          	every _, __local0__ in __local2__ { internal.template_string(["42 foo"], __local4__); __local0__ = __local4__ }
+          }
+  - note: templatestrings/inside some
+    modules:
+      - |
+        package test
+
+        users := {"alice_1", "alice_2"}
+        id := 1
+
+        t if {
+        	$"user_{id}" in users
+        }
+    want:
+      - module: |
+          package test
+
+          users := {"alice_1", "alice_2"} if {
+          	true
+          }
+
+          id := 1 if {
+          	true
+          }
+
+          t = true if {
+          	__local1__ = data.test.id
+          	internal.template_string(["user_", {__local1__}], __local0__)
+          	__local2__ = data.test.users
+          	internal.member_2(__local0__, __local2__)
+          }
+  - note: templatestrings/inside some, domain
+    modules:
+      - |
+        package test
+
+        t if {
+        	some "user_1" in [$"alice_{1}", $"alice_{2}"]
+        }
+    want:
+      - module: |
+          package test
+
+          t = true if {
+          	internal.template_string(["alice_", 1], __local2__)
+          	internal.template_string(["alice_", 2], __local3__)
+          	__local4__ = [__local2__, __local3__]
+          	"user_1" = __local4__[__local1__]
+          }
+  - note: 'templatestrings/template string in head referencing var from some with template string in domain (issue #8162)'
+    modules:
+      - |
+        package test
+
+        r contains $"{val}" if {
+        	some val in [1, $"{1 + 1}"]
+        }
+    want:
+      - module: |
+          package test
+
+          r contains __local4__ if {
+          	__local8__ = {__local3__ | plus(1, 1, __local5__); __local3__ = __local5__}
+          	internal.template_string([__local8__], __local6__)
+          	__local7__ = [1, __local6__]
+          	__local2__ = __local7__[__local1__]
+          	internal.template_string([{__local2__}], __local4__)
+          }
+  - note: templatestrings/in else body
+    modules:
+      - |
+        package test
+
+        p if {
+        	false
+        } else := msg if {
+        	msg := $"foo: {input.y}"
+        }
+    want:
+      # ast rather than module: the compiled rule `p = true if { false } else =
+      # __local0__ if { __local3__ = {__local1__ | __local1__ = input.y};
+      # internal.template_string(["foo: ", __local3__], __local2__); __local0__ =
+      # __local2__ }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "generated": true,
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local3__"
+                        },
+                        {
+                          "type": "setcomprehension",
+                          "value": {
+                            "body": [
+                              {
+                                "index": 0,
+                                "terms": [
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "eq"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "__local1__"
+                                  },
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "input"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "value": "y"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "term": {
+                              "type": "var",
+                              "value": "__local1__"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "generated": true,
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "template_string"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "array",
+                          "value": [
+                            {
+                              "type": "string",
+                              "value": "foo: "
+                            },
+                            {
+                              "type": "var",
+                              "value": "__local3__"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local2__"
+                        }
+                      ]
+                    },
+                    {
+                      "index": 2,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local0__"
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local2__"
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "assign": true,
+                    "name": "p",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "p"
+                      }
+                    ],
+                    "value": {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  }
+                },
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: templatestrings/in else head
+    modules:
+      - |
+        package test
+
+        p if {
+        	false
+        } else := $"foo: {input.y}"
+    want:
+      # ast rather than module: the compiled rule `p = true if { false } else =
+      # __local1__ if { __local2__ = {__local0__ | __local0__ = input.y};
+      # internal.template_string(["foo: ", __local2__], __local1__) }` prints as
+      # Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "generated": true,
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local2__"
+                        },
+                        {
+                          "type": "setcomprehension",
+                          "value": {
+                            "body": [
+                              {
+                                "index": 0,
+                                "terms": [
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "eq"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "__local0__"
+                                  },
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "input"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "value": "y"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "term": {
+                              "type": "var",
+                              "value": "__local0__"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "generated": true,
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "template_string"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "array",
+                          "value": [
+                            {
+                              "type": "string",
+                              "value": "foo: "
+                            },
+                            {
+                              "type": "var",
+                              "value": "__local2__"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local1__"
+                        }
+                      ]
+                    }
+                  ],
+                  "head": {
+                    "assign": true,
+                    "name": "p",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "p"
+                      }
+                    ],
+                    "value": {
+                      "type": "var",
+                      "value": "__local1__"
+                    }
+                  }
+                },
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: templatestrings/body
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $"foo {$"bar {data.a}"}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	__local6__ = {__local1__ | __local5__ = {__local2__ | __local2__ = data.a}; internal.template_string(["bar ", __local5__], __local3__); __local1__ = __local3__}
+          	internal.template_string(["foo ", __local6__], __local4__)
+          	__local0__ = __local4__
+          }
+  - note: templatestrings/head value
+    modules:
+      - |
+        package test
+
+        p := $"foo {$"bar {data.a}"}"
+    want:
+      - module: |
+          package test
+
+          p := __local3__ if {
+          	__local5__ = {__local0__ | __local4__ = {__local1__ | __local1__ = data.a}; internal.template_string(["bar ", __local4__], __local2__); __local0__ = __local2__}
+          	internal.template_string(["foo ", __local5__], __local3__)
+          }
+  - note: templatestrings/head set value
+    modules:
+      - |
+        package test
+
+        p contains $"foo {$"bar {data.a}"}"
+    want:
+      - module: |
+          package test
+
+          p contains __local3__ if {
+          	__local5__ = {__local0__ | __local4__ = {__local1__ | __local1__ = data.a}; internal.template_string(["bar ", __local4__], __local2__); __local0__ = __local2__}
+          	internal.template_string(["foo ", __local5__], __local3__)
+          }
+  - note: templatestrings/head map key
+    modules:
+      - |
+        package test
+
+        p[$"foo {$"bar {data.a}"}"] := true
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := true if {
+          	__local6__ = {__local1__ | __local5__ = {__local2__ | __local2__ = data.a}; internal.template_string(["bar ", __local5__], __local3__); __local1__ = __local3__}
+          	internal.template_string(["foo ", __local6__], __local4__)
+          	__local0__ = __local4__
+          }
+  - note: templatestrings/inner template in head of comprehension
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := $"foo {[$"bar {x} {input.y}" | x := input.x]}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local7__ = {__local2__ | __local2__ = [__local4__ | __local0__ = input.x; __local6__ = {__local3__ | __local3__ = input.y}; internal.template_string(["bar ", {__local0__}, " ", __local6__], __local4__)]}
+          	internal.template_string(["foo ", __local7__], __local5__)
+          	__local1__ = __local5__
+          }
+  - note: templatestrings/modifier inside template-expression
+    modules:
+      - |
+        package test
+
+        a := input
+        p := $"{a with input as 42} {a with input as {"x": true}}"
+    want:
+      - module: |
+          package test
+
+          a := __local3__ if {
+          	__local3__ = input
+          }
+
+          p := __local2__ if {
+          	__local4__ = {__local0__ | __local0__ = data.test.a with input as 42}
+          	__local5__ = {__local1__ | __local1__ = data.test.a with input as {"x": true}}
+          	internal.template_string([__local4__, " ", __local5__], __local2__)
+          }
+  - note: templatestrings/modifier outside string-template
+    modules:
+      - |
+        package test
+
+        a := input
+        b := input
+        p if {
+        	$"{a} {b}" with input as 42
+        }
+    want:
+      - module: |
+          package test
+
+          a := __local3__ if {
+          	__local3__ = input
+          }
+
+          b := __local4__ if {
+          	__local4__ = input
+          }
+
+          p = true if {
+          	__local5__ = {__local0__ | __local0__ = data.test.a} with input as 42
+          	__local6__ = {__local1__ | __local1__ = data.test.b} with input as 42
+          	internal.template_string([__local5__, " ", __local6__], __local2__) with input as 42
+          	__local2__ with input as 42
+          }
+  - note: templatestrings/modifier inside template-expression and outside string-template
+    modules:
+      - |
+        package test
+
+        a := input.x + input.y
+        p := x if {
+        	x := $"{a with input.x as 1}" with input.y as 2
+        }
+    want:
+      - module: |
+          package test
+
+          a := __local2__ if {
+          	__local4__ = input.x
+          	__local5__ = input.y
+          	plus(__local4__, __local5__, __local2__)
+          }
+
+          p := __local0__ if {
+          	__local6__ = {__local1__ | __local1__ = data.test.a with input.x as 1} with input.y as 2
+          	internal.template_string([__local6__], __local3__) with input.y as 2
+          	__local0__ = __local3__ with input.y as 2
+          }
+  - note: templatestrings/var used in template-expression preceding assignment through unification
+    modules:
+      - |
+        package test
+
+        p := msg if {
+        	msg := $"{x}"
+        	x = 42
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	x = 42
+          	internal.template_string([{x}], __local1__)
+          	__local0__ = __local1__
+          }
+  - note: templatestrings/refs to known defined rules are not wrapped in comprehensions
+    modules:
+      - |
+        package test
+
+        default a.b := "c"
+        pi := 3.14
+        multi contains "value"
+
+        result := $"{a.b} {pi} {multi}"
+    want:
+      - module: |
+          package test
+
+          default a.b := "c"
+
+          pi := 3.14 if {
+          	true
+          }
+
+          multi contains "value" if {
+          	true
+          }
+
+          result := __local0__ if {
+          	__local1__ = data.test.a.b
+          	__local2__ = data.test.pi
+          	__local3__ = data.test.multi
+          	internal.template_string([{__local1__}, " ", {__local2__}, " ", {__local3__}], __local0__)
+          }
+  - note: templatestrings/attribute ref of safe var is still not known to be safe, and gets wrapped
+    modules:
+      - |
+        package test
+
+        p := msg if {
+        	x := object.union({"a": 1}, {"b": 2})
+        	msg := $"{x.c}"
+        }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	object.union({"a": 1}, {"b": 2}, __local3__)
+          	__local0__ = __local3__
+          	__local5__ = {__local2__ | __local2__ = __local0__.c}
+          	internal.template_string([__local5__], __local4__)
+          	__local1__ = __local4__
+          }
+  - note: templatestrings/single template expression, in implicit not-body
+    modules:
+      - |
+        package test
+
+        import future.keywords.not
+        p if {
+        	not $"{input.x}"
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package test
+
+          p = true if {
+          	not {__local2__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local2__], __local1__); __local1__}
+          }
+  - note: templatestrings/single template expression, in explicit not-body
+    modules:
+      - |
+        package test
+
+        import future.keywords.not
+        p if {
+        	not { $"{input.x}" }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package test
+
+          p = true if {
+          	not {__local2__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local2__], __local1__); __local1__}
+          }
+  - note: templatestrings/or
+    modules:
+      - |
+        package test
+
+        import future.keywords.or
+        p if {
+        	$"{input.x}" or { $"{input.y}" }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true if {
+          	{ __local4__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local4__], __local2__); __local2__ } or { __local5__ = {__local1__ | __local1__ = input.y}; internal.template_string([__local5__], __local3__); __local3__ }
+          }
+  - note: templatestrings/and
+    modules:
+      - |
+        package test
+
+        import future.keywords.and
+        p if {
+        	$"{input.x}" and { $"{input.y}" }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and]
+        module: |
+          package test
+
+          p = true if {
+          	{ __local4__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local4__], __local2__); __local2__ } and { __local5__ = {__local1__ | __local1__ = input.y}; internal.template_string([__local5__], __local3__); __local3__ }
+          }
