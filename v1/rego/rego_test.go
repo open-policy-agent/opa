@@ -1026,7 +1026,9 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 		t.Context(),
 		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
-		EvalInput(map[string]any{"x": 1}),
+		// The match is on the last definition, so early exit stopping there still
+		// leaves the one before evaluated -- which is what this test shows.
+		EvalInput(map[string]any{"y": 1}),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
