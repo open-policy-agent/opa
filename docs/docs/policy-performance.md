@@ -220,19 +220,23 @@ Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/l
 
 Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a collection. The rule is indexed under each of those values.
 
-Where the rule is indexed below that reference depends on the statement. The values of an `in` collection converge on one continuation, so the rule goes on being indexed on everything else it constrains, however many such references it has. The base strings of a `strings.any_prefix_match` or `strings.any_suffix_match` are leaves of the radix trie described above, which cannot converge, so that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
+Where the rule is indexed below that reference depends on the statement. The values of an `in` collection converge on one continuation, so the rule goes on being indexed on everything else it constrains, however many such references it has — as long as they are scalars. A collection holding arrays, objects or sets cannot converge, so that reference ends the rule's path the way base strings do. The base strings of a `strings.any_prefix_match` or `strings.any_suffix_match` are leaves of the radix trie described above, which cannot converge, so that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
 
 The indexer orders references carrying alternatives after every other one, so a rule's single-valued constraints are indexed first either way.
 
-| Rule body                                                                                              | Indexed on      |
-| ------------------------------------------------------------------------------------------------------ | --------------- |
-| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.method == "GET"`                            | both references |
-| `input.x in {1, 2}; input.y == 3`                                                                      | both references |
-| `input.x in {1, 2}; input.y in {3, 4}`                                                                 | both references |
-| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.x in {1, 2}`                                | both references |
-| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.n, [".go", ".rego"])` | one of the two  |
+| Rule body                                                                                              | Indexed on           |
+| ------------------------------------------------------------------------------------------------------ | -------------------- |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.method == "GET"`                            | both references      |
+| `input.x in {1, 2}; input.y == 3`                                                                      | both references      |
+| `input.x in {1, 2}; input.y in {3, 4}`                                                                 | both references      |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.x in {1, 2}`                                | both references      |
+| `input.x in [[1], [2]]; input.y == 3`                                                                  | one reference        |
+| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.n, [".go", ".rego"])` | one of the two       |
+| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.p, [".go", ".rego"])` | one end of `input.p` |
 
 A reference reached by base strings is ordered after one reached by an `in` collection, so only a rule that reaches _two_ references by base strings loses one of them — and which of the two the author wrote first does not decide which is lost.
+
+Requiring base strings at both ends of the _same_ reference runs into the same limit from the other direction. The two sets are leaves of two tries, and a leaf cannot be made to depend on the other trie's answer, so the index tests one end and leaves the other to evaluation. Indexing both would admit a value matching either one, where the rule requires both, so it would hand more rules to evaluation than testing one end does. The end kept is the one whose shortest base string is longest: a set admits a value matching any one of its bases, so its shortest base is what decides how much it admits — `["/"]` admits every absolute path however many longer prefixes sit beside it.
 
 #### References rooted at a local variable
 
