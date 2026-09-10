@@ -110,6 +110,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(ast.InternedTerm("batch_decision_id"), ast.StringTerm(e.BatchDecisionID))
 	}
 
+	if e.TraceID != "" {
+		event.Insert(ast.InternedTerm("trace_id"), ast.StringTerm(e.TraceID))
+	}
+
+	if e.SpanID != "" {
+		event.Insert(ast.InternedTerm("span_id"), ast.StringTerm(e.SpanID))
+	}
+
 	if e.Labels != nil {
 		labelsObj := ast.NewObject()
 		for k, v := range e.Labels {
@@ -235,6 +243,32 @@ func (e *EventV1) AST() (ast.Value, error) {
 
 	if e.RequestID > 0 {
 		event.Insert(ast.InternedTerm("req_id"), ast.UIntNumberTerm(e.RequestID))
+	}
+
+	// The nesting mirrors the `omitempty` tags on RequestContext, so that a
+	// mask policy sees the same shape as the uploaded event.
+	if e.RequestContext != nil {
+		requestContext := ast.NewObject()
+
+		if httpRequest := e.RequestContext.HTTPRequest; httpRequest != nil {
+			httpObj := ast.NewObject()
+
+			if len(httpRequest.Headers) > 0 {
+				headers := ast.NewObject()
+				for name, values := range httpRequest.Headers {
+					terms := make([]*ast.Term, len(values))
+					for i, v := range values {
+						terms[i] = ast.StringTerm(v)
+					}
+					headers.Insert(ast.StringTerm(name), ast.ArrayTerm(terms...))
+				}
+				httpObj.Insert(ast.InternedTerm("headers"), ast.NewTerm(headers))
+			}
+
+			requestContext.Insert(ast.InternedTerm("http"), ast.NewTerm(httpObj))
+		}
+
+		event.Insert(ast.InternedTerm("request_context"), ast.NewTerm(requestContext))
 	}
 
 	if len(e.Custom) > 0 {

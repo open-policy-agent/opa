@@ -2888,6 +2888,38 @@ func TestPluginDrop(t *testing.T) {
 			event:    &EventV1{Path: "foo/foo"},
 			expected: false,
 		},
+		{
+			note: "drop on request context header",
+			rawPolicy: []byte(`
+			package system.log
+			import rego.v1
+			drop if {
+				input.request_context.http.headers["X-Skip-Log"][_] == "true"
+			}`),
+			event: &EventV1{
+				Path: "foo/foo",
+				RequestContext: &RequestContext{
+					HTTPRequest: &HTTPRequestContext{
+						Headers: map[string][]string{"X-Skip-Log": {"true"}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			note: "drop on trace id",
+			rawPolicy: []byte(`
+			package system.log
+			import rego.v1
+			drop if {
+				input.trace_id == "4bf92f3577b34da6a3ce929d0e0e4736"
+			}`),
+			event: &EventV1{
+				Path:    "foo/foo",
+				TraceID: "4bf92f3577b34da6a3ce929d0e0e4736",
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -3589,6 +3621,58 @@ func TestEventV1ToAST(t *testing.T) {
 				Timestamp:           time.Now(),
 				RequestID:           1,
 				inputAST:            astInput,
+			},
+		},
+		{
+			note: "event with trace and span ids",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				TraceID:     "4bf92f3577b34da6a3ce929d0e0e4736",
+				SpanID:      "00f067aa0ba902b7",
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				inputAST:    astInput,
+			},
+		},
+		{
+			note: "event with request context",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				RequestContext: &RequestContext{
+					HTTPRequest: &HTTPRequestContext{
+						Headers: map[string][]string{
+							"X-Single": {"one"},
+							"X-Multi":  {"one", "two"},
+						},
+					},
+				},
+				inputAST: astInput,
+			},
+		},
+		{
+			note: "event with empty request context",
+			event: EventV1{
+				DecisionID:     "1234567890",
+				Timestamp:      time.Now(),
+				RequestContext: &RequestContext{},
+			},
+		},
+		{
+			note: "event with request context holding no headers",
+			event: EventV1{
+				DecisionID:     "1234567890",
+				Timestamp:      time.Now(),
+				RequestContext: &RequestContext{HTTPRequest: &HTTPRequestContext{}},
 			},
 		},
 	}
