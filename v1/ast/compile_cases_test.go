@@ -63,16 +63,33 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		got = append(got, caseError(e))
 	}
 
-	if tc.Compiles {
-		if len(got) > 0 {
-			t.Fatalf("%s: expected the modules to compile, got:%s", tc.Filename, indented(got))
+	// An absent want_errors is itself an assertion: nothing may be reported. That
+	// is what compiles states explicitly, and what a transformation case relies on.
+	if tc.Failure() {
+		if len(got) == 0 {
+			t.Fatalf("%s: expected compilation to fail, but it succeeded", tc.Filename)
 		}
-		return
+		assertCaseErrors(t, tc.Filename, tc.WantErrors, got, tc.Exhaustive)
+	} else if len(got) > 0 {
+		t.Fatalf("%s: expected the modules to compile, got:%s", tc.Filename, indented(got))
 	}
 
-	if len(got) == 0 {
-		t.Fatalf("%s: expected compilation to fail, but it succeeded", tc.Filename)
-	}
+	for i, want := range tc.WantModules {
+		name := compilecases.ModuleName(i)
 
-	assertCaseErrors(t, tc.Filename, tc.WantErrors, got, tc.Exhaustive)
+		exp, err := ParseModuleWithOpts(name, want, popts)
+		if err != nil {
+			t.Fatalf("%s: want_modules[%d] does not parse: %v", tc.Filename, i, err)
+		}
+
+		// Comments are not part of the assertion: the module is in the case
+		// already, and a compiled form carries whichever of them survived.
+		got := c.Modules[name]
+		got.Comments, exp.Comments = nil, nil
+
+		if !got.Equal(exp) {
+			t.Fatalf("%s: %s does not compile to want_modules[%d]\n--- want\n%v\n--- got\n%v",
+				tc.Filename, name, i, exp, got)
+		}
+	}
 }

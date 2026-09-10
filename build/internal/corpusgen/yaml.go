@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"slices"
 	"strconv"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -114,4 +115,14 @@ func Encode(root *yaml.Node) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// ModulesNode renders Rego sources as a sequence of block scalars, the form a
+// module is written as in a corpus file.
+func ModulesNode(modules []string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, m := range modules {
+		seq.Content = append(seq.Content, Literal(strings.TrimRight(m, "\n")+"\n"))
+	}
+	return seq
 }

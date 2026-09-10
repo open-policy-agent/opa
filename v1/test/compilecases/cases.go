@@ -77,6 +77,15 @@ type TestCase struct {
 
 	WantErrors []Error `json:"want_errors,omitempty"  yaml:"want_errors,omitempty"` // diagnostics the compilation must produce
 	Exhaustive bool    `json:"exhaustive,omitempty"   yaml:"exhaustive,omitempty"`  // require want_errors to be the complete set, not a subset
+
+	// WantModules is the Rego each input module compiles to, one entry per entry
+	// in Modules and in the same order. It is parsed under the case's rego_version,
+	// like the inputs, and compared as an AST — how an implementation arrives at
+	// that AST, and whether it can print it back, is its own business.
+	//
+	// Generated, not authored: write the modules and the configuration, run
+	// `make generate`, and review the diff.
+	WantModules []string `json:"want_modules,omitempty"  yaml:"want_modules,omitempty"`
 }
 
 // Name returns the globally unique note identifying the case.
@@ -93,6 +102,11 @@ func (tc TestCase) WithFilename(filename string) TestCase {
 // Failure reports whether tc asserts that the modules fail to compile.
 func (tc TestCase) Failure() bool {
 	return len(tc.WantErrors) > 0
+}
+
+// Transform reports whether tc asserts what its modules compile to.
+func (tc TestCase) Transform() bool {
+	return len(tc.WantModules) > 0
 }
 
 // StrictMode reports whether the case must be compiled with the compiler's
@@ -117,10 +131,21 @@ func (tc TestCase) Validate() error {
 			tc.Strict, Strictnesses)
 	case tc.Compiles && tc.Failure():
 		return errors.New("'compiles' and 'want_errors' are mutually exclusive")
-	case tc.Compiles && tc.Exhaustive:
+	case tc.Compiles && tc.Transform():
+		return errors.New("'compiles' says nothing that 'want_modules' does not; drop it")
+	case tc.Exhaustive && !tc.Failure():
 		return errors.New("'exhaustive' only applies to a case asserting 'want_errors'")
-	case !tc.Compiles && !tc.Failure():
-		return errors.New("expected 'want_errors' or 'compiles'; run `make generate` to fill the diagnostics in")
+	case tc.Transform() && len(tc.WantModules) != len(tc.Modules):
+		return fmt.Errorf("'want_modules' has %d entries for %d modules; it takes one per module, in the same order",
+			len(tc.WantModules), len(tc.Modules))
+	case !tc.Compiles && !tc.Failure() && !tc.Transform():
+		return errors.New("expected 'want_errors', 'want_modules' or 'compiles'; run `make generate` to fill one in")
+	}
+
+	for i, module := range tc.WantModules {
+		if err := conformance.CheckTrailingWhitespace("want_modules["+ModuleName(i)+"]", module); err != nil {
+			return err
+		}
 	}
 
 	for i, module := range tc.Modules {

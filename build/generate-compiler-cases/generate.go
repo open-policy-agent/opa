@@ -73,31 +73,43 @@ func generateFile(path string, mode fs.FileMode) error {
 		tc := &set.Cases[i]
 		*tc = tc.WithFilename(path)
 
-		got, err := compileCase(*tc)
+		reported, err := caseDiagnostics(*tc)
 		if err != nil {
 			return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
 		}
 
 		switch {
-		case tc.Compiles && len(got) > 0:
+		case tc.Transform() && len(reported) > 0:
+			return fmt.Errorf("%s: %s: the case asserts 'want_modules', but the modules report %d diagnostic(s), starting with %s",
+				path, tc.Note, len(reported), reported[0])
+
+		case tc.Compiles && len(reported) > 0:
 			return fmt.Errorf("%s: %s: the case asserts 'compiles', but the modules report %d diagnostic(s), starting with %s",
-				path, tc.Note, len(got), got[0])
+				path, tc.Note, len(reported), reported[0])
 
 		case tc.Compiles:
 			// Nothing to fill in: the assertion is that there is nothing to fill in.
 
-		case len(got) == 0 && tc.Failure():
-			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the modules compile", path, tc.Note)
+		case len(reported) == 0 && !tc.Failure():
+			// A clean compile with no 'compiles' assertion is a transformation
+			// case. Unlike want_errors, want_modules is regenerated every time:
+			// it is the compiled form, and review of the diff is the gate.
+			want, err := compiledModules(*tc)
+			if err != nil {
+				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
+			}
+			tc.WantModules = want
+			corpusgen.SetMapValue(caseNodes.Content[i], "want_modules", corpusgen.ModulesNode(want))
 
-		case len(got) == 0:
-			return fmt.Errorf("%s: %s: the modules compile; add 'compiles: true' if that is the assertion", path, tc.Note)
+		case len(reported) == 0 && tc.Failure():
+			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the modules compile", path, tc.Note)
 
 		case !tc.Failure():
 			// Fill in the diagnostics only where the case has none. A message
 			// that changes has to fail the runner, not be quietly rewritten
 			// underneath it, so an existing want_errors is never touched.
-			tc.WantErrors = got
-			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(got), "exhaustive")
+			tc.WantErrors = reported
+			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(reported), "exhaustive")
 		}
 
 		if err := tc.Validate(); err != nil {

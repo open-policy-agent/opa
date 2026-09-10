@@ -60,11 +60,81 @@ so the module stays exactly as authored.
 | `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
 | `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
+| `want_modules` | the Rego each module compiles to, one per module — see [Transformations](#transformations) |
 
 Activate a future keyword with an `import` in the module rather than a field on
 the case, for the reason the [parser corpus](../parsercases/README.md#future-keywords)
 gives: an import is part of the Rego, so any conforming parser already honours
 it. `experimental_keywords` has no import form, so it stays a field.
+
+## Transformations
+
+`want_modules` says what compiling the case's modules produces, one entry per
+entry in `modules` and in the same order:
+
+```yaml
+    modules:
+      - |
+        package test
+
+        import data.other.thing
+
+        p if {
+        	thing == 1
+        }
+    want_modules:
+      - |
+        package test
+
+        p = true if { data.other.thing = 1 }
+```
+
+The import is resolved and dropped, the implied rule value is made explicit, and
+`==` becomes unification — three things the compiler does that an implementation
+has to do too.
+
+**The comparison is between ASTs, not between text.** `want_modules` is parsed
+under the case's `rego_version` and compared to the compiled module; the Rego is
+only how the expectation is written down. An implementation that never prints Rego
+can compare however it likes, and one whose printer differs from OPA's is not
+penalised for it.
+
+A case with `want_modules` and no `want_errors` also asserts that nothing was
+reported: an absent `want_errors` means no diagnostics.
+
+**Generated, not authored.** Write `modules` plus the configuration, run
+`make generate`, and review what comes out. Unlike `want_errors`, `want_modules`
+is regenerated every time — it is the compiled form, so review of the diff is the
+gate, and CI fails if someone changes the compiler without regenerating.
+
+The layout is one expression per line, which is how the Rego was written before
+the compiler got to it. That is not `v1/format` — the formatter normalises as it
+prints, so its output parses to a *different* AST than the one it was given, and
+only two thirds of modules survive it. The generator instead breaks the bodies of
+OPA's own one-line rendering, so every token still comes from OPA's printer and
+nothing about v0 or v1 syntax is reimplemented.
+
+The seed comes from printing the compiled AST, and the generator checks the
+round-trip rather than assuming it: the text is parsed back and compared to the AST
+it came from, and the case is rejected if they differ. OPA's printer does not
+always survive that — `else :=` is emitted as `else =`, for one — and a fixture
+that did not round-trip would assert something the compiler never produced.
+
+**Generated variable names are part of the assertion.** Hoisting and local
+rewriting introduce variables, and the AST comparison includes their names:
+
+```yaml
+    want_modules:
+      - |
+        package test
+
+        p = true if { __local0__ = data.test.q; [__local0__] }
+```
+
+That does hold an implementation to OPA's naming, which is more than the corpus
+asks anywhere else. There is no way around it while the assertion is an AST: a
+transformation that introduces a variable has to name it. Worth knowing before
+running these cases rather than discovering it in a diff.
 
 ## Several modules
 

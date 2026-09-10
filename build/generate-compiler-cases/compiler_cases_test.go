@@ -27,8 +27,8 @@ func TestLoadCompilerTestCases(t *testing.T) {
 			if tc.Ignore {
 				t.Errorf("%s: expected an unfiltered load to ignore nothing", tc.Note)
 			}
-			if len(tc.WantErrors) == 0 && !tc.Compiles {
-				t.Errorf("%s: expected want_errors or compiles", tc.Note)
+			if !tc.Failure() && !tc.Transform() && !tc.Compiles {
+				t.Errorf("%s: expected want_errors, want_modules or compiles", tc.Note)
 			}
 			if other, ok := notes[tc.Note]; ok {
 				t.Errorf("%s: note is already used by %s", tc.Note, other)

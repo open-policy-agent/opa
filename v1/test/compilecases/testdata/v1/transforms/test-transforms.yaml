@@ -1,0 +1,146 @@
+---
+# What the compiler does to a module that has no diagnostics to report. These are
+# whole-pipeline transformations: an implementation is held to the AST, not to the
+# Rego text, which is only how the expectation is written down.
+cases:
+  - note: transforms/import-resolved-to-its-full-ref
+    # An import is a local alias. The compiler resolves every reference through it
+    # and drops the declaration, so nothing downstream has to carry the alias.
+    modules:
+      - |
+        package test
+
+        import data.other.thing
+
+        p if {
+        	thing == 1
+        }
+    want_modules:
+      - |
+        package test
+
+        p = true if {
+        	data.other.thing = 1
+        }
+  - note: transforms/import-alias-resolved
+    modules:
+      - |
+        package test
+
+        import data.other.thing as t
+
+        p if {
+        	t == 1
+        }
+    want_modules:
+      - |
+        package test
+
+        p = true if {
+        	data.other.thing = 1
+        }
+  - note: transforms/rule-head-value-made-explicit
+    # A rule with no value is a rule whose value is true, and the compiler says so
+    # rather than leaving it implied.
+    modules:
+      - |
+        package test
+
+        p if {
+        	true
+        }
+    want_modules:
+      - |
+        package test
+
+        p = true if {
+        	true
+        }
+  - note: transforms/double-eq-becomes-unification
+    # `==` is a builtin call and `=` is unification. Where the result is not used,
+    # the compiler rewrites the comparison to the cheaper form.
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	x == 1
+        }
+    want_modules:
+      - |
+        package test
+
+        p = true if {
+        	__local0__ = 1
+        	__local0__ = 1
+        }
+  - note: transforms/dynamic-term-hoisted-out-of-a-collection
+    # A ref inside a composite cannot be evaluated in place, so it is hoisted into
+    # a local assignment ahead of the expression that uses it.
+    modules:
+      - |
+        package test
+
+        q := 1
+
+        p if {
+        	[q]
+        }
+    want_modules:
+      - |
+        package test
+
+        q := 1 if {
+        	true
+        }
+
+        p = true if {
+        	__local0__ = data.test.q
+        	[__local0__]
+        }
+  - note: transforms/print-erased-when-not-enabled
+    # print() is not part of a policy's meaning, so it is erased unless the caller
+    # asks for it. The rule keeps its other expressions.
+    modules:
+      - |
+        package test
+
+        p if {
+        	print("hello")
+        	1 == 1
+        }
+    want_modules:
+      - |
+        package test
+
+        p = true if {
+        	1 = 1
+        }
+  - note: transforms/else-chain-gains-an-explicit-body
+    # The last branch of an else chain has no body of its own, and the compiler
+    # gives it the one it means: `true`.
+    #
+    # Written with `=` rather than `:=` on purpose. Module.String() prints an
+    # `else :=` head as `else =`, so a `:=` chain cannot be seeded here until that
+    # is fixed — see tmp/external_compilers/opa_bugs.md.
+    modules:
+      - |
+        package test
+
+        p = 1 if {
+        	input.x
+        } else = 2 if {
+        	input.y
+        } else = 3
+    want_modules:
+      - |
+        package test
+
+        p = 1 if {
+        	input.x
+        } else = 2 if {
+        	input.y
+        } else = 3 if {
+        	true
+        }
