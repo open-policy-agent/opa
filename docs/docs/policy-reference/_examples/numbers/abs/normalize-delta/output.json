@@ -1,5 +1,6 @@
 {
-  "delta": -3,
-  "tolerance": 5,
-  "within_tolerance": true
+  "allow": true,
+  "drift": 10,
+  "max_skew_seconds": 30,
+  "server_time": 1700000000
 }

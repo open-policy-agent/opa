@@ -4,5 +4,5 @@ package play
 deny contains msg if {
 	some key, val in input.metadata.annotations
 	not is_string(val)
-	msg := sprintf("annotation %q must be a string value", [key])
+	msg := $"annotation \"{key}\" must be a string value"
 }
