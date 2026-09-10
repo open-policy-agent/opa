@@ -7,6 +7,7 @@ package ast
 import (
 	"cmp"
 	"maps"
+	"math/bits"
 	"slices"
 	"strings"
 	"sync"
@@ -56,7 +57,9 @@ type (
 		kind           RuleKind
 		onlyGroundRefs bool
 		// rules holds one entry per rule and else branch the trie carries, groups
-		// the position of its ruleset among the rules Build was given.
+		// the position of its ruleset among the rules Build was given. Reading the
+		// ids a lookup reached in increasing order groups them and orders each
+		// group by priority; see trieTraversalResult and gather.
 		rules  []*Rule
 		groups []int32
 	}
@@ -231,22 +234,13 @@ func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*ref
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	tr := ttrPool.Get().(*trieTraversalResult)
-	tr.groups = i.groups
 
 	defer func() {
-		// Note(anderseknert): `clear`ing the map is not good enough here, as it'd mean
-		// resetting each of its slice values, costing us new allocations on each append
-		// in subsequent lookups
-		for i := range tr.unordered {
-			tr.unordered[i] = tr.unordered[i][:0]
-		}
-		tr.ordering = tr.ordering[:0]
-		tr.groups = nil
-		tr.multiple = false
-		tr.exist = nil
-
+		tr.reset()
 		ttrPool.Put(tr)
 	}()
+
+	tr.grow(len(i.rules))
 
 	err := i.root.Traverse(resolver, tr)
 	if err != nil {
@@ -259,11 +253,7 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
 
-	if result.Rules == nil {
-		result.Rules = make([]*Rule, 0, len(tr.ordering))
-	} else {
-		result.Rules = result.Rules[:0]
-	}
+	result.Rules = result.Rules[:0]
 
 	clear(result.Else)
 
@@ -293,36 +283,46 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	return result, nil
 }
 
-// gather reads the rules a traversal reached into result, a group at a time. Ids
-// ascend with priority, so a group's lowest is the rule to evaluate and the rest
-// are its else branches.
+// gather reads the rules a traversal reached into result. Ids ascend with
+// priority, so a run of them sharing a group is that ruleset's definitions in
+// order, the first being the one to evaluate.
 func (i *baseDocEqIndex) gather(tr *trieTraversalResult, result *IndexResult) {
-	for _, group := range tr.ordering {
-		ids := tr.unordered[group]
-		if len(ids) == 0 {
-			continue
-		}
+	var root *Rule
+	group := int32(-1)
 
-		slices.Sort(ids)
-		root := i.rules[ids[0]]
+	// Words are marked as they are first written to, in traversal order.
+	slices.Sort(tr.touched)
 
-		result.Rules = append(result.Rules, root)
-		if len(ids) > 1 {
+	found := 0
+	for _, w := range tr.touched {
+		found += bits.OnesCount64(tr.hits[w])
+	}
+	result.Rules = slices.Grow(result.Rules, found)
+
+	// A word holds 64 ids: `w<<6` is the id of its first bit, TrailingZeros64 the
+	// offset of the lowest set one, and `word &= word - 1` clears it.
+	for _, w := range tr.touched {
+		for word := tr.hits[w]; word != 0; word &= word - 1 {
+			id := w<<6 | int32(bits.TrailingZeros64(word))
+			rule := i.rules[id]
+
+			if g := i.groups[id]; g != group {
+				group, root = g, rule
+				result.Rules = append(result.Rules, rule)
+				continue
+			}
+
 			if result.Else == nil {
 				result.Else = map[*Rule][]*Rule{}
 			}
-
-			result.Else[root] = make([]*Rule, len(ids)-1)
-			for pos, id := range ids[1:] {
-				result.Else[root][pos] = i.rules[id]
-			}
+			result.Else[root] = append(result.Else[root], rule)
 		}
 	}
 }
 
 func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	tr := newTrieTraversalResult()
-	tr.groups = i.groups
+	tr.grow(len(i.rules))
 
 	// Walk over the rule trie and accumulate _all_ rules
 	rw := &ruleWalker{result: tr}
@@ -331,8 +331,6 @@ func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
-	result.Rules = make([]*Rule, 0, len(tr.ordering))
-
 	i.gather(tr, result)
 
 	result.EarlyExit = !tr.multiple
@@ -1206,14 +1204,20 @@ type trieWalker interface {
 	Do(any) trieWalker
 }
 
+// trieTraversalResult is what a walk of the trie -- a lookup, or the whole of it
+// for AllRules -- collects.
+//
+// The rules reached are a bitset over the index's rule ids, so reaching one down
+// several paths costs nothing to notice: the second arrival writes a bit that is
+// already set. Reading it back in id order is reading it grouped and in priority
+// order, ids having been handed out that way, so there is nothing left to sort.
 type trieTraversalResult struct {
-	// groups is the index's group per rule id; unordered holds the ids reached
-	// per group, ordered by which group traversal reached first.
-	groups    []int32
-	unordered map[int32][]int32
-	ordering  []int32
-	exist     *Term
-	multiple  bool
+	hits []uint64
+	// touched holds the words of hits that were written to, so that clearing
+	// costs what a lookup found rather than what the index holds.
+	touched  []int32
+	exist    *Term
+	multiple bool
 }
 
 var ttrPool = &sync.Pool{
@@ -1223,20 +1227,34 @@ var ttrPool = &sync.Pool{
 }
 
 func newTrieTraversalResult() *trieTraversalResult {
-	return &trieTraversalResult{
-		unordered: make(map[int32][]int32, 16),
+	return &trieTraversalResult{}
+}
+
+// grow makes room for an index holding n rules. The pool never sizes back down,
+// which is a byte per eight rules against an index costing hundreds per rule.
+func (tr *trieTraversalResult) grow(n int) {
+	tr.hits = growTo(tr.hits, (n+63)/64)
+}
+
+func (tr *trieTraversalResult) reset() {
+	for _, w := range tr.touched {
+		tr.hits[w] = 0
 	}
+	tr.touched = tr.touched[:0]
+	tr.multiple = false
+	tr.exist = nil
 }
 
 func (tr *trieTraversalResult) Add(t *trieNode) {
 	for _, id := range t.rules {
-		group := tr.groups[id]
-		if ids, ok := tr.unordered[group]; !ok || len(ids) == 0 {
-			tr.ordering = append(tr.ordering, group)
-			tr.unordered[group] = append(ids, id)
-		} else if !slices.Contains(ids, id) {
-			tr.unordered[group] = append(ids, id)
+		word, bit := id>>6, uint64(1)<<(uint(id)&63)
+		if tr.hits[word]&bit != 0 {
+			continue
 		}
+		if tr.hits[word] == 0 {
+			tr.touched = append(tr.touched, word)
+		}
+		tr.hits[word] |= bit
 	}
 	if t.multiple {
 		tr.multiple = true
@@ -1668,6 +1686,10 @@ func (d *levelDetail) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
+	// Which order the branches below are taken in does not decide the order the
+	// candidates come back in -- gather reads them by id. Only undefined coming
+	// before the nil return is load-bearing: a ref that resolved to nothing
+	// admits the rules wanting it undefined and no others.
 	if err = d.undefined.Traverse(resolver, tr); err != nil {
 		return err
 	}

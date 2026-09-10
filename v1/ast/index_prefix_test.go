@@ -524,20 +524,14 @@ func prefixTrieMatches(t *testing.T, trie *prefixTrie, nodes map[string]*trieNod
 	}
 
 	tr := newTrieTraversalResult()
-	// Each prefix node is its own group, so first-reach order is what comes back.
-	tr.groups = make([]int32, len(byID))
-	for id := range tr.groups {
-		tr.groups[id] = int32(id)
-	}
+	tr.grow(len(byID))
 	if err := trie.traverse(s, testResolver{input: MustParseTerm(`{}`)}, tr); err != nil {
 		t.Fatal(err)
 	}
 
 	var matched []string
-	for _, group := range tr.ordering {
-		for _, id := range tr.unordered[group] {
-			matched = append(matched, byID[id])
-		}
+	for _, id := range collected(tr) {
+		matched = append(matched, byID[id])
 	}
 	slices.Sort(matched)
 
