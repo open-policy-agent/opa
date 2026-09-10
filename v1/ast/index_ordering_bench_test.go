@@ -68,11 +68,14 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []refID) *base
 	order := orderFn(indices)
 
 	for ridx := range rules {
-		var prio int
 		WalkRules(rules[ridx], func(rule *Rule) bool {
 			if rule.Default {
 				return false
 			}
+			id := int32(len(idx.rules))
+			idx.rules = append(idx.rules, rule)
+			idx.groups = append(idx.groups, int32(ridx))
+
 			node := idx.root
 			if len(indices.rules[rule]) > 0 {
 				for _, level := range order {
@@ -90,8 +93,7 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []refID) *base
 					}
 				}
 			}
-			node.append([...]int{ridx, prio}, rule)
-			prio++
+			node.append(id, rule)
 			return false
 		})
 	}

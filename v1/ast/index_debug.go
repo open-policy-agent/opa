@@ -12,22 +12,24 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-func (node *trieNode) mermaid() string {
+// mermaid renders the trie, naming the rules by their bodies -- which the index
+// holds, and the nodes only the ids of.
+func (i *baseDocEqIndex) mermaid() string {
 	var sb strings.Builder
 	sb.WriteString("graph TD\n")
 	nodeCounter := 0
 	nodeIDs := make(map[*trieNode]string)
-	node.mermaidFormat(&sb, &nodeCounter, nodeIDs, "")
+	i.root.mermaidFormat(&sb, &nodeCounter, nodeIDs, "", i.rules)
 	return sb.String()
 }
 
-func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, parentID string) {
+func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, parentID string, rules []*Rule) {
 	currentID, exists := nodeIDs[node]
 	if !exists {
 		currentID = fmt.Sprintf("n%d", *counter)
 		*counter++
 		nodeIDs[node] = currentID
-		fmt.Fprintf(sb, "  %s[\"%s\"]\n", currentID, node.mermaidLabel())
+		fmt.Fprintf(sb, "  %s[\"%s\"]\n", currentID, node.mermaidLabel(rules))
 	}
 
 	if parentID != "" {
@@ -38,80 +40,80 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		return
 	}
 
-	node.next.mermaidFormat(sb, counter, nodeIDs, currentID)
+	node.next.mermaidFormat(sb, counter, nodeIDs, currentID, rules)
 }
 
 // mermaidEdge draws one way of matching the level's reference, emitting the
 // child first if this is where it is reached from.
-func mermaidEdge(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from, label string, child *trieNode) {
+func mermaidEdge(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from, label string, child *trieNode, rules []*Rule) {
 	if child == nil {
 		return
 	}
 	if _, exists := nodeIDs[child]; !exists {
-		child.mermaidFormat(sb, counter, nodeIDs, "")
+		child.mermaidFormat(sb, counter, nodeIDs, "", rules)
 	}
 	fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", from, mermaidEscape(label), nodeIDs[child])
 }
 
-func (d *levelDetail) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from string) {
+func (d *levelDetail) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from string, rules []*Rule) {
 	if d == nil {
 		return
 	}
 
-	mermaidEdge(sb, counter, nodeIDs, from, "undefined", d.undefined)
-	mermaidEdge(sb, counter, nodeIDs, from, "any", d.any)
+	mermaidEdge(sb, counter, nodeIDs, from, "undefined", d.undefined, rules)
+	mermaidEdge(sb, counter, nodeIDs, from, "any", d.any, rules)
 
 	d.scalars.Iter(func(key Value, child *trieNode) bool {
-		mermaidEdge(sb, counter, nodeIDs, from, key.String(), child)
+		mermaidEdge(sb, counter, nodeIDs, from, key.String(), child, rules)
 		return false
 	})
 
 	if d.alternatives != nil {
 		d.alternatives.members.Iter(func(key Value, nodes []*trieNode) bool {
 			for _, child := range nodes {
-				mermaidEdge(sb, counter, nodeIDs, from, key.String(), child)
+				mermaidEdge(sb, counter, nodeIDs, from, key.String(), child, rules)
 			}
 			return false
 		})
 	}
 
 	for _, p := range d.prefixes.walk() {
-		mermaidEdge(sb, counter, nodeIDs, from, p.prefix+"*", p.node)
+		mermaidEdge(sb, counter, nodeIDs, from, p.prefix+"*", p.node, rules)
 	}
 
 	// A suffix trie holds its bases reversed (see affixTries), so what it
 	// walks back is what was written.
 	for _, p := range d.suffixes.walk() {
-		mermaidEdge(sb, counter, nodeIDs, from, "*"+reverseString(p.prefix), p.node)
+		mermaidEdge(sb, counter, nodeIDs, from, "*"+reverseString(p.prefix), p.node, rules)
 	}
 
-	d.array.mermaidFormat(sb, counter, nodeIDs, from, "array")
+	d.array.mermaidFormat(sb, counter, nodeIDs, from, "array", rules)
 }
 
-func (a *arrayTrie) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from, label string) {
+func (a *arrayTrie) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from, label string, rules []*Rule) {
 	if a == nil {
 		return
 	}
 
-	mermaidEdge(sb, counter, nodeIDs, from, label, a.end)
-	a.any.mermaidFormat(sb, counter, nodeIDs, from, label+" any")
+	mermaidEdge(sb, counter, nodeIDs, from, label, a.end, rules)
+	a.any.mermaidFormat(sb, counter, nodeIDs, from, label+" any", rules)
 	a.scalars.Iter(func(key Value, child *arrayTrie) bool {
-		child.mermaidFormat(sb, counter, nodeIDs, from, label+" "+key.String())
+		child.mermaidFormat(sb, counter, nodeIDs, from, label+" "+key.String(), rules)
 		return false
 	})
 }
 
-func (node *trieNode) mermaidLabel() string {
+func (node *trieNode) mermaidLabel(rules []*Rule) string {
 	var parts []string
 
 	if node.next != nil && len(node.next.ref) > 0 {
 		parts = append(parts, node.next.ref.String())
 	}
 
-	for _, rn := range node.rules {
+	for _, id := range node.rules {
 		bodyStr := ""
-		if rn.rule.Body != nil {
-			bodyStr = rn.rule.Body.String()
+		if rule := rules[id]; rule.Body != nil {
+			bodyStr = rule.Body.String()
 			if len(bodyStr) > 50 {
 				bodyStr = bodyStr[:50] + "..."
 			}
