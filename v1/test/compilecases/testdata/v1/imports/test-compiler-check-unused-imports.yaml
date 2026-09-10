@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckUnusedImports
 cases:
-  - note: imports/ignore-unused-rego-import
+  - note: imports/ignore unused rego import
     modules:
       - |
         package p
@@ -17,7 +17,7 @@ cases:
           r = true if {
           	10 = 10
           }
-  - note: imports/import-used-as-function-operand
+  - note: imports/import used as function operand
     modules:
       - |
         package p
@@ -33,7 +33,7 @@ cases:
           	count(__local2__, __local0__)
           	gt(__local0__, 1, __local1__)
           }
-  - note: imports/import-used-as-function-operand-compount-term
+  - note: imports/import used as function operand, compount term
     modules:
       - |
         package p

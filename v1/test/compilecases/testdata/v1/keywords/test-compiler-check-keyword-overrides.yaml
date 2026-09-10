@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckKeywordOverrides
 cases:
-  - note: keywords/global-assignments-strict
+  - note: keywords/global assignments (strict)
     modules:
       - |
         package test
@@ -19,7 +19,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: keywords/array-comprehension-local-assignments-strict
+  - note: keywords/array comprehension-local assignments (strict)
     modules:
       - |
         package test
@@ -39,7 +39,7 @@ cases:
         col: 2
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: keywords/set-comprehension-local-assignments-strict
+  - note: keywords/set comprehension-local assignments (strict)
     modules:
       - |
         package test
@@ -59,7 +59,7 @@ cases:
         col: 2
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: keywords/object-comprehension-local-assignments-strict
+  - note: keywords/object comprehension-local assignments (strict)
     modules:
       - |
         package test

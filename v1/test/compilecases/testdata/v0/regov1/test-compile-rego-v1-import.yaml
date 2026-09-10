@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompileRegoV1Import
 cases:
-  - note: regov1/duplicate-imports-multiple-modules-not-all-strict
+  - note: regov1/duplicate imports (multiple modules, not all strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -30,7 +30,7 @@ cases:
         col: 1
         message: import must not shadow import data.foo
     exhaustive: true
-  - note: regov1/var-shadows-input-multiple-modules-not-all-strict
+  - note: regov1/var shadows input (multiple modules, not all strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -57,7 +57,7 @@ cases:
         col: 2
         message: variables must not shadow input (use a different variable name)
     exhaustive: true
-  - note: regov1/var-shadows-data-multiple-modules-not-all-strict
+  - note: regov1/var shadows data (multiple modules, not all strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -84,7 +84,7 @@ cases:
         col: 2
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: regov1/rule-shadows-input-multiple-modules-not-all-strict
+  - note: regov1/rule shadows input (multiple modules, not all strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -104,7 +104,7 @@ cases:
         col: 1
         message: rules must not shadow input (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-shadows-data-multiple-modules-not-all-strict
+  - note: regov1/rule shadows data (multiple modules, not all strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -124,7 +124,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: regov1/deprecated-built-in-multiple-modules-not-all-strict
+  - note: regov1/deprecated built-in (multiple modules, not all strict)
     rego_version: v0
     strict: disabled
     modules:

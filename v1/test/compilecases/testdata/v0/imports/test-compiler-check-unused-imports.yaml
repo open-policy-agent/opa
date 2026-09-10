@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckUnusedImports
 cases:
-  - note: imports/simple-unused-input-ref-with-same-name-strict
+  - note: 'imports/simple unused: input ref with same name (strict)'
     rego_version: v0
     strict: enabled
     modules:
@@ -18,7 +18,7 @@ cases:
         col: 1
         message: import data.foo.bar as bar unused
     exhaustive: true
-  - note: imports/simple-unused-input-ref-with-same-name-non-strict
+  - note: 'imports/simple unused: input ref with same name (non-strict)'
     rego_version: v0
     strict: disabled
     modules:
@@ -36,7 +36,7 @@ cases:
           r = true {
           	input.bar = 11
           }
-  - note: imports/unused-import-but-imported-ref-used-strict
+  - note: imports/unused import, but imported ref used (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -51,7 +51,7 @@ cases:
         col: 1
         message: import data.foo unused
     exhaustive: true
-  - note: imports/unused-import-but-imported-ref-used-non-strict
+  - note: imports/unused import, but imported ref used (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -67,7 +67,7 @@ cases:
           r = true {
           	data.foo = 10
           }
-  - note: imports/one-of-two-unused-strict
+  - note: imports/one of two unused (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -83,7 +83,7 @@ cases:
         col: 1
         message: import data.x.power unused
     exhaustive: true
-  - note: imports/one-of-two-unused-non-strict
+  - note: imports/one of two unused (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -100,7 +100,7 @@ cases:
           r = true {
           	data.foo = 10
           }
-  - note: imports/multiple-unused-with-input-ref-of-same-name-strict
+  - note: 'imports/multiple unused: with input ref of same name (strict)'
     rego_version: v0
     strict: enabled
     modules:
@@ -120,7 +120,7 @@ cases:
         col: 1
         message: import data.x.power unused
     exhaustive: true
-  - note: imports/multiple-unused-with-input-ref-of-same-name-non-strict
+  - note: 'imports/multiple unused: with input ref of same name (non-strict)'
     rego_version: v0
     strict: disabled
     modules:
@@ -137,7 +137,7 @@ cases:
           r = true {
           	input.foo = 10
           }
-  - note: imports/import-used-in-comparison
+  - note: imports/import used in comparison
     rego_version: v0
     modules:
       - |
@@ -152,7 +152,7 @@ cases:
           r = true {
           	data.foo.x = 10
           }
-  - note: imports/multiple-used-imports-in-one-rule
+  - note: imports/multiple used imports in one rule
     rego_version: v0
     modules:
       - |
@@ -168,7 +168,7 @@ cases:
           r = true {
           	data.power.ranger = data.foo.x
           }
-  - note: imports/multiple-used-imports-in-separate-rules
+  - note: imports/multiple used imports in separate rules
     rego_version: v0
     modules:
       - |
@@ -189,7 +189,7 @@ cases:
           t = true {
           	data.foo.x = 1
           }
-  - note: imports/import-used-as-plain-term
+  - note: imports/import used as plain term
     rego_version: v0
     modules:
       - |
@@ -206,7 +206,7 @@ cases:
           r = true {
           	data.foo
           }
-  - note: imports/import-used-in-every-domain
+  - note: imports/import used in 'every' domain
     rego_version: v0
     modules:
       - |
@@ -227,7 +227,7 @@ cases:
           	__local2__ = data.foo
           	every __local0__, __local1__ in __local2__ { gt(__local1__, 1) }
           }
-  - note: imports/import-used-in-every-body
+  - note: imports/import used in 'every' body
     rego_version: v0
     modules:
       - |
@@ -248,7 +248,7 @@ cases:
           	__local2__ = [1, 2, 3]
           	every __local0__, __local1__ in __local2__ { __local3__ = data.foo; gt(__local1__, __local3__) }
           }
-  - note: imports/future-import-kept-even-if-unused
+  - note: imports/future import kept even if unused
     rego_version: v0
     modules:
       - |
@@ -266,7 +266,7 @@ cases:
           r = true {
           	true
           }
-  - note: imports/shadowed-var-name-in-function-arg-strict
+  - note: imports/shadowed var name in function arg (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -283,7 +283,7 @@ cases:
         col: 1
         message: import data.foo unused
     exhaustive: true
-  - note: imports/shadowed-var-name-in-function-arg-non-strict
+  - note: imports/shadowed var name in function arg (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -305,7 +305,7 @@ cases:
           f(__local0__) = __local1__ {
           	equal(__local0__, 1, __local1__)
           }
-  - note: imports/shadowed-assigned-var-name-strict
+  - note: imports/shadowed assigned var name (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -321,7 +321,7 @@ cases:
         col: 1
         message: import data.foo unused
     exhaustive: true
-  - note: imports/shadowed-assigned-var-name-non-strict
+  - note: imports/shadowed assigned var name (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -339,7 +339,7 @@ cases:
           	__local0__ = true
           	__local0__
           }
-  - note: imports/used-as-rule-value-strict
+  - note: imports/used as rule value (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -356,7 +356,7 @@ cases:
         col: 1
         message: import data.bar unused
     exhaustive: true
-  - note: imports/used-as-rule-value-non-strict
+  - note: imports/used as rule value (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -374,7 +374,7 @@ cases:
           r = __local0__ {
           	__local0__ = data.foo
           }
-  - note: imports/unused-as-rule-value-but-same-data-ref-strict
+  - note: imports/unused as rule value (but same data ref) (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -395,7 +395,7 @@ cases:
         col: 1
         message: import data.foo unused
     exhaustive: true
-  - note: imports/unused-as-rule-value-but-same-data-ref-non-strict
+  - note: imports/unused as rule value (but same data ref) (non-strict)
     rego_version: v0
     strict: disabled
     modules:

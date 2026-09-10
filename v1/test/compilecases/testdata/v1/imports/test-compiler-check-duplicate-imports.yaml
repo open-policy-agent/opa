@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckDuplicateImports
 cases:
-  - note: imports/shadow-strict
+  - note: imports/shadow (strict)
     modules:
       - |
         package test
@@ -23,7 +23,7 @@ cases:
         col: 1
         message: import must not shadow import input.foo
     exhaustive: true
-  - note: imports/alias-shadow-strict
+  - note: imports/alias shadow (strict)
     modules:
       - |
         package test

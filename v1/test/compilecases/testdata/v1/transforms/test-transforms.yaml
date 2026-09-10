@@ -3,7 +3,7 @@
 # whole-pipeline transformations: an implementation is held to the AST, not to the
 # Rego text, which is only how the expectation is written down.
 cases:
-  - note: transforms/import-resolved-to-its-full-ref
+  - note: transforms/import resolved to its full ref
     # An import is a local alias. The compiler resolves every reference through it
     # and drops the declaration, so nothing downstream has to carry the alias.
     modules:
@@ -22,7 +22,7 @@ cases:
           p = true if {
           	data.other.thing = 1
           }
-  - note: transforms/import-alias-resolved
+  - note: transforms/import alias resolved
     modules:
       - |
         package test
@@ -39,7 +39,7 @@ cases:
           p = true if {
           	data.other.thing = 1
           }
-  - note: transforms/rule-head-value-made-explicit
+  - note: transforms/rule head value made explicit
     # A rule with no value is a rule whose value is true, and the compiler says so
     # rather than leaving it implied.
     modules:
@@ -56,7 +56,7 @@ cases:
           p = true if {
           	true
           }
-  - note: transforms/double-eq-becomes-unification
+  - note: transforms/double eq becomes unification
     # `==` is a builtin call and `=` is unification. Where the result is not used,
     # the compiler rewrites the comparison to the cheaper form.
     modules:
@@ -75,7 +75,7 @@ cases:
           	__local0__ = 1
           	__local0__ = 1
           }
-  - note: transforms/dynamic-term-hoisted-out-of-a-collection
+  - note: transforms/dynamic term hoisted out of a collection
     # A ref inside a composite cannot be evaluated in place, so it is hoisted into
     # a local assignment ahead of the expression that uses it.
     modules:
@@ -99,7 +99,7 @@ cases:
           	__local0__ = data.test.q
           	[__local0__]
           }
-  - note: transforms/print-erased-when-not-enabled
+  - note: transforms/print erased when not enabled
     # print() is not part of a policy's meaning, so it is erased unless the caller
     # asks for it. The rule keeps its other expressions.
     modules:
@@ -117,7 +117,7 @@ cases:
           p = true if {
           	1 = 1
           }
-  - note: transforms/else-chain-gains-an-explicit-body
+  - note: transforms/else chain gains an explicit body
     # The last branch of an else chain has no body of its own, and the compiler
     # gives it the one it means: `true`.
     #

@@ -5,7 +5,7 @@
 # reporting the root cause alone -- so this case is not exhaustive: the root
 # cause must be reported, the rest may be.
 cases:
-  - note: safety/unsafe-var-cascade-reports-root-cause
+  - note: safety/unsafe var cascade reports root cause
     modules:
       - |
         package policy

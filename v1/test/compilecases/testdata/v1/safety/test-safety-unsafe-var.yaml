@@ -1,6 +1,6 @@
 ---
 cases:
-  - note: safety/unsafe-var-in-rule-on-own-line
+  - note: safety/unsafe var in rule on own line
     modules:
       - |
         package test
@@ -14,7 +14,7 @@ cases:
         col: 2
         message: var x is unsafe
     exhaustive: true
-  - note: safety/unsafe-var-in-rule-head-on-own-line
+  - note: safety/unsafe var in rule head on own line
     modules:
       - |
         package test
@@ -28,7 +28,7 @@ cases:
         col: 6
         message: var x is unsafe
     exhaustive: true
-  - note: safety/unsafe-var-in-function-on-own-line
+  - note: safety/unsafe var in function on own line
     modules:
       - |
         package test

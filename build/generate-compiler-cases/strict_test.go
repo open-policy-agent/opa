@@ -5,6 +5,7 @@
 package cases
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -38,21 +39,15 @@ func TestStrictIsImmaterialWhereUnset(t *testing.T) {
 		}
 		checked++
 
-		off, err := diagnostics(tc, false)
-		if err != nil {
-			t.Errorf("%s: %v", tc.Note, err)
-			continue
-		}
-		on, err := diagnostics(tc, true)
+		same, detail, err := sameEitherWay(tc)
 		if err != nil {
 			t.Errorf("%s: %v", tc.Note, err)
 			continue
 		}
 
-		if off != on {
-			t.Errorf("%s: no 'strict' field, but the diagnostics depend on strict mode; "+
-				"set strict: %s\n  off: %s\n  on:  %s",
-				tc.Note, compilecases.StrictDisabled, off, on)
+		if !same {
+			t.Errorf("%s: no 'strict' field, but the outcome depends on strict mode; set strict: %s\n%s",
+				tc.Note, compilecases.StrictDisabled, detail)
 		}
 	}
 
@@ -74,31 +69,53 @@ func TestStrictMattersWhereSet(t *testing.T) {
 			continue
 		}
 
-		off, err := diagnostics(tc, false)
-		if err != nil {
-			t.Errorf("%s: %v", tc.Note, err)
-			continue
-		}
-		on, err := diagnostics(tc, true)
+		same, _, err := sameEitherWay(tc)
 		if err != nil {
 			t.Errorf("%s: %v", tc.Note, err)
 			continue
 		}
 
-		if off == on {
-			t.Errorf("%s: strict is %q, but the diagnostics are the same either way; "+
+		if same {
+			t.Errorf("%s: strict is %q, but the outcome is the same either way; "+
 				"drop the field so any consumer can run the case", tc.Note, tc.Strict)
 		}
 	}
 }
 
-// diagnostics renders everything the compiler reports for a case, as a single
-// comparable string. Every diagnostic counts, not only those the case asserts: a
-// check strict mode adds under some other code still makes the setting matter.
-func diagnostics(tc compilecases.TestCase, strict bool) (string, error) {
+// sameEitherWay reports whether a case reaches the same outcome with strict mode on
+// and off. Both the diagnostics and the compiled modules count: a check strict mode
+// adds under an unrelated code makes the setting matter, and so does a rewrite that
+// reports nothing.
+func sameEitherWay(tc compilecases.TestCase) (bool, string, error) {
+	offDiags, offModules, err := outcome(tc, false)
+	if err != nil {
+		return false, "", err
+	}
+
+	onDiags, onModules, err := outcome(tc, true)
+	if err != nil {
+		return false, "", err
+	}
+
+	if offDiags != onDiags {
+		return false, fmt.Sprintf("  off: %s\n  on:  %s", offDiags, onDiags), nil
+	}
+
+	for i := range offModules {
+		if offModules[i] == nil || onModules[i] == nil || !offModules[i].Equal(onModules[i]) {
+			return false, fmt.Sprintf("  %s compiles differently", compilecases.ModuleName(i)), nil
+		}
+	}
+
+	return true, "", nil
+}
+
+// outcome compiles a case with the given strict setting and returns its
+// diagnostics, rendered for comparison, and its compiled modules.
+func outcome(tc compilecases.TestCase, strict bool) (string, []*ast.Module, error) {
 	popts, err := parserOptions(tc)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	modules := make(map[string]*ast.Module, len(tc.Modules))
@@ -106,7 +123,7 @@ func diagnostics(tc compilecases.TestCase, strict bool) (string, error) {
 		name := compilecases.ModuleName(i)
 		m, perr := ast.ParseModuleWithOpts(name, src, popts)
 		if perr != nil {
-			return "", perr
+			return "", nil, perr
 		}
 		modules[name] = m
 	}
@@ -123,5 +140,14 @@ func diagnostics(tc compilecases.TestCase, strict bool) (string, error) {
 	}
 	slices.Sort(lines)
 
-	return strings.Join(lines, "; "), nil
+	out := make([]*ast.Module, 0, len(tc.Modules))
+	for i := range tc.Modules {
+		mod := c.Modules[compilecases.ModuleName(i)]
+		if mod != nil {
+			mod.Comments = nil
+		}
+		out = append(out, mod)
+	}
+
+	return strings.Join(lines, "; "), out, nil
 }

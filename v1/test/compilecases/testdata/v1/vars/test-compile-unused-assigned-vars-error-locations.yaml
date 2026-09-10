@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompileUnusedAssignedVarsErrorLocations
 cases:
-  - note: vars/one-of-the-two-function-args-is-not-used-issue-5662-regression-test
+  - note: vars/one of the two function args is not used - issue 5662 regression test
     strict: enabled
     modules:
       - |
@@ -16,7 +16,7 @@ cases:
         col: 1
         message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: vars/multiple-unused-assigned-var-in-scope-issue-5662-regression-test
+  - note: vars/multiple unused assigned var in scope - issue 5662 regression test
     strict: enabled
     modules:
       - |

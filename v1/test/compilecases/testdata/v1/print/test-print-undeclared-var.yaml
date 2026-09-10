@@ -7,7 +7,7 @@
 # These cases need print_statements: with print erased, there is no operand left
 # to diagnose and the modules compile.
 cases:
-  - note: print/undeclared-var-declared-by-some
+  - note: print/undeclared var declared by some
     print_statements: true
     modules:
       - |
@@ -23,7 +23,7 @@ cases:
         col: 8
         message: var x is undeclared
     exhaustive: true
-  - note: print/undeclared-var-declared-by-some-reports-each-operand
+  - note: print/undeclared var declared by some reports each operand
     print_statements: true
     modules:
       - |
@@ -43,7 +43,7 @@ cases:
         col: 11
         message: var y is undeclared
     exhaustive: true
-  - note: print/undeclared-var-in-every-body-does-not-implicate-key-var
+  - note: print/undeclared var in every body does not implicate key var
     # `z` is bound by the every, so only `q` is undeclared. Reporting is per
     # print operand, and the body is walked once: a var that is safe inside the
     # nested body must not be reported, and `q` must not be reported twice.

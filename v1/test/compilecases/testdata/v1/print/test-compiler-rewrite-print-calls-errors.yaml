@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerRewritePrintCallsErrors
 cases:
-  - note: print/non-existent-var
+  - note: print/non-existent var
     print_statements: true
     modules:
       - |
@@ -13,7 +13,7 @@ cases:
         row: 3
         col: 14
         message: var x is undeclared
-  - note: print/declared-after-print
+  - note: print/declared after print
     print_statements: true
     modules:
       - |
@@ -25,7 +25,7 @@ cases:
         row: 3
         col: 14
         message: var x is undeclared
-  - note: print/inside-comprehension
+  - note: print/inside comprehension
     print_statements: true
     modules:
       - |
@@ -38,7 +38,7 @@ cases:
         col: 19
         message: var x is undeclared
     exhaustive: true
-  - note: print/inside-template-string
+  - note: print/inside template-string
     # This diagnostic carries no location, which is why the case pins row 0:
     # every other compiler error reports a position, and `opa check` prints this
     # one without a line number. Regenerate the case if that is ever fixed.
@@ -51,7 +51,7 @@ cases:
       - code: rego_type_error
         row: 0
         message: print(42) used as value
-  - note: print/some-declaration-inside-comprehension-body
+  - note: print/some declaration inside comprehension body
     print_statements: true
     modules:
       - |
@@ -67,7 +67,7 @@ cases:
         col: 27
         message: var x is undeclared
     exhaustive: true
-  - note: print/declared-var-shadowed-inside-comprehension
+  - note: print/declared var shadowed inside comprehension
     strict: disabled
     print_statements: true
     modules:
@@ -85,7 +85,7 @@ cases:
         col: 27
         message: var x is undeclared
     exhaustive: true
-  - note: print/unsafe-var-alongside-function-argument
+  - note: print/unsafe var alongside function argument
     print_statements: true
     modules:
       - |

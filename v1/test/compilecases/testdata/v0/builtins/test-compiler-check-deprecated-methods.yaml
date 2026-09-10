@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckDeprecatedMethods
 cases:
-  - note: builtins/all-built-in-non-strict
+  - note: builtins/all() built-in (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -16,7 +16,7 @@ cases:
           p := __local0__ {
           	all([true, false], __local0__)
           }
-  - note: builtins/any-built-in-non-strict
+  - note: builtins/any() built-in (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -31,7 +31,7 @@ cases:
           p := __local0__ {
           	any([true, false], __local0__)
           }
-  - note: builtins/re-match-built-in-non-strict
+  - note: builtins/re_match built-in (non-strict)
     rego_version: v0
     strict: disabled
     modules:

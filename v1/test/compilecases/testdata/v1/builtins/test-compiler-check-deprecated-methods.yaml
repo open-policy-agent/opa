@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckDeprecatedMethods
 cases:
-  - note: builtins/all-built-in-strict
+  - note: builtins/all() built-in (strict)
     modules:
       - |
         package test
@@ -13,7 +13,7 @@ cases:
         col: 6
         message: 'deprecated built-in function calls in expression: all'
     exhaustive: true
-  - note: builtins/user-defined-all
+  - note: builtins/user-defined all()
     modules:
       - |
         package test
@@ -35,7 +35,7 @@ cases:
           p := __local5__ if {
           	data.test.all([true, false], __local5__)
           }
-  - note: builtins/any-built-in-strict
+  - note: builtins/any() built-in (strict)
     modules:
       - |
         package test
@@ -47,7 +47,7 @@ cases:
         col: 6
         message: 'deprecated built-in function calls in expression: any'
     exhaustive: true
-  - note: builtins/user-defined-any
+  - note: builtins/user-defined any()
     modules:
       - |
         package test
@@ -68,7 +68,7 @@ cases:
           p := __local2__ if {
           	data.test.any([true, false], __local2__)
           }
-  - note: builtins/re-match-built-in-strict
+  - note: builtins/re_match built-in (strict)
     modules:
       - |
         package test

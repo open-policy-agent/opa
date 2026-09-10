@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCheckUnusedFunctionArgVars
 cases:
-  - note: functions/one-of-the-two-function-args-is-not-used-issue-5602-regression-test
+  - note: functions/one of the two function args is not used - issue 5602 regression test
     strict: enabled
     modules:
       - |
@@ -16,7 +16,7 @@ cases:
         col: 1
         message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/one-of-the-two-ref-head-function-args-is-not-used
+  - note: functions/one of the two ref-head function args is not used
     strict: enabled
     modules:
       - |
@@ -31,7 +31,7 @@ cases:
         col: 1
         message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/multiple-unused-argvar-in-scope-issue-5602-regression-test
+  - note: functions/multiple unused argvar in scope - issue 5602 regression test
     strict: enabled
     modules:
       - |
@@ -51,7 +51,7 @@ cases:
         col: 1
         message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/some-unused-argvar-in-scope-issue-5602-regression-test
+  - note: functions/some unused argvar in scope - issue 5602 regression test
     strict: enabled
     modules:
       - |
@@ -67,7 +67,7 @@ cases:
         col: 1
         message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/wildcard-argvar-that-s-ignored-issue-5602-regression-test
+  - note: functions/wildcard argvar that's ignored - issue 5602 regression test
     modules:
       - |
         package test
@@ -84,7 +84,7 @@ cases:
           	input.test = "foo"
           	__local0__ = 1
           }
-  - note: functions/wildcard-argvar-that-s-ignored-issue-5602-regression-test-2
+  - note: functions/wildcard argvar that's ignored - issue 5602 regression test-2
     strict: enabled
     modules:
       - |
@@ -99,7 +99,7 @@ cases:
         col: 1
         message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/argvar-not-used-in-body-but-in-head-issue-5602-regression-test
+  - note: functions/argvar not used in body but in head - issue 5602 regression test
     modules:
       - |
         package test
@@ -114,7 +114,7 @@ cases:
           func(__local0__) := __local0__ if {
           	input.test = "foo"
           }
-  - note: functions/argvar-not-used-in-body-but-in-head-value-comprehension
+  - note: functions/argvar not used in body but in head value comprehension
     modules:
       - |
         package test
@@ -135,7 +135,7 @@ cases:
           	input.test = "foo"
           	__local2__ = {__local0__: __local1__ | __local1__ = data.test.a[__local0__]}
           }
-  - note: functions/argvar-not-used-in-body-but-in-else-head-value-comprehension
+  - note: functions/argvar not used in body but in else-head value comprehension
     modules:
       - |
         package test
@@ -386,7 +386,7 @@ cases:
               }
             ]
           }
-  - note: functions/argvar-not-used-in-body-and-shadowed-in-head-value-comprehension
+  - note: functions/argvar not used in body and shadowed in head value comprehension
     strict: enabled
     modules:
       - |
@@ -402,7 +402,7 @@ cases:
         col: 1
         message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/argvar-used-in-primary-body-but-not-in-else-body
+  - note: functions/argvar used in primary body but not in else body
     modules:
       - |
         package test
@@ -542,7 +542,7 @@ cases:
               }
             ]
           }
-  - note: functions/argvar-used-in-primary-body-but-not-in-else-body-with-wildcard
+  - note: functions/argvar used in primary body but not in else body (with wildcard)
     modules:
       - |
         package test
@@ -690,7 +690,7 @@ cases:
               }
             ]
           }
-  - note: functions/argvar-not-used-in-primary-body-but-in-else-body
+  - note: functions/argvar not used in primary body but in else body
     modules:
       - |
         package test
@@ -830,7 +830,7 @@ cases:
               }
             ]
           }
-  - note: functions/argvar-not-used-in-primary-body-but-in-else-body-with-wildcard
+  - note: functions/argvar not used in primary body but in else body (with wildcard)
     modules:
       - |
         package test
@@ -978,7 +978,7 @@ cases:
               }
             ]
           }
-  - note: functions/argvar-used-in-primary-body-but-not-in-implicit-else-body
+  - note: functions/argvar used in primary body but not in implicit else body
     modules:
       - |
         package test
@@ -1092,7 +1092,7 @@ cases:
               }
             ]
           }
-  - note: functions/argvars-usage-spread-over-multiple-bodies
+  - note: functions/argvars usage spread over multiple bodies
     modules:
       - |
         package test
@@ -1115,7 +1115,7 @@ cases:
           } else = true if {
           	input.test = __local2__
           }
-  - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-first
+  - note: functions/argvars usage spread over multiple bodies, missing in first
     strict: enabled
     modules:
       - |
@@ -1134,7 +1134,7 @@ cases:
         col: 1
         message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-second
+  - note: functions/argvars usage spread over multiple bodies, missing in second
     strict: enabled
     modules:
       - |
@@ -1153,7 +1153,7 @@ cases:
         col: 1
         message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-third
+  - note: functions/argvars usage spread over multiple bodies, missing in third
     strict: enabled
     modules:
       - |
@@ -1172,7 +1172,7 @@ cases:
         col: 1
         message: 'unused argument z. (hint: use _ (wildcard variable) instead)'
     exhaustive: true
-  - note: functions/unused-default-function-argvar
+  - note: functions/unused default function argvar
     strict: enabled
     modules:
       - |

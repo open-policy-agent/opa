@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckDuplicateImports
 cases:
-  - note: imports/shadow-non-strict
+  - note: imports/shadow (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -26,7 +26,7 @@ cases:
           q := __local1__ {
           	__local1__ = data.bar.foo
           }
-  - note: imports/alias-shadow-non-strict
+  - note: imports/alias shadow (non-strict)
     rego_version: v0
     strict: disabled
     modules:

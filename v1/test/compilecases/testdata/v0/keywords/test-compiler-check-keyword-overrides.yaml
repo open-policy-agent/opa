@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerCheckKeywordOverrides
 cases:
-  - note: keywords/rule-names-strict
+  - note: keywords/rule names (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -21,7 +21,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: keywords/rule-names-non-strict
+  - note: keywords/rule names (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -46,7 +46,7 @@ cases:
           data = true {
           	true
           }
-  - note: keywords/rule-names-set-construction-strict
+  - note: keywords/rule names (set construction) (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -66,7 +66,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: keywords/rule-names-set-construction-non-strict
+  - note: keywords/rule names (set construction) (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -91,7 +91,7 @@ cases:
           data["b"] {
           	true
           }
-  - note: keywords/rule-names-object-construction-strict
+  - note: keywords/rule names (object construction) (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -111,7 +111,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: keywords/rule-names-object-construction-non-strict
+  - note: keywords/rule names (object construction) (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -136,7 +136,7 @@ cases:
           data.b := 2 {
           	true
           }
-  - note: keywords/leading-term-in-rule-refs-strict
+  - note: keywords/leading term in rule refs (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -156,7 +156,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: keywords/leading-term-in-rule-refs-non-strict
+  - note: keywords/leading term in rule refs (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -181,7 +181,7 @@ cases:
           data.b.c := "foo" {
           	true
           }
-  - note: keywords/global-assignments-non-strict
+  - note: keywords/global assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -206,7 +206,7 @@ cases:
           data := 3 {
           	true
           }
-  - note: keywords/rule-local-assignments-strict
+  - note: keywords/rule-local assignments (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -236,7 +236,7 @@ cases:
         col: 2
         message: variables must not shadow input (use a different variable name)
     exhaustive: true
-  - note: keywords/rule-local-assignments-non-strict
+  - note: keywords/rule-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -266,7 +266,7 @@ cases:
           q = true {
           	__local3__ = 4
           }
-  - note: keywords/array-comprehension-local-assignments-non-strict
+  - note: keywords/array comprehension-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -285,7 +285,7 @@ cases:
           p = __local3__ {
           	__local3__ = [__local1__ | __local0__ = 1; __local1__ = 2; __local2__ = 3]
           }
-  - note: keywords/set-comprehension-local-assignments-non-strict
+  - note: keywords/set comprehension-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -304,7 +304,7 @@ cases:
           p = __local3__ {
           	__local3__ = {__local1__ | __local0__ = 1; __local1__ = 2; __local2__ = 3}
           }
-  - note: keywords/object-comprehension-local-assignments-non-strict
+  - note: keywords/object comprehension-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -323,7 +323,7 @@ cases:
           p = __local3__ {
           	__local3__ = {__local1__: 1 | __local0__ = 1; __local1__ = 2; __local2__ = 3}
           }
-  - note: keywords/not-local-assignments-strict
+  - note: keywords/not-local assignments (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -344,7 +344,7 @@ cases:
         col: 20
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: keywords/not-local-assignments-non-strict
+  - note: keywords/not-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -364,7 +364,7 @@ cases:
           p = true {
           	not {__local0__ = 1; __local1__ = 2}
           }
-  - note: keywords/and-local-assignments-strict
+  - note: keywords/and-local assignments (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -385,7 +385,7 @@ cases:
         col: 23
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: keywords/and-local-assignments-non-strict
+  - note: keywords/and-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -405,7 +405,7 @@ cases:
           p = true {
           	{ __local0__ = 1 } and { __local1__ = 2 }
           }
-  - note: keywords/or-local-assignments-strict
+  - note: keywords/or-local assignments (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -426,7 +426,7 @@ cases:
         col: 22
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: keywords/or-local-assignments-non-strict
+  - note: keywords/or-local assignments (non-strict)
     rego_version: v0
     strict: disabled
     modules:
@@ -446,7 +446,7 @@ cases:
           p = true {
           	{ __local0__ = 1 } or { __local1__ = 2 }
           }
-  - note: keywords/nested-override-strict
+  - note: keywords/nested override (strict)
     rego_version: v0
     strict: enabled
     modules:
@@ -470,7 +470,7 @@ cases:
         col: 3
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: keywords/nested-override-non-strict
+  - note: keywords/nested override (non-strict)
     rego_version: v0
     strict: disabled
     modules:

@@ -20,7 +20,7 @@ generate`, and review what comes out:
 ```yaml
 ---
 cases:
-  - note: safety/unsafe-var-in-rule-body
+  - note: safety/unsafe var in rule body
     modules:
       - |
         package test

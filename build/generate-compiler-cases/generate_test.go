@@ -26,7 +26,7 @@ func TestGenerateFillsWantErrors(t *testing.T) {
 	// changes has to fail the runner, not be rewritten underneath it.
 	corpus := `---
 cases:
-  - note: safety/filled-in
+  - note: safety/filled in
     modules:
       - |
         package test
@@ -35,7 +35,7 @@ cases:
         	x == 2
         }
     exhaustive: true
-  - note: safety/left-alone
+  - note: safety/left alone
     modules:
       - |
         package test
@@ -226,7 +226,7 @@ func assertMatchesCommitted(t *testing.T, dir string) {
 func TestGenerateAttributesErrorsToTheirModule(t *testing.T) {
 	corpus := `---
 cases:
-  - note: safety/across-modules
+  - note: safety/across modules
     modules:
       - |
         package a
@@ -383,7 +383,7 @@ cases:
 func TestGenerateFillsInACleanCompile(t *testing.T) {
 	corpus := `---
 cases:
-  - note: transforms/clean-compile
+  - note: transforms/clean compile
     modules:
       - |
         package test
@@ -416,7 +416,7 @@ cases:
 func TestGenerateRejectsATransformThatReportsDiagnostics(t *testing.T) {
 	corpus := `---
 cases:
-  - note: safety/does-not-compile
+  - note: safety/does not compile
     want:
       - module: |
           package test
@@ -450,7 +450,7 @@ func TestGenerateSeedsWantModules(t *testing.T) {
 	// what the modules compile to.
 	corpus := `---
 cases:
-  - note: transforms/import-resolved
+  - note: transforms/import resolved
     modules:
       - |
         package test
@@ -543,7 +543,7 @@ cases:
 func TestGenerateRejectsTransformThatDoesNotCompile(t *testing.T) {
 	corpus := `---
 cases:
-  - note: transforms/does-not-compile
+  - note: transforms/does not compile
     modules:
       - |
         package test
@@ -579,7 +579,7 @@ cases:
 func TestGenerateFallsBackToWantAST(t *testing.T) {
 	corpus := `---
 cases:
-  - note: transforms/else-assign
+  - note: transforms/else assign
     modules:
       - |
         package test
@@ -665,7 +665,7 @@ cases:
 func TestGenerateExplainsTheWantASTFallback(t *testing.T) {
 	corpus := `---
 cases:
-  - note: transforms/else-assign
+  - note: transforms/else assign
     modules:
       - |
         package test
@@ -721,7 +721,7 @@ cases:
 func TestGenerateRejectsAnUnknownField(t *testing.T) {
 	corpus := `---
 cases:
-  - note: transforms/unknown-field
+  - note: transforms/unknown field
     modules:
       - |
         package test

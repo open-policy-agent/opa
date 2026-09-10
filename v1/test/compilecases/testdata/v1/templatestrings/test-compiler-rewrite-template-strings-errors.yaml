@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompilerRewriteTemplateStringsErrors
 cases:
-  - note: templatestrings/undeclared-var-rule-head
+  - note: templatestrings/undeclared var, rule head
     modules:
       - |
         package test
@@ -12,7 +12,7 @@ cases:
         row: 3
         col: 6
         message: var x is unsafe
-  - note: templatestrings/undeclared-var-rule-body
+  - note: templatestrings/undeclared var, rule body
     modules:
       - |
         package test
@@ -25,7 +25,7 @@ cases:
         row: 4
         col: 9
         message: var x is unsafe
-  - note: templatestrings/undeclared-var-wildcard
+  - note: templatestrings/undeclared var (wildcard)
     modules:
       - |
         package test
@@ -39,7 +39,7 @@ cases:
         row: 5
         col: 12
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-enum
+  - note: templatestrings/undeclared var (enum)
     modules:
       - |
         package test
@@ -53,7 +53,7 @@ cases:
         row: 5
         col: 12
         message: var x is undeclared
-  - note: templatestrings/undeclared-var-nested-inside-template-string
+  - note: templatestrings/undeclared var, nested inside template-string
     modules:
       - |
         package test
@@ -64,7 +64,7 @@ cases:
         row: 3
         col: 9
         message: var x is unsafe
-  - note: templatestrings/undeclared-var-inside-array-comprehension-body
+  - note: templatestrings/undeclared var, inside array comprehension body
     modules:
       - |
         package test
@@ -80,7 +80,7 @@ cases:
         row: 4
         col: 19
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-array-comprehension-head
+  - note: templatestrings/undeclared var, inside array comprehension head
     strict: disabled
     modules:
       - |
@@ -97,7 +97,7 @@ cases:
         row: 4
         col: 10
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-set-comprehension-body
+  - note: templatestrings/undeclared var, inside set comprehension body
     modules:
       - |
         package test
@@ -113,7 +113,7 @@ cases:
         row: 4
         col: 19
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-set-comprehension-head
+  - note: templatestrings/undeclared var, inside set comprehension head
     strict: disabled
     modules:
       - |
@@ -130,7 +130,7 @@ cases:
         row: 4
         col: 10
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-object-comprehension-body
+  - note: templatestrings/undeclared var, inside object comprehension body
     modules:
       - |
         package test
@@ -146,7 +146,7 @@ cases:
         row: 4
         col: 22
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-object-comprehension-key
+  - note: templatestrings/undeclared var, inside object comprehension key
     strict: disabled
     modules:
       - |
@@ -163,7 +163,7 @@ cases:
         row: 4
         col: 10
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-object-comprehension-value
+  - note: templatestrings/undeclared var, inside object comprehension value
     strict: disabled
     modules:
       - |
@@ -180,7 +180,7 @@ cases:
         row: 4
         col: 14
         message: var _ is undeclared
-  - note: templatestrings/undeclared-var-inside-every-domain
+  - note: templatestrings/undeclared var, inside every domain
     modules:
       - |
         package test
@@ -195,7 +195,7 @@ cases:
         row: 4
         col: 2
         message: var x is unsafe
-  - note: templatestrings/undeclared-var-inside-every-body
+  - note: templatestrings/undeclared var, inside every body
     modules:
       - |
         package test
@@ -210,7 +210,7 @@ cases:
         row: 5
         col: 8
         message: var y is unsafe
-  - note: templatestrings/walk-built-in-call
+  - note: templatestrings/walk built-in call
     modules:
       - |
         package test
@@ -220,7 +220,7 @@ cases:
       - code: rego_compile_error
         row: 0
         message: illegal call to relation built-in 'walk' that may cause multiple outputs
-  - note: templatestrings/undeclared-var-some-in-with-undeclared-collection-issue-8157
+  - note: 'templatestrings/undeclared var, some-in with undeclared collection (issue #8157)'
     modules:
       - |
         package test

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompileUnusedDeclaredVarsErrorLocations
 cases:
-  - note: vars/simple-unused-some-var-issue-4238-regression-test
+  - note: vars/simple unused some var - issue 4238 regression test
     modules:
       - |
         package test
@@ -16,7 +16,7 @@ cases:
         col: 2
         message: declared var i unused
     exhaustive: true
-  - note: vars/simple-unused-some-vars-2x-rules
+  - note: vars/simple unused some vars, 2x rules
     modules:
       - |
         package test
@@ -40,7 +40,7 @@ cases:
         col: 2
         message: declared var j unused
     exhaustive: true
-  - note: vars/multiple-unused-some-vars
+  - note: vars/multiple unused some vars
     modules:
       - |
         package test

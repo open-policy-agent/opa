@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompileRegoV1Import
 cases:
-  - note: regov1/duplicate-imports
+  - note: regov1/duplicate imports
     modules:
       - |
         package test
@@ -18,7 +18,7 @@ cases:
         col: 1
         message: import must not shadow import data.foo
     exhaustive: true
-  - note: regov1/duplicate-imports-alias
+  - note: regov1/duplicate imports (alias)
     modules:
       - |
         package test
@@ -35,7 +35,7 @@ cases:
         col: 1
         message: import must not shadow import data.foo
     exhaustive: true
-  - note: regov1/duplicate-imports-alias-different-order
+  - note: regov1/duplicate imports (alias, different order)
     modules:
       - |
         package test
@@ -52,7 +52,7 @@ cases:
         col: 1
         message: import must not shadow import data.bar as foo
     exhaustive: true
-  - note: regov1/duplicate-imports-repeat
+  - note: regov1/duplicate imports (repeat)
     modules:
       - |
         package test
@@ -69,7 +69,7 @@ cases:
         col: 1
         message: import must not shadow import data.foo
     exhaustive: true
-  - note: regov1/duplicate-imports-multiple-modules
+  - note: regov1/duplicate imports (multiple modules)
     modules:
       - |
         package test
@@ -100,7 +100,7 @@ cases:
         col: 1
         message: import must not shadow import data.foo
     exhaustive: true
-  - note: regov1/var-shadows-input
+  - note: regov1/var shadows input
     modules:
       - |
         package test
@@ -116,7 +116,7 @@ cases:
         col: 2
         message: variables must not shadow input (use a different variable name)
     exhaustive: true
-  - note: regov1/var-shadows-input-multiple-modules
+  - note: regov1/var shadows input (multiple modules)
     modules:
       - |
         package test
@@ -145,7 +145,7 @@ cases:
         col: 2
         message: variables must not shadow input (use a different variable name)
     exhaustive: true
-  - note: regov1/var-shadows-data
+  - note: regov1/var shadows data
     modules:
       - |
         package test
@@ -161,7 +161,7 @@ cases:
         col: 2
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: regov1/var-shadows-data-multiple-modules
+  - note: regov1/var shadows data (multiple modules)
     modules:
       - |
         package test
@@ -190,7 +190,7 @@ cases:
         col: 2
         message: variables must not shadow data (use a different variable name)
     exhaustive: true
-  - note: regov1/rule-shadows-input
+  - note: regov1/rule shadows input
     modules:
       - |
         package test
@@ -203,7 +203,7 @@ cases:
         col: 1
         message: rules must not shadow input (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-object-shadows-input
+  - note: regov1/rule (object) shadows input
     modules:
       - |
         package test
@@ -216,7 +216,7 @@ cases:
         col: 1
         message: rules must not shadow input (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-set-shadows-input
+  - note: regov1/rule (set) shadows input
     modules:
       - |
         package test
@@ -229,7 +229,7 @@ cases:
         col: 1
         message: rules must not shadow input (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-ref-shadows-input
+  - note: regov1/rule ref shadows input
     modules:
       - |
         package test
@@ -242,7 +242,7 @@ cases:
         col: 1
         message: rules must not shadow input (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-shadows-input-multiple-modules
+  - note: regov1/rule shadows input (multiple modules)
     modules:
       - |
         package test
@@ -265,7 +265,7 @@ cases:
         col: 1
         message: rules must not shadow input (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-shadows-data
+  - note: regov1/rule shadows data
     modules:
       - |
         package test
@@ -278,7 +278,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-object-shadows-data
+  - note: regov1/rule (object) shadows data
     modules:
       - |
         package test
@@ -291,7 +291,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-set-shadows-data
+  - note: regov1/rule (set) shadows data
     modules:
       - |
         package test
@@ -304,7 +304,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-ref-shadows-data
+  - note: regov1/rule ref shadows data
     modules:
       - |
         package test
@@ -317,7 +317,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: regov1/rule-shadows-data-multiple-modules
+  - note: regov1/rule shadows data (multiple modules)
     modules:
       - |
         package test
@@ -340,7 +340,7 @@ cases:
         col: 1
         message: rules must not shadow data (use a different rule name)
     exhaustive: true
-  - note: regov1/deprecated-built-in
+  - note: regov1/deprecated built-in
     modules:
       - |
         package test
@@ -353,7 +353,7 @@ cases:
         col: 6
         message: 'deprecated built-in function calls in expression: all'
     exhaustive: true
-  - note: regov1/deprecated-built-in-multiple
+  - note: regov1/deprecated built-in (multiple)
     modules:
       - |
         package test
@@ -371,7 +371,7 @@ cases:
         col: 6
         message: 'deprecated built-in function calls in expression: any'
     exhaustive: true
-  - note: regov1/deprecated-built-in-multiple-modules
+  - note: regov1/deprecated built-in (multiple modules)
     modules:
       - |
         package test
