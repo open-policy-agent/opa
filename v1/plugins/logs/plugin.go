@@ -481,8 +481,8 @@ type Plugin struct {
 	statusMtx     sync.Mutex
 	stop          chan chan struct{}
 	reconfig      chan reconfigure
-	preparedMask  prepareOnce
-	preparedDrop  prepareOnce
+	preparedMask  preparedQueryCache
+	preparedDrop  preparedQueryCache
 	metrics       metrics.Metrics
 	logger        logging.Logger
 	status        *lstat.Status
@@ -490,27 +490,51 @@ type Plugin struct {
 	sloggerMtx    sync.RWMutex
 }
 
-type prepareOnce struct {
-	once          *sync.Once
+// preparedQueryCache caches the prepared mask or drop query. The prepared query
+// is tied to the compiler and plugin config it was built from, so it is dropped
+// whenever either of those change.
+type preparedQueryCache struct {
+	// mtx guards the fields below. It is held across preparation so that a
+	// concurrent drop() is ordered after it and invalidates the query that was
+	// just cached, rather than being lost.
+	mtx           sync.RWMutex
+	prepared      bool
 	preparedQuery *rego.PreparedEvalQuery
 	err           error
 }
 
-func newPrepareOnce() *prepareOnce {
-	return &prepareOnce{
-		once: new(sync.Once),
+// drop invalidates the cached query, so that the next caller prepares a new one.
+func (pc *preparedQueryCache) drop() {
+	pc.mtx.Lock()
+	pc.prepared = false
+	pc.preparedQuery = nil
+	pc.err = nil
+	pc.mtx.Unlock()
+}
+
+// prepare returns the cached query, preparing it with f if it isn't cached yet.
+func (pc *preparedQueryCache) prepare(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
+	pc.mtx.RLock()
+	if pc.prepared {
+		preparedQuery, err := pc.preparedQuery, pc.err
+		pc.mtx.RUnlock()
+		return preparedQuery, err
 	}
-}
+	pc.mtx.RUnlock()
 
-func (po *prepareOnce) drop() {
-	po.once = new(sync.Once)
-}
+	pc.mtx.Lock()
+	defer pc.mtx.Unlock()
 
-func (po *prepareOnce) prepareOnce(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
-	po.once.Do(func() {
-		po.preparedQuery, po.err = f()
-	})
-	return po.preparedQuery, po.err
+	// another caller may have prepared the query while the write lock was
+	// being acquired
+	if pc.prepared {
+		return pc.preparedQuery, pc.err
+	}
+
+	pc.preparedQuery, pc.err = f()
+	pc.prepared = true
+
+	return pc.preparedQuery, pc.err
 }
 
 type reconfigure struct {
@@ -599,14 +623,12 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	plugin := &Plugin{
-		manager:      manager,
-		config:       *parsedConfig,
-		stop:         make(chan chan struct{}),
-		reconfig:     make(chan reconfigure),
-		logger:       manager.Logger().WithFields(map[string]any{"plugin": Name}),
-		status:       &lstat.Status{},
-		preparedDrop: *newPrepareOnce(),
-		preparedMask: *newPrepareOnce(),
+		manager:  manager,
+		config:   *parsedConfig,
+		stop:     make(chan chan struct{}),
+		reconfig: make(chan reconfigure),
+		logger:   manager.Logger().WithFields(map[string]any{"plugin": Name}),
+		status:   &lstat.Status{},
 	}
 
 	switch parsedConfig.Reporting.BufferType {
@@ -857,12 +879,15 @@ func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
+	<-done
 
+	// Drop the cached queries only once the new config is installed. Dropping
+	// them earlier lets a concurrent Log() re-prepare against the old config and
+	// cache it, leaving the new mask/drop decision paths without effect.
 	p.preparedMask.drop()
 	p.preparedDrop.drop()
 	p.clearSlogCache()
 
-	<-done
 	go p.loop()
 }
 
@@ -1045,7 +1070,7 @@ func (p *Plugin) push(event EventV1) {
 }
 
 func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input ast.Value, event *EventV1) error {
-	pq, err := p.preparedMask.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedMask.prepare(func() (*rego.PreparedEvalQuery, error) {
 		var pq rego.PreparedEvalQuery
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
@@ -1101,7 +1126,7 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input a
 func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, input ast.Value) (bool, error) {
 	var err error
 
-	pq, err := p.preparedDrop.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedDrop.prepare(func() (*rego.PreparedEvalQuery, error) {
 		var pq rego.PreparedEvalQuery
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))

@@ -20,6 +20,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -2766,6 +2767,92 @@ func TestPluginMasking(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPluginPreparedQueryCacheConcurrency(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := inmem.New()
+
+	policy := []byte(`
+		package system.log
+		import rego.v1
+
+		mask contains "/input/password" if {
+			input.input.is_sensitive
+		}
+
+		drop if {
+			endswith(input.path, "/drop")
+		}`)
+
+	if err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		return store.UpsertPolicy(ctx, txn, "test.rego", policy)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	manager, err := plugins.New(nil, "test", store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{Service: "svc"}
+	trigger := plugins.DefaultTriggerMode
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(cfg, manager)
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	// Readers evaluate the cached queries the way Log() does.
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for range iterations {
+				var input any = map[string]any{"is_sensitive": true, "password": "secret"}
+				event := &EventV1{Path: "foo/bar", Input: &input}
+
+				value, err := event.AST()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				if err := plugin.maskEvent(ctx, nil, value, event); err != nil {
+					t.Error(err)
+					return
+				}
+
+				if _, err := plugin.dropEvent(ctx, nil, value); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+
+	// The writer does what compilerUpdated() does on every bundle activation.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for range iterations {
+			plugin.compilerUpdated(nil)
+		}
+	}()
+
+	wg.Wait()
 }
 
 func TestPluginDrop(t *testing.T) {
