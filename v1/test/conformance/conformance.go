@@ -8,6 +8,8 @@
 package conformance
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -15,7 +17,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/open-policy-agent/opa/v1/util"
+	"sigs.k8s.io/yaml"
 )
 
 // DefaultModuleName is the name given to the first module of a case, and the
@@ -173,7 +175,7 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 		}
 
 		var x Set[T]
-		if err := util.Unmarshal(bs, &x); err != nil {
+		if err := Unmarshal(bs, &x); err != nil {
 			return fmt.Errorf("%s: %w", filename(path), err)
 		}
 
@@ -186,4 +188,27 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 	})
 
 	return result, err
+}
+
+// Unmarshal decodes a parser or compiler corpus file, rejecting a field the case
+// type does not declare. The corpora are generated, so an unknown field is debris
+// rather than something to skip over.
+func Unmarshal(bs []byte, v any) error {
+	if json.Valid(bs) {
+		return decodeStrict(bs, v)
+	}
+
+	nbs, err := yaml.YAMLToJSON(bs)
+	if err != nil {
+		return err
+	}
+	return decodeStrict(nbs, v)
+}
+
+func decodeStrict(bs []byte, v any) error {
+	decoder := json.NewDecoder(bytes.NewReader(bs))
+	decoder.UseNumber()
+	decoder.DisallowUnknownFields()
+
+	return decoder.Decode(v)
 }

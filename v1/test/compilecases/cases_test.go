@@ -5,6 +5,8 @@
 package compilecases
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -233,5 +235,22 @@ func TestValidate(t *testing.T) {
 				t.Errorf("expected an error containing %q, got %v", tc.wantErr, err)
 			}
 		})
+	}
+}
+
+func TestLoadRejectsAnUnknownField(t *testing.T) {
+	dir := t.TempDir()
+	corpus := "cases:\n  - note: a\n    modules: [package test]\n    no_such_field: true\n"
+
+	if err := os.WriteFile(filepath.Join(dir, "cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("expected loading to be rejected")
+	}
+	if want := `unknown field "no_such_field"`; !strings.Contains(err.Error(), want) {
+		t.Errorf("expected an error containing %q, got %v", want, err)
 	}
 }

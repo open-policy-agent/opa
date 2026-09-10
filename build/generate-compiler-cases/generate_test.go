@@ -715,3 +715,33 @@ cases:
 		t.Errorf("expected one explanation, got %d:\n%s", n, again)
 	}
 }
+
+// TestGenerateRejectsAnUnknownField pins that a field the schema does not declare
+// fails generation, rather than loading as though it were not there.
+func TestGenerateRejectsAnUnknownField(t *testing.T) {
+	corpus := `---
+cases:
+  - note: transforms/unknown-field
+    modules:
+      - |
+        package test
+
+        p if {
+        	true
+        }
+    no_such_field: true
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Generate(dir)
+	if err == nil {
+		t.Fatal("expected generation to be rejected")
+	}
+	if want := `unknown field "no_such_field"`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected an error containing %q, got %v", want, err)
+	}
+}

@@ -237,7 +237,7 @@ func readSets() ([]ParserSet, error) {
 		}
 
 		var x parsercases.Set
-		if err := util.Unmarshal(bs, &x); err != nil {
+		if err := conformance.Unmarshal(bs, &x); err != nil {
 			return fmt.Errorf("%s: %w", p, err)
 		}
 

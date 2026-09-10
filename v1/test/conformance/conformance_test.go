@@ -6,6 +6,7 @@ package conformance
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -84,6 +85,64 @@ func TestMatchErrors(t *testing.T) {
 			}
 			if !slices.Equal(unexpected, tc.wantUnexpected) {
 				t.Errorf("unexpected: expected %v, got %v", tc.wantUnexpected, unexpected)
+			}
+		})
+	}
+}
+
+func TestUnmarshalRejectsUnknownFields(t *testing.T) {
+	type testCase struct {
+		Note string `json:"note"`
+	}
+
+	tests := []struct {
+		note    string
+		corpus  string
+		wantErr string
+	}{
+		{
+			note:   "a declared field",
+			corpus: "cases:\n  - note: a\n",
+		},
+		{
+			note:    "a field the type does not declare",
+			corpus:  "cases:\n  - note: a\n    stale: true\n",
+			wantErr: `unknown field "stale"`,
+		},
+		{
+			note:    "a field at the top level",
+			corpus:  "cases:\n  - note: a\nextra: 1\n",
+			wantErr: `unknown field "extra"`,
+		},
+		{
+			note:   "JSON is decoded the same way",
+			corpus: `{"cases":[{"note":"a"}]}`,
+		},
+		{
+			note:    "JSON with an unknown field",
+			corpus:  `{"cases":[{"note":"a","stale":1}]}`,
+			wantErr: `unknown field "stale"`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var x struct {
+				Cases []testCase `json:"cases"`
+			}
+
+			err := Unmarshal([]byte(tc.corpus), &x)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected an error containing %q, got none", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("expected an error containing %q, got %v", tc.wantErr, err)
 			}
 		})
 	}

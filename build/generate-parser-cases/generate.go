@@ -18,7 +18,6 @@ import (
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Generate fills in want_ast for every success case in the corpus rooted at
@@ -54,7 +53,7 @@ func generateFile(path string, mode fs.FileMode) error {
 	}
 
 	var set parsercases.Set
-	if err := util.Unmarshal(bs, &set); err != nil {
+	if err := conformance.Unmarshal(bs, &set); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 

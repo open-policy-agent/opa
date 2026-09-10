@@ -16,7 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/compilecases/testdata"
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
 // CompilerTestCase is a corpus case together with whatever a filter had to say
@@ -143,7 +143,7 @@ func readSets() ([]CompilerSet, error) {
 		}
 
 		var x compilecases.Set
-		if err := util.Unmarshal(bs, &x); err != nil {
+		if err := conformance.Unmarshal(bs, &x); err != nil {
 			return fmt.Errorf("%s: %w", p, err)
 		}
 

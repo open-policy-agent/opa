@@ -17,7 +17,7 @@ import (
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
 // Generate fills in want_errors for every case in the corpus rooted at dir,
@@ -50,7 +50,7 @@ func generateFile(path string, mode fs.FileMode) error {
 	}
 
 	var set compilecases.Set
-	if err := util.Unmarshal(bs, &set); err != nil {
+	if err := conformance.Unmarshal(bs, &set); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 
