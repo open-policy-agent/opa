@@ -1,9 +1,11 @@
 package play
 
-# Allowed deviation threshold defined in policy.
-tolerance := 5
+# Baseline server timestamp and allowed skew (in seconds).
+server_time := 1700000000
+max_skew_seconds := 30
 
-delta := input.observed - input.expected
+# Calculate timestamp drift regardless of whether request is ahead or behind.
+drift := input.request_time - server_time
 
-# True when the observation is within tolerance of the expected value.
-within_tolerance if abs(delta) <= tolerance
+# Allow request if time drift is within acceptable bounds.
+allow if abs(drift) <= max_skew_seconds

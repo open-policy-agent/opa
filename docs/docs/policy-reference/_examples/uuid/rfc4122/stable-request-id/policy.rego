@@ -1,10 +1,10 @@
 package play
 
-# Same key returns the same UUID within this evaluation:
-req_id1 := uuid.rfc4122("req-1")
-req_id2 := uuid.rfc4122("req-1")
-same_key_match := req_id1 == req_id2
+# Generate a correlation ID for this policy decision using the request ID as a cache key.
+correlation_id := uuid.rfc4122(input.request_id)
 
-# Different key returns a different UUID:
-other_id := uuid.rfc4122("req-2")
-diff_key_match := req_id1 == other_id
+# Return authorization decision along with the audit correlation ID.
+decision := {
+	"allow": input.action == "read",
+	"correlation_id": correlation_id,
+}
