@@ -1207,7 +1207,7 @@ chain_no_output_var := rego.metadata.chain()
 
 chain_with_output_var if {
 	foo := rego.metadata.chain()
-	foo == []
+	foo == [{"path": ["a", "b"]}]
 }`
 
 	ctx := t.Context()
@@ -1244,8 +1244,8 @@ query:11     | Enter data.test.chain_with_output_var
 query:12     | | Eval __local9__ = [{"path": ["test", "chain_with_output_var"]}]
 query:12     | | Eval __local5__ = __local9__
 query:12     | | Eval foo = __local5__
-query:13     | | Eval foo = []
-query:13     | | Fail foo = []
+query:13     | | Eval foo = [{"path": ["a", "b"]}]
+query:13     | | Fail foo = [{"path": ["a", "b"]}]
 query:12     | | Redo foo = __local5__
 query:12     | | Redo __local5__ = __local9__
 query:12     | | Redo __local9__ = [{"path": ["test", "chain_with_output_var"]}]

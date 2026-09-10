@@ -69,12 +69,7 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 			static[i] = env.GetByValue(x.Elem(i).Value)
 		}
 
-		var dynamic types.Type
-		if len(static) == 0 {
-			dynamic = types.A
-		}
-
-		return types.NewArray(static, dynamic)
+		return types.NewArray(static, nil)
 
 	case *lazyObj:
 		return env.GetByValue(x.force())
@@ -92,10 +87,6 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 			// Can't handle it as a static property, fallback to dynamic
 			dynamic = types.NewDynamicProperty(env.GetByValue(k.Value), env.GetByValue(v.Value))
 		})
-
-		if len(static) == 0 && dynamic == nil {
-			dynamic = types.NewDynamicProperty(types.A, types.A)
-		}
 
 		return types.NewObject(static, dynamic)
 
@@ -383,6 +374,8 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 // with an types.Or, instead of being merged.
 // If 'a' is an Any containing an Object, and 'b' is an Object (or vice versa); AND both objects have no
 // static properties, they are merged.
+// If either object has neither static nor dynamic properties, it is the empty object type, and the other
+// type is returned unchanged.
 // If 'a' and 'b' are different types, they are joined with an types.Or.
 func mergeTypes(a, b types.Type) types.Type {
 	if a == nil {
@@ -403,25 +396,33 @@ func mergeTypes(a, b types.Type) types.Type {
 
 	switch a := a.(type) {
 	case *types.Object:
+		aDynProps := a.DynamicProperties()
 		if bObj, ok := b.(*types.Object); ok && len(a.StaticProperties()) == 0 && len(bObj.StaticProperties()) == 0 {
-			if len(a.StaticProperties()) > 0 || len(bObj.StaticProperties()) > 0 {
-				return types.Or(a, bObj)
+			bDynProps := bObj.DynamicProperties()
+
+			// An object type with neither static nor dynamic properties is the
+			// empty object, which the other object type already covers.
+			if aDynProps == nil {
+				return bObj
+			}
+			if bDynProps == nil {
+				return a
 			}
 
-			aDynProps := a.DynamicProperties()
-			bDynProps := bObj.DynamicProperties()
 			dynProps := types.NewDynamicProperty(
 				types.Or(aDynProps.Key, bDynProps.Key),
 				mergeTypes(aDynProps.Value, bDynProps.Value),
 			)
 			return types.NewObject(nil, dynProps)
-		} else if bAny, ok := b.(types.Any); ok && len(a.StaticProperties()) == 0 {
+		} else if bAny, ok := b.(types.Any); ok && len(a.StaticProperties()) == 0 && aDynProps != nil {
 			// If a is an object type with no static components ...
 			for _, t := range bAny {
 				if tObj, ok := t.(*types.Object); ok && len(tObj.StaticProperties()) == 0 {
 					// ... and b is a types.Any containing an object with no static components, we merge them.
-					aDynProps := a.DynamicProperties()
 					tDynProps := tObj.DynamicProperties()
+					if tDynProps == nil {
+						continue
+					}
 					tDynProps.Key = types.Or(tDynProps.Key, aDynProps.Key)
 					tDynProps.Value = types.Or(tDynProps.Value, aDynProps.Value)
 					return bAny

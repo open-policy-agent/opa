@@ -1021,6 +1021,12 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 
 	keys := types.Keys(tpe)
 	if keys == nil {
+		if isEmptyObjectType(tpe) {
+			// The object has neither static nor dynamic properties, so no key
+			// can be selected from it. Report that like any other missing key
+			// rather than as a value that can't be dereferenced at all.
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+		}
 		return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), idx-1, tpe)
 	}
 
@@ -1056,6 +1062,19 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	}
 
 	return rc.checkRefLeaf(types.Values(tpe), ref, idx+1)
+}
+
+// isEmptyObjectType returns true if tpe is an object type with neither static
+// nor dynamic properties, i.e. an object that no key can be selected from.
+func isEmptyObjectType(tpe types.Type) bool {
+	if named, ok := tpe.(*types.NamedType); ok {
+		tpe = named.Type
+	}
+	if rec, ok := tpe.(*types.Recursive); ok {
+		tpe = rec.Unwrap()
+	}
+	obj, ok := tpe.(*types.Object)
+	return ok && len(obj.StaticProperties()) == 0 && obj.DynamicProperties() == nil
 }
 
 // unifies checks whether two types are compatible with each other.
@@ -1341,6 +1360,10 @@ func (r *RefErrInvalidDetail) Lines() []string {
 	}
 	if len(r.OneOf) > 0 {
 		lines = append(lines, fmt.Sprintf("%swant (one of): %v", pad, r.OneOf))
+	} else if r.Want == nil {
+		// Neither candidate keys nor a key type: the referenced value has no
+		// selectable keys at all (e.g. an empty object).
+		lines = append(lines, pad+"want (one of): []")
 	} else {
 		lines = append(lines, fmt.Sprintf("%swant (type): %v", pad, r.Want))
 	}
