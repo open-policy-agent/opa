@@ -28,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
+	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/storage"
 )
 
@@ -58,6 +59,7 @@ type Loader interface {
 // Plugin implements bundle activation.
 type Plugin struct {
 	config            Config
+	clientConfigs     map[string]*rest.Config          // service client each downloader was built with, guarded by cfgMtx
 	manager           *plugins.Manager                 // plugin manager for storage and service clients
 	status            map[string]*Status               // current status for each bundle
 	etags             map[string]string                // etag on last successful activation
@@ -82,13 +84,14 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	}
 
 	p := &Plugin{
-		manager:     manager,
-		config:      *parsedConfig,
-		status:      initialStatus,
-		downloaders: make(map[string]Loader),
-		etags:       make(map[string]string),
-		ready:       false,
-		logger:      manager.Logger(),
+		manager:       manager,
+		config:        *parsedConfig,
+		clientConfigs: clientConfigs(manager, parsedConfig.Bundles),
+		status:        initialStatus,
+		downloaders:   make(map[string]Loader),
+		etags:         make(map[string]string),
+		ready:         false,
+		logger:        manager.Logger(),
 	}
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -168,6 +171,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 	}
 	newBundles, updatedBundles, deletedBundles := p.configDelta(newConfig)
 	p.config = *newConfig
+	p.clientConfigs = clientConfigs(p.manager, newConfig.Bundles)
 	p.cfgMtx.Unlock()
 
 	if len(updatedBundles) == 0 && len(newBundles) == 0 && len(deletedBundles) == 0 {
@@ -719,13 +723,34 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 			newBundles[name] = source
 		} else {
 			delete(deletedBundles, name)
-			if !reflect.DeepEqual(oldSource, source) {
+			// The downloader holds the client it was built with, so a service
+			// re-registered under the same name counts as a change even when the
+			// bundle's own configuration is untouched.
+			if !reflect.DeepEqual(oldSource, source) || !p.clientChanged(name, source) {
 				updatedBundles[name] = source
 			}
 		}
 	}
 
 	return newBundles, updatedBundles, deletedBundles
+}
+
+// clientChanged reports whether the service client a bundle would be downloaded
+// with now matches the one its downloader was built with.
+func (p *Plugin) clientChanged(name string, source *Source) bool {
+	old, ok := p.clientConfigs[name]
+	return ok && old.Equal(p.manager.Client(source.Service).Config())
+}
+
+// clientConfigs snapshots the service client configuration behind each bundle.
+func clientConfigs(manager *plugins.Manager, bundles map[string]*Source) map[string]*rest.Config {
+	configs := make(map[string]*rest.Config, len(bundles))
+	for name, source := range bundles {
+		if source != nil {
+			configs[name] = manager.Client(source.Service).Config()
+		}
+	}
+	return configs
 }
 
 func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {

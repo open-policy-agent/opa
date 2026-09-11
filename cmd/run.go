@@ -189,6 +189,14 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
 
+The --watch flag also applies to the file given by --config-file: when it changes, the new configuration is applied to
+the running plugins without a restart. Plugins and labels can be added and plugins reconfigured this way. Changes OPA
+cannot apply are rejected and leave the running configuration untouched: options only read at start-up
+("default_decision", "default_authorization_decision", "discovery", "distributed_tracing", "metrics_export",
+"persistence_directory", "server" and "storage"), changing or removing a label, and turning a plugin off. The
+configuration file is not watched when discovery is enabled, as the discovered configuration is then what the plugins
+are configured with.
+
 OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
 be expanded in the future. To disable this, use the --skip-known-schema-check flag.
@@ -236,7 +244,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	cmdParams.rt.UnixSocketPerm = runCommand.Flags().String("unix-socket-perm", "755", "specify the permissions for the Unix domain socket if used to listen for incoming connections")
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
-	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
+	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files and the configuration file for changes")
 	addV0CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible, false)
 	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible, false)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
