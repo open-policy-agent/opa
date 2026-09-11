@@ -3,3 +3,12 @@ title: UUID Built-ins
 sidebar_label: UUID
 ---
 <BuiltinTable category={"uuid"}/>
+
+## Examples
+
+### `uuid.rfc4122`
+
+`uuid.rfc4122` generates a random RFC 4122 UUID. Within a single policy
+evaluation, passing the same string key returns the same UUID.
+
+<PlaygroundExample dir={require.context('../_examples/uuid/rfc4122/stable-request-id')} />
