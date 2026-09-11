@@ -100,7 +100,8 @@ func generateFile(path string, mode fs.FileMode) error {
 			// underneath it, so an existing want_errors is never touched.
 			if !tc.Failure() {
 				tc.WantErrors = reported
-				corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(reported), "exhaustive")
+				corpusgen.SetMapValue(caseNodes.Content[i], "want_errors",
+					corpusgen.ErrorsNode(reported), "exhaustive", "want_stages")
 			}
 		}
 

@@ -1,0 +1,111 @@
+---
+# Generated externalized tests from TestCompilerRewriteDoubleEq
+cases:
+  - note: equality/vars and constants
+    modules:
+      - |
+        package test
+
+        p if { x = 1; x == 1; y = [1,2,3]; y == [1,2,3] }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	x = 1
+          	x = 1
+          	y = [1, 2, 3]
+          	y = [1, 2, 3]
+          }
+  - note: equality/refs
+    modules:
+      - |
+        package test
+
+        p if { input.x == data.y }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	input.x = data.y
+          }
+  - note: equality/comprehensions
+    modules:
+      - |
+        package test
+
+        p if { [1|true] == [2|true] }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	[1 | true] = [2 | true]
+          }
+  - note: equality/calls
+    modules:
+      - |
+        package test
+
+        p if { count([1,2]) == 2 }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	count([1, 2], __local0__)
+          	__local0__ = 2
+          }
+  - note: equality/embedded
+    modules:
+      - |
+        package test
+
+        p if { x = 1; y = [x == 0] }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	x = 1
+          	equal(x, 0, __local0__)
+          	y = [__local0__]
+          }
+  - note: equality/embedded in call
+    modules:
+      - |
+        package test
+
+        p if { x = 0; neq(true, x == 1) }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	x = 0
+          	equal(x, 1, __local0__)
+          	neq(true, __local0__)
+          }
+  - note: equality/comprehension in object key
+    modules:
+      - |
+        package test
+
+        p if { {{1 | 0 == 0}: 2} }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = {1 | 0 = 0}
+          	{__local0__: 2}
+          }
+    want_stages:
+      RewriteEquals:
+        - module: |
+            package test
+
+            p = true if {
+            	{{1 | 0 = 0}: 2}
+            }
