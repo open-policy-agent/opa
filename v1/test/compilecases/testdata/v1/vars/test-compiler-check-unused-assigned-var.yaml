@@ -1,0 +1,1631 @@
+---
+# Generated externalized tests from TestCompilerCheckUnusedAssignedVar
+cases:
+  - note: vars/global var
+    modules:
+      - |
+        package test
+
+        x := 1
+    want:
+      - module: |
+          package test
+
+          x := 1 if {
+          	true
+          }
+  - note: vars/simple rule with wildcard
+    modules:
+      - |
+        package test
+
+        p if {
+        	_ := 1
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 1
+          }
+  - note: vars/simple rule (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	y := 2
+        	z := x + 3
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/simple rule (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	y := 2
+        	z := x + 3
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 1
+          	__local1__ = 2
+          	plus(__local0__, 3, __local3__)
+          	__local2__ = __local3__
+          }
+  - note: vars/rule with return (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p = x if {
+        	x := 2
+        	y := 3
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with return (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p = x if {
+        	x := 2
+        	y := 3
+        }
+    want:
+      - module: |
+          package test
+
+          p = __local0__ if {
+          	__local0__ = 2
+          	__local1__ = 3
+          }
+  - note: vars/rule with function call (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := f(x)
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with function call (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := f(x)
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 7
+        message: undefined function f
+  - note: vars/rule with nested array comprehension (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := [z | z := 2 * x]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with nested array comprehension (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := [z | z := 2 * x]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	__local2__ = [__local1__ | mul(2, __local0__, __local3__); __local1__ = __local3__]
+          }
+  - note: vars/rule with nested array comprehension and shadowing (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := [x | x := 2 * x]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with nested array comprehension and shadowing (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := [x | x := 2 * x]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	__local2__ = [__local1__ | mul(2, __local0__, __local3__); __local1__ = __local3__]
+          }
+  - note: vars/rule with nested array comprehension and shadowing (unused shadowed var) (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := [x | x := 2]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 2
+        message: assigned var x unused
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with nested array comprehension and shadowing (unused shadowed var) (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := [x | x := 2]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	__local2__ = [__local1__ | __local1__ = 2]
+          }
+  - note: vars/rule with nested array comprehension and shadowing (unused shadowing var) (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	x > 1
+        	[1 | x := 2]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 7
+        message: assigned var x unused
+    exhaustive: true
+  - note: vars/rule with nested array comprehension and shadowing (unused shadowing var) (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	x > 1
+        	[1 | x := 2]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	gt(__local0__, 1)
+          	[1 | __local1__ = 2]
+          }
+  - note: vars/rule with nested array comprehension and some declaration
+    modules:
+      - |
+        package test
+
+        p if {
+        	some i
+        	_ := [z | z := [1, 2][i]]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = [__local1__ | __local3__ = [1, 2]; __local1__ = __local3__[__local0__]]
+          }
+  - note: vars/rule with nested set comprehension (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := {z | z := 2 * x}
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with nested set comprehension (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := {z | z := 2 * x}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	__local2__ = {__local1__ | mul(2, __local0__, __local3__); __local1__ = __local3__}
+          }
+  - note: vars/rule with nested set comprehension and unused inner var (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := {z | z := 2 * x; a := 2}
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 24
+        message: assigned var a unused
+    exhaustive: true
+  - note: vars/rule with nested set comprehension and unused inner var (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := {z | z := 2 * x; a := 2}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	__local3__ = {__local1__ | mul(2, __local0__, __local4__); __local1__ = __local4__; __local2__ = 2}
+          }
+  - note: vars/rule with nested object comprehension (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := {z: x | z := 2 * x}
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/rule with nested object comprehension (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 2
+        	y := {z: x | z := 2 * x}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 2
+          	__local2__ = {__local1__: __local0__ | mul(2, __local0__, __local3__); __local1__ = __local3__}
+          }
+  - note: vars/rule with nested closure (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	a := 1
+        	{ y | y := [ z | z:=[1,2,3][a]; z > 1 ][_] }
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 2
+        message: assigned var x unused
+    exhaustive: true
+  - note: vars/rule with nested closure (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	a := 1
+        	{ y | y := [ z | z:=[1,2,3][a]; z > 1 ][_] }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 1
+          	__local1__ = 1
+          	{__local3__ | __local5__ = [__local2__ | __local4__ = [1, 2, 3]; __local2__ = __local4__[__local1__]; gt(__local2__, 1)]; __local3__ = __local5__[_]}
+          }
+  - note: vars/rule with nested closure and unused inner var (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	{ y | y := [ z | z:=[1,2,3][x]; z > 1; a := 2 ][_] }
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 41
+        message: assigned var a unused
+    exhaustive: true
+  - note: vars/rule with nested closure and unused inner var (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	{ y | y := [ z | z:=[1,2,3][x]; z > 1; a := 2 ][_] }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 1
+          	{__local3__ | __local5__ = [__local1__ | __local4__ = [1, 2, 3]; __local1__ = __local4__[__local0__]; gt(__local1__, 1); __local2__ = 2]; __local3__ = __local5__[_]}
+          }
+  - note: vars/simple function (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        f() if {
+        	x := 1
+        	y := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 2
+        message: assigned var x unused
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/simple function (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f() if {
+        	x := 1
+        	y := 2
+        }
+    want:
+      - module: |
+          package test
+
+          f = true if {
+          	__local0__ = 1
+          	__local1__ = 2
+          }
+  - note: vars/simple function with wildcard (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        f() if {
+        	x := 1
+        	_ := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 2
+        message: assigned var x unused
+    exhaustive: true
+  - note: vars/simple function with wildcard (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f() if {
+        	x := 1
+        	_ := 2
+        }
+    want:
+      - module: |
+          package test
+
+          f = true if {
+          	__local0__ = 1
+          	__local1__ = 2
+          }
+  - note: vars/function with return (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        f() = x if {
+        	x := 1
+        	y := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/function with return (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f() = x if {
+        	x := 1
+        	y := 2
+        }
+    want:
+      - module: |
+          package test
+
+          f = __local0__ if {
+          	__local0__ = 1
+          	__local1__ = 2
+          }
+  - note: vars/array comprehension (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = [ 1 |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        ]
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/array comprehension (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = [ 1 |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        ]
+    want:
+      - module: |
+          package test
+
+          comp = __local3__ if {
+          	__local3__ = [1 | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ = __local0__[_]]
+          }
+  - note: vars/array comprehension nested (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp := [ 1 |
+        	x := 1
+        	y := [a | a := x]
+        ]
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/array comprehension nested (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp := [ 1 |
+        	x := 1
+        	y := [a | a := x]
+        ]
+    want:
+      - module: |
+          package test
+
+          comp := __local3__ if {
+          	__local3__ = [1 | __local0__ = 1; __local2__ = [__local1__ | __local1__ = __local0__]]
+          }
+  - note: vars/array comprehension with wildcard (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = [ 1 |
+        	x := [1, 2, 3]
+        	_ := 2
+        	z := x[_]
+        ]
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/array comprehension with wildcard (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = [ 1 |
+        	x := [1, 2, 3]
+        	_ := 2
+        	z := x[_]
+        ]
+    want:
+      # ast rather than module: the compiled rule `comp = __local3__ if {
+      # __local3__ = [1 | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ =
+      # __local0__[_]] }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      },
+                      {
+                        "type": "arraycomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local0__"
+                                },
+                                {
+                                  "type": "array",
+                                  "value": [
+                                    {
+                                      "type": "number",
+                                      "value": 1
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 2
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 3
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "index": 1,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local1__"
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "index": 2,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local2__"
+                                },
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "__local0__"
+                                    },
+                                    {
+                                      "type": "var",
+                                      "value": "$1"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ],
+                          "term": {
+                            "type": "number",
+                            "value": 1
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "comp",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "comp"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local3__"
+                  }
+                }
+              }
+            ]
+          }
+  - note: vars/array comprehension with return (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = [ z |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        ]
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/array comprehension with return (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = [ z |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        ]
+    want:
+      - module: |
+          package test
+
+          comp = __local3__ if {
+          	__local3__ = [__local2__ | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ = __local0__[_]]
+          }
+  - note: vars/array comprehension with some (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = [ i |
+        	some i
+        	y := 2
+        ]
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/array comprehension with some (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = [ i |
+        	some i
+        	y := 2
+        ]
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var i is unsafe
+  - note: vars/set comprehension (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { 1 |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/set comprehension (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { 1 |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want:
+      - module: |
+          package test
+
+          comp = __local3__ if {
+          	__local3__ = {1 | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ = __local0__[_]}
+          }
+  - note: vars/set comprehension nested (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp := { 1 |
+        	x := 1
+        	y := [a | a := x]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/set comprehension nested (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp := { 1 |
+        	x := 1
+        	y := [a | a := x]
+        }
+    want:
+      - module: |
+          package test
+
+          comp := __local3__ if {
+          	__local3__ = {1 | __local0__ = 1; __local2__ = [__local1__ | __local1__ = __local0__]}
+          }
+  - note: vars/set comprehension with wildcard (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { 1 |
+        	x := [1, 2, 3]
+        	_ := 2
+        	z := x[_]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/set comprehension with wildcard (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { 1 |
+        	x := [1, 2, 3]
+        	_ := 2
+        	z := x[_]
+        }
+    want:
+      # ast rather than module: the compiled rule `comp = __local3__ if {
+      # __local3__ = {1 | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ =
+      # __local0__[_]} }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      },
+                      {
+                        "type": "setcomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local0__"
+                                },
+                                {
+                                  "type": "array",
+                                  "value": [
+                                    {
+                                      "type": "number",
+                                      "value": 1
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 2
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 3
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "index": 1,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local1__"
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "index": 2,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local2__"
+                                },
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "__local0__"
+                                    },
+                                    {
+                                      "type": "var",
+                                      "value": "$1"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ],
+                          "term": {
+                            "type": "number",
+                            "value": 1
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "comp",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "comp"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local3__"
+                  }
+                }
+              }
+            ]
+          }
+  - note: vars/set comprehension with return (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { z |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/set comprehension with return (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { z |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want:
+      - module: |
+          package test
+
+          comp = __local3__ if {
+          	__local3__ = {__local2__ | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ = __local0__[_]}
+          }
+  - note: vars/set comprehension with some (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { i |
+        	some i
+        	y := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/set comprehension with some (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { i |
+        	some i
+        	y := 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var i is unsafe
+  - note: vars/object comprehension (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { 1: 2 |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/object comprehension (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { 1: 2 |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want:
+      - module: |
+          package test
+
+          comp = __local3__ if {
+          	__local3__ = {1: 2 | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ = __local0__[_]}
+          }
+  - note: vars/object comprehension nested (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp := { 1: 1 |
+        	x := 1
+        	y := {a: x | a := x}
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/object comprehension nested (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp := { 1: 1 |
+        	x := 1
+        	y := {a: x | a := x}
+        }
+    want:
+      - module: |
+          package test
+
+          comp := __local3__ if {
+          	__local3__ = {1: 1 | __local0__ = 1; __local2__ = {__local1__: __local0__ | __local1__ = __local0__}}
+          }
+  - note: vars/object comprehension with wildcard (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { 1: 2 |
+        	x := [1, 2, 3]
+        	_ := 2
+        	z := x[_]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var z unused
+    exhaustive: true
+  - note: vars/object comprehension with wildcard (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { 1: 2 |
+        	x := [1, 2, 3]
+        	_ := 2
+        	z := x[_]
+        }
+    want:
+      # ast rather than module: the compiled rule `comp = __local3__ if {
+      # __local3__ = {1: 2 | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ =
+      # __local0__[_]} }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      },
+                      {
+                        "type": "objectcomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local0__"
+                                },
+                                {
+                                  "type": "array",
+                                  "value": [
+                                    {
+                                      "type": "number",
+                                      "value": 1
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 2
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 3
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "index": 1,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local1__"
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "index": 2,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "eq"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "__local2__"
+                                },
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "__local0__"
+                                    },
+                                    {
+                                      "type": "var",
+                                      "value": "$1"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ],
+                          "key": {
+                            "type": "number",
+                            "value": 1
+                          },
+                          "value": {
+                            "type": "number",
+                            "value": 2
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "comp",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "comp"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local3__"
+                  }
+                }
+              }
+            ]
+          }
+  - note: vars/object comprehension with return (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { z: x |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/object comprehension with return (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { z: x |
+        	x := [1, 2, 3]
+        	y := 2
+        	z := x[_]
+        }
+    want:
+      - module: |
+          package test
+
+          comp = __local3__ if {
+          	__local3__ = {__local2__: __local0__ | __local0__ = [1, 2, 3]; __local1__ = 2; __local2__ = __local0__[_]}
+          }
+  - note: vars/object comprehension with some (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        comp = { i |
+        	some i
+        	y := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: assigned var y unused
+    exhaustive: true
+  - note: vars/object comprehension with some (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        comp = { i |
+        	some i
+        	y := 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var i is unsafe
+  - note: 'vars/every: unused assigned var in body (strict)'
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p if { every i in [1] { y := 10; i == 1 } }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 25
+        message: assigned var y unused
+    exhaustive: true
+  - note: 'vars/every: unused assigned var in body (non-strict)'
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if { every i in [1] { y := 10; i == 1 } }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local3__ = [1]
+          	every __local0__, __local1__ in __local3__ {
+          		__local2__ = 10
+          		__local1__ = 1
+          	}
+          }
+  - note: vars/general ref in rule head (strict)
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        p[q].r[s] := 1 if {
+        	q := "foo"
+        	s := "bar"
+        	t := "baz"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: assigned var t unused
+    exhaustive: true
+  - note: vars/general ref in rule head (non-strict)
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p[q].r[s] := 1 if {
+        	q := "foo"
+        	s := "bar"
+        	t := "baz"
+        }
+    want:
+      - module: |
+          package test
+
+          p[__local0__].r[__local1__] := 1 if {
+          	__local0__ = "foo"
+          	__local1__ = "bar"
+          	__local2__ = "baz"
+          }
+  - note: vars/general ref in rule head (no errors)
+    modules:
+      - |
+        package test
+
+        p[q].r[s] := 1 if {
+        	q := "foo"
+        	s := "bar"
+        }
+    want:
+      - module: |
+          package test
+
+          p[__local0__].r[__local1__] := 1 if {
+          	__local0__ = "foo"
+          	__local1__ = "bar"
+          }

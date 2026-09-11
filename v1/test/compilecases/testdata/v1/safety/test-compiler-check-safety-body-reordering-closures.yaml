@@ -1,0 +1,134 @@
+---
+# Generated externalized tests from TestCompilerCheckSafetyBodyReorderingClosures
+cases:
+  - note: safety/comprehensions-1
+    modules:
+      - |
+        package compr
+
+        import rego.v1
+        import data.b
+        import data.c
+        p = true if { v = [null | true]; xs = [x | a[i] = x; a = [y | y != 1; y = c[j]]]; xs[j] > 0; z = [true | data.a.b.d.t with input as i2; i2 = i]; b[i] = j }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package compr
+
+          p = true if {
+          	v = [null | true]
+          	data.b[i] = j
+          	xs = [x | a = [y | y = data.c[j]; neq(y, 1)]; a[i] = x]
+          	__local0__ = xs[j]
+          	gt(__local0__, 0)
+          	z = [true | i2 = i; data.a.b.d.t with input as i2]
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        # The compiler drops directive imports; a consumer must put them in effect.
+        - imports: [rego.v1]
+          module: |
+            package compr
+
+            p = true if {
+            	v = [null | true]
+            	data.b[i] = j
+            	xs = [x | a = [y | y = data.c[j]; neq(y, 1)]; a[i] = x]
+            	gt(xs[j], 0)
+            	z = [true | i2 = i; data.a.b.d.t with input as i2]
+            }
+  - note: safety/comprehensions-2
+    strict: disabled
+    modules:
+      - |
+        package compr
+
+        import rego.v1
+        import data.b
+        import data.c
+        q = true if { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _ }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package compr
+
+          q = true if {
+          	_ = [x | x = data.b[i]]
+          	_ = data.b[j]
+          	_ = [x | x = true; neq(x, false)]
+          	neq(true, false)
+          	_ = [x | data.foo[_] = x]
+          	data.foo[_] = _
+          }
+  - note: safety/comprehensions-3
+    strict: disabled
+    modules:
+      - |
+        package compr
+
+        import rego.v1
+        import data.b
+        import data.c
+        fn(x) = y if {
+        	trim(x, ".", y)
+        }
+        r = true if { a = [x | split(y, ".", z); x = z[i]; fn("...foo.bar..", y)] }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package compr
+
+          fn(__local0__) = y if {
+          	trim(__local0__, ".", y)
+          }
+
+          r = true if {
+          	a = [x | data.compr.fn("...foo.bar..", y); split(y, ".", z); x = z[i]]
+          }
+  - note: safety/closure over function output
+    modules:
+      - |
+        package test
+
+        import rego.v1
+
+        p if {
+        	object.get(input.subject.roles[_], comp, [""], output)
+        	comp = [ 1 | true ]
+        	every y in [2] {
+        		y in output
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package test
+
+          p = true if {
+          	comp = [1 | true]
+          	__local2__ = [2]
+          	__local3__ = input.subject.roles[_]
+          	object.get(__local3__, comp, [""], output)
+          	every __local0__, __local1__ in __local2__ {
+          		internal.member_2(__local1__, output)
+          	}
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        # The compiler drops directive imports; a consumer must put them in effect.
+        - imports: [rego.v1]
+          module: |
+            package test
+
+            p = true if {
+            	comp = [1 | true]
+            	__local2__ = [2]
+            	object.get(input.subject.roles[_], comp, [""], output)
+            	every __local0__, __local1__ in __local2__ {
+            		internal.member_2(__local1__, output)
+            	}
+            }

@@ -1,0 +1,362 @@
+---
+# Generated externalized tests from TestCompilerRewriteTermsInHead
+cases:
+  - note: refheads/imports
+    modules:
+      - |
+        package head
+
+        import data.doc1 as bar
+        import data.doc2 as corge
+        import input.x.y.foo
+        import input.qux as baz
+
+        p[foo[bar[i]]] = {"baz": baz, "corge": corge} if { true }
+    want:
+      - module: |
+          package head
+
+          p[__local0__] = __local1__ if {
+          	__local2__ = data.doc1[i]
+          	__local0__ = input.x.y.foo[__local2__]
+          	__local3__ = input.qux
+          	__local4__ = data.doc2
+          	__local1__ = {"baz": __local3__, "corge": __local4__}
+          }
+    want_stages:
+      RewriteRefsInHead:
+        - module: |
+            package head
+
+            p[__local0__] = __local1__ if {
+            	__local0__ = input.x.y.foo[data.doc1[i]]
+            	__local1__ = {"baz": input.qux, "corge": data.doc2}
+            }
+  - note: refheads/array comprehension value
+    modules:
+      - |
+        package head
+
+        q = [true | true] if { true }
+    want:
+      - module: |
+          package head
+
+          q = __local0__ if {
+          	__local0__ = [true | true]
+          }
+  - note: refheads/array comprehension value in else head
+    modules:
+      - |
+        package head
+
+        q if {
+        	false
+        } else = [true | true] if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          q = true if {
+          	false
+          } else = __local0__ if {
+          	__local0__ = [true | true]
+          }
+  - note: refheads/array comprehension value in head (comprehension-local var)
+    modules:
+      - |
+        package head
+
+        q = [a | a := true] if {
+        	false
+        } else = [a | a := true] if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          q = __local2__ if {
+          	false
+          	__local2__ = [__local0__ | __local0__ = true]
+          } else = __local3__ if {
+          	__local3__ = [__local1__ | __local1__ = true]
+          }
+  - note: refheads/array comprehension value in function head (comprehension-local var)
+    strict: disabled
+    modules:
+      - |
+        package head
+
+        f(x) = [a | a := true] if {
+        	false
+        } else = [a | a := true] if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          f(__local0__) = __local3__ if {
+          	false
+          	__local3__ = [__local1__ | __local1__ = true]
+          } else = __local4__ if {
+          	__local4__ = [__local2__ | __local2__ = true]
+          }
+  - note: refheads/array comprehension value in else-func head (reused arg rewrite)
+    modules:
+      - |
+        package head
+
+        f(x, y) = [x | y] if {
+        	false
+        } else = [x | y] if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          f(__local0__, __local1__) = __local2__ if {
+          	false
+          	__local2__ = [__local0__ | __local1__]
+          } else = __local3__ if {
+          	__local3__ = [__local0__ | __local1__]
+          }
+  - note: refheads/object comprehension value
+    modules:
+      - |
+        package head
+
+        r = {"true": true | true} if { true }
+    want:
+      - module: |
+          package head
+
+          r = __local0__ if {
+          	__local0__ = {"true": true | true}
+          }
+  - note: refheads/object comprehension value in else head
+    modules:
+      - |
+        package head
+
+        q if {
+        	false
+        } else = {"true": true | true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          q = true if {
+          	false
+          } else = __local0__ if {
+          	__local0__ = {"true": true | true}
+          }
+  - note: refheads/object comprehension value in head (comprehension-local var)
+    modules:
+      - |
+        package head
+
+        q = {"a": a | a := true} if {
+        	false
+        } else = {"a": a | a := true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          q = __local2__ if {
+          	false
+          	__local2__ = {"a": __local0__ | __local0__ = true}
+          } else = __local3__ if {
+          	__local3__ = {"a": __local1__ | __local1__ = true}
+          }
+  - note: refheads/object comprehension value in function head (comprehension-local var)
+    strict: disabled
+    modules:
+      - |
+        package head
+
+        f(x) = {"a": a | a := true} if {
+        	false
+        } else = {"a": a | a := true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          f(__local0__) = __local3__ if {
+          	false
+          	__local3__ = {"a": __local1__ | __local1__ = true}
+          } else = __local4__ if {
+          	__local4__ = {"a": __local2__ | __local2__ = true}
+          }
+  - note: refheads/object comprehension value in else-func head (reused arg rewrite)
+    modules:
+      - |
+        package head
+
+        f(x, y) = {x: y | true} if {
+        	false
+        } else = {x: y | true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          f(__local0__, __local1__) = __local2__ if {
+          	false
+          	__local2__ = {__local0__: __local1__ | true}
+          } else = __local3__ if {
+          	__local3__ = {__local0__: __local1__ | true}
+          }
+  - note: refheads/set comprehension value
+    modules:
+      - |
+        package head
+
+        s = {true | true} if { true }
+    want:
+      - module: |
+          package head
+
+          s = __local0__ if {
+          	__local0__ = {true | true}
+          }
+  - note: refheads/set comprehension value in else head
+    modules:
+      - |
+        package head
+
+        q = {false | false} if {
+        	false
+        } else = {true | true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          q = __local0__ if {
+          	false
+          	__local0__ = {false | false}
+          } else = __local1__ if {
+          	__local1__ = {true | true}
+          }
+  - note: refheads/set comprehension value in head (comprehension-local var)
+    modules:
+      - |
+        package head
+
+        q = {a | a := true} if {
+        	false
+        } else = {a | a := true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          q = __local2__ if {
+          	false
+          	__local2__ = {__local0__ | __local0__ = true}
+          } else = __local3__ if {
+          	__local3__ = {__local1__ | __local1__ = true}
+          }
+  - note: refheads/set comprehension value in function head (comprehension-local var)
+    strict: disabled
+    modules:
+      - |
+        package head
+
+        f(x) = {a | a := true} if {
+        	false
+        } else = {a | a := true} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          f(__local0__) = __local3__ if {
+          	false
+          	__local3__ = {__local1__ | __local1__ = true}
+          } else = __local4__ if {
+          	__local4__ = {__local2__ | __local2__ = true}
+          }
+  - note: refheads/set comprehension value in else-func head (reused arg rewrite)
+    modules:
+      - |
+        package head
+
+        f(x, y) = {x | y} if {
+        	false
+        } else = {x | y} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          f(__local0__, __local1__) = __local2__ if {
+          	false
+          	__local2__ = {__local0__ | __local1__}
+          } else = __local3__ if {
+          	__local3__ = {__local0__ | __local1__}
+          }
+  - note: refheads/import in else value
+    modules:
+      - |
+        package head
+
+        import input.qux as baz
+        elsekw if {
+        	false
+        } else = baz if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          elsekw = true if {
+          	false
+          } else = __local0__ if {
+          	__local0__ = input.qux
+          }
+  - note: refheads/import ref in last ref head term
+    modules:
+      - |
+        package head
+
+        import data.doc1 as bar
+        x.y.z[bar[i]] = true
+    want:
+      - module: |
+          package head
+
+          x.y.z[__local0__] = true if {
+          	__local0__ = data.doc1[i]
+          }
+  - note: refheads/import ref in multi-value ref rule
+    modules:
+      - |
+        package head
+
+        import data.doc1 as bar
+        x.y.w contains bar[i] if true
+    want:
+      - module: |
+          package head
+
+          x.y.w contains __local0__ if {
+          	__local0__ = data.doc1[i]
+          }

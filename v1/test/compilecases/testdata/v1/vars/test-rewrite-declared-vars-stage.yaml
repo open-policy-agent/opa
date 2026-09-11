@@ -1,0 +1,58 @@
+---
+# Generated externalized tests from TestRewriteDeclaredVarsStage
+cases:
+  - note: vars/object ref key
+    modules:
+      - |
+        package test
+
+        p if {
+        	a := {"a": "a"}
+        	{a.a: a.a}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = {"a": "a"}
+          	__local1__ = __local0__.a
+          	__local2__ = __local0__.a
+          	{__local1__: __local2__}
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            p = true if {
+            	__local0__ = {"a": "a"}
+            	{__local0__.a: __local0__.a}
+            }
+  - note: vars/set ref element
+    modules:
+      - |
+        package test
+
+        p if {
+        	a := {"a": "a"}
+        	{a.a}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = {"a": "a"}
+          	__local1__ = __local0__.a
+          	{__local1__}
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            p = true if {
+            	__local0__ = {"a": "a"}
+            	{__local0__.a}
+            }
