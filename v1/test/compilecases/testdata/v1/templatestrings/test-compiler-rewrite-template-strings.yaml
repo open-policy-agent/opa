@@ -778,7 +778,11 @@ cases:
 
           p = true if {
           	__local3__ = input.l1
-          	every __local0__, __local1__ in __local3__ { __local5__ = {__local2__ | __local2__ = input.l2[__local0__]}; internal.template_string(["<", __local5__, ">"], __local4__); __local1__ = __local4__ }
+          	every __local0__, __local1__ in __local3__ {
+          		__local5__ = {__local2__ | __local2__ = input.l2[__local0__]}
+          		internal.template_string(["<", __local5__, ">"], __local4__)
+          		__local1__ = __local4__
+          	}
           }
   - note: templatestrings/inside every expression, domain
     modules:
@@ -798,7 +802,10 @@ cases:
           	__local5__ = {__local1__ | __local1__ = input.x}
           	internal.template_string([42, " ", __local5__], __local3__)
           	__local2__ = [__local3__]
-          	every _, __local0__ in __local2__ { internal.template_string(["42 foo"], __local4__); __local0__ = __local4__ }
+          	every _, __local0__ in __local2__ {
+          		internal.template_string(["42 foo"], __local4__)
+          		__local0__ = __local4__
+          	}
           }
   - note: templatestrings/inside some
     modules:
@@ -1497,7 +1504,15 @@ cases:
           package test
 
           p = true if {
-          	{ __local4__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local4__], __local2__); __local2__ } or { __local5__ = {__local1__ | __local1__ = input.y}; internal.template_string([__local5__], __local3__); __local3__ }
+          	{
+          		__local4__ = {__local0__ | __local0__ = input.x}
+          		internal.template_string([__local4__], __local2__)
+          		__local2__
+          	} or {
+          		__local5__ = {__local1__ | __local1__ = input.y}
+          		internal.template_string([__local5__], __local3__)
+          		__local3__
+          	}
           }
   - note: templatestrings/and
     modules:
@@ -1515,5 +1530,13 @@ cases:
           package test
 
           p = true if {
-          	{ __local4__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local4__], __local2__); __local2__ } and { __local5__ = {__local1__ | __local1__ = input.y}; internal.template_string([__local5__], __local3__); __local3__ }
+          	{
+          		__local4__ = {__local0__ | __local0__ = input.x}
+          		internal.template_string([__local4__], __local2__)
+          		__local2__
+          	} and {
+          		__local5__ = {__local1__ | __local1__ = input.y}
+          		internal.template_string([__local5__], __local3__)
+          		__local3__
+          	}
           }

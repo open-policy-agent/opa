@@ -225,7 +225,9 @@ cases:
 
           r = true {
           	__local2__ = data.foo
-          	every __local0__, __local1__ in __local2__ { gt(__local1__, 1) }
+          	every __local0__, __local1__ in __local2__ {
+          		gt(__local1__, 1)
+          	}
           }
   - note: imports/import used in 'every' body
     rego_version: v0
@@ -246,7 +248,10 @@ cases:
 
           r = true {
           	__local2__ = [1, 2, 3]
-          	every __local0__, __local1__ in __local2__ { __local3__ = data.foo; gt(__local1__, __local3__) }
+          	every __local0__, __local1__ in __local2__ {
+          		__local3__ = data.foo
+          		gt(__local1__, __local3__)
+          	}
           }
   - note: imports/future import kept even if unused
     rego_version: v0

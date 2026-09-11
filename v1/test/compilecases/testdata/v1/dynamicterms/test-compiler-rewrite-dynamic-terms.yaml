@@ -516,7 +516,9 @@ cases:
 
           every_domain = true if {
           	__local1__ = data.test.str
-          	every __local0__, _ in __local1__ { true }
+          	every __local0__, _ in __local1__ {
+          		true
+          	}
           }
   - note: 'dynamicterms/every_domain_array if { every _ in [1, 2, 3] { true } }'
     modules:
@@ -536,7 +538,9 @@ cases:
 
           every_domain_array = true if {
           	__local1__ = [1, 2, 3]
-          	every __local0__, _ in __local1__ { true }
+          	every __local0__, _ in __local1__ {
+          		true
+          	}
           }
   - note: 'dynamicterms/every_domain_call if { every _ in numbers.range(1, 10) { true } }'
     modules:
@@ -557,7 +561,9 @@ cases:
           every_domain_call = true if {
           	numbers.range(1, 10, __local2__)
           	__local1__ = __local2__
-          	every __local0__, _ in __local1__ { true }
+          	every __local0__, _ in __local1__ {
+          		true
+          	}
           }
   - note: 'dynamicterms/every_domain_array_w_calls if { every _ in [1 / 2, "foo", abs(-1)] { true } }'
     modules:
@@ -579,7 +585,9 @@ cases:
           	div(1, 2, __local2__)
           	abs(-1, __local3__)
           	__local1__ = [__local2__, "foo", __local3__]
-          	every __local0__, _ in __local1__ { true }
+          	every __local0__, _ in __local1__ {
+          		true
+          	}
           }
   - note: 'dynamicterms/every_body if { every _ in [] { [str] } }'
     modules:
@@ -599,5 +607,8 @@ cases:
 
           every_body = true if {
           	__local1__ = []
-          	every __local0__, _ in __local1__ { __local2__ = data.test.str; [__local2__] }
+          	every __local0__, _ in __local1__ {
+          		__local2__ = data.test.str
+          		[__local2__]
+          	}
           }

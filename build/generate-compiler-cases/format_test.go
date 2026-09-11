@@ -16,10 +16,11 @@ import (
 
 func TestFormatModule(t *testing.T) {
 	tests := []struct {
-		note    string
-		version ast.RegoVersion
-		module  string
-		want    string
+		note     string
+		version  ast.RegoVersion
+		keywords []string // future keywords the compiled form needs, which it no longer imports
+		module   string
+		want     string
 	}{
 		{
 			note:    "one expression per line",
@@ -86,14 +87,54 @@ p contains __local0__ if {
 `,
 		},
 		{
-			note:    "a nested every body is not broken further",
+			note:    "a nested every body is broken too",
 			version: ast.RegoV1,
 			module:  "package t\n\np if {\n\tevery x in [1] {\n\t\tx > 0\n\t}\n}\n",
 			want: `package t
 
 p = true if {
 	__local2__ = [1]
-	every __local0__, __local1__ in __local2__ { gt(__local1__, 0) }
+	every __local0__, __local1__ in __local2__ {
+		gt(__local1__, 0)
+	}
+}
+`,
+		},
+		{
+			// The operand bodies of a logical group are broken like any other body, and
+			// the closing brace lines up with the line that opened it.
+			note:     "an explicit group body is broken",
+			version:  ast.RegoV1,
+			keywords: []string{"and"},
+			module: "package t\n\nimport future.keywords.and\n\n" +
+				"p if {\n\ttrue and {\n\t\tx := 2\n\t\tx > 1\n\t}\n}\n",
+			want: `package t
+
+p = true if {
+	true and {
+		__local0__ = 2
+		gt(__local0__, 1)
+	}
+}
+`,
+		},
+		{
+			// Both sides of a chain, with the operand that prints inline left alone.
+			note:     "a chained group breaks each braced operand",
+			version:  ast.RegoV1,
+			keywords: []string{"and"},
+			module: "package t\n\nimport future.keywords.and\n\n" +
+				"p if {\n\t{ x := 1; x > 0 } and true and { y := 2; y > 0 }\n}\n",
+			want: `package t
+
+p = true if {
+	{
+		__local0__ = 1
+		gt(__local0__, 0)
+	} and true and {
+		__local1__ = 2
+		gt(__local1__, 0)
+	}
 }
 `,
 		},
@@ -115,7 +156,12 @@ p = true if {
 			compiled := c.Modules["t.rego"]
 			compiled.Comments = nil
 
-			got, err := formatModule(compiled, ast.ParserOptions{RegoVersion: tc.version})
+			got, err := formatModule(compiled, ast.ParserOptions{
+				RegoVersion: tc.version,
+				// The compiler resolves a directive import away and the printer does not
+				// put it back, so the reparse has to be told what the module relied on.
+				FutureKeywords: tc.keywords,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -403,7 +403,11 @@ cases:
           package test
 
           p = true {
-          	{ __local0__ = 1 } and { __local1__ = 2 }
+          	{
+          		__local0__ = 1
+          	} and {
+          		__local1__ = 2
+          	}
           }
   - note: keywords/or-local assignments (strict)
     rego_version: v0
@@ -444,7 +448,11 @@ cases:
           package test
 
           p = true {
-          	{ __local0__ = 1 } or { __local1__ = 2 }
+          	{
+          		__local0__ = 1
+          	} or {
+          		__local1__ = 2
+          	}
           }
   - note: keywords/nested override (strict)
     rego_version: v0

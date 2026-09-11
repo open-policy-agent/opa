@@ -1,0 +1,1802 @@
+---
+# Generated externalized tests from TestCompilerAndOrImports
+cases:
+  - note: logical/and, or, simple
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	y := 2
+        	z := 3
+        	x and y or z
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local1__ = 2
+          	__local2__ = 3
+          	__local0__ and __local1__ or __local2__
+          }
+  - note: logical/and, assignment, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1 and y := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 2
+        message: cannot assign vars inside implicit and operand
+      - code: rego_compile_error
+        row: 7
+        col: 13
+        message: cannot assign vars inside implicit and operand
+    exhaustive: true
+  - note: logical/or, assignment, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1 or y := 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 2
+        message: cannot assign vars inside implicit or operand
+      - code: rego_compile_error
+        row: 7
+        col: 12
+        message: cannot assign vars inside implicit or operand
+    exhaustive: true
+  - note: logical/and, assignment in implicit body, var referenced in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a and x := input.b
+        	x == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 14
+        message: cannot assign vars inside implicit and operand
+    exhaustive: true
+  - note: logical/or, assignment in implicit body, var referenced in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a or x := input.b
+        	x == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 13
+        message: cannot assign vars inside implicit or operand
+    exhaustive: true
+  - note: logical/or, assignment in implicit body, var reassigned in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a or x := input.b
+        	x := 1
+        	x == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 13
+        message: cannot assign vars inside implicit or operand
+    exhaustive: true
+  - note: logical/or, assignment in implicit body nested in explicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a or { input.b and x := input.c }
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 27
+        message: cannot assign vars inside implicit and operand
+    exhaustive: true
+  - note: logical/and, assignment in implicit not body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        import future.keywords.not
+
+        p if {
+        	input.a and not x := input.b
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 9
+        col: 18
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: logical/and, assignment in explicit not body, implicit operand
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        import future.keywords.not
+
+        p if {
+        	input.a and not { x := input.b; x == 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	input.a and not {__local0__ = input.b; __local0__ = 1}
+          }
+  - note: logical/and, chained, assignment in explicit bodies
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	{ x := 1; x > 0 } and true and { y := 2; y > 0 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local0__ = 1
+          		gt(__local0__, 0)
+          	} and true and {
+          		__local1__ = 2
+          		gt(__local1__, 0)
+          	}
+          }
+  - note: logical/or, chained, assignment in explicit bodies
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	{ x := 1; x > 0 } or true or { y := 2; y > 0 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local0__ = 1
+          		gt(__local0__, 0)
+          	} or true or {
+          		__local1__ = 2
+          		gt(__local1__, 0)
+          	}
+          }
+  - note: logical/and, assignment in explicit body nested in implicit operand
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a or input.b and { x := input.c; x > 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	input.a or input.b and {
+          		__local0__ = input.c
+          		gt(__local0__, 1)
+          	}
+          }
+  - note: logical/and, unification, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x = 1 and y = 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, unification, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x = 1 or y = 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, call output, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	count(input.x, x) and count(input.y, y)
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, call output, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	count(input.x, x) or count(input.y, y)
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, ref var unification, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input[x] and input[y]
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, ref var unification, forbidden in implicit body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input[x] or input[y]
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, explicit body, assignment
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true and {
+        		x := 2
+        		x > 1
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true and {
+          		__local0__ = 2
+          		gt(__local0__, 1)
+          	}
+          }
+  - note: logical/or, explicit body, assignment
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true or {
+        		x := 2
+        		x > 1
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true or {
+          		__local0__ = 2
+          		gt(__local0__, 1)
+          	}
+          }
+  - note: logical/and, explicit body, assignment, local bind override
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x and {
+        		x := 2
+        		x > 1
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ and {
+          		__local1__ = 2
+          		gt(__local1__, 1)
+          	}
+          }
+  - note: logical/or, explicit body, assignment, local bind override
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x or {
+        		x := 2
+        		x > 1
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ or {
+          		__local1__ = 2
+          		gt(__local1__, 1)
+          	}
+          }
+  - note: logical/and, explicit body, unification, no local bind override
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x and {
+        		x = 2
+        		x > 1
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ and {
+          		__local0__ = 2
+          		gt(__local0__, 1)
+          	}
+          }
+  - note: logical/or, explicit body, unification, no local bind override
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x or {
+        		x = 2
+        		x > 1
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ or {
+          		__local0__ = 2
+          		gt(__local0__, 1)
+          	}
+          }
+  - note: logical/and, local assignment not visible in outer scope
+    strict: disabled
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ x := 1 } and { y := 2 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, local assignment not visible in outer scope
+    strict: disabled
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ x := 1 } or { y := 2 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, local unification not visible in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ x = 1 } and { y = 2 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, local unification not visible in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ x = 1 } or { y = 2 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, local ref unification not visible in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ input[x] = 1 } and { input[y] = 2 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, local ref unification not visible in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ input[x] = 1 } or { input[y] = 2 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, local call unification not visible in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ count(input.x, x) } and { count(input.y, y) }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/or, local call unification not visible in outer scope
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x, y] if {
+        	{ count(input.x, x) } or { count(input.y, y) }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 7
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 10
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, implicit body, expression expansion
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.x > 1 and input.y < 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local0__ = input.x
+          		gt(__local0__, 1)
+          	} and {
+          		__local1__ = input.y
+          		lt(__local1__, 2)
+          	}
+          }
+  - note: logical/or, implicit body, expression expansion
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.x > 1 or input.y < 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local0__ = input.x
+          		gt(__local0__, 1)
+          	} or {
+          		__local1__ = input.y
+          		lt(__local1__, 2)
+          	}
+          }
+  - note: logical/and, implicit body, nested call expansion (multi-expr at safety time)
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	(input.x + 1) > 0 and input.y > 0
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local1__ = input.x
+          		plus(__local1__, 1, __local0__)
+          		gt(__local0__, 0)
+          	} and {
+          		__local2__ = input.y
+          		gt(__local2__, 0)
+          	}
+          }
+  - note: logical/or, implicit body, nested call expansion (multi-expr at safety time)
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.x > 0 or (input.y * 2) > 0
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local1__ = input.x
+          		gt(__local1__, 0)
+          	} or {
+          		__local2__ = input.y
+          		mul(__local2__, 2, __local0__)
+          		gt(__local0__, 0)
+          	}
+          }
+  - note: logical/and, implicit body, nested call with unbound user vars
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	(x + 1) > 0 and y > 0
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/and, explicit body, var indirection
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true and {
+        		a = 1
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true and {
+          		a = 1
+          		b = a
+          		plus(a, 1, __local0__)
+          		__local0__ = 2
+          	}
+          }
+  - note: logical/or, explicit body, var indirection
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true or {
+        		a = 1
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true or {
+          		a = 1
+          		b = a
+          		plus(a, 1, __local0__)
+          		__local0__ = 2
+          	}
+          }
+  - note: logical/and, explicit body, var indirection, unsafe
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true and {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 8
+        col: 3
+        message: var a is unsafe
+      - code: rego_unsafe_var_error
+        row: 8
+        col: 3
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 3
+        message: var b is unsafe
+    exhaustive: true
+  - note: logical/or, explicit body, var indirection, unsafe
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true or {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 8
+        col: 3
+        message: var a is unsafe
+      - code: rego_unsafe_var_error
+        row: 8
+        col: 3
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 3
+        message: var b is unsafe
+    exhaustive: true
+  - note: logical/and, explicit body, var indirection, outer safe ref
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x = 1
+        	true and {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	x = 1
+          	true and {
+          		a = x
+          		b = a
+          		plus(a, 1, __local0__)
+          		__local0__ = 2
+          	}
+          }
+  - note: logical/or, explicit body, var indirection, outer safe ref
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x = 1
+        	true or {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	x = 1
+          	true or {
+          		a = x
+          		b = a
+          		plus(a, 1, __local0__)
+          		__local0__ = 2
+          	}
+          }
+  - note: logical/and, nested, implicit bodies
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x and true and x
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ and true and __local0__
+          }
+  - note: logical/or, nested, implicit bodies
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x or true or x
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ or true or __local0__
+          }
+  - note: logical/and, nested, explicit bodies
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x and { true and x }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ and {
+          		true and __local0__
+          	}
+          }
+  - note: logical/or, nested, explicit bodies
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x or { true or x }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ or {
+          		true or __local0__
+          	}
+          }
+  - note: logical/and, nested, explicit bodies, inner bind
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x and {
+        		y := 2
+        		x and y
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ and {
+          		__local1__ = 2
+          		__local0__ and __local1__
+          	}
+          }
+  - note: logical/or, nested, explicit bodies, inner bind
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x or {
+        		y := 2
+        		x or y
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ or {
+          		__local1__ = 2
+          		__local0__ or __local1__
+          	}
+          }
+  - note: logical/and, nested, explicit bodies, inner bind override
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x and {
+        		x := 2
+        		y := 3
+        		x and y
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ and {
+          		__local1__ = 2
+          		__local2__ = 3
+          		__local1__ and __local2__
+          	}
+          }
+  - note: logical/or, nested, explicit bodies, inner bind override
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x or {
+        		x := 2
+        		y := 3
+        		x or y
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local0__ or {
+          		__local1__ = 2
+          		__local2__ = 3
+          		__local1__ or __local2__
+          	}
+          }
+  - note: logical/and, with
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true and f(42) with input.x as 1
+        }
+
+        f(x) := x + input.x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true and data.logic.f(42) with input.x as 1
+          }
+
+          f(__local0__) := __local1__ if {
+          	__local2__ = input.x
+          	plus(__local0__, __local2__, __local1__)
+          }
+  - note: logical/or, with
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true or f(42) with input.x as 1
+        }
+
+        f(x) := x + input.x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true or data.logic.f(42) with input.x as 1
+          }
+
+          f(__local0__) := __local1__ if {
+          	__local2__ = input.x
+          	plus(__local0__, __local2__, __local1__)
+          }
+  - note: logical/and, with, inner LHS
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	{ f(42) with input.x as 1 } and true
+        }
+
+        f(x) := x + input.x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		data.logic.f(42) with input.x as 1
+          	} and true
+          }
+
+          f(__local0__) := __local1__ if {
+          	__local2__ = input.x
+          	plus(__local0__, __local2__, __local1__)
+          }
+  - note: logical/or, with, inner LHS
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	{ f(42) with input.x as 1 } or true
+        }
+
+        f(x) := x + input.x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		data.logic.f(42) with input.x as 1
+          	} or true
+          }
+
+          f(__local0__) := __local1__ if {
+          	__local2__ = input.x
+          	plus(__local0__, __local2__, __local1__)
+          }
+  - note: logical/and, with, inner RHS
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true and { f(42) with input.x as 1 }
+        }
+
+        f(x) := x + input.x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true and {
+          		data.logic.f(42) with input.x as 1
+          	}
+          }
+
+          f(__local0__) := __local1__ if {
+          	__local2__ = input.x
+          	plus(__local0__, __local2__, __local1__)
+          }
+  - note: logical/or, with, inner RHS
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	true or { f(42) with input.x as 1 }
+        }
+
+        f(x) := x + input.x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	true or {
+          		data.logic.f(42) with input.x as 1
+          	}
+          }
+
+          f(__local0__) := __local1__ if {
+          	__local2__ = input.x
+          	plus(__local0__, __local2__, __local1__)
+          }
+  - note: logical/and, outer negation
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        import future.keywords.not
+        p if {
+        	x := 1
+        	not {
+        		y := 2
+        		x != y and x < y
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	not {__local1__ = 2; neq(__local0__, __local1__) and lt(__local0__, __local1__)}
+          }
+  - note: logical/or, outer negation
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        import future.keywords.not
+        p if {
+        	x := 1
+        	not {
+        		y := 2
+        		x != y or x < y
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	not {__local1__ = 2; neq(__local0__, __local1__) or lt(__local0__, __local1__)}
+          }
+  - note: logical/and, LHS negation
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	not x != 2 and x < 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	not neq(__local0__, 2) and lt(__local0__, 2)
+          }
+  - note: logical/or, LHS negation
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	not x != 2 or x < 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	not neq(__local0__, 2) or lt(__local0__, 2)
+          }
+  - note: logical/and, RHS negation
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x != 2 and not x < 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	neq(__local0__, 2) and not lt(__local0__, 2)
+          }
+  - note: logical/or, RHS negation
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	x != 2 or not x < 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	neq(__local0__, 2) or not lt(__local0__, 2)
+          }
+  - note: logical/and, every
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	every x in [1, 2, 3] {
+        		x > 0 and x < 4
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local2__ = [1, 2, 3]
+          	every __local0__, __local1__ in __local2__ {
+          		gt(__local1__, 0) and lt(__local1__, 4)
+          	}
+          }
+  - note: logical/or, every
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	every x in [1, 2, 3] {
+        		x > 0 or x < 4
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local2__ = [1, 2, 3]
+          	every __local0__, __local1__ in __local2__ {
+          		gt(__local1__, 0) or lt(__local1__, 4)
+          	}
+          }
+  - note: logical/and, comprehension
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x | some x in input.x; x > 0 and x < 10]
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p := __local3__ if {
+          	__local3__ = [__local2__ | __local2__ = input.x[__local1__]; gt(__local2__, 0) and lt(__local2__, 10)]
+          }
+  - note: logical/or, comprehension
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p := [x | some x in input.x; x > 0 or x < 10]
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p := __local3__ if {
+          	__local3__ = [__local2__ | __local2__ = input.x[__local1__]; gt(__local2__, 0) or lt(__local2__, 10)]
+          }
+  - note: logical/group rhs, safe refs
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a and (input.b or input.c)
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	input.a and (input.b or input.c)
+          }
+  - note: logical/group lhs, safe refs
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	(input.a or input.b) and input.c
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	(input.a or input.b) and input.c
+          }
+  - note: logical/nested groups, redundant outer parens dropped
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	(input.a and (input.b or input.c)) and input.d
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	input.a and (input.b or input.c) and input.d
+          }
+  - note: logical/group operand, assignment rewrite
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	y := 2
+        	z := 3
+        	(x or y) and z
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local1__ = 2
+          	__local2__ = 3
+          	(__local0__ or __local1__) and __local2__
+          }
+  - note: logical/not group
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        import future.keywords.not
+        p if {
+        	not (input.a or input.b)
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	not (input.a or input.b)
+          }
+  - note: logical/standalone group, unsafe operands caught
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	(x or y)
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 2
+        message: var y is unsafe
+    exhaustive: true
+  - note: logical/nested unsafe var found deep in group
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a and (input.b or (input.c and z))
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 27
+        message: var z is unsafe
+    exhaustive: true
+  - note: logical/unsafe operands found on both group sides
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	(x or y) and (u or v)
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 3
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 3
+        message: var y is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 16
+        message: var u is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 16
+        message: var v is unsafe
+    exhaustive: true
