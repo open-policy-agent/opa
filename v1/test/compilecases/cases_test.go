@@ -253,6 +253,26 @@ func TestValidate(t *testing.T) {
 			wantErr: "'want_stages.RewriteEquals' has 1 entries for 2 modules",
 		},
 		{
+			note: "schemas attached to a case",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:    []Want{{Module: module}},
+				Schemas: map[string]string{"schema.input": `{"type": "boolean"}`}},
+		},
+		{
+			note: "a schema that is not JSON",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:    []Want{{Module: module}},
+				Schemas: map[string]string{"schema.input": "not json"}},
+			wantErr: "'schemas[schema.input]' is not a JSON Schema document",
+		},
+		{
+			note: "a schema with no reference",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:    []Want{{Module: module}},
+				Schemas: map[string]string{"": `{"type": "boolean"}`}},
+			wantErr: "'schemas' has an entry with no reference",
+		},
+		{
 			note: "a stage entry with both spellings",
 			tc: TestCase{Note: "a", Modules: []string{module},
 				Want:       []Want{{Module: module}},

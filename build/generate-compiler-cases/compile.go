@@ -25,7 +25,12 @@ func parserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
 		return ast.ParserOptions{}, err
 	}
 
-	popts := ast.ParserOptions{RegoVersion: v}
+	popts := ast.ParserOptions{
+		RegoVersion: v,
+		// Schema annotations are only honoured when they were parsed as annotations, so
+		// attaching schemas asks for that too.
+		ProcessAnnotation: len(tc.Schemas) > 0,
+	}
 	if tc.ExperimentalKeywords {
 		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
 	}
@@ -109,6 +114,14 @@ func compileCaseToStage(tc compilecases.TestCase, popts ast.ParserOptions, stage
 		WithStrict(tc.StrictMode()).
 		WithEnablePrintStatements(tc.PrintStatements)
 
+	ss, serr := schemaSet(tc)
+	if serr != nil {
+		return nil, serr
+	}
+	if ss != nil {
+		c = c.WithSchemas(ss).WithUseTypeCheckAnnotations(true)
+	}
+
 	if stage != "" {
 		c = c.WithOnlyStagesUpTo(ast.StageID(stage))
 	}
@@ -116,6 +129,29 @@ func compileCaseToStage(tc compilecases.TestCase, popts ast.ParserOptions, stage
 	c.Compile(modules)
 
 	return c, nil
+}
+
+// schemaSet builds the case's schemas, or nil where it carries none.
+func schemaSet(tc compilecases.TestCase) (*ast.SchemaSet, error) {
+	if len(tc.Schemas) == 0 {
+		return nil, nil
+	}
+
+	ss := ast.NewSchemaSet()
+	for _, path := range tc.SortedSchemas() {
+		ref, err := ast.ParseRef(path)
+		if err != nil {
+			return nil, fmt.Errorf("schemas names %q, which is not a ref: %w", path, err)
+		}
+
+		var doc any
+		if err := json.Unmarshal([]byte(tc.Schemas[path]), &doc); err != nil {
+			return nil, fmt.Errorf("schemas[%s]: %w", path, err)
+		}
+		ss.Put(ref, doc)
+	}
+
+	return ss, nil
 }
 
 // compiledWant returns what each of a case's modules compiles to: Rego where OPA's

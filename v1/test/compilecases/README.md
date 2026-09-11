@@ -56,6 +56,7 @@ line. The loader names the offending line rather than stripping it.
 | `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
 | `want` | what compiling produces, one entry per module — see [Transformations](#transformations) |
+| `schemas` | JSON Schemas the modules refer to from their metadata annotations — see [Schemas](#schemas) |
 | `want_stages` | what the modules look like partway through, keyed by compiler stage — see [Stages](#stages) |
 
 Activate a future keyword with an `import` in the module rather than a field on
@@ -183,6 +184,45 @@ in, and annotated with what disqualified it:
       - ast: |
           {
 ```
+
+## Schemas
+
+A module can point the type checker at a JSON Schema through a metadata annotation.
+The reference is part of the Rego; the document it names is not, so the case carries
+it:
+
+```yaml
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {"numbers": {"type": "array", "items": {"type": "number"}}}
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"admin" in input.numbers
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+```
+
+**Attaching a schema is what asks for it to be honoured.** There is no second field
+saying so, and no case attaches a schema it does not want applied — so a consumer
+reading `schemas` should enable schema-driven type checking and parse the module's
+annotations, both of which OPA's runner does on the strength of this field alone.
+
+JSON Schema is an external standard rather than an OPA construct, which is why the
+corpus carries it where it does not carry, say, a capability set. A consumer whose type
+checker does not take schemas skips these cases with `SchemasFilter()`.
 
 ## Stages
 

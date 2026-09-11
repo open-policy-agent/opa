@@ -12,6 +12,7 @@ package compilecases
 
 import (
 	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -110,6 +111,10 @@ type TestCase struct {
 	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
 	PrintStatements      bool     `json:"print_statements,omitempty"       yaml:"print_statements,omitempty"`      // keep print() calls instead of erasing them, as required to reach diagnostics about their operands
 
+	// Schemas are the JSON Schemas the modules refer to from their metadata
+	// annotations, keyed by the reference written there; e.g. `schema.input`.
+	Schemas map[string]string `json:"schemas,omitempty"  yaml:"schemas,omitempty"`
+
 	WantErrors []Error `json:"want_errors,omitempty"  yaml:"want_errors,omitempty"` // diagnostics the compilation must produce
 	Exhaustive bool    `json:"exhaustive,omitempty"   yaml:"exhaustive,omitempty"`  // require want_errors to be the complete set, not a subset
 
@@ -169,6 +174,14 @@ func (tc TestCase) Transform() bool {
 	return len(tc.Want) > 0
 }
 
+// SortedSchemas returns the schema references tc attaches, in a stable order. Ranging
+// the map directly is never right: the order reaches the generated file.
+func (tc TestCase) SortedSchemas() []string {
+	refs := slices.Collect(maps.Keys(tc.Schemas))
+	slices.Sort(refs)
+	return refs
+}
+
 // SortedStages returns the stages tc pins an assertion to, in pipeline order.
 // Ranging WantStages directly is never right: the order reaches the generated file
 // and the failure output, and Go randomises it.
@@ -219,6 +232,16 @@ func (tc TestCase) Validate() error {
 		}
 		if err := tc.validateWant("want_stages."+stage, tc.WantStages[stage]); err != nil {
 			return err
+		}
+	}
+
+	for _, ref := range tc.SortedSchemas() {
+		if strings.TrimSpace(ref) == "" {
+			return errors.New("'schemas' has an entry with no reference")
+		}
+		var doc any
+		if err := json.Unmarshal([]byte(tc.Schemas[ref]), &doc); err != nil {
+			return fmt.Errorf("'schemas[%s]' is not a JSON Schema document: %w", ref, err)
 		}
 	}
 

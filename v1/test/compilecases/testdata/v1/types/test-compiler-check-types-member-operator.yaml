@@ -1,0 +1,1381 @@
+---
+# Generated externalized tests from TestCompilerCheckTypesMemberOperator
+cases:
+  - note: types/string in array of numbers
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"admin" in input.numbers
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+  - note: types/declared var in array of numbers used as string
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	some x in input.numbers
+        	x == "admin"
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 8
+        col: 2
+        message: match error
+  - note: types/string index of array of numbers
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	some i, _ in input.numbers
+        	i == "admin"
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 8
+        col: 2
+        message: match error
+  - note: types/number in object of strings
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	1 in input.names
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+  - note: types/number key of object of strings
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	some k, _ in input.names
+        	k == 1
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 8
+        col: 2
+        message: match error
+  - note: types/number key of object of strings, literal
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	1, "foo" in input.names
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+  - note: types/number value of object of strings, literal
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"first", 1 in input.names
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+  - note: types/string index of array of numbers, literal
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"first", 1 in input.numbers
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+  - note: types/number in array of numbers
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	1 in input.numbers
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "numbers"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "internal"
+                          },
+                          {
+                            "type": "string",
+                            "value": "member_2"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/string key and value of object of strings, literal
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"first", "foo" in input.names
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "names"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "internal"
+                          },
+                          {
+                            "type": "string",
+                            "value": "member_3"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "first"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/number index and value of array of numbers, literal
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	0, 1 in input.numbers
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "numbers"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "internal"
+                          },
+                          {
+                            "type": "string",
+                            "value": "member_3"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 0
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/declared var in array of numbers used as number
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	some x in input.numbers
+        	x > 1
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "numbers"
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local1__"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "gt"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/string in object of strings
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"admin" in input.names
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "names"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "internal"
+                          },
+                          {
+                            "type": "string",
+                            "value": "member_2"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "admin"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/string in string
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	"a" in input.names.first
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "names"
+                          },
+                          {
+                            "type": "string",
+                            "value": "first"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "internal"
+                          },
+                          {
+                            "type": "string",
+                            "value": "member_2"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/unknown collection type
+    schemas:
+      schema.input: |
+        {
+        	"type": "object",
+        	"properties": {
+        		"numbers": {
+        			"type": "array",
+        			"items": {"type": "number"}
+        		},
+        		"names": {
+        			"type": "object",
+        			"properties": {
+        				"first": {"type": "string"},
+        				"last": {"type": "string"}
+        			},
+        			"additionalProperties": false
+        		}
+        	},
+        	"additionalProperties": false
+        }
+    modules:
+      - |
+        # METADATA
+        # schemas:
+        #   - input: schema.input
+        package test
+
+        p if {
+        	xs := json.unmarshal("[1]")
+        	"a" in xs
+        }
+    want:
+      # ast rather than module: the compiled module prints as `# METADATA`, which
+      # does not parse: invalid document reference.
+      - ast: |
+          {
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "package"
+              }
+            ],
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "json"
+                          },
+                          {
+                            "type": "string",
+                            "value": "unmarshal"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "[1]"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      }
+                    ]
+                  },
+                  {
+                    "index": 2,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "internal"
+                          },
+                          {
+                            "type": "string",
+                            "value": "member_2"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }

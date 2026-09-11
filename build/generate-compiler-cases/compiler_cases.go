@@ -84,6 +84,15 @@ func StrictModeFilter(supported ...string) Filters {
 	}
 }
 
+// SchemasFilter will filter out any test case that attaches JSON Schemas, for a
+// consumer whose type checker does not take them. A case carrying schemas expects them
+// honoured, so running it without is not a weaker check but a different one.
+func SchemasFilter() Filters {
+	return func(tc *CompilerTestCase) bool {
+		return len(tc.Schemas) > 0
+	}
+}
+
 // LoadCompilerTestCases returns the compiler conformance corpus, which is the
 // committed cases unchanged — a consumer that wants only those can read the
 // embedded YAML directly and skip this package entirely.

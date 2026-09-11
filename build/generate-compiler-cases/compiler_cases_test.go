@@ -321,3 +321,18 @@ func TestDirectiveImportsDivergeFromOPA(t *testing.T) {
 
 	t.Fatal("expected at least one rewritten entry")
 }
+
+func TestSchemasFilter(t *testing.T) {
+	sets := []CompilerSet{{Cases: []*CompilerTestCase{
+		{TestCase: compilecases.TestCase{Note: "plain"}},
+		{TestCase: compilecases.TestCase{Note: "schema-driven", Schemas: map[string]string{
+			"schema.input": `{"type": "boolean"}`,
+		}}},
+	}}}
+
+	for _, tc := range sets[0].Cases {
+		if got := SchemasFilter()(tc); got != (len(tc.Schemas) > 0) {
+			t.Errorf("%s: expected the filter to reject only a case carrying schemas, got %v", tc.Note, got)
+		}
+	}
+}

@@ -42,7 +42,12 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		t.Fatalf("%s: %v", tc.Filename, err)
 	}
 
-	popts := ParserOptions{RegoVersion: regoVersion}
+	popts := ParserOptions{
+		RegoVersion: regoVersion,
+		// Schema annotations are only honoured when they were parsed as annotations, so
+		// attaching schemas asks for that too.
+		ProcessAnnotation: len(tc.Schemas) > 0,
+	}
 	if tc.ExperimentalKeywords {
 		popts.Capabilities = CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
 	}
@@ -125,6 +130,25 @@ func compileCaseModules(t *testing.T, tc compilecases.TestCase, popts ParserOpti
 		SetErrorLimit(0).
 		WithStrict(tc.StrictMode()).
 		WithEnablePrintStatements(tc.PrintStatements)
+
+	// Attaching schemas is what asks for them to be honoured, so the annotations go on
+	// with them rather than through a field of their own.
+	if len(tc.Schemas) > 0 {
+		ss := NewSchemaSet()
+		for _, path := range tc.SortedSchemas() {
+			ref, err := ParseRef(path)
+			if err != nil {
+				t.Fatalf("%s: schemas names %q, which is not a ref: %v", tc.Filename, path, err)
+			}
+
+			var doc any
+			if err := json.Unmarshal([]byte(tc.Schemas[path]), &doc); err != nil {
+				t.Fatalf("%s: schemas[%s]: %v", tc.Filename, path, err)
+			}
+			ss.Put(ref, doc)
+		}
+		c = c.WithSchemas(ss).WithUseTypeCheckAnnotations(true)
+	}
 
 	if stage != "" {
 		c = c.WithOnlyStagesUpTo(stage)
