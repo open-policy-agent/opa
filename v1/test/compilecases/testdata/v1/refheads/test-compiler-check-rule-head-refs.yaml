@@ -1,0 +1,263 @@
+---
+# Generated externalized tests from TestCompilerCheckRuleHeadRefs
+cases:
+  - note: refheads/ref contains var
+    modules:
+      - |
+        package x
+
+        p.q[i].r = 1 if { i := 10 }
+    want:
+      - module: |
+          package x
+
+          p.q[__local0__].r = 1 if {
+          	__local0__ = 10
+          }
+  - note: 'refheads/valid: ref is single-value rule with var key'
+    modules:
+      - |
+        package x
+
+        p.q.r[i] if { i := 10 }
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = true if {
+          	__local0__ = 10
+          }
+  - note: 'refheads/valid: ref is single-value rule with var key and value'
+    modules:
+      - |
+        package x
+
+        p.q.r[i] = j if { i := 10; j := 11 }
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = __local1__ if {
+          	__local0__ = 10
+          	__local1__ = 11
+          }
+  - note: 'refheads/valid: ref is single-value rule with var key and static value'
+    modules:
+      - |
+        package x
+
+        p.q.r[i] = "ten" if { i := 10 }
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = "ten" if {
+          	__local0__ = 10
+          }
+  - note: 'refheads/valid: ref is single-value rule with number key'
+    modules:
+      - |
+        package x
+
+        p.q.r[1] if { true }
+    want:
+      - module: |
+          package x
+
+          p.q.r[1] = true if {
+          	true
+          }
+  - note: 'refheads/valid: ref is single-value rule with boolean key'
+    modules:
+      - |
+        package x
+
+        p.q.r[true] if { true }
+    want:
+      - module: |
+          package x
+
+          p.q.r[true] = true if {
+          	true
+          }
+  - note: 'refheads/valid: ref is single-value rule with null key'
+    modules:
+      - |
+        package x
+
+        p.q.r[null] if { true }
+    want:
+      - module: |
+          package x
+
+          p.q.r[null] = true if {
+          	true
+          }
+  - note: 'refheads/valid: ref is single-value rule with set literal key'
+    modules:
+      - |
+        package x
+
+        p.q.r[set()] if { true }
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = true if {
+          	__local0__ = set()
+          }
+  - note: 'refheads/valid: ref is single-value rule with array literal key'
+    modules:
+      - |
+        package x
+
+        p.q.r[[]] if { true }
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = true if {
+          	__local0__ = []
+          }
+  - note: 'refheads/valid: ref is single-value rule with object literal key'
+    modules:
+      - |
+        package x
+
+        p.q.r[{}] if { true }
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = true if {
+          	__local0__ = {}
+          }
+  - note: 'refheads/valid: ref is single-value rule with ref key'
+    modules:
+      - |
+        package x
+
+        x := [1,2,3]
+        p.q.r[x[i]] if { i := 0}
+    want:
+      - module: |
+          package x
+
+          x := [1, 2, 3] if {
+          	true
+          }
+
+          p.q.r[__local0__] = true if {
+          	__local1__ = 0
+          	__local0__ = data.x.x[__local1__]
+          }
+  - note: 'refheads/invalid: ref in ref'
+    strict: disabled
+    modules:
+      - |
+        package x
+
+        p.q[arr[0]].r if { i := 10 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 5
+        message: var arr is unsafe
+  - note: 'refheads/invalid: non-string in ref (not last position)'
+    modules:
+      - |
+        package x
+
+        p.q[10].r if { true }
+    want:
+      - module: |
+          package x
+
+          p.q[10].r = true if {
+          	true
+          }
+  - note: 'refheads/valid: multi-value with var key'
+    modules:
+      - |
+        package x
+
+        p.q.r contains i if i := 10
+    want:
+      - module: |
+          package x
+
+          p.q.r contains __local0__ if {
+          	__local0__ = 10
+          }
+  - note: 'refheads/rewrite: single-value with non-var key (ref)'
+    modules:
+      - |
+        package x
+
+        p.q.r[y.z] if y := {"z": "a"}
+    want:
+      - module: |
+          package x
+
+          p.q.r[__local0__] = true if {
+          	__local1__ = {"z": "a"}
+          	__local0__ = __local1__.z
+          }
+    want_stages:
+      RewriteRuleHeadRefs:
+        - module: |
+            package x
+
+            p.q.r[__local0__] = true if {
+            	assign(y, {"z": "a"})
+            	__local0__ = y.z
+            }
+  - note: 'refheads/rewrite: single-value with non-var ref term'
+    modules:
+      - |
+        package x
+
+        p.q[y.z].r if y := {"z": "a"}
+    want:
+      - module: |
+          package x
+
+          p.q[__local0__].r = true if {
+          	__local1__ = {"z": "a"}
+          	__local0__ = __local1__.z
+          }
+    want_stages:
+      RewriteRuleHeadRefs:
+        - module: |
+            package x
+
+            p.q[__local0__].r = true if {
+            	assign(y, {"z": "a"})
+            	__local0__ = y.z
+            }
+  - note: 'refheads/rewrite: single-value with non-var ref term and key'
+    strict: disabled
+    modules:
+      - |
+        package x
+
+        p.q[a.b][c.d] if y := {"z": "a"}
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 5
+        message: var a is unsafe
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 10
+        message: var c is unsafe
+    want_stages:
+      RewriteRuleHeadRefs:
+        - module: |
+            package x
+
+            p.q[__local0__][__local1__] = true if {
+            	assign(y, {"z": "a"})
+            	__local0__ = a.b
+            	__local1__ = c.d
+            }
