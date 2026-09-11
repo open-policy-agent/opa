@@ -1,0 +1,208 @@
+---
+# Generated externalized tests from TestCompilerRewriteExprTerms
+cases:
+  - note: exprterms/base
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        p { x = a + b * y }
+
+        q[[data.test.f(x)]] { x = 1 }
+
+        r = [data.test.f(x)] { x = 1 }
+
+        f(x) = data.test.g(x)
+
+        pi = 3 + .14
+
+        with_value { 1 with input as f(1) }
+    want_errors:
+      - code: rego_type_error
+        row: 9
+        col: 8
+        message: undefined function data.test.g
+    want_stages:
+      RewriteExprTerms:
+        - module: |
+            package test
+
+            p = true {
+            	mul(b, y, __local1__)
+            	plus(a, __local1__, __local2__)
+            	x = __local2__
+            }
+
+            q[[__local3__]] {
+            	x = 1
+            	data.test.f(x, __local3__)
+            }
+
+            r = [__local4__] {
+            	x = 1
+            	data.test.f(x, __local4__)
+            }
+
+            f(__local0__) = __local5__ {
+            	data.test.g(__local0__, __local5__)
+            }
+
+            pi = __local6__ {
+            	plus(3, .14, __local6__)
+            }
+
+            with_value = true {
+            	data.test.f(1, __local7__)
+            	1 with input as __local7__
+            }
+  - note: exprterms/builtin calls in head-2
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f(object.get(x)) { object := {"a": 1}; object.a == x }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 3
+        message: rule arguments cannot contain calls
+    exhaustive: true
+  - note: exprterms/indirect ref in args
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        f([1][0]) { true }
+    want:
+      - module: |
+          package test
+
+          f(__local1__) = true {
+          	__local0__ = [1]
+          	__local1__ = __local0__[0]
+          }
+    want_stages:
+      RewriteExprTerms:
+        - module: |
+            package test
+
+            f(__local0__[0]) = true {
+            	__local0__ = [1]
+            }
+  - note: 'exprterms/every: domain (array)'
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import future.keywords.every
+
+        p { every x in [1,2] { x } }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.every]
+        module: |
+          package test
+
+          p = true {
+          	__local2__ = [1, 2]
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__
+          	}
+          }
+  - note: 'exprterms/every: domain (call)'
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import future.keywords.every
+
+        p { every x in numbers.range(1, 3) { x } }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.every]
+        module: |
+          package test
+
+          p = true {
+          	numbers.range(1, 3, __local3__)
+          	__local2__ = __local3__
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__
+          	}
+          }
+  - note: 'exprterms/every: domain (nested calls)'
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import future.keywords.every
+
+        p { every x in numbers.range(1 + 2, 3 * 4) { x } }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.every]
+        module: |
+          package test
+
+          p = true {
+          	plus(1, 2, __local3__)
+          	mul(3, 4, __local4__)
+          	numbers.range(__local3__, __local4__, __local5__)
+          	__local2__ = __local5__
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__
+          	}
+          }
+  - note: 'exprterms/every: domain (array with call)'
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import future.keywords.every
+
+        p { every x in [1 / 2, "foo", abs(-1)] { x } }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.every]
+        module: |
+          package test
+
+          p = true {
+          	div(1, 2, __local3__)
+          	abs(-1, __local4__)
+          	__local2__ = [__local3__, "foo", __local4__]
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__
+          	}
+          }
+  - note: 'exprterms/every: domain (nested array with call)'
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import future.keywords.every
+
+        p { every x in [1 / 2, ["foo", abs(-1)]] { x } }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.every]
+        module: |
+          package test
+
+          p = true {
+          	div(1, 2, __local3__)
+          	abs(-1, __local4__)
+          	__local2__ = [__local3__, ["foo", __local4__]]
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__
+          	}
+          }

@@ -1,0 +1,16 @@
+---
+# Generated externalized tests from TestCompilerRewriteExprTerms
+cases:
+  - note: exprterms/builtin calls in head
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f(1+1) = 7
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 3
+        message: rule arguments cannot contain calls
+    exhaustive: true
