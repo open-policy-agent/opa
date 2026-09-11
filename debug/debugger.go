@@ -49,6 +49,24 @@ type LaunchTestProperties = v1.LaunchTestProperties
 
 type LaunchProperties = v1.LaunchProperties
 
+// StackTraceMode determines how the events of a trace are grouped into the frames
+// of a StackTrace.
+type StackTraceMode = v1.StackTraceMode
+
+const (
+	// StackTraceModeDefault is the zero value of StackTraceMode, and is equivalent to
+	// StackTraceModeQuery.
+	StackTraceModeDefault = v1.StackTraceModeDefault
+
+	// StackTraceModeQuery frames the stack trace by query, where each frame represents
+	// a query scope. This is the default.
+	StackTraceModeQuery = v1.StackTraceModeQuery
+
+	// StackTraceModeEvent frames the stack trace by trace event, where each frame
+	// represents a single event consumed by the debugger.
+	StackTraceModeEvent = v1.StackTraceModeEvent
+)
+
 type LaunchOption = v1.LaunchOption
 
 // RegoOption adds a rego option to the internal Rego instance.

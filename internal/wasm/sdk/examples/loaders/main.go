@@ -24,7 +24,7 @@ var (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Printf("provide URL or file\n")
+		fmt.Print("provide URL or file\n")
 		return
 	}
 
@@ -107,11 +107,7 @@ func setup(u string, token string) error {
 		return err
 	}
 
-	if err := loader.Start(context.Background()); err != nil {
-		return err
-	}
-
-	return nil
+	return loader.Start(context.Background())
 }
 
 func cleanup() {

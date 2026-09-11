@@ -1,0 +1,11 @@
+module example.com/example
+
+go 1.25
+
+require (
+	example.com/widget v3.0.0
+	example.com/stable v1.2.0
+	example.com/newdep v0.1.0
+)
+
+require example.com/transitive v0.2.0 // indirect

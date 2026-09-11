@@ -21,7 +21,9 @@ func (mod *Module) AppendText(buf []byte) ([]byte, error) {
 		// rule annotations are attached to rules, so only check for package scoped ones here
 		if annotations.Scope == "package" || annotations.Scope == "subpackages" {
 			buf = append(buf, "# METADATA\n# "...)
-			buf = append(buf, annotations.String()...)
+			if buf, err = annotations.AppendText(buf); err != nil {
+				return nil, err
+			}
 			buf = append(buf, '\n')
 		}
 	}
@@ -98,7 +100,10 @@ func (rule *Rule) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) 
 	// See note in [Module.AppendText] regarding annotations.
 	for _, annotations := range rule.Annotations {
 		buf = append(buf, "# METADATA\n# "...)
-		buf = append(buf, annotations.String()...)
+		var err error
+		if buf, err = annotations.AppendText(buf); err != nil {
+			return nil, err
+		}
 		buf = append(buf, '\n')
 	}
 

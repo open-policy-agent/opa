@@ -135,7 +135,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 	}
 
 	if v, ok := signatures[0].ProtectedHeaders().KeyID(); !ok || v != keyid {
-		t.Errorf("key id not set")
+		t.Error("key id not set")
 	}
 }
 
@@ -193,7 +193,7 @@ func TestCustomSigner(t *testing.T) {
 	custom := &CustomSigner{}
 	err := RegisterSigner(defaultSignerID, custom)
 	if err == nil {
-		t.Fatalf("Expected error when registering with default ID")
+		t.Fatal("Expected error when registering with default ID")
 	}
 	if err := RegisterSigner("_test", custom); err != nil {
 		t.Fatal(err)
@@ -210,9 +210,9 @@ func TestCustomSigner(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	if _, isCustom := customSigner.(*CustomSigner); !isCustom {
-		t.Fatalf("Expected CustomSigner to be registered at key _test")
+		t.Fatal("Expected CustomSigner to be registered at key _test")
 	}
 	if _, err = GetSigner("_unregistered"); err == nil {
-		t.Fatalf("Expected error when no Signer exists at provided key")
+		t.Fatal("Expected error when no Signer exists at provided key")
 	}
 }

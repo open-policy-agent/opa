@@ -23,7 +23,7 @@ func BenchmarkBuiltinGlobMatch(b *testing.B) {
 				b.ResetTimer()
 				for b.Loop() {
 					// Clearing the cache
-					globCache = make(map[string]glob.Glob)
+					globCache = make(map[string]*glob.Pattern)
 
 					for i := range patternCount {
 						var operands []*ast.Term
@@ -61,7 +61,7 @@ func BenchmarkBuiltinGlobMatchAsync(b *testing.B) {
 					b.ResetTimer()
 					for b.Loop() {
 						// Clearing the cache
-						globCache = make(map[string]glob.Glob)
+						globCache = make(map[string]*glob.Pattern)
 
 						wg := sync.WaitGroup{}
 						for i := range clientCount {

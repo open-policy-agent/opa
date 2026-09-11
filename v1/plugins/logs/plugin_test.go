@@ -20,6 +20,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -96,7 +97,7 @@ func TestPluginCustomBackend(t *testing.T) {
 	// Server events with only `Revision` should not include bundles in the EventV1 struct
 	for _, e := range backend.events {
 		if len(e.Bundles) > 0 {
-			t.Errorf("Unexpected `bundles` in event")
+			t.Error("Unexpected `bundles` in event")
 		}
 	}
 }
@@ -1808,7 +1809,7 @@ func TestPluginNoLogging(t *testing.T) {
 				t.Errorf("expected no error: %v", err)
 			}
 			if config != nil {
-				t.Errorf("excected no config for a no-op logging plugin")
+				t.Error("excected no config for a no-op logging plugin")
 			}
 		})
 	}
@@ -2112,7 +2113,7 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 
 	// Ensure the plugin was stopped without flushing its whole buffer
 	if fixture.plugin.b.(*sizeBuffer).buffer.Len() == 0 && fixture.plugin.b.(*sizeBuffer).enc.buf.Len() == 0 {
-		t.Errorf("Expected the plugin to still have buffered messages")
+		t.Error("Expected the plugin to still have buffered messages")
 	}
 }
 
@@ -2658,10 +2659,7 @@ func TestPluginMasking(t *testing.T) {
 			store := inmem.New()
 
 			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
-					return err
-				}
-				return nil
+				return store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy)
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -2771,6 +2769,92 @@ func TestPluginMasking(t *testing.T) {
 	}
 }
 
+func TestPluginPreparedQueryCacheConcurrency(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := inmem.New()
+
+	policy := []byte(`
+		package system.log
+		import rego.v1
+
+		mask contains "/input/password" if {
+			input.input.is_sensitive
+		}
+
+		drop if {
+			endswith(input.path, "/drop")
+		}`)
+
+	if err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		return store.UpsertPolicy(ctx, txn, "test.rego", policy)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	manager, err := plugins.New(nil, "test", store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{Service: "svc"}
+	trigger := plugins.DefaultTriggerMode
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(cfg, manager)
+
+	const iterations = 200
+
+	var wg sync.WaitGroup
+
+	// Readers evaluate the cached queries the way Log() does.
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for range iterations {
+				var input any = map[string]any{"is_sensitive": true, "password": "secret"}
+				event := &EventV1{Path: "foo/bar", Input: &input}
+
+				value, err := event.AST()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				if err := plugin.maskEvent(ctx, nil, value, event); err != nil {
+					t.Error(err)
+					return
+				}
+
+				if _, err := plugin.dropEvent(ctx, nil, value); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+
+	// The writer does what compilerUpdated() does on every bundle activation.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for range iterations {
+			plugin.compilerUpdated(nil)
+		}
+	}()
+
+	wg.Wait()
+}
+
 func TestPluginDrop(t *testing.T) {
 	t.Parallel()
 
@@ -2804,6 +2888,38 @@ func TestPluginDrop(t *testing.T) {
 			event:    &EventV1{Path: "foo/foo"},
 			expected: false,
 		},
+		{
+			note: "drop on request context header",
+			rawPolicy: []byte(`
+			package system.log
+			import rego.v1
+			drop if {
+				input.request_context.http.headers["X-Skip-Log"][_] == "true"
+			}`),
+			event: &EventV1{
+				Path: "foo/foo",
+				RequestContext: &RequestContext{
+					HTTPRequest: &HTTPRequestContext{
+						Headers: map[string][]string{"X-Skip-Log": {"true"}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			note: "drop on trace id",
+			rawPolicy: []byte(`
+			package system.log
+			import rego.v1
+			drop if {
+				input.trace_id == "4bf92f3577b34da6a3ce929d0e0e4736"
+			}`),
+			event: &EventV1{
+				Path:    "foo/foo",
+				TraceID: "4bf92f3577b34da6a3ce929d0e0e4736",
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2814,10 +2930,7 @@ func TestPluginDrop(t *testing.T) {
 
 			//checks if raw policy is valid and stores policy in store
 			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
-					return err
-				}
-				return nil
+				return store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy)
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -2887,10 +3000,7 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 
 	// checks if raw policy is valid and stores policy in store
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
-			return err
-		}
-		return nil
+		return store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -2965,10 +3075,7 @@ func TestPluginDropErrorHandling(t *testing.T) {
 
 	//checks if raw policy is valid and stores policy in store
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
-			return err
-		}
-		return nil
+		return store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -3514,6 +3621,58 @@ func TestEventV1ToAST(t *testing.T) {
 				Timestamp:           time.Now(),
 				RequestID:           1,
 				inputAST:            astInput,
+			},
+		},
+		{
+			note: "event with trace and span ids",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				TraceID:     "4bf92f3577b34da6a3ce929d0e0e4736",
+				SpanID:      "00f067aa0ba902b7",
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				inputAST:    astInput,
+			},
+		},
+		{
+			note: "event with request context",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				RequestContext: &RequestContext{
+					HTTPRequest: &HTTPRequestContext{
+						Headers: map[string][]string{
+							"X-Single": {"one"},
+							"X-Multi":  {"one", "two"},
+						},
+					},
+				},
+				inputAST: astInput,
+			},
+		},
+		{
+			note: "event with empty request context",
+			event: EventV1{
+				DecisionID:     "1234567890",
+				Timestamp:      time.Now(),
+				RequestContext: &RequestContext{},
+			},
+		},
+		{
+			note: "event with request context holding no headers",
+			event: EventV1{
+				DecisionID:     "1234567890",
+				Timestamp:      time.Now(),
+				RequestContext: &RequestContext{HTTPRequest: &HTTPRequestContext{}},
 			},
 		},
 	}

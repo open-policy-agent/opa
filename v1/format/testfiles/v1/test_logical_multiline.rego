@@ -41,3 +41,43 @@ already_formatted if {
 		input.b or
 		input.c
 }
+
+# An explicit `{...}` operand on a line of its own stays there
+broken_body_chain if {
+	{input.foo.bar.baz.a} or
+	{input.foo.bar.baz.b} or
+	{input.foo.bar.baz.c} or
+	{input.foo.bar.baz.d} or
+	{input.foo.bar.baz.e} or
+	{input.foo.bar.baz.f} or
+	{input.foo.bar.baz.g}
+}
+
+broken_mixed_operands if {
+	{input.a} or
+	input.b or
+	{input.c}
+}
+
+broken_multi_expr_body_rhs if {
+	{input.a} or
+	{
+		input.b
+		input.c
+	}
+}
+
+broken_after_multi_expr_body_lhs if {
+	{
+		input.a
+		input.b
+	} or
+	{input.c}
+}
+
+# A brace opening on the operator's line is not a break
+body_opens_on_operator_line if {
+	{input.a} or {
+		input.b
+	} or {input.c}
+}

@@ -6,7 +6,6 @@ package ast
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -111,12 +110,7 @@ func (s VarSet) Intersect(vs VarSet) VarSet {
 
 // Sorted returns a new sorted slice of vars from s.
 func (s VarSet) Sorted() []Var {
-	sorted := make([]Var, 0, len(s))
-	for v := range s {
-		sorted = append(sorted, v)
-	}
-	slices.SortFunc(sorted, VarCompare)
-	return sorted
+	return util.SortedFunc(util.Keys(s), VarCompare)
 }
 
 // Update merges the other VarSet into this VarSet.

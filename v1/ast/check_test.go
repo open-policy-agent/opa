@@ -940,6 +940,15 @@ func TestCheckMatchErrors(t *testing.T) {
 		{"object-nested-2", `{"a": 1} = {"a": 1, "b": "2"}`},
 		{"set", "{1,2,3} = null"},
 		{"any", `x = ["str", 1]; x[_] = null`},
+		{"member-array", `"a" in [1, 2]`},
+		{"member-array-nested", `[1, "a"] in [[1, 2]]`},
+		{"member-set", `"a" in {1, 2}`},
+		{"member-object", `"a" in {"x": 1}`},
+		{"member-call", `"a" in numbers.range(1, 5)`},
+		{"member-result-captured", `x = "a" in [1, 2]; x`},
+		{"member-with-key-key", `"a", 1 in [1, 2]`},
+		{"member-with-key-value", `0, "a" in [1, 2]`},
+		{"member-with-key-object-key", `1, 1 in {"x": 1}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -1384,7 +1393,7 @@ func TestFunctionsTypeInference(t *testing.T) {
 			c := NewCompiler()
 			c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts), "mod": mod})
 			if test.wantErr && !c.Failed() {
-				t.Errorf("Expected error but got success")
+				t.Error("Expected error but got success")
 			} else if !test.wantErr && c.Failed() {
 				t.Errorf("Expected success but got error: %v", c.Errors)
 			}
@@ -1488,7 +1497,7 @@ func TestCheckValidErrors(t *testing.T) {
 			c.Compile(map[string]*Module{"test": tc.module})
 
 			if !c.Failed() {
-				t.Errorf("Expected error but got success")
+				t.Error("Expected error but got success")
 			}
 
 			if len(c.Errors) != tc.numErr {
@@ -2421,7 +2430,7 @@ p { input = "foo" }`}},
 			}
 
 			if oldTypeEnv.tree.children != nil && typeenv.next.tree.children != nil && (typeenv.next.tree.children.Len() != oldTypeEnv.tree.children.Len()) {
-				t.Fatalf("Unexpected type env")
+				t.Fatal("Unexpected type env")
 			}
 
 		})

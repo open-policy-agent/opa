@@ -3126,6 +3126,8 @@ var JSONSchemaVerify = &Builtin{
 			Description("`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error."),
 	),
 	Categories: objectCat,
+	// `$ref`s are dereferenced at evaluation time, so the result depends on what those URLs serve.
+	Nondeterministic: true,
 	// Needs the BuiltinContext to read the allow_net capability, which
 	// restricts the hosts that remote `$ref`s may be fetched from.
 	CanSkipBctx: false,
@@ -3159,8 +3161,10 @@ var JSONMatchSchema = &Builtin{
 		}, nil)).
 			Description("`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `false` and `errors` is an array of objects describing the error(s)."),
 	),
-	Categories:  objectCat,
-	CanSkipBctx: false,
+	Categories: objectCat,
+	// `$ref`s are dereferenced at evaluation time, so the result depends on what those URLs serve.
+	Nondeterministic: true,
+	CanSkipBctx:      false,
 }
 
 /**

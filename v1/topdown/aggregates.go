@@ -101,14 +101,14 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			return iter(ast.NewTerm(n))
 		}
 
-		sum := big.NewFloat(0)
+		sum := new(big.Float)
 		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			sum = new(big.Float).Add(sum, builtins.NumberToFloatInto(tmp, n))
+			sum = sum.Add(sum, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {
@@ -118,17 +118,19 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	case ast.Set:
 		// Fast path for sets of integers
 		is := 0
-		bail := a.Until(func(x *ast.Term) bool {
-			if n, ok := x.Value.(ast.Number); ok {
+		bail := false
+		for _, term := range a.Slice() {
+			if n, ok := term.Value.(ast.Number); ok {
 				if i, ok := n.Int(); ok {
 					if s, ok := addInt(is, i); ok {
 						is = s
-						return false
+						continue
 					}
 				}
 			}
-			return true
-		})
+			bail = true
+			break
+		}
 		if !bail {
 			return iter(ast.InternedTerm(is))
 		}
@@ -137,18 +139,15 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			return iter(ast.NewTerm(n))
 		}
 
-		sum := big.NewFloat(0)
+		sum := new(big.Float)
 		tmp := new(big.Float)
-		err := a.Iter(func(x *ast.Term) error {
-			n, ok := x.Value.(ast.Number)
+
+		for _, term := range a.Slice() {
+			n, ok := term.Value.(ast.Number)
 			if !ok {
-				return builtins.NewOperandElementErr(1, a, x.Value, "number")
+				return builtins.NewOperandElementErr(1, a, term.Value, "number")
 			}
-			sum = new(big.Float).Add(sum, builtins.NumberToFloatInto(tmp, n))
-			return nil
-		})
-		if err != nil {
-			return err
+			sum = sum.Add(sum, builtins.NumberToFloatInto(tmp, n))
 		}
 		return iter(ast.NewTerm(builtins.FloatToNumber(sum)))
 	}
@@ -169,7 +168,7 @@ func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			product = new(big.Float).Mul(product, builtins.NumberToFloatInto(tmp, n))
+			product = product.Mul(product, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {
@@ -188,7 +187,7 @@ func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			product = new(big.Float).Mul(product, builtins.NumberToFloatInto(tmp, n))
+			product = product.Mul(product, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {

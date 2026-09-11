@@ -48,10 +48,7 @@ func parseExtendedDuration(s string) (int64, error) {
 
 	if !strings.ContainsAny(s, "dwy") {
 		v, err := time.ParseDuration(s)
-		if err != nil {
-			return 0, err
-		}
-		return int64(v), nil
+		return int64(v), err
 	}
 
 	result, err := durationparser.Parse("", []byte(s))

@@ -5,9 +5,9 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -23,8 +23,6 @@ func BenchmarkEnumerateComprehensions(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
-			ctx := context.Background()
-
 			// Generate mock dataset with nested objects
 			data := generateNestedDataset(size)
 			store := inmem.NewFromObject(data)
@@ -91,13 +89,13 @@ user_lookup[id] := user if {
 			b.ResetTimer()
 
 			for b.Loop() {
-				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				err := storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
 						WithTransaction(txn)
 
-					_, err := q.Run(ctx)
+					_, err := q.Run(b.Context())
 					return err
 				})
 
@@ -179,8 +177,6 @@ func generateNestedDataset(size int) map[string]any {
 // BenchmarkEnumerateRandomAccess benchmarks random access patterns
 // that exercise virtual document enumeration
 func BenchmarkEnumerateRandomAccess(b *testing.B) {
-	ctx := context.Background()
-
 	data := generateNestedDataset(10000)
 	store := inmem.NewFromObject(data)
 
@@ -219,18 +215,90 @@ premium_by_dept[dept] := users if {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		err := storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			q := NewQuery(query).
 				WithCompiler(compiler).
 				WithStore(store).
 				WithTransaction(txn)
 
-			_, err := q.Run(ctx)
+			_, err := q.Run(b.Context())
 			return err
 		})
 
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func wideObject(n int) *ast.Term {
+	items := make([][2]*ast.Term, n)
+	for i := range n {
+		items[i] = [2]*ast.Term{ast.StringTerm(fmt.Sprintf("k%d", i)), ast.InternedTerm(i)}
+	}
+	return ast.ObjectTerm(items...)
+}
+
+// BenchmarkEnumerateInputObject exercises evalTerm.enumerate's ast.Object case,
+// where the cost per key is dominated by the callback handed to biunify.
+func BenchmarkEnumerateInputObject(b *testing.B) {
+	compiler := ast.MustCompileModules(map[string]string{
+		"test.rego": `package test
+
+total := c if { c := count([v | some _, v in input.obj]) }`,
+	})
+	query := ast.MustParseBody(`data.test.total`)
+
+	for _, n := range []int{10, 100, 1000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			input := ast.ObjectTerm(ast.Item(ast.StringTerm("obj"), wideObject(n)))
+
+			b.ReportAllocs()
+
+			for b.Loop() {
+				q := NewQuery(query).
+					WithCompiler(compiler).
+					WithInput(input)
+
+				if _, err := q.Run(b.Context()); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkEnumerateInputSet exercises evalTerm.enumerate's ast.Set case.
+func BenchmarkEnumerateInputSet(b *testing.B) {
+	compiler := ast.MustCompileModules(map[string]string{
+		"test.rego": `package test
+
+hits contains v if {
+	some v in input.s
+	v > 5
+}`,
+	})
+	query := ast.MustParseBody(`data.test.hits`)
+
+	for _, n := range []int{100, 1000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			elems := make([]*ast.Term, n)
+			for i := range n {
+				elems[i] = ast.InternedTerm(i)
+			}
+			input := ast.ObjectTerm(ast.Item(ast.StringTerm("s"), ast.SetTerm(elems...)))
+
+			b.ReportAllocs()
+
+			for b.Loop() {
+				q := NewQuery(query).
+					WithCompiler(compiler).
+					WithInput(input)
+
+				if _, err := q.Run(b.Context()); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

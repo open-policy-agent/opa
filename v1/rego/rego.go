@@ -7,6 +7,7 @@ package rego
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -767,7 +768,7 @@ func RegisterBuiltin1(decl *Function, impl Builtin1) {
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -781,7 +782,7 @@ func RegisterBuiltin2(decl *Function, impl Builtin2) {
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0], terms[1]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -795,7 +796,7 @@ func RegisterBuiltin3(decl *Function, impl Builtin3) {
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0], terms[1], terms[2]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -809,7 +810,7 @@ func RegisterBuiltin4(decl *Function, impl Builtin4) {
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0], terms[1], terms[2], terms[3]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -823,7 +824,7 @@ func RegisterBuiltinDyn(decl *Function, impl BuiltinDyn) {
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -831,7 +832,7 @@ func RegisterBuiltinDyn(decl *Function, impl BuiltinDyn) {
 func Function1(decl *Function, f Builtin1) func(*Rego) {
 	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -839,7 +840,7 @@ func Function1(decl *Function, f Builtin1) func(*Rego) {
 func Function2(decl *Function, f Builtin2) func(*Rego) {
 	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0], terms[1]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -847,7 +848,7 @@ func Function2(decl *Function, f Builtin2) func(*Rego) {
 func Function3(decl *Function, f Builtin3) func(*Rego) {
 	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0], terms[1], terms[2]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -855,7 +856,7 @@ func Function3(decl *Function, f Builtin3) func(*Rego) {
 func Function4(decl *Function, f Builtin4) func(*Rego) {
 	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0], terms[1], terms[2], terms[3]) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -863,7 +864,7 @@ func Function4(decl *Function, f Builtin4) func(*Rego) {
 func FunctionDyn(decl *Function, f BuiltinDyn) func(*Rego) {
 	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms) })
-		return finishFunction(decl.Name, bctx, result, err, iter)
+		return finishFunction(decl.Name, bctx.Location, result, err, iter)
 	})
 }
 
@@ -1991,11 +1992,7 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	if err = r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras); err != nil {
-		return err
-	}
-
-	return nil
+	return r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras)
 }
 
 func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
@@ -2347,13 +2344,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithVirtualCache(ectx.virtualCache).
 		WithBaseCache(ectx.baseCache).
 		WithRequestMetadata(ectx.requestMetadata).
-		WithResponseMetadata(ectx.responseMetadata)
-
-	if ectx.evaluated != nil {
-		q = q.WithEvaluatedRuleTracker(ectx.evaluated)
-	} else {
-		q = q.WithEvaluatedRuleTracker(r.evaluated)
-	}
+		WithResponseMetadata(ectx.responseMetadata).
+		WithEvaluatedRuleTracker(cmp.Or(ectx.evaluated, r.evaluated))
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2654,7 +2646,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithRequestMetadata(ectx.requestMetadata).
-		WithResponseMetadata(ectx.responseMetadata)
+		WithResponseMetadata(ectx.responseMetadata).
+		WithEvaluatedRuleTracker(cmp.Or(ectx.evaluated, r.evaluated))
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2845,11 +2838,11 @@ func (r *Rego) generateTermVar() *ast.Term {
 	return ast.VarTerm(fmt.Sprintf("%sterm%v", prefix, r.termVarID))
 }
 
-func (r Rego) hasQuery() bool {
+func (r *Rego) hasQuery() bool {
 	return len(r.query) != 0 || len(r.parsedQuery) != 0
 }
 
-func (r Rego) hasWasmModule() bool {
+func (r *Rego) hasWasmModule() bool {
 	for _, b := range r.bundles {
 		if len(b.WasmModules) > 0 {
 			return true
@@ -2983,11 +2976,9 @@ func iteration(x any) bool {
 			}
 		case ast.Ref:
 			if !stopped {
-				if bi := ast.BuiltinMap[x.String()]; bi != nil {
-					if bi.Relation {
-						stopped = true
-						return stopped
-					}
+				if bi := ast.BuiltinMap[x.String()]; bi != nil && bi.Relation {
+					stopped = true
+					return stopped
 				}
 				for i := 1; i < len(x); i++ {
 					if _, ok := x[i].Value.(ast.Var); ok {
@@ -3026,7 +3017,7 @@ func parseStringsToRefs(s []string) ([]ast.Ref, error) {
 // helper function to finish a built-in function call. If an error occurred,
 // wrap the error and return it. Otherwise, invoke the iterator if the result
 // was defined.
-func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, err error, iter func(*ast.Term) error) error {
+func finishFunction(name string, loc *ast.Location, result *ast.Term, err error, iter func(*ast.Term) error) error {
 	if err != nil {
 		sb := strings.Builder{}
 		if e, ok := errors.AsType[*HaltError](err); ok {
@@ -3037,7 +3028,7 @@ func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, 
 			tdErr := &topdown.Error{
 				Code:     topdown.BuiltinErr,
 				Message:  sb.String(),
-				Location: bctx.Location,
+				Location: loc,
 			}
 			return topdown.Halt{Err: tdErr.Wrap(e)}
 		}
@@ -3048,7 +3039,7 @@ func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, 
 		tdErr := &topdown.Error{
 			Code:     topdown.BuiltinErr,
 			Message:  sb.String(),
-			Location: bctx.Location,
+			Location: loc,
 		}
 		return tdErr.Wrap(err)
 	}
@@ -3074,11 +3065,10 @@ func newFunction(decl *Function, f topdown.BuiltinFunc) func(*Rego) {
 }
 
 func generateJSON(term *ast.Term, ectx *EvalContext) (any, error) {
-	return ast.JSONWithOpt(term.Value,
-		ast.JSONOpt{
-			SortSets: ectx.sortSets,
-			CopyMaps: ectx.copyMaps,
-		})
+	return ast.JSONWithOpt(term.Value, ast.JSONOpt{
+		SortSets: ectx.sortSets,
+		CopyMaps: ectx.copyMaps,
+	})
 }
 
 func (r *Rego) planQuery(queries []ast.Body, evalQueryType queryType) (*ir.Policy, error) {

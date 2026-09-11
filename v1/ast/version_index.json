@@ -1070,6 +1070,11 @@
     }
   },
   "keywords": {
+    "and": {
+      "Major": 1,
+      "Minor": 20,
+      "Patch": 0
+    },
     "contains": {
       "Major": 0,
       "Minor": 42,
@@ -1093,6 +1098,11 @@
     "not": {
       "Major": 1,
       "Minor": 17,
+      "Patch": 0
+    },
+    "or": {
+      "Major": 1,
+      "Minor": 20,
       "Patch": 0
     }
   }

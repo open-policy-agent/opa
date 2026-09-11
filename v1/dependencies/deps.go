@@ -30,22 +30,13 @@ func All(x any) (resolved []ast.Ref, err error) {
 			rawResolved = append(rawResolved, ruleDeps(x)...)
 			return true
 		case ast.Body:
-			vars := ast.NewVarVisitor()
+			vars := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{SkipWildcardVars: true})
 			vars.Walk(x)
-
-			arr := ast.NewArray()
-			for v := range vars.Vars() {
-				if v.IsWildcard() {
-					continue
-				}
-				arr = arr.Append(ast.NewTerm(v))
-			}
-
 			// The analysis will discard variables that are not used in
 			// direct comparisons or in the output. Since lone Bodies are
 			// often queries, we want all the variables to be in the output.
 			r := &ast.Rule{
-				Head: &ast.Head{Name: ast.Var("_"), Value: ast.NewTerm(arr)},
+				Head: &ast.Head{Name: ast.Var("_"), Value: ast.ArrayTerm(util.MapKeys(vars.Vars(), ast.ToTerm)...)},
 				Body: x,
 			}
 			rawResolved = append(rawResolved, ruleDeps(r)...)
@@ -197,18 +188,11 @@ func (rs *dependencies) visited(rule *ast.Rule) bool {
 }
 
 func (rs *dependencies) toSlice() []ast.Ref {
-	result := make([]ast.Ref, 0, rs.refs.Len())
-	rs.refs.Iter(func(k, _ ast.Ref) bool {
-		result = append(result, k)
-		return false
-	})
-	return result
+	return rs.refs.Keys()
 }
 
 func dedup(refs []ast.Ref) []ast.Ref {
-	slices.SortFunc(refs, ast.RefCompare)
-
-	return slices.CompactFunc(refs, ast.RefEqual)
+	return slices.CompactFunc(util.SortedFunc(refs, ast.RefCompare), ast.RefEqual)
 }
 
 // filter removes all items from the list that cause pred to return true. It is

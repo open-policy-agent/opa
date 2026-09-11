@@ -441,6 +441,12 @@ func TermValueIs[T Value](term *Term) (ok bool) {
 	return ok
 }
 
+// ToTerm exists solely to be able to map concrete Value
+// implementations to *Term in util.Map, util.MapKeys, etc.
+func ToTerm[T Value](v T) *Term {
+	return NewTerm(v)
+}
+
 // IsConstant returns true if the AST value is constant.
 // Note that this is only a shallow check as we currently don't have a real
 // notion of constant "vars" in the AST implementation. Meaning that while we could
@@ -1197,8 +1203,7 @@ func (ref Ref) Concat(terms []*Term) Ref {
 
 // Dynamic returns the offset of the first non-constant operand of ref.
 func (ref Ref) Dynamic() int {
-	switch ref[0].Value.(type) {
-	case Call:
+	if TermValueIs[Call](ref[0]) {
 		return 0
 	}
 	for i := 1; i < len(ref); i++ {
@@ -1235,27 +1240,15 @@ func (ref Ref) CopyNonGround() Ref {
 
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
-	switch o := other.(type) {
-	case Ref:
-		if len(ref) == len(o) {
-			for i := range ref {
-				if !ref[i].Equal(o[i]) {
-					return false
-				}
-			}
-
-			return true
-		}
-	}
-
-	return false
+	o, ok := other.(Ref)
+	return ok && slices.EqualFunc(ref, o, (*Term).Equal)
 }
 
 // Compare compares ref to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (ref Ref) Compare(other Value) int {
 	if o, ok := other.(Ref); ok {
-		return termSliceCompare(ref, o)
+		return slices.CompareFunc(ref, o, TermValueCompare)
 	}
 	return valueTypeCompare(ref, other)
 }
@@ -1515,7 +1508,7 @@ func (arr *Array) Equal(other Value) bool {
 // or greater than other.
 func (arr *Array) Compare(other Value) int {
 	if b, ok := other.(*Array); ok {
-		return termSliceCompare(arr.elems, b.elems)
+		return slices.CompareFunc(arr.elems, b.elems, TermValueCompare)
 	}
 
 	return valueTypeCompare(arr, other)
@@ -1568,9 +1561,11 @@ func (arr *Array) Sorted() *Array {
 
 	slices.SortFunc(cpy, TermValueCompare)
 
-	a := NewArray(cpy...)
-	a.hashs = arr.hashs
-	return a
+	// NewArray has already hashed cpy in its own order. Taking arr.hashs over
+	// that would leave hashs[i] holding the hash of some other element, which
+	// Array.set relies on, and would share the slice with arr so that setting
+	// an element here corrupted arr.
+	return NewArray(cpy...)
 }
 
 // Hash returns the hash code for the Value.
@@ -1615,14 +1610,25 @@ func (arr *Array) rehash() {
 func (arr *Array) set(i int, v *Term) {
 	arr.ground = arr.ground && v.IsGround()
 	arr.elems[i] = v
-	arr.hashs[i] = v.Value.Hash()
-	arr.rehash()
+
+	// arr.hash is the sum of arr.hashs, so swapping one element's hash in is
+	// enough -- rehashing the whole array here makes building an array of n
+	// elements O(n^2), which is felt on the large arrays that appear in
+	// generated policies.
+	h := v.Value.Hash()
+	arr.hash += h - arr.hashs[i]
+	arr.hashs[i] = h
 }
 
 // Slice returns a slice of arr starting from i index to j. -1
 // indicates the end of the array. The returned value array is not a
 // copy and any modifications to either of arrays may be reflected to
 // the other.
+//
+// Set on the returned slice writes through to arr's element and to its
+// hash, but not to arr's cached sum of those hashes, so arr.Hash() is
+// stale from then on and anything holding arr as a map key or set member
+// stops finding it. Copy the slice before writing to it.
 func (arr *Array) Slice(i, j int) *Array {
 	var elems []*Term
 	var hashs []int
@@ -1667,10 +1673,11 @@ func (arr *Array) Foreach(f func(*Term)) {
 
 // Append appends a term to arr, returning the appended array.
 func (arr *Array) Append(v *Term) *Array {
+	vhs := v.Value.Hash()
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
-	cpy.hashs = append(arr.hashs, v.Value.Hash())
-	cpy.hash = arr.hash + v.Value.Hash()
+	cpy.hashs = append(arr.hashs, vhs)
+	cpy.hash += vhs
 	cpy.ground = arr.ground && v.IsGround()
 	return &cpy
 }
@@ -1813,9 +1820,11 @@ func (s *set) Find(path Ref) (Value, error) {
 }
 
 // Diff returns elements in s that are not in other.
+// A returned empty set will be an interned representation that
+// should not be modified without copying.
 func (s *set) Diff(other Set) Set {
 	if s.Compare(other) == 0 {
-		return NewSet()
+		return InternedEmptySetValue.(Set)
 	}
 
 	result := newset(len(s.keys))
@@ -1895,13 +1904,9 @@ func (s *set) Foreach(f func(*Term)) {
 
 // Map returns a new Set obtained by applying f to each value in s.
 func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
-	mapped := make([]*Term, 0, len(s.keys))
-	for _, x := range s.sortedKeys() {
-		term, err := f(x)
-		if err != nil {
-			return nil, err
-		}
-		mapped = append(mapped, term)
+	mapped, err := util.TryMap(s.sortedKeys(), f)
+	if err != nil {
+		return nil, err
 	}
 	return NewSet(mapped...), nil
 }
@@ -1910,13 +1915,9 @@ func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
 // argument to f is the reduced value (starting with i) and the second argument
 // to f is the element in s.
 func (s *set) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error) {
-	err := s.Iter(func(x *Term) error {
-		var err error
+	err := s.Iter(func(x *Term) (err error) {
 		i, err = f(i, x)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	return i, err
 }
@@ -2195,13 +2196,7 @@ func (lob *lazyObj) Keys() []*Term {
 	if lob.strict != nil {
 		return lob.strict.Keys()
 	}
-	ret := make([]*Term, 0, len(lob.native))
-	for k := range lob.native {
-		ret = append(ret, StringTerm(k))
-	}
-	slices.SortFunc(ret, TermValueCompare)
-
-	return ret
+	return util.SortedFunc(util.MapKeys(lob.native, InternedTerm), TermValueCompare)
 }
 
 func (lob *lazyObj) KeysIterator() ObjectKeysIterator {
@@ -2985,7 +2980,7 @@ func (c Call) Copy() Call {
 // or greater than other.
 func (c Call) Compare(other Value) int {
 	if oc, ok := other.(Call); ok {
-		return termSliceCompare(c, oc)
+		return slices.CompareFunc(c, oc, TermValueCompare)
 	}
 	return valueTypeCompare(c, other)
 }
@@ -3073,18 +3068,6 @@ func termSliceCopy(a []*Term) []*Term {
 		deepCopyTermValue(cpy[i]) // deep copy container Values in-place
 	}
 	return cpy
-}
-
-func termSliceEqual(a, b []*Term) bool {
-	if len(a) == len(b) {
-		for i := range a {
-			if !a[i].Equal(b[i]) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 func termSliceHash(a []*Term) int {

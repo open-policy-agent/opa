@@ -86,7 +86,7 @@ foo := true`,
 				return
 			}
 			if tc.expectError {
-				t.Fatalf("expected error")
+				t.Fatal("expected error")
 			}
 			if tc.expectScope != module.Annotations[0].Scope {
 				t.Fatalf("expected scope %q, got %q", tc.expectScope, module.Annotations[0].Scope)
@@ -527,7 +527,7 @@ a.b.c.p[v] if {v = 2}`,
 
 			as := compiler.GetAnnotationSet()
 			if as == nil {
-				t.Fatalf("Expected compiled AnnotationSet, got nil")
+				t.Fatal("Expected compiled AnnotationSet, got nil")
 			}
 
 			flattened := as.Flatten()
@@ -969,7 +969,7 @@ p = true`,
 
 			as := compiler.GetAnnotationSet()
 			if as == nil {
-				t.Fatalf("Expected compiled AnnotationSet, got nil")
+				t.Fatal("Expected compiled AnnotationSet, got nil")
 			}
 
 			m := compiler.Modules[tc.moduleToAnalyze]

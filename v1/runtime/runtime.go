@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -70,6 +71,9 @@ var (
 
 	registeredStorageBackend    StorageBackendBuilder
 	registeredStorageBackendMux sync.Mutex
+
+	registeredHooks    []hooks.Hook
+	registeredHooksMux sync.Mutex
 )
 
 const (
@@ -102,6 +106,20 @@ func RegisterStorageBackend(builder StorageBackendBuilder) {
 	registeredStorageBackendMux.Lock()
 	defer registeredStorageBackendMux.Unlock()
 	registeredStorageBackend = builder
+}
+
+// RegisterHook registers a hook with the runtime package. When the runtime is
+// created, registered hooks are appended to those passed via Params.Hooks.
+//
+// This exists for embedders that build their own OPA binary on top of this
+// package's CLI commands, and so never construct Params themselves: registering
+// from an init function, or from main before the runtime is created, is the only
+// opportunity they get. Hooks registered after NewRuntime has been called are
+// not picked up by that runtime.
+func RegisterHook(h hooks.Hook) {
+	registeredHooksMux.Lock()
+	defer registeredHooksMux.Unlock()
+	registeredHooks = append(registeredHooks, h)
 }
 
 // Params stores the configuration for an OPA instance.
@@ -356,6 +374,11 @@ type Runtime struct {
 	meterProvider     *sdkmetric.MeterProvider
 	loadedPathsResult *initload.LoadPathsResult
 
+	// serverTracingOpts holds the distributed tracing options that only apply to
+	// OPA's own HTTP server, and not to the outbound requests made by plugins or
+	// by http.send during evaluation.
+	serverTracingOpts tracing.Options
+
 	serverStatus  ServerStatus
 	serverInitMtx sync.RWMutex
 	done          chan struct{}
@@ -399,6 +422,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		bufferedLogger.SetLevel(level)
 		logger = bufferedLogger
 	}
+
+	// Hooks registered with this package apply on top of whatever the caller
+	// passed in, so that embedders building on the CLI commands -- who never get
+	// to construct Params -- can contribute hooks too.
+	registeredHooksMux.Lock()
+	for _, h := range registeredHooks {
+		params.Hooks.Append(h)
+	}
+	registeredHooksMux.Unlock()
 
 	if err := params.Hooks.Validate(); err != nil {
 		return nil, err
@@ -492,7 +524,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
-	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)
+	traceExporter, tracerProvider, _, serverTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -556,11 +588,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+3)
+	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+4)
 	opts = append(opts,
 		discovery.Factories(registeredPlugins),
 		discovery.Metrics(metrics),
 		discovery.BootConfig(bootConfig),
+		discovery.Hooks(params.Hooks),
 	)
 	opts = append(opts, params.ExtraDiscoveryOpts...)
 	disco, err := discovery.New(manager, opts...)
@@ -581,6 +614,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		traceExporter:     traceExporter,
 		meterProvider:     meterProvider,
 		loadedPathsResult: loaded,
+		serverTracingOpts: serverTracingOpts,
 	}
 
 	return rt, nil
@@ -696,7 +730,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
-		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
+		WithDistributedTracingOpts(slices.Concat(rt.Params.DistributedTracingOpts, rt.serverTracingOpts)).
 		WithHooks(rt.Params.Hooks).
 		WithNDBCacheEnabled(rt.Params.NDBCacheEnabled)
 
@@ -756,7 +790,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	}()
 
 	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
-	rt.server.DiagnosticHandler = NewLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
+	rt.server.DiagnosticHandler = NewDiagnosticLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
 	rt.setServerStatus(ServerWaitingForPlugins)
 
@@ -827,7 +861,10 @@ func (rt *Runtime) Addrs() []string {
 // listening on (when in server mode). Returns an empty list if it hasn't
 // started listening.
 func (rt *Runtime) DiagnosticAddrs() []string {
-	if rt.server == nil {
+	rt.serverInitMtx.RLock()
+	defer rt.serverInitMtx.RUnlock()
+
+	if rt.serverStatus < ServerInitialized {
 		return nil
 	}
 
@@ -996,9 +1033,10 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 
 func (rt *Runtime) getBanner() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s %v (commit %v, built at %v)\n", rt.Params.Brand, version.Version, version.Vcs, version.Timestamp)
-	fmt.Fprintf(&buf, "\n")
-	fmt.Fprintf(&buf, "Run 'help' to see a list of commands and check for updates.\n")
+	fmt.Fprintf(&buf,
+		"%s %v (commit %v, built at %v)\n\nRun 'help' to see a list of commands and check for updates.\n",
+		rt.Params.Brand, version.Version, version.Vcs, version.Timestamp,
+	)
 	return buf.String()
 }
 

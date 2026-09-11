@@ -6,7 +6,6 @@ package logs
 
 import (
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -152,7 +151,7 @@ func TestStopEventBufferLoop(t *testing.T) {
 	t.Parallel()
 
 	uploadPath := "/v1/test"
-	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, r *http.Request) {
+	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 	defer ts.Close()
@@ -180,7 +179,7 @@ func TestStopEventBufferLoop(t *testing.T) {
 			}
 			e = newEventBuffer(100, 100, rest.Client{}, uploadPath, tc.bufferType).WithLogger(logging.NewNoOpLogger())
 			e.Push(newTestEvent(t, strconv.Itoa(100), false))
-			if err := e.Upload(context.Background()); err != nil {
+			if err := e.Upload(t.Context()); err != nil {
 				t.Fatal(err)
 			}
 			e.Stop(t.Context())
@@ -251,7 +250,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			eventLimit:           1,
 			numberOfEvents:       1,
 			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
-			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+			handleFunc: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 			},
 			expectedError: "log upload failed, server replied with HTTP 400 Bad Request",

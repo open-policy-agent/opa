@@ -122,16 +122,21 @@ roles := {
 
 #### Equality statements
 
-For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
+For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables).
 
-| Expression                  | Indexed | Notes                        |
-| --------------------------- | ------- | ---------------------------- |
-| `input.x`                   | yes     |                              |
-| `input.x == "foo"`          | yes     |                              |
-| `input.x.y == "bar"`        | yes     |                              |
-| `input.x == ["foo", i]`     | yes     |                              |
-| `input.x[i] == "foo"`       | no      | reference contains variables |
-| `input.x[input.y] == "foo"` | no      | reference is nested          |
+A reference whose **last** element is a variable is indexed as well, as long as the other side is a scalar. The indexer then indexes the ground prefix of the reference, selecting the rules whose scalar occurs among the values found there — the exact match is still established when the rule body is evaluated. For example:
+
+| Expression                  | Indexed | Notes                                                 |
+| --------------------------- | ------- | ----------------------------------------------------- |
+| `input.x`                   | yes     |                                                       |
+| `input.x == "foo"`          | yes     |                                                       |
+| `input.x.y == "bar"`        | yes     |                                                       |
+| `input.x == ["foo", i]`     | yes     |                                                       |
+| `input.x[i] == "foo"`       | yes     | ground prefix `input.x` is indexed                    |
+| `input.x[_] == "foo"`       | yes     | ground prefix `input.x` is indexed                    |
+| `input.x[input.y] == "foo"` | yes     | ground prefix `input.x` is indexed                    |
+| `input.x[i].y == "foo"`     | no      | variable is not the reference's last element          |
+| `input.x[i] == ["foo"]`     | no      | non-scalar value on a reference containing a variable |
 
 #### Glob statements
 
@@ -145,6 +150,33 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 | `glob.match("a*", [":"], input.x)`             | no      | `*` embedded in a segment  |
 | `glob.match("foo:*/bar", [":", "/"], input.x)` | yes     | any delimiter separates    |
 | `glob.match("foo:*:bar", null, input.x)`       | no      | delimiter is `null`        |
+
+#### Prefix and suffix statements
+
+For `startswith(search, base)` and `strings.any_prefix_match(search, base)` statements to be indexed the search operand must be a non-nested reference that does not contain any variables, and every base string must be known at compile time — a literal, or a variable previously assigned one. `strings.any_prefix_match` holds if any base string matches, so each of its base strings is indexed as an alternative; a base collection holding anything other than strings is not indexed at all, since indexing only part of it would exclude rules the rest would have matched. `endswith` and `strings.any_suffix_match` are indexed under the same conditions.
+
+The prefixes recorded for one reference are held in a radix trie, so a lookup walks the input value once no matter how many prefixes are indexed. A rule set with ten prefixes and one with ten thousand cost the same to look up. Several base strings do make the search operand a reference the rule reaches by more than one value, which affects what else the rule is indexed on — see [Several values for one reference](#several-values-for-one-reference).
+
+Capturing the result (`allowed := startswith(input.path, "/api")`) is not indexed: a rule producing `false` still has to be evaluated.
+
+| Expression                                               | Indexed | Notes                                     |
+| -------------------------------------------------------- | ------- | ----------------------------------------- |
+| `startswith(input.path, "/api")`                         | yes     |                                           |
+| `x := input.path; startswith(x, "/api")`                 | yes     | variable resolved to ref via assignment   |
+| `strings.any_prefix_match(input.path, ["/a", "/b"])`     | yes     | each base string is an alternative        |
+| `strings.any_prefix_match(input.path, {"/a", "/b"})`     | yes     | set literals work the same as arrays      |
+| `strings.any_prefix_match(input.path, "/api")`           | yes     | a single base string is like `startswith` |
+| `endswith(input.path, ".gz")`                            | yes     | anchored to the end instead               |
+| `strings.any_suffix_match(input.path, [".go", ".rego"])` | yes     | each base string is an alternative        |
+| `startswith(input.path, input.prefix)`                   | no      | base is not known until evaluation        |
+| `strings.any_prefix_match(input.path, input.bases)`      | no      | base is not known until evaluation        |
+| `strings.any_prefix_match(input.path, ["/a", input.b])`  | no      | base collection is not all literals       |
+| `startswith(input.path[i], "/api")`                      | no      | search contains variable(s)               |
+| `x := startswith(input.path, "/api"); x == true`         | no      | result is captured                        |
+
+:::info
+A prefix or suffix statement is indexed the way `glob.match` is, and shares its one rough edge: a rule whose search operand turns out not to be a string is excluded by the index, so the type error the call would have raised is not raised. This only shows with [strict built-in errors](./policy-language#errors) enabled, where the query would otherwise have failed rather than been undefined.
+:::
 
 #### Membership (`in`) statements
 
@@ -170,6 +202,66 @@ A bare reference used as a boolean check (without an explicit comparison) is als
 | `input.x`    | yes     |                               |
 | `input.x.y`  | yes     |                               |
 | `input.x[i]` | no      | reference contains a variable |
+
+#### Logical (`and`/`or`) statements
+
+Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/logical) are indexed on the indexable statements found inside their operands, following the rules above. An `and` requires both of its operands, so each is indexed on its own and an operand with nothing indexable in it still leaves the other to narrow the rule. An `or` requires only one of its operands, so it is indexed only when every operand has something indexable: an operand that doesn't could be satisfied by any input, leaving nothing the rule can be excluded on. Combining the two multiplies the ways a rule can be reached, as in `{input.a == 1 or input.a == 2} and {input.b == 1 or input.b == 2}`, which has four; past 32 for a single rule only the conditions common to every combination are indexed.
+
+| Expression                             | Indexed | Notes                                 |
+| -------------------------------------- | ------- | ------------------------------------- |
+| `input.x == 1 and input.y == 2`        | yes     | both operands narrow the rule         |
+| `input.x == 1 and count(input.y) == 3` | yes     | indexed on `input.x` only             |
+| `input.x == 1 or input.x == 2`         | yes     | either value of `input.x` matches     |
+| `input.x == 1 or input.y == 2`         | yes     | both operands are indexed             |
+| `input.x == 1 or count(input.y) == 3`  | no      | `count(...)` is not indexable         |
+| `not (input.x == 1 and input.y == 2)`  | no      | negated expressions are never indexed |
+
+#### Several values for one reference
+
+Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a collection. The rule is indexed under each of those values.
+
+Where the rule is indexed below that reference depends on the statement. The values of an `in` collection converge on one continuation, so the rule goes on being indexed on everything else it constrains, however many such references it has — as long as they are scalars. A collection holding arrays, objects or sets cannot converge, so that reference ends the rule's path the way base strings do. The base strings of a `strings.any_prefix_match` or `strings.any_suffix_match` are leaves of the radix trie described above, which cannot converge, so that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
+
+The indexer orders references carrying alternatives after every other one, so a rule's single-valued constraints are indexed first either way.
+
+| Rule body                                                                                              | Indexed on           |
+| ------------------------------------------------------------------------------------------------------ | -------------------- |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.method == "GET"`                            | both references      |
+| `input.x in {1, 2}; input.y == 3`                                                                      | both references      |
+| `input.x in {1, 2}; input.y in {3, 4}`                                                                 | both references      |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.x in {1, 2}`                                | both references      |
+| `input.x in [[1], [2]]; input.y == 3`                                                                  | one reference        |
+| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.n, [".go", ".rego"])` | one of the two       |
+| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.p, [".go", ".rego"])` | one end of `input.p` |
+
+A reference reached by base strings is ordered after one reached by an `in` collection, so only a rule that reaches _two_ references by base strings loses one of them — and which of the two the author wrote first does not decide which is lost.
+
+Requiring base strings at both ends of the _same_ reference runs into the same limit from the other direction. The two sets are leaves of two tries, and a leaf cannot be made to depend on the other trie's answer, so the index tests one end and leaves the other to evaluation. Indexing both would admit a value matching either one, where the rule requires both, so it would hand more rules to evaluation than testing one end does. The end kept is the one whose shortest base string is longest: a set admits a value matching any one of its bases, so its shortest base is what decides how much it admits — `["/"]` admits every absolute path however many longer prefixes sit beside it.
+
+#### References rooted at a local variable
+
+Building a reference on top of a local variable does not defeat the indexer. When the head of a reference is a variable that was assigned a reference earlier in the rule body, the indexer resolves that head and indexes the statement as if the whole reference had been spelled out: `x := input; x.foo == "a"` is indexed just like `input.foo == "a"`.
+
+The head must resolve to a reference rooted at `input` or `data`, and the resolved reference is then subject to exactly the same conditions as one written out by hand. A head that resolves to a document produced by another rule is not indexed, since the indexer only looks up base documents. `in`, `glob.match` and the prefix and suffix statements benefit from the same resolution: the compiler hoists their reference operand into a local variable of its own, which the indexer then resolves.
+
+The resolution also applies where a local stands in for a whole value rather than the head of a reference, chained assignments included, and inside the operands of an `and` or `or`, where a local assigned in the enclosing rule body still resolves.
+
+| Expression                                    | Indexed | Notes                                    |
+| --------------------------------------------- | ------- | ---------------------------------------- |
+| `x := input; x.foo == "a"`                    | yes     | indexed as `input.foo == "a"`            |
+| `x := input.a.b; x.c == "a"`                  | yes     | indexed as `input.a.b.c == "a"`          |
+| `x := input.a; y := x; y.b == "a"`            | yes     | chains of assignments resolve            |
+| `x := input.role; y := x; y == "a"`           | yes     | indexed as `input.role == "a"`           |
+| `x := input; "a" in x.foo`                    | yes     |                                          |
+| `x := input; glob.match("a/*", ["/"], x.foo)` | yes     |                                          |
+| `x := input; startswith(x.foo, "a/")`         | yes     |                                          |
+| `x := input; endswith(x.foo, ".gz")`          | yes     |                                          |
+| `x := input; x.foo`                           | yes     | bare reference                           |
+| `x := input; x.foo[i] == "a"`                 | yes     | ground prefix `input.foo` is indexed     |
+| `x := input; x.foo[i].bar == "a"`             | no      | variable is not the last element         |
+| `x := {"a": 1}; x.a == 1`                     | no      | head does not resolve to a reference     |
+| `x := some_rule; x.foo == "a"`                | no      | resolved reference is a virtual document |
+| `f(x) if x.foo == "a"`                        | no      | head is a function argument              |
 
 ### Early Exit in Rule Evaluation
 

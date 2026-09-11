@@ -20,6 +20,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+var (
+	trueAny                 any = true
+	errEmptySearchCharacter     = errors.New("empty search character")
+)
+
 func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
@@ -102,13 +107,17 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 		return strings.HasPrefix(strs[0], prefixes[0])
 	}
 
+	// The trie is local, and only ever inserted into and searched, so it's safe
+	// to hand it byte slices aliasing the operand strings' memory. Note that
+	// patricia's compact() writes through the key slices it retains, so Delete
+	// and DeleteSubtree must not be used here: they'd corrupt those strings.
 	trie := patricia.NewTrie()
 	for i := range strs {
-		trie.Insert([]byte(strs[i]), true)
+		trie.Insert(util.StringToByteSlice(strs[i]), trueAny)
 	}
 
 	for i := range prefixes {
-		if trie.MatchSubtree([]byte(prefixes[i])) {
+		if trie.MatchSubtree(util.StringToByteSlice(prefixes[i])) {
 			return true
 		}
 	}
@@ -312,7 +321,7 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 	if len(string(search)) == 0 {
-		return errors.New("empty search character")
+		return errEmptySearchCharacter
 	}
 
 	if isASCII(string(base)) && isASCII(string(search)) {
@@ -350,7 +359,7 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 	if len(string(search)) == 0 {
-		return errors.New("empty search character")
+		return errEmptySearchCharacter
 	}
 
 	baseRunes := []rune(string(base))
@@ -372,7 +381,6 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 }
 
 func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	base, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -590,10 +598,7 @@ func builtinSplitN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	} else {
 		parts := strings.Split(text, delim)
 		start := max(len(parts)+n, 0)
-		result = make([]*ast.Term, len(parts)-start)
-		for i, p := range parts[start:] {
-			result[i] = ast.InternedTerm(p)
-		}
+		result = util.Map(parts[start:], ast.InternedTerm)
 	}
 
 	return iter(ast.ArrayTerm(result...))
@@ -786,7 +791,7 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	// Optimized path for where sprintf is used as a "to_string" function for
 	// a single integer, i.e. sprintf("%d", [x]) where x is an integer.
 	if s == "%d" && a.Len() == 1 {
-		if n, ok := a.Elem(0).Value.(ast.Number); ok {
+		if n, ok := a.Elem(0).Value.(ast.Number); ok && !isFloatNumber(string(n)) {
 			if i, ok := n.Int(); ok {
 				if interned := ast.InternedIntegerString(i); interned != nil {
 					return iter(interned)
@@ -803,23 +808,18 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		switch v := t.Value.(type) {
 		case ast.Number:
 			ns := string(v)
-			if x, ok := util.Atoi64(ns); ok {
-				args[i] = x
-			} else {
-				if strings.ContainsRune(ns, '.') {
-					if f, ok := v.Float64(); ok {
-						args[i] = f
-						continue
-					} else {
-						args[i] = ns
-					}
+			if isFloatNumber(ns) {
+				if f, ok := v.Float64(); ok {
+					args[i] = f
 				} else {
-					if b, ok := new(big.Int).SetString(ns, 10); ok {
-						args[i] = b
-					} else {
-						args[i] = ns
-					}
+					args[i] = ns
 				}
+			} else if x, ok := util.Atoi64(ns); ok {
+				args[i] = x
+			} else if b, ok := new(big.Int).SetString(ns, 10); ok {
+				args[i] = b
+			} else {
+				args[i] = ns
 			}
 		case ast.String:
 			args[i] = string(v)
@@ -829,6 +829,15 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	}
 
 	return iter(ast.InternedTerm(fmt.Sprintf(string(s), args...)))
+}
+
+// isFloatNumber reports whether the textual representation of a number is that
+// of a floating point value, i.e. it has a fraction or an exponent. Since
+// util.Atoi64 parses numbers with only zeros past the decimal point (1.0) as
+// integers, the text, and not the parsed value, decides how a number is
+// formatted by sprintf.
+func isFloatNumber(s string) bool {
+	return strings.ContainsAny(s, ".eE")
 }
 
 func builtinReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -857,7 +866,7 @@ func reverseString(str string) string {
 		utf8.EncodeRune(buf[size-start:], r)
 	}
 
-	return string(buf)
+	return util.ByteSliceToString(buf)
 }
 
 func init() {

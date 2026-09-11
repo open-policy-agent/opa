@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -97,7 +96,6 @@ allow if {
 			}
 
 			store := inmem.New()
-			ctx := context.Background()
 			input := map[string]any{
 				"user":       "admin",
 				"role":       "superuser",
@@ -116,8 +114,7 @@ allow if {
 					WithStore(store).
 					WithInput(ast.NewTerm(ast.MustInterfaceToValue(input)))
 
-				_, err := q.Run(ctx)
-				if err != nil {
+				if _, err := q.Run(b.Context()); err != nil {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
@@ -187,7 +184,6 @@ result if {
 			}
 
 			store := inmem.New()
-			ctx := context.Background()
 			input := map[string]any{
 				"users": []map[string]any{
 					{"name": "alice", "role": "admin", "active": true},
@@ -205,8 +201,7 @@ result if {
 					WithStore(store).
 					WithInput(ast.NewTerm(ast.MustInterfaceToValue(input)))
 
-				_, err := q.Run(ctx)
-				if err != nil {
+				if _, err := q.Run(b.Context()); err != nil {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
@@ -256,7 +251,6 @@ analyze_access if {
 	}
 
 	store := inmem.New()
-	ctx := context.Background()
 
 	testCases := []struct {
 		name  string
@@ -312,7 +306,7 @@ analyze_access if {
 					WithStore(store).
 					WithInput(ast.NewTerm(ast.MustInterfaceToValue(tc.input)))
 
-				_, err := q.Run(ctx)
+				_, err := q.Run(b.Context())
 				if err != nil {
 					b.Fatalf("Query failed: %v", err)
 				}

@@ -30,10 +30,10 @@ func testParseSchema(t *testing.T, schema string, expectedType types.Type, expec
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if newtype == nil && expectedType != nil {
-		t.Fatalf("parseSchema returned nil type")
+		t.Fatal("parseSchema returned nil type")
 	}
 	if newtype != nil && expectedType == nil {
-		t.Fatalf("expected nil but parseSchema returned a not nil type")
+		t.Fatal("expected nil but parseSchema returned a not nil type")
 	}
 	if types.Compare(newtype, expectedType) != 0 {
 		t.Fatalf("parseSchema returned an incorrect type: %s, expected: %s", newtype.String(), expectedType.String())
@@ -83,7 +83,7 @@ func TestSetTypesWithSchemaRef(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if newtype == nil {
-			t.Fatalf("parseSchema returned nil type")
+			t.Fatal("parseSchema returned nil type")
 		}
 		if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array[string], generateName: string, generation: number, initializers: object<pending: array[object<name: string>], result: object<apiVersion: string, code: number, details: object<causes: array[object<field: string, message: string, reason: string>], group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array[object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>], name: string, namespace: string, ownerReferences: array[object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>], resourceVersion: string, selfLink: string, uid: string>>" {
 			t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
@@ -96,7 +96,7 @@ func TestSetTypesWithSchemaRef(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if newtype == nil {
-			t.Fatalf("parseSchema returned nil type")
+			t.Fatal("parseSchema returned nil type")
 		}
 		if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array[string], generateName: string, generation: number, initializers: object<pending: array[object<name: string>], result: object<apiVersion: string, code: number, details: object<causes: array[object<field: string, message: string, reason: string>], group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array[object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>], name: string, namespace: string, ownerReferences: array[object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>], resourceVersion: string, selfLink: string, uid: string>>" {
 			t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
@@ -131,7 +131,7 @@ func TestSetTypesWithPodSchema(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if newtype == nil {
-		t.Fatalf("parseSchema returned nil type")
+		t.Fatal("parseSchema returned nil type")
 	}
 	if newtype.String() == "object<apiVersion: string, kind: string, metadata: any, spec: any, status: any>" {
 		t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
@@ -469,7 +469,7 @@ func TestCompileSchemaEmptySchema(t *testing.T) {
 	}
 	jsonSchema, _ := compileSchema(sch, []string{})
 	if jsonSchema != nil {
-		t.Fatalf("Incorrect return from parseSchema with an empty schema")
+		t.Fatal("Incorrect return from parseSchema with an empty schema")
 	}
 }
 
@@ -485,10 +485,10 @@ func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
 	}
 	newtype, err := newSchemaParser().parseSchema(jsonSchema) // Did not pass the subschema
 	if err == nil {
-		t.Fatalf("Expected parseSchema() = error, got nil")
+		t.Fatal("Expected parseSchema() = error, got nil")
 	}
 	if newtype != nil {
-		t.Fatalf("Incorrect return from parseSchema with a bad schema")
+		t.Fatal("Incorrect return from parseSchema with a bad schema")
 	}
 }
 
@@ -808,7 +808,7 @@ func TestWithSchema(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, objectSchema)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("WithSchema did not set the schema correctly in the compiler")
+		t.Fatal("WithSchema did not set the schema correctly in the compiler")
 	}
 }
 
@@ -818,7 +818,7 @@ func TestAnyOfObjectSchema1(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, anyOfExtendCoreSchema)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("Did not correctly compile an object type schema with anyOf outside core schema")
+		t.Fatal("Did not correctly compile an object type schema with anyOf outside core schema")
 	}
 }
 
@@ -828,7 +828,7 @@ func TestAnyOfObjectSchema2(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, anyOfInsideCoreSchema)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("Did not correctly compile an object type schema with anyOf inside core schema")
+		t.Fatal("Did not correctly compile an object type schema with anyOf inside core schema")
 	}
 }
 
@@ -838,7 +838,7 @@ func TestAnyOfArraySchema(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, anyOfArraySchema)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("Did not correctly compile an array type schema with anyOf")
+		t.Fatal("Did not correctly compile an array type schema with anyOf")
 	}
 }
 
@@ -848,7 +848,7 @@ func TestAnyOfObjectMissing(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, anyOfObjectMissing)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("Did not correctly compile an object type schema with anyOf where one of the props did not explicitly claim type")
+		t.Fatal("Did not correctly compile an object type schema with anyOf where one of the props did not explicitly claim type")
 	}
 }
 
@@ -858,7 +858,7 @@ func TestAnyOfArrayMissing(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, anyOfArrayMissing)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("Did not correctly compile an array type schema with anyOf where items are inside anyOf")
+		t.Fatal("Did not correctly compile an array type schema with anyOf where items are inside anyOf")
 	}
 }
 
@@ -868,7 +868,7 @@ func TestRecursiveSchema(t *testing.T) {
 	schemaSet.Put(SchemaRootRef, recursiveElements)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
-		t.Fatalf("Did not correctly compile an object schema with recursive elements")
+		t.Fatal("Did not correctly compile an object schema with recursive elements")
 	}
 }
 

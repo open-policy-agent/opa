@@ -22,13 +22,31 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// CompileErrorLimitDefault is the default number errors a compiler will allow before
-// exiting.
-const CompileErrorLimitDefault = 10
+const (
+	// CompileErrorLimitDefault is the default number
+	// of errors a compiler will allow before exiting.
+	CompileErrorLimitDefault = 10
+	LocalVarPrefix           = "__local"
+
+	errAssignInNegated    = "cannot assign vars inside negated expression"
+	errAssignInAndOperand = "cannot assign vars inside implicit and operand"
+	errAssignInOrOperand  = "cannot assign vars inside implicit or operand"
+)
 
 var (
-	errLimitReached = newErrorString(CompileErr, nil, "error limit reached")
-	emptyPackage    = &Package{Path: Ref{VarTerm("")}}
+	// SafetyCheckVisitorParams defines the AST visitor parameters to use for collecting
+	// variables during the safety check. This has to be exported because it's relied on
+	// by the copy propagation implementation in topdown.
+	SafetyCheckVisitorParams = VarVisitorParams{SkipRefCallHead: true, SkipClosures: true}
+	// TODO(tsandall): Improve this so that users can either supply this list explicitly
+	// or the information is maintained on the built-in function declaration. What we really
+	// need to know is whether the built-in function allows callers to push down output
+	// values or not. It's unlikely that anything outside of OPA does this today so this
+	// solution is fine for now.
+	comprehensionIndexDenylist = map[string]int{WalkBuiltin.Name: len(WalkBuiltin.Decl.FuncArgs().Args)}
+	errLimitReached            = newErrorString(CompileErr, nil, "error limit reached")
+	emptyPackage               = &Package{Path: Ref{VarTerm("")}}
+	futureKeywordsPrefix       = Ref{FutureRootDocument, InternedTerm("keywords")}
 )
 
 // Compiler contains the state of a compilation process.
@@ -161,6 +179,8 @@ type Compiler struct {
 	defaultRegoVersion         RegoVersion
 	skipStages                 map[StageID]struct{} // stages to skip during compilation
 	plan                       *executionPlan       // computed execution plan (cached)
+	unusedImports              []*Import            // imports found unused during ref resolution, reported by CheckUnusedImports
+	unrecoverableErr           bool                 // at least one recorded error prevents the remaining stages from running
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -179,6 +199,7 @@ type StageID string
 // at least lets you know what your attention is needed when you depend on the stages.
 const (
 	StageResolveRefs                StageID = "ResolveRefs"
+	StageCheckUnusedImports         StageID = "CheckUnusedImports"
 	StageInitLocalVarGen            StageID = "InitLocalVarGen"
 	StageRewriteRuleHeadRefs        StageID = "RewriteRuleHeadRefs"
 	StageCheckKeywordOverrides      StageID = "CheckKeywordOverrides"
@@ -221,6 +242,7 @@ const (
 func AllStages() []StageID {
 	return []StageID{
 		StageResolveRefs,
+		StageCheckUnusedImports,
 		StageInitLocalVarGen,
 		StageRewriteRuleHeadRefs,
 		StageCheckKeywordOverrides,
@@ -260,7 +282,7 @@ func AllStages() []StageID {
 // CompilerEvalMode allows toggling certain stages that are only
 // needed for certain modes, Concretely, only "topdown" mode will
 // have the compiler build comprehension and rule indices.
-type CompilerEvalMode int
+type CompilerEvalMode uint8
 
 const (
 	// EvalModeTopdown (default) instructs the compiler to build rule
@@ -376,7 +398,7 @@ type QueryCompiler interface {
 	// WithStageAfter registers a stage to run during query compilation after
 	// the named stage.
 	//
-	// Caution: Use [ast.QueryCompiler.WithStageAfterID] instead. It provides
+	// Caution: Use [QueryCompiler.WithStageAfterID] instead. It provides
 	// more (Golang) compile-time safety
 	WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler
 
@@ -439,6 +461,7 @@ func NewCompiler() *Compiler {
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{StageResolveRefs, "compile_stage_resolve_refs", c.resolveAllRefs},
+		{StageCheckUnusedImports, "compile_stage_check_unused_imports", c.checkUnusedImports},
 		// The local variable generator must be initialized after references are
 		// resolved and the dynamic module loader has run but before subsequent
 		// stages that need to generate variables.
@@ -515,7 +538,7 @@ func (c *Compiler) WithPathConflictsCheckRoots(rootPaths []string) *Compiler {
 // WithStageAfter registers a stage to run during compilation after
 // the named stage.
 //
-// Caution: Consider using [ast.QueryCompiler.WithStageAfterID] instead. It provides
+// Caution: Consider using [Compiler.WithStageAfterID] instead. It provides
 // more (Golang) compile-time safety
 func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *Compiler {
 	c.after[after] = append(c.after[after], stage)
@@ -835,23 +858,15 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 //	GetRules("data.a.b.c.q")	=> [rule2]
 //	GetRules("data.a.b.c")		=> [rule1, rule2]
 //	GetRules("data.a.b.d")		=> nil
-func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
+func (c *Compiler) GetRules(ref Ref) []*Rule {
+	virt := c.GetRulesForVirtualDocument(ref)
+	pref := c.GetRulesWithPrefix(ref)
 
-	set := map[*Rule]struct{}{}
+	set := make(map[*Rule]struct{}, len(virt)+len(pref))
+	insertRules(set, virt)
+	insertRules(set, pref)
 
-	for _, rule := range c.GetRulesForVirtualDocument(ref) {
-		set[rule] = struct{}{}
-	}
-
-	for _, rule := range c.GetRulesWithPrefix(ref) {
-		set[rule] = struct{}{}
-	}
-
-	for rule := range set {
-		rules = append(rules, rule)
-	}
-
-	return rules
+	return util.Keys(set)
 }
 
 // GetRulesDynamic returns a slice of rules that could be referred to by a ref.
@@ -945,11 +960,7 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 	}
 
 	walk(node, 0)
-	rules := make([]*Rule, 0, len(set))
-	for rule := range set {
-		rules = append(rules, rule)
-	}
-	return rules
+	return util.Keys(set)
 }
 
 // Utility: add all rule values to the set.
@@ -1188,8 +1199,6 @@ func (c *Compiler) buildComprehensionIndices() {
 
 	varVisitorPool.Put(vis)
 }
-
-var futureKeywordsPrefix = Ref{FutureRootDocument, InternedTerm("keywords")}
 
 // buildRequiredCapabilities updates the required capabilities on the compiler
 // to include any keyword and feature dependencies present in the modules. The
@@ -1524,10 +1533,10 @@ func checkUndefinedFuncs(env *TypeEnv, x any, arity func(Ref) int, rwVars map[Va
 }
 
 func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
-	if want, ok := env.Get(f).(*types.Function); ok { // generate richer error for built-in functions
+	if want, ok := env.GetByRef(f).(*types.Function); ok { // generate richer error for built-in functions
 		have := make([]types.Type, len(expr.Operands()))
 		for i, op := range expr.Operands() {
-			have[i] = env.Get(op)
+			have[i] = env.GetByValue(op.Value)
 		}
 		return newArgError(expr.Loc(), f, "arity mismatch", have, want.NamedFuncArgs())
 	}
@@ -1544,18 +1553,19 @@ func (c *Compiler) checkSafetyRuleBodies() {
 	vis := varVisitorPool.Get()
 
 	for _, name := range c.sorted {
-		m := c.Modules[name]
-		scopes := ruleScopes{module: m}
-		WalkRules(m, func(r *Rule) bool {
-			vis = vis.Clear()
-			// vis.vars == safe
-			vis.vars.Update(ReservedVars)
-			if len(r.Head.Args) > 0 {
-				vis.WalkArgs(r.Head.Args)
-			}
-			r.Body = c.checkBodySafety(vis.vars, r.Body, r, &scopes)
-			return false
-		})
+		scopes := ruleScopes{module: c.Modules[name]}
+		for _, rule := range c.Modules[name].Rules {
+			WalkRules(rule, func(r *Rule) bool {
+				vis = vis.Clear()
+				// vis.vars == safe
+				vis.vars.Update(ReservedVars)
+				if len(r.Head.Args) > 0 {
+					vis.WalkArgs(r.Head.Args)
+				}
+				r.Body = c.checkBodySafety(vis.vars, r.Body, r, &scopes)
+				return false
+			})
+		}
 	}
 
 	varVisitorPool.Put(vis)
@@ -1571,15 +1581,6 @@ func (c *Compiler) checkBodySafety(safe VarSet, b Body, r *Rule, scopes *ruleSco
 		return b
 	}
 	return reordered
-}
-
-// SafetyCheckVisitorParams defines the AST visitor parameters to use for collecting
-// variables during the safety check. This has to be exported because it's relied on
-// by the copy propagation implementation in topdown.
-// TODO: deprecate?
-var SafetyCheckVisitorParams = VarVisitorParams{
-	SkipRefCallHead: true,
-	SkipClosures:    true,
 }
 
 // checkSafetyRuleHeads ensures that variables appearing in the head of a
@@ -1910,9 +1911,7 @@ func (c *Compiler) checkTypes() {
 		as = c.annotationSet
 	}
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted, as)
-	for _, err := range errs {
-		c.err(err)
-	}
+	c.errRecoverable(errs...)
 	c.TypeEnv = env
 }
 
@@ -1956,10 +1955,7 @@ func (c *Compiler) checkUnsafeBuiltins() {
 	}
 
 	for _, name := range c.sorted {
-		errs := checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])
-		for _, err := range errs {
-			c.err(err)
-		}
+		c.errRecoverable(checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])...)
 	}
 }
 
@@ -1977,7 +1973,7 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 
 	for _, name := range c.sorted {
 		if c.strict || c.Modules[name].regoV1Compatible() {
-			c.err(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
+			c.errRecoverable(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
 		}
 	}
 }
@@ -1985,23 +1981,38 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 func (c *Compiler) compile() {
 	plan := c.getOrBuildPlan()
 
+	defer c.sortErrors()
+
 	if c.metrics != nil {
 		for _, s := range plan.stages {
 			c.metrics.Timer(s.metricName).Start()
 			s.f()
 			c.metrics.Timer(s.metricName).Stop()
-			if c.Failed() {
+			if c.unrecoverableErr {
 				return
 			}
 		}
 	} else {
 		for _, s := range plan.stages {
 			s.f()
-			if c.Failed() {
+			if c.unrecoverableErr {
 				return
 			}
 		}
 	}
+}
+
+// sortErrors orders errors by location so reports read top-to-bottom. The error
+// limit marker has no location of its own and is swapped to the end to keep it
+// last, wherever it was recorded.
+func (c *Compiler) sortErrors() {
+	errs := c.Errors
+	if i := slices.Index(errs, errLimitReached); i >= 0 {
+		errs[i], errs[len(errs)-1] = errs[len(errs)-1], errs[i]
+		errs = errs[:len(errs)-1]
+	}
+
+	errs.Sort()
 }
 
 func (c *Compiler) init() {
@@ -2080,7 +2091,19 @@ func (c *Compiler) init() {
 	c.initialized = true
 }
 
+// err records an error that stops compilation after the current stage.
 func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
+	return c.recordErrs(false, errs...)
+}
+
+// errRecoverable records an error that lets the remaining stages run, so that one
+// compilation can report every violation it finds. Only for checks that leave the
+// modules in a state later stages can't produce bogus follow-up errors from.
+func (c *Compiler) errRecoverable(errs ...*Error) bool {
+	return c.recordErrs(true, errs...)
+}
+
+func (c *Compiler) recordErrs(recoverable bool, errs ...*Error) bool {
 	if len(errs) == 0 {
 		return true
 	}
@@ -2090,6 +2113,7 @@ func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
 
 	if c.maxErrs <= 0 {
 		c.Errors = append(c.Errors, errs...)
+		c.unrecoverableErr = c.unrecoverableErr || !recoverable
 		return true
 	}
 
@@ -2108,6 +2132,8 @@ func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
 
 	c.errCount += uint32(numToTake)
 	c.Errors = append(c.Errors, errs[:numToTake]...)
+	// Nothing left to collect once the limit is hit, so stop there too.
+	c.unrecoverableErr = c.unrecoverableErr || !recoverable || isLimitReachedInThisCall
 	if isLimitReachedInThisCall {
 		c.Errors = append(c.Errors, errLimitReached)
 	}
@@ -2115,42 +2141,35 @@ func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
 	return !isLimitReachedInThisCall // Return false if the limit was reached, true otherwise.
 }
 
+func (c *Compiler) getExport(pkg Ref) []Ref {
+	var refs []Ref
+	for _, name := range c.sorted {
+		if RefEqual(pkg, c.Modules[name].Package.Path) {
+			refs = slices.Grow(refs, len(c.Modules[name].Rules))
+			for _, rule := range c.Modules[name].Rules {
+				refs = append(refs, rule.Head.Ref().GroundPrefix())
+			}
+		}
+	}
+	return refs
+}
+
+// getExports groups every module's exported rule refs by package path in one
+// pass. Use this instead of getExport per package, which is quadratic.
 func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
 	rules := util.NewHasherMap[Ref, []Ref](RefEqual)
 
 	for _, name := range c.sorted {
-		for _, rule := range c.Modules[name].Rules {
-			hashMapAdd(rules, c.Modules[name].Package.Path, rule.Head.Ref().GroundPrefix())
+		mod := c.Modules[name]
+		refs, _ := rules.Get(mod.Package.Path)
+		refs = slices.Grow(refs, len(mod.Rules))
+		for _, rule := range mod.Rules {
+			refs = append(refs, rule.Head.Ref().GroundPrefix())
 		}
+		rules.Put(mod.Package.Path, refs)
 	}
 
 	return rules
-}
-
-func refSliceEqual(a, b []Ref) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !a[i].Equal(b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func hashMapAdd(rules *util.HasherMap[Ref, []Ref], pkg, rule Ref) {
-	prev, ok := rules.Get(pkg)
-	if !ok {
-		rules.Put(pkg, []Ref{rule})
-		return
-	}
-	for _, p := range prev {
-		if p.Equal(rule) {
-			return
-		}
-	}
-	rules.Put(pkg, append(prev, rule))
 }
 
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
@@ -2166,7 +2185,7 @@ func (c *Compiler) checkImports() {
 	for _, name := range c.sorted {
 		for _, imp := range c.Modules[name].Imports {
 			if !supportsRegoV1Import && RegoV1CompatibleRef.Equal(imp.Path.Value) {
-				if !c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported")) {
+				if !c.errRecoverable(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported")) {
 					continue
 				}
 			}
@@ -2177,13 +2196,25 @@ func (c *Compiler) checkImports() {
 		}
 	}
 
-	c.err(checkDuplicateImports(modules)...)
+	c.errRecoverable(checkDuplicateImports(modules)...)
+}
+
+// checkUnusedImports reports the imports resolveAllRefs found unused. Strict mode
+// only, and a stage of its own so these don't cut compilation short.
+func (c *Compiler) checkUnusedImports() {
+	for _, imp := range c.unusedImports {
+		if !c.errRecoverable(NewError(CompileErr, imp.Location, "%s unused", imp.String())) {
+			break
+		}
+	}
+
+	c.unusedImports = nil
 }
 
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		if c.strict || c.moduleIsRegoV1Compatible(c.Modules[name]) {
-			if !c.err(checkRootDocumentOverrides(c.Modules[name])...) {
+			if !c.errRecoverable(checkRootDocumentOverrides(c.Modules[name])...) {
 				continue
 			}
 		}
@@ -2236,15 +2267,12 @@ func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
 //
 // The reference "c.d.e" would be resolved to "data.a.b.c.d.e".
 func (c *Compiler) resolveAllRefs() {
-	rules := c.getExports()
+	exports := c.getExports()
+	c.unusedImports = nil
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		var ruleExports []Ref
-		if x, ok := rules.Get(mod.Package.Path); ok {
-			ruleExports = x
-		}
-
+		ruleExports, _ := exports.Get(mod.Package.Path)
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
 
 		WalkRules(mod, func(rule *Rule) bool {
@@ -2255,7 +2283,7 @@ func (c *Compiler) resolveAllRefs() {
 			return false
 		})
 
-		if c.strict { // check for unused imports
+		if c.strict { // collect unused imports, reported by the CheckUnusedImports stage
 			for _, imp := range mod.Imports {
 				path := imp.Path.Value.(Ref)
 				if FutureRootDocument.Equal(path[0]) || RegoRootDocument.Equal(path[0]) {
@@ -2264,9 +2292,7 @@ func (c *Compiler) resolveAllRefs() {
 
 				for v, u := range globals {
 					if v == imp.Name() && !u.used {
-						if !c.err(NewError(CompileErr, imp.Location, "%s unused", imp.String())) {
-							return
-						}
+						c.unusedImports = append(c.unusedImports, imp)
 					}
 				}
 			}
@@ -2387,6 +2413,8 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 	}
 }
 
+// checkVoidCalls errors are not recoverable: the type checker has no type for an
+// expression using a void result, and reports a bogus "undefined function" for it.
 func (c *Compiler) checkVoidCalls() {
 	for _, name := range c.sorted {
 		c.err(checkVoidCalls(c.TypeEnv, c.Modules[name])...)
@@ -2519,7 +2547,7 @@ func rewriteTemplateStrings(tsr *templateStringRewriter, globals VarSet, x any) 
 		safe = globals.Copy()
 	}
 
-	vis := &GenericVisitor{func(x any) bool {
+	vis := NewGenericVisitor(func(x any) bool {
 		var modrec bool
 		var errsrec Errors
 		switch x := x.(type) {
@@ -2576,7 +2604,7 @@ func rewriteTemplateStrings(tsr *templateStringRewriter, globals VarSet, x any) 
 		}
 		errs = append(errs, errsrec...)
 		return false
-	}}
+	})
 	vis.Walk(x)
 
 	return modified, safe, errs
@@ -2732,7 +2760,7 @@ func checkVoidCalls(env *TypeEnv, x any) Errors {
 	var errs Errors
 	WalkTerms(x, func(x *Term) bool {
 		if call, ok := x.Value.(Call); ok {
-			if tpe, ok := env.Get(call[0]).(*types.Function); ok && tpe.Result() == nil {
+			if tpe, ok := env.GetByValue(call[0].Value).(*types.Function); ok && tpe.Result() == nil {
 				errs = append(errs, NewError(TypeErr, x.Loc(), "%v used as value", call))
 			}
 		}
@@ -2885,7 +2913,7 @@ func containsNestedBody(x any) bool {
 
 func erasePrintCalls(node any) bool {
 	var modified bool
-	NewGenericVisitor(func(x any) bool {
+	vis := NewGenericVisitor(func(x any) bool {
 		var modrec bool
 		switch x := x.(type) {
 		case *Rule:
@@ -2915,7 +2943,8 @@ func erasePrintCalls(node any) bool {
 			modified = true
 		}
 		return false
-	}).Walk(node)
+	})
+	vis.Walk(node)
 	return modified
 }
 
@@ -3267,7 +3296,7 @@ func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
 func (c *Compiler) rewriteLocalVars() {
 	var assignment bool
 
-	args := NewVarVisitor()
+	args := varVisitorPool.Get()
 	argsStack := newLocalDeclaredVars()
 
 	for _, name := range c.sorted {
@@ -3293,6 +3322,9 @@ func (c *Compiler) rewriteLocalVars() {
 				if !c.err(errs...) {
 					return true
 				}
+				if !c.errRecoverable(stack.unused...) {
+					return true
+				}
 				if stack.assignment {
 					assignment = true
 				}
@@ -3308,7 +3340,13 @@ func (c *Compiler) rewriteLocalVars() {
 				// Report an error for each unused function argument
 				for arg := range unusedArgs {
 					if !arg.IsWildcard() {
-						if !c.err(NewError(CompileErr, rule.Head.Location, "unused argument %v. (hint: use _ (wildcard variable) instead)", arg)) {
+						err := NewError(
+							CompileErr,
+							rule.Head.Location,
+							"unused argument %v. (hint: use _ (wildcard variable) instead)",
+							arg,
+						)
+						if !c.errRecoverable(err) {
 							return true
 						}
 					}
@@ -3322,6 +3360,8 @@ func (c *Compiler) rewriteLocalVars() {
 	if assignment {
 		c.Required.addBuiltinSorted(Assign)
 	}
+
+	varVisitorPool.Put(args)
 }
 
 func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsStack *localDeclaredVars, gen *localVarGenerator) (*localDeclaredVars, Errors) {
@@ -3346,11 +3386,14 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 			strict:        c.strict,
 		}
 
-		NewGenericVisitor(nestedXform.Visit).Walk(rule.Head)
+		nxfVis := NewGenericVisitor(nestedXform.Visit)
+		nxfVis.Walk(rule.Head)
 		c.err(nestedXform.errs...) // NB(sr): This is a bit bogus -- Why not return them?
+		c.errRecoverable(nestedXform.unused...)
 
 		// Rewrite assignments in body.
-		vis := NewVarVisitor()
+		vis := varVisitorPool.Get()
+		defer varVisitorPool.Put(vis)
 
 		for _, t := range rule.Head.Ref()[1:] {
 			if !IsScalar(t.Value) {
@@ -3387,31 +3430,32 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 	// references (stay unsafe-var errors), call operators (SkipRefCallHead),
 	// and `with` targets/values (possible function mocks).
 	if len(c.builtins) > 0 {
-		bodyVis := NewVarVisitor().WithParams(VarVisitorParams{
+		bodyVis := varVisitorPool.Get().WithParams(VarVisitorParams{
 			SkipRefCallHead: true,
 			SkipClosures:    true,
 		})
+		defer varVisitorPool.Put(bodyVis)
+
 		bodyVis.Walk(rule.Body)
 		bodyVars := bodyVis.Vars()
 
-		declaredInBody := declaredVars(rule.Body)
+		declaredInBody := declaredBodyVars(rule.Body)
 
-		withVars := NewVarSet()
-		NewGenericVisitor(func(x any) bool {
-			if w, ok := x.(*With); ok {
-				WalkVars(w, func(v Var) bool {
-					withVars.Add(v)
-					return false
-				})
-			}
+		withVis := varVisitorPool.Get().WithParams(VarVisitorParams{SkipRefCallHead: true})
+		defer varVisitorPool.Put(withVis)
+
+		f := func(w *With) bool {
+			withVis.Walk(w.Target.Value)
+			withVis.Walk(w.Value.Value)
 			return false
-		}).Walk(rule)
+		}
+		WalkWiths(rule, f)
 
 		for _, v := range bodyVars.Sorted() {
 			if _, ok := c.builtins[v.String()]; !ok {
 				continue
 			}
-			if declaredInBody.Contains(v) || withVars.Contains(v) {
+			if declaredInBody.Contains(v) || withVis.Vars().Contains(v) {
 				continue
 			}
 			if _, ok := stack.Declared(v); ok {
@@ -3480,35 +3524,42 @@ func headMayHaveVars(head *Head) bool {
 type rewriteNestedHeadVarLocalTransform struct {
 	gen           *localVarGenerator
 	errs          Errors
+	unused        Errors // strict-mode "unused var" diagnostics, see localDeclaredVars.unused
 	RewrittenVars map[Var]Var
 	strict        bool
 }
 
 func (xform *rewriteNestedHeadVarLocalTransform) Visit(x any) bool {
 	if term, ok := x.(*Term); ok {
+		if IsScalar(term.Value) {
+			return false
+		}
+
 		stop := false
 		stack := newLocalDeclaredVars()
 
 		switch x := term.Value.(type) {
 		case *object:
-			vis := NewGenericVisitor(xform.Visit)
-			cpy, _ := x.Map(func(k, v *Term) (*Term, *Term, error) {
-				kcpy := k.Copy()
-				vis.Walk(kcpy)
-				vcpy := v.Copy()
-				vis.Walk(vcpy)
-				return kcpy, vcpy, nil
-			})
-			term.Value = cpy
+			if !x.IsGround() {
+				vis := NewGenericVisitor(xform.Visit)
+				term.Value, _ = x.Map(func(k, v *Term) (*Term, *Term, error) {
+					kcpy := k.Copy()
+					vis.Walk(kcpy)
+					vcpy := v.Copy()
+					vis.Walk(vcpy)
+					return kcpy, vcpy, nil
+				})
+			}
 			stop = true
 		case *set:
-			vis := NewGenericVisitor(xform.Visit)
-			cpy, _ := x.Map(func(v *Term) (*Term, error) {
-				vcpy := v.Copy()
-				vis.Walk(vcpy)
-				return vcpy, nil
-			})
-			term.Value = cpy
+			if !x.IsGround() {
+				vis := NewGenericVisitor(xform.Visit)
+				term.Value, _ = x.Map(func(v *Term) (*Term, error) {
+					vcpy := v.Copy()
+					vis.Walk(vcpy)
+					return vcpy, nil
+				})
+			}
 			stop = true
 		case *ArrayComprehension:
 			xform.errs = rewriteDeclaredVarsInArrayComprehension(xform.gen, stack, x, xform.errs, xform.strict)
@@ -3525,6 +3576,7 @@ func (xform *rewriteNestedHeadVarLocalTransform) Visit(x any) bool {
 		}
 
 		maps.Copy(xform.RewrittenVars, stack.rewritten)
+		xform.unused = append(xform.unused, stack.unused...)
 
 		return stop
 	}
@@ -3546,14 +3598,9 @@ func (xform rewriteHeadVarLocalTransform) Transform(x any) (any, error) {
 }
 
 func (c *Compiler) rewriteLocalArgVars(gen *localVarGenerator, stack *localDeclaredVars, rule *Rule) {
-	vis := &ruleArgLocalRewriter{
-		stack: stack,
-		gen:   gen,
-	}
-
-	for i := range rule.Head.Args {
-		Walk(vis, rule.Head.Args[i])
-	}
+	vis := &ruleArgLocalRewriter{stack: stack, gen: gen}
+	vis.gv = &GenericVisitor{f: vis.visit}
+	vis.gv.Walk(rule.Head.Args)
 
 	c.err(vis.errs...)
 }
@@ -3561,16 +3608,15 @@ func (c *Compiler) rewriteLocalArgVars(gen *localVarGenerator, stack *localDecla
 type ruleArgLocalRewriter struct {
 	stack *localDeclaredVars
 	gen   *localVarGenerator
+	gv    *GenericVisitor
 	errs  []*Error
 }
 
-func (vis *ruleArgLocalRewriter) Visit(x any) Visitor {
-
-	t, ok := x.(*Term)
+func (vis *ruleArgLocalRewriter) visit(a any) bool {
+	t, ok := a.(*Term)
 	if !ok {
-		return vis
+		return false
 	}
-
 	switch v := t.Value.(type) {
 	case Var:
 		gv, ok := vis.stack.Declared(v)
@@ -3581,37 +3627,35 @@ func (vis *ruleArgLocalRewriter) Visit(x any) Visitor {
 			vis.stack.Insert(v, gv, argVar)
 		}
 		t.Value = gv
-		return nil
+		return true
 	case *object:
 		if cpy, err := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			vcpy := v.Copy()
-			Walk(vis, vcpy)
+			vis.gv.Walk(vcpy)
 			return k, vcpy, nil
 		}); err != nil {
 			vis.errs = append(vis.errs, newErrorString(CompileErr, t.Location, err.Error()))
 		} else {
 			t.Value = cpy
 		}
-		return nil
+		return true
 	case Null, Boolean, Number, String, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Set, *TemplateString:
 		// Scalars are no-ops. Comprehensions and template-strings are handled above. Sets must not
 		// contain variables.
-		return nil
+		return true
 	case Call:
 		vis.errs = append(vis.errs, NewError(CompileErr, t.Location, "rule arguments cannot contain calls"))
-		return nil
-	default:
-		// Recurse on refs and arrays. Any embedded
-		// variables can be rewritten.
-		return vis
+		return true
 	}
+	// Recurse on refs and arrays. Any embedded variables can be rewritten.
+	return false
 }
 
 func (c *Compiler) rewriteWithModifiers() {
 	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		t := NewGenericTransformer(func(x any) (any, error) {
+		t := GenericTransformer{f: func(x any) (any, error) {
 			body, ok := x.(Body)
 			if !ok {
 				return x, nil
@@ -3622,7 +3666,7 @@ func (c *Compiler) rewriteWithModifiers() {
 			}
 
 			return body, nil
-		})
+		}}
 		_, _ = Transform(t, mod) // ignore error
 	}
 }
@@ -3819,18 +3863,13 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			pkg = emptyPackage
 		}
 		if pkg != nil {
-			var ruleExports []Ref
-			rules := qc.compiler.getExports()
-			if exist, ok := rules.Get(pkg.Path); ok {
-				ruleExports = exist
-			}
-
+			ruleExports := qc.compiler.getExport(pkg.Path)
 			globals = getGlobals(qctx.Package, ruleExports, qctx.Imports)
 			qctx.Imports = nil
 		}
 	}
 
-	ignore := &declaredVarStack{declaredVars(body)}
+	ignore := &declaredVarStack{declaredBodyVars(body)}
 
 	return resolveRefsInBody(globals, ignore, body), nil
 }
@@ -3864,6 +3903,7 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 	gen := newLocalVarGenerator("q", body)
 	stack := newLocalDeclaredVars()
 	body, _, err := rewriteLocalVars(gen, stack, nil, body, qc.compiler.strict)
+	err = append(err, stack.unused...)
 	if len(err) != 0 {
 		return nil, err
 	}
@@ -3993,16 +4033,21 @@ func (ci *ComprehensionIndex) String() string {
 	return fmt.Sprintf("<keys: %v>", NewArray(ci.Keys...))
 }
 
-func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, node Body, result map[*Term]*ComprehensionIndex) uint64 {
-	var n uint64
+func buildComprehensionIndices(
+	dbg debug.Debug,
+	arity func(Ref) int,
+	candidates VarSet,
+	rwVars map[Var]Var,
+	node Body,
+	result map[*Term]*ComprehensionIndex,
+) (n uint64) {
 	cpy := candidates.Copy()
 	vis := varVisitorPool.Get()
-
 	defer varVisitorPool.Put(vis)
 
 	WalkBodies(node, func(b Body) bool {
 		for _, expr := range b {
-			index := getComprehensionIndex(dbg, arity, cpy, rwVars, expr)
+			index := getComprehensionIndex(dbg, arity, cpy, rwVars, expr, vis)
 			if index != nil {
 				result[index.Term] = index
 				n++
@@ -4010,15 +4055,24 @@ func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates 
 			// Any variables appearing in the expressions leading up to the comprehension
 			// are fair-game to be used as index keys.
 			vis = vis.Clear().WithParams(VarVisitorParams{SkipClosures: true, SkipRefCallHead: true})
+			old := vis.vars
+			vis.vars = cpy
 			vis.Walk(expr)
-			cpy.Update(vis.Vars())
+			vis.vars = old
 		}
 		return false
 	})
 	return n
 }
 
-func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, expr *Expr) *ComprehensionIndex {
+func getComprehensionIndex(
+	dbg debug.Debug,
+	arity func(Ref) int,
+	candidates VarSet,
+	rwVars map[Var]Var,
+	expr *Expr,
+	vis *VarVisitor,
+) *ComprehensionIndex {
 	// Ignore everything except <var> = <comprehension> expressions. Extract
 	// the comprehension term from the expression.
 	if !expr.IsEquality() || expr.Negated || len(expr.With) > 0 {
@@ -4071,10 +4125,14 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 		body = x.Body
 	}
 
-	outputs := outputVarsForBody(body, arity, ReservedVars, nil)
-	unsafe := body.Vars(SafetyCheckVisitorParams).Diff(outputs).Diff(ReservedVars)
+	vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
+	outputs := outputVarsForBody(body, arity, ReservedVars, vis)
 
-	if len(unsafe) > 0 {
+	vis.Clear().WithParams(SafetyCheckVisitorParams).Walk(body)
+	unsafe := vis.Vars().Diff(outputs)
+
+	if unsafe.DiffCount(ReservedVars) > 0 {
+		unsafe = unsafe.Diff(ReservedVars)
 		dbg.Printf("%s: comprehension index: unsafe vars: %v", expr.Location, unsafe)
 		return nil
 	}
@@ -4109,12 +4167,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 		return nil
 	}
 
-	result := make([]*Term, 0, len(indexVars))
-	for v := range indexVars {
-		result = append(result, NewTerm(v))
-	}
-	slices.SortFunc(result, TermValueCompare)
-
+	result := util.SortedFunc(util.MapKeys(indexVars, ToTerm), TermValueCompare)
 	debugRes := make([]*Term, len(result))
 	for i, r := range result {
 		if o, ok := rwVars[r.Value.(Var)]; ok {
@@ -4133,15 +4186,6 @@ type comprehensionIndexRegressionCheckVisitor struct {
 	worse      bool
 }
 
-// TODO(tsandall): Improve this so that users can either supply this list explicitly
-// or the information is maintained on the built-in function declaration. What we really
-// need to know is whether the built-in function allows callers to push down output
-// values or not. It's unlikely that anything outside of OPA does this today so this
-// solution is fine for now.
-var comprehensionIndexBlacklist = map[string]int{
-	WalkBuiltin.Name: len(WalkBuiltin.Decl.FuncArgs().Args),
-}
-
 func newComprehensionIndexRegressionCheckVisitor(candidates VarSet) *comprehensionIndexRegressionCheckVisitor {
 	return &comprehensionIndexRegressionCheckVisitor{
 		candidates: candidates,
@@ -4158,7 +4202,7 @@ func (vis *comprehensionIndexRegressionCheckVisitor) visit(x any) bool {
 		switch x := x.(type) {
 		case *Expr:
 			operands := x.Operands()
-			if pos := comprehensionIndexBlacklist[x.Operator().String()]; pos > 0 && pos < len(operands) {
+			if pos := comprehensionIndexDenylist[x.Operator().String()]; pos > 0 && pos < len(operands) {
 				vis.assertEmptyIntersection(operands[pos].Vars())
 			}
 		case Ref:
@@ -4487,18 +4531,13 @@ type legacyExternalResolver struct {
 	inner ValueResolver
 }
 
-func (r legacyExternalResolver) Resolve(ref Ref) (Value, error) {
+func (r legacyExternalResolver) Resolve(ref Ref) (v Value, err error) {
 	if !ref.HasPrefix(InputRootRef) {
-		return nil, UnknownValueErr{}
+		err = UnknownValueErr{}
+	} else if v, err = r.inner.Resolve(ref); err == nil && v == nil {
+		err = UnknownValueErr{}
 	}
-	v, err := r.inner.Resolve(ref)
-	if err != nil {
-		return nil, err
-	}
-	if v == nil {
-		return nil, UnknownValueErr{}
-	}
-	return v, nil
+	return v, err
 }
 
 // unknownResolver treats every reference as unknown. It is used as a safe
@@ -5007,17 +5046,19 @@ func (vs unsafeVars) Slice() (result []unsafePair) {
 // If the body cannot be reordered to ensure safety, the second return value
 // contains a mapping of expressions to unsafe variables in those expressions.
 func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
-	vis := varVisitorPool.Get().WithParams(SafetyCheckVisitorParamsWithArity(arity))
-	vis.WalkBody(body)
+	params := SafetyCheckVisitorParamsWithArity(arity)
 
+	vis := varVisitorPool.Get().WithParams(params)
 	defer varVisitorPool.Put(vis)
+
+	vis.WalkBody(body)
 
 	bodyVars := vis.Vars().Copy()
 	safe := bodyVars.Intersect(globals)
 	unsafe := make(unsafeVars, len(bodyVars)-len(safe))
 
 	for _, e := range body {
-		vis = vis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
+		vis = vis.Clear().WithParams(params)
 		vis.Walk(e)
 		for v := range vis.Vars() {
 			if _, ok := safe[v]; !ok {
@@ -5080,19 +5121,20 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	// Recursively visit closures and perform the safety checks on them.
 	// Update the globals at each expression to include the variables that could
 	// be closed over.
-	g := globals.Copy()
 	xform := newBodySafetyTransformer(builtins, arity)
 	xform.gv = NewGenericVisitor(xform.Visit)
 
+	xform.unsafe = unsafe
+	xform.globals = globals.Copy()
+
+	vis = vis.WithParams(params)
+	vis.vars = xform.globals
+
 	for i, e := range reordered {
 		if i > 0 {
-			vis = vis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 			vis.Walk(reordered[i-1])
-			g.Update(vis.Vars())
 		}
 		xform.current = e
-		xform.globals = g
-		xform.unsafe = unsafe
 		xform.gv.Walk(e)
 	}
 
@@ -5187,7 +5229,7 @@ func unsafeImplicitBodyVars(body Body, arity func(Ref) int) VarSet {
 		}
 
 		if e.IsEquality() {
-			for v := range outputVarsForExprEq(e, VarSet{}, VarSet{}) {
+			for v := range outputVarsForExprEq(e, VarSet{}, nil) {
 				bindings[v] = struct{}{}
 			}
 			continue
@@ -5255,22 +5297,24 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 	case *Term:
 		switch x := term.Value.(type) {
 		case *object:
-			cpy, _ := x.Map(func(k, v *Term) (*Term, *Term, error) {
-				kcpy := k.Copy()
-				xform.gv.Walk(kcpy)
-				vcpy := v.Copy()
-				xform.gv.Walk(vcpy)
-				return kcpy, vcpy, nil
-			})
-			term.Value = cpy
+			if !x.IsGround() {
+				term.Value, _ = x.Map(func(k, v *Term) (*Term, *Term, error) {
+					kcpy := k.Copy()
+					xform.gv.Walk(kcpy)
+					vcpy := v.Copy()
+					xform.gv.Walk(vcpy)
+					return kcpy, vcpy, nil
+				})
+			}
 			return true
 		case *set:
-			cpy, _ := x.Map(func(v *Term) (*Term, error) {
-				vcpy := v.Copy()
-				xform.gv.Walk(vcpy)
-				return vcpy, nil
-			})
-			term.Value = cpy
+			if !x.IsGround() {
+				term.Value, _ = x.Map(func(v *Term) (*Term, error) {
+					vcpy := v.Copy()
+					xform.gv.Walk(vcpy)
+					return vcpy, nil
+				})
+			}
 			return true
 		case *ArrayComprehension:
 			xform.reorderArrayComprehensionSafety(x)
@@ -5442,6 +5486,13 @@ func outputVarsForExprEq(expr *Expr, safe VarSet, output VarSet) VarSet {
 		return safe
 	}
 
+	// Clear the shared buffer before use. Callers of outputVarsForExpr reuse the
+	// same VarSet across candidate expressions in a single reorderBodyForSafety
+	// pass. Without this, leftover bindings from an earlier (not-yet-schedulable)
+	// call expression can leak into Unify() via the safe basis and incorrectly
+	// mark an equality as grounded. See issue #8302.
+	clear(output)
+
 	output = outputVarsForTerms(expr, safe, output)
 	output.Update(safe)
 	if expr.fromAssignment {
@@ -5482,8 +5533,15 @@ func outputVarsForExprCall(expr *Expr, arity int, safe VarSet, terms []*Term, vi
 	vis = ClearOrNewVarVisitor(vis).WithParams(params)
 	vis.WalkArgs(Args(terms[:numInputTerms]))
 
-	unsafe := vis.Vars().Diff(output).DiffCount(safe)
-	if unsafe > 0 {
+	unsafe := vis.Vars()
+	for i := range output {
+		delete(unsafe, i)
+	}
+	for i := range safe {
+		delete(unsafe, i)
+	}
+
+	if len(unsafe) > 0 {
 		return VarSet{}
 	}
 
@@ -5533,9 +5591,6 @@ func (f *equalityFactory) Generate(other *Term) *Expr {
 	expr.Location = other.Location
 	return expr
 }
-
-// TODO: Move to internal package?
-const LocalVarPrefix = "__local"
 
 type localVarGenerator struct {
 	exclude VarSet
@@ -5664,8 +5719,6 @@ type usedRef struct {
 }
 
 func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
-	ignore := &declaredVarStack{}
-
 	vars := NewVarSet()
 	var vis *GenericVisitor
 	var err error
@@ -5691,30 +5744,27 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 			return true
 
 		case *Term:
-			if _, ok := x.Value.(Ref); ok {
-				if RootDocumentRefs.Contains(x) {
-					// We could support args named input, data, etc. however
-					// this would require rewriting terms in the head and body.
-					// Preventing root document shadowing is simpler, and
-					// arguably, will prevent confusing names from being used.
-					// NOTE: this check is also performed as part of strict-mode in
-					// checkRootDocumentOverrides.
-					err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
-					return true
-				}
+			if TermValueIs[Ref](x) && RootDocumentRefs.Contains(x) {
+				// We could support args named input, data, etc. however
+				// this would require rewriting terms in the head and body.
+				// Preventing root document shadowing is simpler, and
+				// arguably, will prevent confusing names from being used.
+				// NOTE: this check is also performed as part of strict-mode in
+				// checkRootDocumentOverrides.
+				err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
+				return true
 			}
 		}
 		return false
 	})
-
 	vis.Walk(rule.Head.Args)
 
 	if err != nil {
 		return err
 	}
 
-	ignore.Push(vars)
-	ignore.Push(declaredVars(rule.Body))
+	ignore := &declaredVarStack{}
+	ignore.Push(vars, declaredBodyVars(rule.Body))
 
 	ref := rule.Head.Ref()
 	for i := 1; i < len(ref); i++ {
@@ -5759,12 +5809,12 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 			}
 		}
 	case *Every:
-		locals := NewVarSet()
+		vis := varVisitorPool.Get()
 		if ts.Key != nil {
-			locals.Update(ts.Key.Vars())
+			vis.Walk(ts.Key)
 		}
-		locals.Update(ts.Value.Vars())
-		ignore.Push(locals)
+		vis.Walk(ts.Value)
+		ignore.Push(vis.Vars())
 		cpy.Terms = &Every{
 			Key:    ts.Key.Copy(),   // TODO(sr): do more?
 			Value:  ts.Value.Copy(), // TODO(sr): do more?
@@ -5772,6 +5822,7 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 			Body:   resolveRefsInBody(globals, ignore, ts.Body),
 		}
 		ignore.Pop()
+		varVisitorPool.Put(vis)
 	case *Not:
 		cpy.Terms = &Not{
 			Body:         resolveRefsInBody(globals, ignore, ts.Body),
@@ -5815,9 +5866,8 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		}
 		return term
 	case Ref:
-		fqn := resolveRef(globals, ignore, v)
 		cpy := *term
-		cpy.Value = fqn
+		cpy.Value = resolveRef(globals, ignore, v)
 		return &cpy
 	case *object:
 		cpy := *term
@@ -5836,38 +5886,37 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		cpy.Value = Call(resolveRefsInTermSlice(globals, ignore, v))
 		return &cpy
 	case Set:
-		s, _ := v.Map(func(e *Term) (*Term, error) {
+		cpy := *term
+		cpy.Value, _ = v.Map(func(e *Term) (*Term, error) {
 			return resolveRefsInTerm(globals, ignore, e), nil
 		})
-		cpy := *term
-		cpy.Value = s
 		return &cpy
 	case *ArrayComprehension:
-		ac := &ArrayComprehension{}
-		ignore.Push(declaredVars(v.Body))
-		ac.Term = resolveRefsInTerm(globals, ignore, v.Term)
-		ac.Body = resolveRefsInBody(globals, ignore, v.Body)
+		ignore.Push(declaredBodyVars(v.Body))
 		cpy := *term
-		cpy.Value = ac
+		cpy.Value = &ArrayComprehension{
+			Term: resolveRefsInTerm(globals, ignore, v.Term),
+			Body: resolveRefsInBody(globals, ignore, v.Body),
+		}
 		ignore.Pop()
 		return &cpy
 	case *ObjectComprehension:
-		oc := &ObjectComprehension{}
-		ignore.Push(declaredVars(v.Body))
-		oc.Key = resolveRefsInTerm(globals, ignore, v.Key)
-		oc.Value = resolveRefsInTerm(globals, ignore, v.Value)
-		oc.Body = resolveRefsInBody(globals, ignore, v.Body)
+		ignore.Push(declaredBodyVars(v.Body))
 		cpy := *term
-		cpy.Value = oc
+		cpy.Value = &ObjectComprehension{
+			Key:   resolveRefsInTerm(globals, ignore, v.Key),
+			Value: resolveRefsInTerm(globals, ignore, v.Value),
+			Body:  resolveRefsInBody(globals, ignore, v.Body),
+		}
 		ignore.Pop()
 		return &cpy
 	case *SetComprehension:
-		sc := &SetComprehension{}
-		ignore.Push(declaredVars(v.Body))
-		sc.Term = resolveRefsInTerm(globals, ignore, v.Term)
-		sc.Body = resolveRefsInBody(globals, ignore, v.Body)
+		ignore.Push(declaredBodyVars(v.Body))
 		cpy := *term
-		cpy.Value = sc
+		cpy.Value = &SetComprehension{
+			Term: resolveRefsInTerm(globals, ignore, v.Term),
+			Body: resolveRefsInBody(globals, ignore, v.Body),
+		}
 		ignore.Pop()
 		return &cpy
 	case *TemplateString:
@@ -5917,12 +5966,8 @@ func (s declaredVarStack) Contains(v Var) bool {
 	return false
 }
 
-func (s declaredVarStack) Add(v Var) {
-	s[len(s)-1].Add(v)
-}
-
-func (s *declaredVarStack) Push(vs VarSet) {
-	*s = append(*s, vs)
+func (s *declaredVarStack) Push(vs ...VarSet) {
+	*s = append(*s, vs...)
 }
 
 func (s *declaredVarStack) Pop() {
@@ -5930,16 +5975,31 @@ func (s *declaredVarStack) Pop() {
 	*s = curr[:len(curr)-1]
 }
 
-func declaredVars(x any) VarSet {
+func declaredBodyVars(body Body) VarSet {
 	vars := NewVarSet()
+	for _, e := range body {
+		vars = declaredVars(e, vars)
+	}
+	return vars
+}
+
+func declaredVars(x any, vars VarSet) VarSet {
+	if vars == nil {
+		vars = NewVarSet()
+	}
 	vis := NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *Expr:
 			if x.IsAssignment() && validEqAssignArgCount(x) {
-				WalkVars(x.Operand(0), func(v Var) bool {
+				lhs := x.Operand(0)
+				if v, ok := lhs.Value.(Var); ok {
 					vars.Add(v)
-					return false
-				})
+				} else {
+					WalkVars(lhs, func(v Var) bool {
+						vars.Add(v)
+						return false
+					})
+				}
 			} else if decl, ok := x.Terms.(*SomeDecl); ok {
 				for i := range decl.Symbols {
 					switch val := decl.Symbols[i].Value.(type) {
@@ -6031,16 +6091,15 @@ func rewriteComprehensionTerms(f *equalityFactory, node any) (any, error) {
 func rewriteEquals(x any) (modified bool) {
 	// Note: can't use Interned.Refs.Equality here as this may be mutated
 	unifyOp := Equality.Ref()
-	t := NewGenericTransformer(func(x any) (any, error) {
+	t := GenericTransformer{f: func(x any) (any, error) {
 		if x, ok := x.(*Expr); ok && x.IsCall() {
-			operator := x.Operator()
-			if operator.Equal(Interned.Refs.Equal) && len(x.Operands()) == 2 {
+			if x.Operator().Equal(Interned.Refs.Equal) && len(x.Operands()) == 2 {
 				modified = true
 				x.SetOperator(NewTerm(unifyOp))
 			}
 		}
 		return x, nil
-	})
+	}}
 	_, _ = Transform(t, x) // ignore error
 	return modified
 }
@@ -6058,7 +6117,8 @@ func rewriteTestEqualities(f *equalityFactory, body Body) Body {
 				result, terms[2] = rewriteDynamicsShallow(expr, f, terms[2], result)
 			case expr.IsEvery():
 				// We rewrite equalities inside of every-bodies as a fail here will be the cause of the test-rule fail.
-				// Failures inside other expressions with closures, such as comprehensions, won't cause the test-rule to fail, so we skip those.
+				// Failures inside other expressions with closures, such as comprehensions, won't cause the test-rule to
+				// fail, so we skip those.
 				every := expr.Terms.(*Every)
 				every.Body = rewriteTestEqualities(f, every.Body)
 			}
@@ -6516,6 +6576,10 @@ type localDeclaredVars struct {
 
 	// indicates if an assignment (:= operator) has been seen *ever*
 	assignment bool
+
+	// strict-mode diagnostics for assigned and declared vars that are never used,
+	// kept apart from the rewrite errors because they're recoverable
+	unused Errors
 }
 
 type varOccurrence uint8
@@ -6567,6 +6631,7 @@ func (s *localDeclaredVars) Clear() {
 	clear(s.rewritten)
 
 	s.vars = s.vars[:0]
+	s.unused = nil
 
 	if vs != nil {
 		s.vars = append(s.vars, vs.clear())
@@ -6701,8 +6766,7 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs, strict)
 		case body[i].IsEvery():
 			expr, errs = rewriteEveryStatement(g, stack, body[i], errs, strict)
-		case body[i].IsNot() && body[i].Terms.(*Not).ExplicitBody:
-			// Only explicit not bodies are allowed to declare vars
+		case body[i].IsNot():
 			expr, errs = rewriteNotStatement(g, stack, body[i], errs, strict)
 		case body[i].IsAnd() || body[i].IsOr():
 			expr, errs = rewriteLogicalStatement(g, stack, body[i], errs, strict)
@@ -6721,13 +6785,15 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
-	errs = checkUnusedAssignedVars(body, stack, used, errs, strict)
-	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
+	checkUnusedAssignedVars(body, stack, used, errs, strict)
+	checkUnusedDeclaredVars(body, stack, used, cpy, errs)
+
+	return cpy, errs
 }
 
-func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
-	if !strict || len(errs) > 0 {
-		return errs
+func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) {
+	if !strict || len(errs) > 0 || len(stack.unused) > 0 {
+		return
 	}
 
 	dvs := stack.Peek()
@@ -6739,31 +6805,31 @@ func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, e
 		}
 	}
 	if !hasAssignedVars {
-		return errs
+		return
 	}
 
-	unused := NewVarSet()
+	var unused VarSet
 
 	for v, occ := range dvs.occurrence {
 		// A var that was assigned in this scope must have been seen (used) more than once (the time of assignment) in
 		// the same, or nested, scope to be counted as used.
-		if !v.IsWildcard() && stack.Count(v) <= 1 && occ == assignedVar {
+		if !v.IsWildcard() && stack.Count(v) <= 1 && occ == assignedVar && !used.Contains(dvs.vs[v]) {
+			if unused == nil {
+				unused = NewVarSet()
+			}
 			unused.Add(dvs.vs[v])
 		}
 	}
 
-	rewrittenUsed := NewVarSet()
+	// rewritten unused
 	for v := range used {
 		if gv, ok := stack.Declared(v); ok {
-			rewrittenUsed.Add(gv)
-		} else {
-			rewrittenUsed.Add(v)
+			delete(unused, gv)
 		}
 	}
 
-	unused = unused.Diff(rewrittenUsed)
 	if len(unused) == 0 {
-		return errs
+		return
 	}
 
 	reversed := make(map[Var]Var, len(dvs.vs))
@@ -6775,25 +6841,22 @@ func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, e
 		found := false
 		for i := range body {
 			if body[i].Vars(VarVisitorParams{}).Contains(gv) {
-				errs = append(errs, NewError(CompileErr, body[i].Loc(), "assigned var %v unused", reversed[gv]))
+				stack.unused = append(stack.unused, NewError(CompileErr, body[i].Loc(), "assigned var %v unused", reversed[gv]))
 				found = true
 				break
 			}
 		}
 		if !found {
-			errs = append(errs, NewError(CompileErr, body[0].Loc(), "assigned var %v unused", reversed[gv]))
+			stack.unused = append(stack.unused, NewError(CompileErr, body[0].Loc(), "assigned var %v unused", reversed[gv]))
 		}
 	}
-
-	return errs
 }
 
-func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) Errors {
-
+func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) {
 	// NOTE(tsandall): Do not generate more errors if there are existing
 	// declaration errors.
-	if len(errs) > 0 {
-		return errs
+	if len(errs) > 0 || len(stack.unused) > 0 {
+		return
 	}
 
 	dvs := stack.Peek()
@@ -6805,7 +6868,7 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 		}
 	}
 	if !hasDeclaredVars {
-		return errs
+		return
 	}
 
 	declared := NewVarSet()
@@ -6828,7 +6891,7 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 
 	dbv := declared.Diff(bodyvars)
 	if dbv.DiffCount(used) == 0 {
-		return errs
+		return
 	}
 
 	reversed := make(map[Var]Var, len(dvs.vs))
@@ -6836,30 +6899,35 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 		reversed[v] = k
 	}
 
+	var varsDeclaredInExpr VarSet
+
 	for _, gv := range dbv.Diff(used).Sorted() {
 		rv := reversed[gv]
 		if !rv.IsGenerated() {
 			// Scan through body exprs, looking for a match between the
 			// bad var's original name, and each expr's declared vars.
 			foundUnusedVarByName := false
+			if varsDeclaredInExpr == nil {
+				varsDeclaredInExpr = NewVarSet()
+			}
+
 			for i := range body {
-				varsDeclaredInExpr := declaredVars(body[i])
+				clear(varsDeclaredInExpr)
+				varsDeclaredInExpr = declaredVars(body[i], varsDeclaredInExpr)
 				if varsDeclaredInExpr.Contains(rv) {
 					// TODO(philipc): Clean up the offset logic here when the parser
 					// reports more accurate locations.
-					errs = append(errs, NewError(CompileErr, body[i].Loc(), "declared var %v unused", rv))
+					stack.unused = append(stack.unused, NewError(CompileErr, body[i].Loc(), "declared var %v unused", rv))
 					foundUnusedVarByName = true
 					break
 				}
 			}
 			// Default error location returned.
 			if !foundUnusedVarByName {
-				errs = append(errs, NewError(CompileErr, body[0].Loc(), "declared var %v unused", rv))
+				stack.unused = append(stack.unused, NewError(CompileErr, body[0].Loc(), "declared var %v unused", rv))
 			}
 		}
 	}
-
-	return errs
 }
 
 func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
@@ -6946,6 +7014,16 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 }
 
 func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	if not := expr.Terms.(*Not); !not.ExplicitBody {
+		// Only explicit not bodies are allowed to declare vars.
+		numErrsBefore := len(errs)
+		errs = rewriteDeclaredVarsInImplicitBody(g, stack, not.Body, errAssignInNegated, errs, strict)
+		if len(errs) > numErrsBefore {
+			return expr, errs
+		}
+		return rewriteDeclaredVarsInExpr(g, stack, expr, errs, strict)
+	}
+
 	e := expr.Copy()
 	not := e.Terms.(*Not)
 
@@ -6961,24 +7039,31 @@ func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *E
 func rewriteLogicalStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	e := expr.Copy()
 
+	numErrsBefore := len(errs)
+
 	switch t := e.Terms.(type) {
 	case *LogicalAnd:
-		if t.ExplicitLhs {
-			t.Lhs, errs = rewriteLogicalOperandBody(g, stack, t.Lhs, errs, strict)
-		}
-		if t.ExplicitRhs {
-			t.Rhs, errs = rewriteLogicalOperandBody(g, stack, t.Rhs, errs, strict)
-		}
+		t.Lhs, errs = rewriteLogicalOperand(g, stack, t.Lhs, t.ExplicitLhs, errAssignInAndOperand, errs, strict)
+		t.Rhs, errs = rewriteLogicalOperand(g, stack, t.Rhs, t.ExplicitRhs, errAssignInAndOperand, errs, strict)
 	case *LogicalOr:
-		if t.ExplicitLhs {
-			t.Lhs, errs = rewriteLogicalOperandBody(g, stack, t.Lhs, errs, strict)
-		}
-		if t.ExplicitRhs {
-			t.Rhs, errs = rewriteLogicalOperandBody(g, stack, t.Rhs, errs, strict)
-		}
+		t.Lhs, errs = rewriteLogicalOperand(g, stack, t.Lhs, t.ExplicitLhs, errAssignInOrOperand, errs, strict)
+		t.Rhs, errs = rewriteLogicalOperand(g, stack, t.Rhs, t.ExplicitRhs, errAssignInOrOperand, errs, strict)
+	}
+
+	if len(errs) > numErrsBefore {
+		return e, errs
 	}
 
 	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
+}
+
+func rewriteLogicalOperand(g *localVarGenerator, stack *localDeclaredVars, body Body, explicit bool, errMsg string, errs Errors, strict bool) (Body, Errors) {
+	if explicit {
+		return rewriteLogicalOperandBody(g, stack, body, errs, strict)
+	}
+
+	// Only explicit operand bodies are allowed to declare vars.
+	return body, rewriteDeclaredVarsInImplicitBody(g, stack, body, errMsg, errs, strict)
 }
 
 func rewriteLogicalOperandBody(g *localVarGenerator, stack *localDeclaredVars, body Body, errs Errors, strict bool) (Body, Errors) {
@@ -6989,10 +7074,28 @@ func rewriteLogicalOperandBody(g *localVarGenerator, stack *localDeclaredVars, b
 	return rewriteDeclaredVarsInBody(g, stack, used, body, errs, strict)
 }
 
+// rewriteDeclaredVarsInImplicitBody rejects assignments made directly in an implicit
+// and/or operand or not body. These contribute no bindings to the enclosing body,
+// so the assignment is dead code. Only assignments need rejecting, as the parser
+// doesn't allow some/every in an implicit body.
+func rewriteDeclaredVarsInImplicitBody(g *localVarGenerator, stack *localDeclaredVars, body Body, errMsg string, errs Errors, strict bool) Errors {
+	for i := range body {
+		switch {
+		case body[i].IsAssignment():
+			errs = append(errs, newErrorString(CompileErr, body[i].Loc(), errMsg))
+		case body[i].IsNot():
+			body[i], errs = rewriteNotStatement(g, stack, body[i], errs, strict)
+		case body[i].IsAnd(), body[i].IsOr():
+			body[i], errs = rewriteLogicalStatement(g, stack, body[i], errs, strict)
+		}
+	}
+	return errs
+}
+
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
-	vis := NewGenericVisitor(func(x any) bool {
-		var stop bool
-		// Note: we don't include *Not nodes here, as such bodies are allowed to contain assignments; e.g. 'not {x := input.x; f(x)}'
+	vis := NewGenericVisitor(func(x any) (stop bool) {
+		// Note: we don't include *Not nodes here, as such bodies are
+		// allowed to contain assignments; e.g. 'not {x := input.x; f(x)}'
 		switch x := x.(type) {
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs, strict)
@@ -7006,17 +7109,15 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 }
 
 func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
-
 	if expr.Negated {
-		errs = append(errs, NewError(CompileErr, expr.Location, "cannot assign vars inside negated expression"))
-		return expr, errs
+		return expr, append(errs, newErrorString(CompileErr, expr.Location, errAssignInNegated))
 	}
-
-	numErrsBefore := len(errs)
 
 	if !validEqAssignArgCount(expr) {
 		return expr, errs
 	}
+
+	numErrsBefore := len(errs)
 
 	// Rewrite terms on right hand side capture seen vars and recursively
 	// process comprehensions before left hand side is processed. Also
@@ -7076,7 +7177,10 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 	switch v := term.Value.(type) {
 	case Var:
 		if gv, ok := stack.Declared(v); ok {
-			term.Value = gv
+			// don't allocate for boxing Var -> Value unless it changed
+			if gv != v {
+				term.Value = gv
+			}
 			stack.Seen(v)
 		} else if stack.Occurrence(v) == newVar {
 			stack.Insert(v, v, seenVar)
@@ -7085,8 +7189,10 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 		if RootDocumentRefs.Contains(term) {
 			x := v[0].Value.(Var)
 			if occ, ok := stack.GlobalOccurrence(x); ok && occ != seenVar {
-				gv, _ := stack.Declared(x)
-				term.Value = gv
+				// don't allocate for boxing Var -> Value unless it changed
+				if gv, _ := stack.Declared(x); gv != x {
+					term.Value = gv
+				}
 			}
 
 			return true, errs
@@ -7104,20 +7210,26 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 		})
 		return false, errs
 	case *object:
-		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
-			kcpy := k.Copy()
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, kcpy, errs, strict)
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, v, errs, strict)
+		term.Value, _ = v.Map(func(k, v *Term) (*Term, *Term, error) {
+			kcpy := k
+			if !IsScalar(k.Value) {
+				kcpy = k.Copy()
+				errs = rewriteDeclaredVarsInTermRecursive(g, stack, kcpy, errs, strict)
+			}
+			if !IsScalar(v.Value) {
+				errs = rewriteDeclaredVarsInTermRecursive(g, stack, v, errs, strict)
+			}
 			return kcpy, v, nil
 		})
-		term.Value = cpy
-	case Set:
-		cpy, _ := v.Map(func(elem *Term) (*Term, error) {
+	case *set:
+		term.Value, _ = v.Map(func(elem *Term) (*Term, error) {
+			if IsScalar(elem.Value) {
+				return elem, nil
+			}
 			elemcpy := elem.Copy()
 			errs = rewriteDeclaredVarsInTermRecursive(g, stack, elemcpy, errs, strict)
 			return elemcpy, nil
 		})
-		term.Value = cpy
 	case *ArrayComprehension:
 		errs = rewriteDeclaredVarsInArrayComprehension(g, stack, v, errs, strict)
 	case *SetComprehension:
@@ -7131,8 +7243,7 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 }
 
 func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors, strict bool) Errors {
-	WalkTerms(term, func(t *Term) bool {
-		var stop bool
+	WalkTerms(term, func(t *Term) (stop bool) {
 		stop, errs = rewriteDeclaredVarsInTerm(g, stack, t, errs, strict)
 		return stop
 	})
@@ -7411,12 +7522,30 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (r
 		return
 	}
 
-	for _, pair := range unsafe.Vars() {
+	assignmentLHS := assignmentLHSVars(unsafe, rewritten)
+
+	pairs := unsafe.Vars()
+	hasNonAssignmentLHS := false
+	for _, pair := range pairs {
+		v := pair.Var
+		if w, ok := rewritten[v]; ok {
+			v = w
+		}
+		if !v.IsGenerated() && !assignmentLHS.Contains(v) && !assignmentLHS.Contains(pair.Var) {
+			hasNonAssignmentLHS = true
+			break
+		}
+	}
+
+	for _, pair := range pairs {
 		v := pair.Var
 		if w, ok := rewritten[v]; ok {
 			v = w
 		}
 		if !v.IsGenerated() {
+			if hasNonAssignmentLHS && (assignmentLHS.Contains(v) || assignmentLHS.Contains(pair.Var)) {
+				continue
+			}
 			if _, ok := allFutureKeywords[string(v)]; ok {
 				result = append(result, NewError(UnsafeVarErr, pair.Loc,
 					"var %[1]v is unsafe%[2]v (hint: `import future.keywords.%[1]v` to import a future keyword)", v, scope))
@@ -7433,14 +7562,14 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (r
 	// If the expression contains unsafe generated variables, report which
 	// expressions are unsafe instead of the variables that are unsafe (since
 	// the latter are not meaningful to the user.)
-	pairs := util.SortedFunc(unsafe.Slice(), func(a, b unsafePair) int {
+	exprPairs := util.SortedFunc(unsafe.Slice(), func(a, b unsafePair) int {
 		return a.Expr.Location.Compare(b.Expr.Location)
 	})
 
 	// Report at most one error per generated variable.
 	seen := NewVarSet()
 
-	for _, expr := range pairs {
+	for _, expr := range exprPairs {
 		before := len(seen)
 		for v := range expr.Vars {
 			if v.IsGenerated() {
@@ -7453,6 +7582,23 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (r
 	}
 
 	return
+}
+
+func assignmentLHSVars(unsafe unsafeVars, rewritten map[Var]Var) VarSet {
+	lhs := NewVarSet()
+	for expr := range unsafe {
+		if !expr.fromAssignment || !validEqAssignArgCount(expr) {
+			continue
+		}
+		WalkVars(expr.Operand(0), func(v Var) bool {
+			lhs.Add(v)
+			if w, ok := rewritten[v]; ok {
+				lhs.Add(w)
+			}
+			return false
+		})
+	}
+	return lhs
 }
 
 // ruleScopes resolves the "in rule ..." label appended to safety errors for the

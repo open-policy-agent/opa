@@ -49,7 +49,7 @@ func TestEditTreeNilValueCases(t *testing.T) {
 	}
 	// Try Exists with a nil-valued EditTree node.
 	if ok := badroot.Exists(ast.Ref{ast.StringTerm("a")}); ok {
-		t.Fatalf("Expected false from Exists on nil-valued tree node, got true instead")
+		t.Fatal("Expected false from Exists on nil-valued tree node, got true instead")
 	}
 	// Try Filter with a nil-valued EditTree node.
 	if result := badroot.Filter([]ast.Ref{{ast.StringTerm("a")}}); result != nil {

@@ -498,8 +498,8 @@ func WithEnableTelemetry(enableTelemetry bool) func(*Manager) {
 //
 // Deprecated: This function is deprecated as telemetry gathering has been removed. Use WithVersionChecker to provide
 // a custom version checker implementation if needed.
-func WithTelemetryGatherers(gs map[string]versioncheck.Gatherer) func(*Manager) {
-	return func(m *Manager) {
+func WithTelemetryGatherers(map[string]versioncheck.Gatherer) func(*Manager) {
+	return func(*Manager) {
 		// No-op: telemetry gatherers are no longer used
 	}
 }

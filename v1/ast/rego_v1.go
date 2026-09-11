@@ -33,14 +33,15 @@ func checkRootDocumentOverrides(node any) Errors {
 		}
 
 		if ReservedVars.Contains(name) {
-			errors = append(errors, NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
+			errors = append(errors,
+				NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
 		}
 
 		for _, arg := range rule.Head.Args {
-			if _, ok := arg.Value.(Ref); ok {
-				if RootDocumentRefs.Contains(arg) {
-					errors = append(errors, NewError(CompileErr, arg.Location, "args must not shadow %v (use a different variable name)", arg))
-				}
+			if _, ok := arg.Value.(Ref); ok && RootDocumentRefs.Contains(arg) {
+				errors = append(errors, NewError(
+					CompileErr, arg.Location, "args must not shadow %v (use a different variable name)", arg,
+				))
 			}
 		}
 
@@ -49,11 +50,12 @@ func checkRootDocumentOverrides(node any) Errors {
 
 	WalkExprs(node, func(expr *Expr) bool {
 		if expr.IsAssignment() {
-			// assign() can be called directly, so we need to assert its given first operand exists before checking its name.
+			// assign() can be called directly, so assert its given first operand exists before checking its name.
 			if nameOp := expr.Operand(0); nameOp != nil {
-				name := Var(nameOp.String())
-				if ReservedVars.Contains(name) {
-					errors = append(errors, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
+				if name := Var(nameOp.String()); ReservedVars.Contains(name) {
+					errors = append(errors, NewError(
+						CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name,
+					))
 				}
 			}
 		}

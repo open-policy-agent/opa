@@ -223,21 +223,21 @@ func initPoolWithData(t *testing.T, size uint32, module string, entrypoint strin
 	}
 
 	if testPool.Size() != 1 {
-		t.Fatalf("Expected a single vm to be initialized with data")
+		t.Fatal("Expected a single vm to be initialized with data")
 	}
 
 	parsedDataAddr, parsedData := testPool.ParsedData()
 	if parsedDataAddr == 0 {
-		t.Fatalf("Expected parsedDataAddr to be non-nil")
+		t.Fatal("Expected parsedDataAddr to be non-nil")
 	}
 
 	if len(parsedData) == 0 {
-		t.Fatalf("Expected parsedData to be non-nil")
+		t.Fatal("Expected parsedData to be non-nil")
 	}
 
 	vm := testPool.Wait(0)
 	if vm == nil {
-		t.Fatalf("Expected non-nil initial vm")
+		t.Fatal("Expected non-nil initial vm")
 	}
 
 	testPool.Release(vm, metrics.New())

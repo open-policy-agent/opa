@@ -1,0 +1,117 @@
+---
+# Wildcard edge cases. gobwas/glob v0.2.3 got a number of these wrong, so they
+# are pinned here to keep the Go and Wasm implementations from drifting apart
+# again. See https://github.com/open-policy-agent/opa/issues/9114
+cases:
+  - modules:
+      - |
+        package test
+        p = glob.match("?", null, "")
+    note: globmatch/single wildcard requires exactly one character
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("[!0-9]", null, "")
+    note: globmatch/negated character-list requires exactly one character
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("a/*/b", null, "a/b")
+    note: globmatch/wildcard does not consume a literal of the pattern
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("a/*/b", null, "a/x/b")
+    note: globmatch/wildcard between literals
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        p = glob.match("a/**/b", null, "a/b")
+    note: globmatch/super wildcard does not consume a literal of the pattern
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("a/**/b", null, "a//b")
+    note: globmatch/super wildcard matches the empty string between literals
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        p = glob.match("**/x", null, "x")
+    note: globmatch/super wildcard is not a globstar
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("{**/,}x", null, "x")
+    note: globmatch/empty pattern alternative
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        p = glob.match("***", ["."], "")
+    note: globmatch/a run of wildcards matches the empty string
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        p = glob.match("*?*", [".", "/"], "api.github.com")
+    note: globmatch/wildcards do not cross any of multiple delimiters
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("*?*", [".", "/"], "abc")
+    note: globmatch/wildcards with multiple delimiters
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        p = glob.match("*", [".", "/"], "a/b")
+    note: globmatch/wildcard does not cross the second delimiter
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - modules:
+      - |
+        package test
+        p = glob.match("\\*", null, "*")
+    note: globmatch/escaped meta character is a literal
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        p = glob.match("\\*", null, "a")
+    note: globmatch/escaped meta character does not match another character
+    query: data.test.p = x
+    want_result:
+      - x: false

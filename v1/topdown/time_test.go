@@ -96,7 +96,7 @@ func TestParseDurationNanos_BadInput(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := builtinParseDurationNanos(BuiltinContext{}, []*ast.Term{
 				ast.StringTerm(tc.input),
-			}, func(a *ast.Term) error {
+			}, func(*ast.Term) error {
 				return nil
 			})
 			if err.Error() != tc.expErr {

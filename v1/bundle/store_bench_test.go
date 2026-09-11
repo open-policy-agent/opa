@@ -5,7 +5,6 @@
 package bundle
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -62,7 +61,7 @@ func BenchmarkHasRootsOverlap(b *testing.B) {
 
 func benchHasRootsOverlap(b *testing.B, bundles map[string]*Bundle, wantErr bool) {
 	b.Helper()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := mock.New()
 
 	b.ResetTimer()
@@ -89,7 +88,7 @@ func BenchmarkHasRootsOverlapWithStore(b *testing.B) {
 
 func benchHasRootsOverlapWithStore(b *testing.B, existingCount, newCount int, wantErr bool) {
 	b.Helper()
-	ctx := context.Background()
+	ctx := b.Context()
 	store := mock.New()
 
 	// Pre-populate the store with N disjoint, well-formed manifests.

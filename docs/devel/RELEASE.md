@@ -7,10 +7,15 @@ The release process consists of two phases: versioning and publishing the releas
 Versioning involves maintaining the following files:
 
 - **CHANGELOG.md** - this file contains a list of all the important changes in each release.
-- **Makefile** - the Makefile contains a VERSION variable that defines the version of the project.
+- **v1/version/version.go** - this file contains the `Version` variable that defines the
+  version of the project. The Makefile's `VERSION` is read from it.
+- **capabilities.json**, **capabilities/v\<version\>.json**, **builtin_metadata.json**
+  and **v1/ast/version_index.json** - generated files that record what the release supports.
 
-The steps below explain how to update these files. In addition, the repository
-should be tagged with the semantic version identifying the release.
+These are maintained by the `release-prepare` and `dev-prepare` make targets, which
+wrap the tooling in [build/release](../../build/release). The steps below explain how
+to run them. In addition, the repository should be tagged with the semantic version
+identifying the release.
 
 Publishing involves creating a new _Release_ on GitHub with the relevant
 CHANGELOG.md snippet and uploading the binaries from the build phase.
@@ -57,25 +62,35 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
    git checkout -b release-v<version> origin/main
    ```
 
-1. Create a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-   for GitHub with the 'read:org' scope. Export it to the `GITHUB_TOKEN` environment variable.
+1. Authenticate with GitHub, either by running `gh auth login` or by exporting a
+   [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+   with the `public_repo` scope to the `GITHUB_TOKEN` environment variable.
 
-1. Execute the release-patch target to generate boilerplate patch. Give the semantic version of the release:
-
-   ```
-   make release-patch VERSION=0.12.8 > ~/release.patch
-   ```
-
-1. Apply the release patch to the working copy and preview the changes:
+1. Execute the release-prepare target. Give the semantic version of the release:
 
    ```
-   patch -p1 < ~/release.patch
+   make release-prepare VERSION=1.19.0
+   ```
+
+   This fills in the CHANGELOG section for the release and updates
+   `v1/version/version.go`, `capabilities.json`, `capabilities/v<version>.json`,
+   `builtin_metadata.json` and `v1/ast/version_index.json`. The changes are made
+   directly in the working tree.
+
+   > By default the release range starts at the latest tag reachable from `HEAD`.
+   > Pass `LAST_VERSION=v<previous>` to override it.
+
+1. Review the changes:
+
+   ```
+   git status
    git diff
    ```
 
-   > Amend the changes as necessary, e.g., many of the Fixes and Miscellaneous
-   > changes may not be user facing (so remove them). Also, if there have been
-   > any significant API changes, call them out in their own sections.
+   > Amend the CHANGELOG as necessary. Many entries are not user facing (so
+   > remove them), and entries are worth regrouping into topical sections.
+   > If there have been any significant API changes, call them out in their own sections.
+   > The tool also prints a review checklist to stderr, which is worth reading before committing.
 
 1. Commit the changes and push to remote repository fork.
 
@@ -96,24 +111,26 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 
    > Note: Ensure that tag is pointing to the correct commit ID! It must be the merged release preparation commit.
 
-1. Create a new branch for the dev-patch work:
+1. Create a new branch for the development preparation work:
 
    ```
    git checkout -b dev-v<next_semvar> origin/main
    ```
 
-1. Execute the dev-patch target to generate boilerplate patch. Give the semantic version of the next release:
+1. Execute the dev-prepare target. Give the semantic version of the next release:
 
    ```
-   make dev-patch VERSION=0.12.9 > ~/dev.patch
+   make dev-prepare VERSION=1.20.0
    ```
 
    > The semantic version of the next release typically increments the point version by one.
 
-1. Apply the patch to the working copy and preview the changes:
+   This sets `Version` to `<next_semvar>-dev` and adds an `## Unreleased`
+   heading to the CHANGELOG.
+
+1. Review the changes:
 
    ```
-   patch -p1 < ~/dev.patch
    git diff
    ```
 
@@ -193,16 +210,16 @@ git cherry-pick -x <commit-id>
 
 > Using `-x` helps to keep track of where the commit came from originally
 
-Update the `VERSION` variable in the Makefile and CHANGELOG, same workflow as a normal release.
+Update the version and CHANGELOG, same workflow as a normal release:
 
 ```bash
-make release-patch VERSION=0.14.1 > ~/release.patch
+make release-prepare VERSION=0.14.1
 ```
 
-Apply the patch to the working copy and preview the changes:
+Review the changes:
 
 ```bash
-patch -p1 < ~/release.patch
+git status
 git diff
 ```
 

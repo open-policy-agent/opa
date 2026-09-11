@@ -9,7 +9,7 @@ package topdown
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -145,14 +145,14 @@ func TestHTTPSendRetryRequest(t *testing.T) {
 			query:       `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "max_retry_attempts": 100,  "timeout": "500ms"}, x)`,
 			evalTimeout: 2 * time.Second,
 			wantErr:     true,
-			err:         fmt.Errorf("eval_cancel_error: http.send: timed out (context deadline exceeded)"),
+			err:         errors.New("eval_cancel_error: http.send: timed out (context deadline exceeded)"),
 		},
 		{
 			note:    "cancel query",
 			query:   `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "max_retry_attempts": 100,  "timeout": "500ms"}, x)`,
 			cancel:  NewCancel(),
 			wantErr: true,
-			err:     fmt.Errorf("eval_cancel_error: caller cancelled query execution"),
+			err:     errors.New("eval_cancel_error: caller cancelled query execution"),
 		},
 	}
 

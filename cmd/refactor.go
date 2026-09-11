@@ -40,7 +40,7 @@ func (m *moveCommandParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func initRefactor(root *cobra.Command, brand string) {
+func initRefactor(root *cobra.Command) {
 	executable := root.Name()
 
 	var moveCommandParams moveCommandParams

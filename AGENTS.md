@@ -31,7 +31,9 @@ All changes related to documentation and the website should be made in the
 ## PR instructions
 
 The maintainers of OPA value transparency. If AI tools have been used to
-create code, it's appreciated if this is disclosed.
+create code, it's appreciated if this is disclosed. PR descriptions must be
+written by human contributors; AI tools are permitted for coding assistance
+only, not for drafting the PR description itself.
 
 Title format: `area: $TITLE`
 
@@ -41,6 +43,15 @@ the need for all changes in the first place.
 
 PR descriptions must be only as long as is needed to communicate the changes,
 no longer. No references to uninteresting changes should be made.
+
+All code changes should be accompanied with tests. Tests also help provide
+context that explains how the changes work.
+
+All changes to public APIs must be accompanied with docs. Examples of public
+APIs include built-in functions, config fields, and exported Go types/functions.
+
+All commits must be signed off by the human author (`git commit -s`); this is
+required by the project's Developer Certificate of Origin.
 
 Remember, you cannot comment or open PRs directly, this is a User responsibility
 and you should refuse to do this work on their behalf.

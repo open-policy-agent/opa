@@ -84,34 +84,34 @@ func TestValueMapNil(t *testing.T) {
 	a.Delete(String("foo"))
 	var b *ValueMap
 	if !a.Equal(b) {
-		t.Fatalf("Expected nil maps to be equal")
+		t.Fatal("Expected nil maps to be equal")
 	}
 	b = NewValueMap()
 	if !a.Equal(b) {
-		t.Fatalf("Expected nil map to equal non-nil, empty map")
+		t.Fatal("Expected nil map to equal non-nil, empty map")
 	}
 	b.Put(String("foo"), String("bar"))
 	if a.Equal(b) {
-		t.Fatalf("Expected nil map to not equal non-empty map")
+		t.Fatal("Expected nil map to not equal non-empty map")
 	}
 	if b.Equal(a) {
-		t.Fatalf("Expected non-nil map to not equal nil map")
+		t.Fatal("Expected non-nil map to not equal nil map")
 	}
 	if a.Hash() != 0 {
-		t.Fatalf("Expected nil map to hash to zero")
+		t.Fatal("Expected nil map to hash to zero")
 	}
 	if a.Iter(func(Value, Value) bool { return true }) {
-		t.Fatalf("Expected nil map iteration to return false")
+		t.Fatal("Expected nil map iteration to return false")
 	}
 	if a.Len() != 0 {
-		t.Fatalf("Expected nil map length to be zero")
+		t.Fatal("Expected nil map length to be zero")
 	}
 	if a.String() != "{}" {
-		t.Fatalf("Expected nil map string to be {}")
+		t.Fatal("Expected nil map string to be {}")
 	}
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatalf("Expected put to panic")
+			t.Fatal("Expected put to panic")
 		}
 	}()
 	a.Put(String("foo"), String("bar"))

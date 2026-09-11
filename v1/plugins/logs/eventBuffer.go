@@ -14,7 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/channel"
 	"golang.org/x/time/rate"
 )
 
@@ -167,7 +167,7 @@ func (b *eventBuffer) push(event *bufferItem) {
 		return
 	}
 
-	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
+	channel.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
 }
 
 func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
@@ -278,11 +278,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		return nil
 	}
 
-	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-		return err
-	}
-
-	return nil
+	return b.uploadChunks(ctx, result, b.client, b.uploadPath)
 }
 
 // uploadChunks attempts to upload multiple chunks to the configured client.

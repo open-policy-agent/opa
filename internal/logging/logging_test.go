@@ -67,19 +67,19 @@ func TestPrettyFormatterBasicFields(t *testing.T) {
 	}
 
 	if !strings.Contains(actualStr, "number = 5\n") {
-		t.Errorf("Expected to have the number field in message")
+		t.Error("Expected to have the number field in message")
 	}
 
 	if !strings.Contains(actualStr, "string = \"field_string\"\n") {
-		t.Errorf("Expected to have the string field in message")
+		t.Error("Expected to have the string field in message")
 	}
 
 	if !strings.Contains(actualStr, "nil = null\n") {
-		t.Errorf("Expected to have the nil field in message")
+		t.Error("Expected to have the nil field in message")
 	}
 
 	if !strings.Contains(actualStr, "error = \"field_error\"\n") {
-		t.Errorf("Expected to have the nil field in message")
+		t.Error("Expected to have the error field in message")
 	}
 
 	expectedLines := 7 // one for the message, 4 fields (one line each), and two trailing \n

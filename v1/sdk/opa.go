@@ -552,7 +552,7 @@ const (
 func undefinedDecisionErr(path string) *Error {
 	return &Error{
 		Code:    UndefinedErr,
-		Message: fmt.Sprintf("%v decision was undefined", path),
+		Message: path + " decision was undefined",
 	}
 }
 

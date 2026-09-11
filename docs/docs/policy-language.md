@@ -1418,6 +1418,9 @@ apps_not_in_prod contains name if {
 Logical OR/AND in Rego is structured differently from other languages you might
 be familiar with. See the notes here on [logical OR](../docs/#logical-or) or
 here for [logical AND](../docs/#basic-syntax) for more details.
+
+A disjunction or conjunction _within_ a single rule body can also be written with
+the [`and` and `or` keywords](#and-and-or-keywords).
 :::
 
 :::tip
@@ -1877,6 +1880,28 @@ set_domain if {
 Negating `every` is forbidden. If you need to express `not every x in xs { p(x) }`
 please use `some x in xs; not p(x)` instead.
 :::
+
+## And and Or Keywords
+
+The `and` and `or` keywords express conjunction and disjunction _within_ a single
+rule body, without the need to extract a helper rule. Both require an import, and neither
+produces a value; an expression using them either succeeds or fails:
+
+```rego
+package example
+
+import future.keywords.or
+
+allow if {
+    input.user.admin or input.user.owner
+}
+```
+
+`or` is not a replacement for expressing disjunction with
+[incremental rules](#incremental-definitions), which remains the idiom when the
+disjunction needs to contribute a value. See
+[Rego Keyword Examples: and, or](./policy-reference/keywords/logical) for
+precedence, scoping, and when to prefer each.
 
 ## With Keyword
 

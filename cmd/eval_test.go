@@ -113,6 +113,79 @@ func TestEvalExitCode(t *testing.T) {
 	}
 }
 
+func TestEvalWithLogicalKeywordImports(t *testing.T) {
+	tests := []struct {
+		note        string
+		imports     []string
+		query       string
+		wantDefined bool
+		wantErr     bool
+	}{
+		{
+			note:    "and, no import",
+			query:   "true and true",
+			wantErr: true,
+		},
+		{
+			note:        "and",
+			imports:     []string{"future.keywords.and"},
+			query:       "true and true",
+			wantDefined: true,
+		},
+		{
+			note:    "and, undefined",
+			imports: []string{"future.keywords.and"},
+			query:   "true and false",
+		},
+		{
+			note:        "or",
+			imports:     []string{"future.keywords.or"},
+			query:       "true or false",
+			wantDefined: true,
+		},
+		{
+			note:    "or, only and imported",
+			imports: []string{"future.keywords.and"},
+			query:   "true or false",
+			wantErr: true,
+		},
+		{
+			note:        "wildcard import covers both",
+			imports:     []string{"future.keywords"},
+			query:       "false and true or true",
+			wantDefined: true,
+		},
+	}
+
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			params := newEvalCommandParams()
+			params.fail = true
+			for _, imp := range tc.imports {
+				if err := params.imports.Set(imp); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			defined, err := eval([]string{tc.query}, params, writer, nil)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("wanted error but got success")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal("wanted success but got error:", err)
+			}
+			if defined != tc.wantDefined {
+				t.Fatalf("wanted defined %v but got %v", tc.wantDefined, defined)
+			}
+		})
+	}
+}
+
 func TestEvalWithShowBuiltinErrors(t *testing.T) {
 	files := map[string]string{
 		"x.rego": `package x
@@ -622,7 +695,7 @@ func TestEvalWithInvalidInputFile(t *testing.T) {
 	query := "input.b[0].a == 1"
 	err := testEvalWithInputFile(t, input, query, newEvalCommandParams())
 	if err == nil {
-		t.Fatalf("expected error but err == nil")
+		t.Fatal("expected error but err == nil")
 	}
 }
 
@@ -1236,12 +1309,12 @@ func TestEvalWithInvalidSchemaFile(t *testing.T) {
 	query := "input.b[0].a == 1"
 	err := testEvalWithSchemaFile(t, input, query, schema, "", false)
 	if err == nil {
-		t.Fatalf("expected error but err == nil")
+		t.Fatal("expected error but err == nil")
 	}
 
 	err = testEvalWithInvalidSchemaFile(input, query, schema)
 	if err == nil {
-		t.Fatalf("expected error but err == nil")
+		t.Fatal("expected error but err == nil")
 	}
 }
 
@@ -1671,7 +1744,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 
 	defined, err := eval([]string{"{1,2,3} == {1,x,3}"}, params, &buf, nil)
 	if defined && err == nil {
-		t.Fatalf("Expected an error")
+		t.Fatal("Expected an error")
 	}
 
 	// Only check that it *can* be loaded as valid JSON, and that the errors
@@ -1683,7 +1756,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 	}
 
 	if output["errors"] == nil {
-		t.Fatalf("Expected error to be non-nil")
+		t.Fatal("Expected error to be non-nil")
 	}
 }
 
@@ -1754,7 +1827,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(output.Explanation) == 0 {
-		t.Fatalf("Expected explanations to be non-nil")
+		t.Fatal("Expected explanations to be non-nil")
 	}
 
 	type locationAndVars struct {
@@ -3156,7 +3229,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 
 		// Check if there was an error
 		if err == nil {
-			t.Fatalf("expected an error, but got nil")
+			t.Fatal("expected an error, but got nil")
 		}
 
 		// Check the error message
@@ -3190,7 +3263,7 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 
 		// Check if there was an error
 		if err == nil {
-			t.Fatalf("expected an error, but got nil")
+			t.Fatal("expected an error, but got nil")
 		}
 
 		// Check the error message

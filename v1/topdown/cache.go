@@ -330,7 +330,7 @@ func (s *functionMocksStack) PopPairs() {
 }
 
 func (s *functionMocksStack) PutPairs(mocks [][2]*ast.Term) {
-	el := frame{}
+	el := make(frame, len(mocks))
 	for i := range mocks {
 		el[mocks[i][0].Value.String()] = mocks[i][1]
 	}

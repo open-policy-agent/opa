@@ -11,7 +11,6 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -36,7 +35,7 @@ func TestMain(m *testing.M) {
 	if version.Version == "" {
 		version.Version = "unit-test"
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestStatusUpdateBuffer(t *testing.T) {
@@ -177,28 +176,28 @@ func TestPluginPrometheus(t *testing.T) {
 	assertOpInformationGauge(t, registerMock)
 
 	if registerMock.Collectors[fixture.plugin.collectors.pluginStatus] != true {
-		t.Fatalf("Plugin status metric was not registered on prometheus")
+		t.Fatal("Plugin status metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.loaded] != true {
-		t.Fatalf("Loaded metric was not registered on prometheus")
+		t.Fatal("Loaded metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.failLoad] != true {
-		t.Fatalf("FailLoad metric was not registered on prometheus")
+		t.Fatal("FailLoad metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.lastRequest] != true {
-		t.Fatalf("Last request metric was not registered on prometheus")
+		t.Fatal("Last request metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulActivation] != true {
-		t.Fatalf("Last Successful Activation metric was not registered on prometheus")
+		t.Fatal("Last Successful Activation metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulDownload] != true {
-		t.Fatalf("Last Successful Download metric was not registered on prometheus")
+		t.Fatal("Last Successful Download metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulRequest] != true {
-		t.Fatalf("Last Successful Request metric was not registered on prometheus")
+		t.Fatal("Last Successful Request metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.bundleLoadDuration] != true {
-		t.Fatalf("Bundle Load Duration metric was not registered on prometheus")
+		t.Fatal("Bundle Load Duration metric was not registered on prometheus")
 	}
 	if len(registerMock.Collectors) != 9 {
 		t.Fatalf("Number of collectors expected (%v), got %v", 9, len(registerMock.Collectors))
@@ -313,8 +312,7 @@ func filterGauges(registerMock *prometheusRegisterMock) []prometheus.Gauge {
 	fltd := make([]prometheus.Gauge, 0)
 
 	for m := range registerMock.Collectors {
-		switch metric := m.(type) {
-		case prometheus.Gauge:
+		if metric, ok := m.(prometheus.Gauge); ok {
 			fltd = append(fltd, metric)
 		}
 	}
@@ -427,7 +425,7 @@ func TestPluginNoLogging(t *testing.T) {
 				t.Errorf("expected no error: %v", err)
 			}
 			if config != nil {
-				t.Errorf("excected no config for a no-op logging plugin")
+				t.Error("excected no config for a no-op logging plugin")
 			}
 		})
 	}
@@ -1375,7 +1373,7 @@ func TestSlowServer(t *testing.T) {
 	received := make(chan struct{})
 	wait := make(chan struct{})
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// notify test the server got the request
 		received <- struct{}{}
 

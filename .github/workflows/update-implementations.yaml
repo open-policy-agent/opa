@@ -1,0 +1,64 @@
+name: Update Interpreter Capabilities
+
+# The builtin reference documentation reports which other Rego interpreters implement each
+# builtin, using capabilities published by those projects (see
+# build/update-implementations.sh). They release on their own schedule, so check weekly and
+# open a pull request when the recorded data has moved.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays, at 07:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  update-implementations:
+    name: Refresh other implementations' capabilities
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # for peter-evans/create-pull-request to push its branch
+      pull-requests: write # for peter-evans/create-pull-request to open the PR
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .go-version
+
+      - name: Refresh recorded capabilities
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./build/update-implementations.sh
+
+      # Only builtin_metadata.json is regenerated: the full `make generate` target builds the
+      # Wasm library, which nothing here can affect.
+      - name: Regenerate builtin metadata
+        run: ./build/gen-run-go.sh internal/cmd/genbuiltinmetadata/main.go builtin_metadata.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env] a PAT is required for the PR to trigger CI
+          branch: automated/update-implementations
+          delete-branch: true
+          title: "docs: Update builtin availability in other interpreters"
+          commit-message: |
+            docs: Update builtin availability in other interpreters
+
+            Refreshed from the capabilities published by each implementation.
+          body: |
+            Refreshes the builtins recorded for other Rego interpreters from the capabilities
+            they publish, so the builtin reference reports their latest releases.
+
+            Opened automatically by `.github/workflows/update-implementations.yaml`. The diff in
+            `internal/cmd/genbuiltinmetadata/implementations.json` shows which builtins changed.
+          labels: docs, automated pr
+          add-paths: |
+            internal/cmd/genbuiltinmetadata/implementations.json
+            builtin_metadata.json

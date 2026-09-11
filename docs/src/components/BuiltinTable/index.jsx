@@ -2,6 +2,7 @@ import Heading from "@theme/Heading";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 
+import BuiltinCompatCells, { BuiltinCompatHeadings, builtinCompatTargets } from "../BuiltinCompat";
 import styles from "./styles.module.css";
 
 import builtins from "@generated/builtin-data/default/builtins.json";
@@ -62,13 +63,13 @@ export default function BuiltinTable({
         <colgroup>
           <col />
           <col style={{ width: "100%" }} />
-          <col />
+          {builtinCompatTargets().map((target) => <col key={target.key} style={{ width: "4rem" }} />)}
         </colgroup>
         <thead>
           <tr>
             <th>Function</th>
             <th>Description</th>
-            <th>Meta</th>
+            <BuiltinCompatHeadings />
           </tr>
         </thead>
         <tbody>
@@ -141,49 +142,7 @@ export default function BuiltinTable({
                     </div>
                   </div>
                 </td>
-                <td>
-                  <div>
-                    {fn.introduced && fn.introduced !== "edge" && fn.introduced !== "v0.17.0" && (
-                      <a
-                        href={`https://github.com/open-policy-agent/opa/releases/${fn.introduced}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <span>{fn.introduced}</span>
-                      </a>
-                    )}
-                    {fn.introduced === "edge" && <span>edge</span>} {fn.wasm
-                      ? (
-                        <span
-                          style={{
-                            backgroundColor: "seagreen",
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "0.8rem",
-                            padding: "0.1rem 0.2rem",
-                            borderRadius: "0.2rem",
-                          }}
-                        >
-                          Wasm
-                        </span>
-                      )
-                      : (
-                        <span
-                          style={{
-                            backgroundColor: "darkgoldenrod",
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "0.8rem",
-                            padding: "0.1rem 0.2rem",
-                            borderRadius: "0.2rem",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          SDK-dependent
-                        </span>
-                      )}
-                  </div>
-                </td>
+                <BuiltinCompatCells fn={fn} />
               </tr>
             );
           })}

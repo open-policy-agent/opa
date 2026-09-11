@@ -30,22 +30,15 @@ type Status struct {
 // SetError updates the status object to reflect a failure to upload or
 // process a log. If err is nil, the error status is cleared.
 func (s *Status) SetError(err error) {
-	var httpError HTTPError
-
-	switch {
-	case err == nil:
+	s.Code = errCode
+	s.HTTPCode = ""
+	if err == nil {
 		s.Code = ""
-		s.HTTPCode = ""
 		s.Message = ""
-
-	case errors.As(err, &httpError):
-		s.Code = errCode
+	} else if httpError, ok := errors.AsType[HTTPError](err); ok {
 		s.HTTPCode = json.Number(strconv.Itoa(httpError.StatusCode))
 		s.Message = err.Error()
-
-	default:
-		s.Code = errCode
-		s.HTTPCode = ""
+	} else {
 		s.Message = err.Error()
 	}
 }

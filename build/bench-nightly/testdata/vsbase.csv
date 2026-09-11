@@ -1,0 +1,22 @@
+host: local
+goos: linux
+goarch: amd64
+pkg: github.com/open-policy-agent/opa/v1/topdown
+cpu: AMD EPYC 7763 64-Core Processor
+,basesha,,prevsha,,,,headsha,,,
+,sec/op,CI,sec/op,CI,vs base,P,sec/op,CI,vs base,P
+Glob/100-4,1.002e-06,0%,1.0233e-06,1%,+2.13%,p=0.000 n=15,1.0807e-06,0%,+7.85%,p=0.000 n=15
+Eval/small-4,3.006e-06,0%,3.0698000000000002e-06,1%,+2.12%,p=0.000 n=15,3.2421000000000003e-06,0%,+7.85%,p=0.000 n=15
+geomean,1.7355149091840155e-06,,1.7723787236366852e-06,,+2.12%,,1.8718273077396858e-06,,+7.85%,
+
+,basesha,,prevsha,,,,headsha,,,
+,B/op,CI,B/op,CI,vs base,P,B/op,CI,vs base,P
+Glob/100-4,512,0%,512,0%,~,p=1.000 n=15,512,0%,~,p=1.000 n=15
+Eval/small-4,2048,0%,2048,0%,~,p=1.000 n=15,2048,0%,~,p=1.000 n=15
+geomean,1024,,1024,,+0.00%,,1024,,+0.00%,
+
+,basesha,,prevsha,,,,headsha,,,
+,allocs/op,CI,allocs/op,CI,vs base,P,allocs/op,CI,vs base,P
+Glob/100-4,12,0%,12,0%,~,p=1.000 n=15,14,0%,+16.67%,p=0.000 n=15
+Eval/small-4,24,0%,24,0%,~,p=1.000 n=15,28,0%,+16.67%,p=0.000 n=15
+geomean,16.970562748477143,,16.970562748477143,,+0.00%,,19.798989873223334,,+16.67%,

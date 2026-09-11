@@ -6,11 +6,14 @@ package ast
 
 import (
 	"errors"
+	"slices"
+	"strconv"
 	"testing"
 )
 
 type testResolver struct {
 	input       *Term
+	data        *Term
 	failRef     Ref
 	unknownRefs Set
 	args        []Value
@@ -32,6 +35,13 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 	}
 	if ref.HasPrefix(InputRootRef) {
 		v, err := r.input.Value.Find(ref[1:])
+		if err != nil {
+			return nil, nil
+		}
+		return v, nil
+	}
+	if r.data != nil && ref.HasPrefix(DefaultRootRef) {
+		v, err := r.data.Value.Find(ref[1:])
 		if err != nil {
 			return nil, nil
 		}
@@ -69,6 +79,91 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	} {
 		input.b = 1
 	}`, opts)
+
+	// NOTE(sr): pseudo-compiled, as with everyModWithDomain above. These are what
+	//
+	//   p if { x := input; x.foo == "a" }
+	//
+	// and friends get rewritten to -- the ref ends up rooted at a local rather
+	// than at input, and the indexer has to resolve that head to index at all.
+	//
+	// Note that `in` and glob.match never receive a ref operand directly: their
+	// operands are always hoisted to a variable first, so those two benefit only
+	// via the assignment that does the hoisting. The cases below are written the
+	// way the compiler actually emits them.
+	localHeadMod := MustParseModuleWithOpts(`package test
+
+	whole if { __local0__ = input; __local0__.foo = "a" }
+	whole if { __local1__ = input; __local1__.foo = "b" }
+
+	intermediate if { __local2__ = input.a.b; __local2__.c = "a" }
+	intermediate if { __local3__ = input.a.b; __local3__.c = "b" }
+
+	member if { __local4__ = input; __local5__ = __local4__.foo; "a" in __local5__ }
+	member if { __local6__ = input; __local7__ = __local6__.foo; "b" in __local7__ }
+
+	globmatch if { __local8__ = input; __local9__ = __local8__.foo; glob.match("a/*", ["/"], __local9__) }
+	globmatch if { __local10__ = input; __local11__ = __local10__.foo; glob.match("b/*", ["/"], __local11__) }
+
+	# The head resolves to a composite rather than a ref, so there is nothing to
+	# index and both rules have to be evaluated.
+	unresolvable if { __local12__ = [1, 2, 3]; __local12__[0] = 1 }
+	unresolvable if { __local13__ = [1, 2, 3]; __local13__[0] = 2 }
+
+	# Bare refs run through the equality path, too, so their heads resolve as well.
+	naked_local if { __local14__ = input; __local14__.foo }
+	naked_local if { __local15__ = input; __local15__.bar }
+
+	# The assignment __local17__ = __local16__ records "input.a = __local17__" next
+	# to "input.a = __local16__", so a head reached through a chain of assignments
+	# resolves just as well as one assigned the ref directly.
+	chained if { __local16__ = input.a; __local17__ = __local16__; __local17__.b = "a" }
+	chained if { __local18__ = input.a; __local19__ = __local18__; __local19__.b = "b" }
+
+	# Nothing sets input apart from data here.
+	from_data if { __local20__ = data.roles; __local20__.a = 1 }
+	from_data if { __local21__ = data.roles; __local21__.a = 2 }
+
+	# The ref spliced onto the resolved head is subject to the same conditions as one
+	# written out: a single trailing variable is fine, wildcard or not -- only the
+	# ground prefix gets indexed, exactly as for "input.foo[_] = value" --
+	trailingvar if { __local22__ = input; __local22__.foo[__local23__] = "a" }
+	trailingvar if { __local24__ = input; __local24__.foo[_] = "b" }
+
+	# but a variable anywhere else leaves nothing indexable.
+	nonground if { __local25__ = input; __local25__.foo[__local26__].bar = "a" }
+	nonground if { __local27__ = input; __local27__.foo[__local28__].bar = "b" }
+
+	# The head resolves to a ref, but a virtual one, which the indexer cannot look up.
+	virtual if { __local29__ = data.test.vd; __local29__.foo = "a" }
+	virtual if { __local30__ = data.test.vd; __local30__.foo = "b" }`, opts)
+
+	// The operand body of an `and`/`or` is its own scope, so the local assigned in
+	// the enclosing body has to be resolved through refindices.resolvable (see
+	// operandAlternatives) rather than the rule's own indices alone.
+	logicalOpts := ParserOptions{
+		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or", "not"},
+	}
+
+	logicalHeadMod := MustParseModuleWithOpts(`package test
+
+	conj if { __local0__ = input; __local0__.foo = "a" and __local0__.bar = "a" }
+	conj if { __local1__ = input; __local1__.foo = "b" and __local1__.bar = "b" }
+
+	disj if { __local2__ = input; __local2__.foo = "a" or __local2__.foo = "aa" }
+	disj if { __local3__ = input; __local3__.foo = "b" or __local3__.foo = "bb" }`, logicalOpts)
+
+	// NOTE(sr): pseudo-compiled once more -- this is
+	//
+	//   p if { x := input.role; y := x; y == "a" }
+	//
+	// The chain of assignments records "input.role can be anything" once per local,
+	// and the concrete value from the comparison replaces only the first of them.
+	chainedValueMod := MustParseModuleWithOpts(`package test
+
+	p if { __local0__ = input.role; __local1__ = __local0__; __local1__ = "a" }
+	p if { __local2__ = input.role; __local3__ = __local2__; __local3__ = "b" }`, opts)
 
 	refMod := MustParseModuleWithOpts(`package test
 
@@ -242,6 +337,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		ruleset     string
 		ruleRef     Ref
 		input       string
+		data        string
+		isVirtual   func(Ref) bool
 		unknowns    []string
 		args        []Value
 		expectedRS  any
@@ -702,6 +799,119 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset:    "p",
 			input:      `{"a": [1]}`,
 			expectedRS: RuleSet([]*Rule{everyModWithDomain.Rules[0]}),
+		},
+		{
+			note:       "local ref head: whole input document",
+			module:     localHeadMod,
+			ruleset:    "whole",
+			input:      `{"foo": "a"}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[0]}),
+		},
+		{
+			note:       "local ref head: inside an `and` operand",
+			module:     logicalHeadMod,
+			ruleset:    "conj",
+			input:      `{"foo": "a", "bar": "a"}`,
+			expectedRS: RuleSet([]*Rule{logicalHeadMod.Rules[0]}),
+		},
+		{
+			note:       "local ref head: inside an `or` operand",
+			module:     logicalHeadMod,
+			ruleset:    "disj",
+			input:      `{"foo": "aa"}`,
+			expectedRS: RuleSet([]*Rule{logicalHeadMod.Rules[2]}),
+		},
+		{
+			note:       "local ref head: intermediate ref",
+			module:     localHeadMod,
+			ruleset:    "intermediate",
+			input:      `{"a": {"b": {"c": "a"}}}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[2]}),
+		},
+		{
+			note:       "local ref head: membership, via the hoisting assignment",
+			module:     localHeadMod,
+			ruleset:    "member",
+			input:      `{"foo": ["a"]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[4]}),
+		},
+		{
+			note:       "local ref head: glob.match, via the hoisting assignment",
+			module:     localHeadMod,
+			ruleset:    "globmatch",
+			input:      `{"foo": "a/b"}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[6]}),
+		},
+		{
+			note:       "local ref head: unresolvable head is not indexed",
+			module:     localHeadMod,
+			ruleset:    "unresolvable",
+			input:      `{}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[8], localHeadMod.Rules[9]}),
+		},
+		{
+			note:       "local ref head: bare ref",
+			module:     localHeadMod,
+			ruleset:    "naked_local",
+			input:      `{"foo": true}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[10]}),
+		},
+		{
+			note:       "local ref head: chain of assignments",
+			module:     localHeadMod,
+			ruleset:    "chained",
+			input:      `{"a": {"b": "a"}}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[12]}),
+		},
+		{
+			note:       "local ref head: rooted at data",
+			module:     localHeadMod,
+			ruleset:    "from_data",
+			data:       `{"roles": {"a": 1}}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[14]}),
+		},
+		{
+			note:       "local ref head: trailing variable, ground prefix is indexed",
+			module:     localHeadMod,
+			ruleset:    "trailingvar",
+			input:      `{"foo": ["a"]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[16]}),
+		},
+		{
+			note:       "local ref head: non-ground remainder is not indexed",
+			module:     localHeadMod,
+			ruleset:    "nonground",
+			input:      `{"foo": [{"bar": "a"}]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[18], localHeadMod.Rules[19]}),
+		},
+		{
+			note:       "local ref head: virtual document is not indexed",
+			module:     localHeadMod,
+			ruleset:    "virtual",
+			isVirtual:  func(ref Ref) bool { return ref.HasPrefix(MustParseRef("data.test.vd")) },
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[20], localHeadMod.Rules[21]}),
+		},
+		{
+			note:       "chained assignment: concrete value supersedes the leftover any-entry",
+			module:     chainedValueMod,
+			ruleset:    "p",
+			input:      `{"role": "a"}`,
+			expectedRS: RuleSet([]*Rule{chainedValueMod.Rules[0]}),
+		},
+		{
+			// Deliberate: resolveVarToRef maps a formal to an `args[i]` ref, which
+			// isValidIndexRef rejects -- indexing bare formals works by bypassing that
+			// validation, and sub-paths of args would need the resolver to know about them.
+			note: "local ref head: function argument is not indexed",
+			module: module(`package test
+			f(x) = 1 if { x.foo = "a" }
+			f(x) = 2 if { x.foo = "b" }`),
+			ruleset: "f",
+			args:    []Value{MustParseTerm(`{"foo": "a"}`).Value},
+			expectedRS: []string{
+				`f(x) = 1 if { x.foo = "a" }`,
+				`f(x) = 2 if { x.foo = "b" }`,
+			},
 		},
 		{
 			note:        "ref: single value, ground ref",
@@ -1354,6 +1564,11 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				input = MustParseTerm(tc.input)
 			}
 
+			var data *Term
+			if tc.data != "" {
+				data = MustParseTerm(tc.data)
+			}
+
 			var expectedRS RuleSet
 
 			switch e := tc.expectedRS.(type) {
@@ -1367,12 +1582,15 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				panic("Unexpected test case: expected value")
 			}
 
-			index := newBaseDocEqIndex(func(Ref) bool {
-				return false
-			})
+			isVirtual := tc.isVirtual
+			if isVirtual == nil {
+				isVirtual = func(Ref) bool { return false }
+			}
+
+			index := newBaseDocEqIndex(isVirtual)
 
 			if !index.Build(rules) {
-				t.Fatalf("Expected index build to succeed")
+				t.Fatal("Expected index build to succeed")
 			}
 
 			t.Log(index.root.mermaid())
@@ -1385,7 +1603,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				}
 			}
 
-			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs, args: tc.args})
+			result, err := index.Lookup(testResolver{input: input, data: data, unknownRefs: unknownRefs, args: tc.args})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
 			}
@@ -1399,7 +1617,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			}
 
 			if result.Default == nil && tc.expectedDR != nil {
-				t.Fatalf("Expected default rule but got nil")
+				t.Fatal("Expected default rule but got nil")
 			} else if result.Default != nil && tc.expectedDR == nil {
 				t.Fatalf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
@@ -1443,7 +1661,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	input := MustParseTerm(`{"x": "x1", "y": "y1", "z": "z1"}`)
@@ -1466,7 +1684,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 	}
 
 	if result.Default != nil {
-		t.Fatalf("Expected default rule to be nil")
+		t.Fatal("Expected default rule to be nil")
 	}
 
 	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
@@ -1491,7 +1709,7 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	p if { input.raise_error = 1 }`)
 
 	if !index.Build(module.Rules) {
-		t.Fatalf("Expected index to build")
+		t.Fatal("Expected index to build")
 	}
 
 	_, err := index.Lookup(testResolver{
@@ -1504,7 +1722,63 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 
 	index = newBaseDocEqIndex(func(Ref) bool { return true })
 	if index.Build(nil) {
-		t.Fatalf("Expected index build to fail")
+		t.Fatal("Expected index build to fail")
+	}
+}
+
+func TestRefIndicesInsert(t *testing.T) {
+	ref := MustParseRef("input.x")
+
+	// values as they reach insert(): a var stands for "any value" (see anyValue
+	// and the "naked ref" case in Update), anything else for that value.
+	anyIndex := func() *refindex { return &refindex{Ref: ref, Value: Var("x")} }
+	valIndex := func(v int) *refindex { return &refindex{Ref: ref, Value: Number(strconv.Itoa(v))} }
+
+	tests := []struct {
+		note   string
+		insert []*refindex
+		exp    []Value
+	}{
+		{
+			note:   "value narrows an any-value index",
+			insert: []*refindex{anyIndex(), valIndex(1)},
+			exp:    []Value{Number("1")},
+		},
+		{
+			note:   "an any-value index does not widen a value",
+			insert: []*refindex{valIndex(1), anyIndex()},
+			exp:    []Value{Number("1"), Var("x")},
+		},
+		{
+			note:   "the same value twice is one index",
+			insert: []*refindex{valIndex(1), valIndex(1)},
+			exp:    []Value{Number("1")},
+		},
+		{
+			note:   "distinct values are both kept",
+			insert: []*refindex{valIndex(1), valIndex(2)},
+			exp:    []Value{Number("1"), Number("2")},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ri := newrefindices(func(Ref) bool { return false })
+			rule := MustParseRule(`p if input.x = 1`)
+
+			for _, index := range tc.insert {
+				ri.insert(rule, index)
+			}
+
+			act := make([]Value, 0, len(ri.rules[rule]))
+			for _, index := range ri.rules[rule] {
+				act = append(act, index.Value)
+			}
+
+			if len(act) != len(tc.exp) || !slices.EqualFunc(act, tc.exp, ValueEqual) {
+				t.Errorf("expected values %v, got %v", tc.exp, act)
+			}
+		})
 	}
 }
 
@@ -1620,7 +1894,7 @@ func TestGetAllRules(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
@@ -1664,7 +1938,7 @@ func TestGetAllRulesInternalMember2(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
@@ -2119,7 +2393,7 @@ r = local0 if {
 			})
 
 			if !index.Build(rules) {
-				t.Fatalf("Expected index build to succeed")
+				t.Fatal("Expected index build to succeed")
 			}
 
 			var unknownRefs Set
@@ -2139,7 +2413,7 @@ r = local0 if {
 			}
 
 			if result.Default == nil && tc.expectedDR != nil {
-				t.Errorf("Expected default rule but got nil")
+				t.Error("Expected default rule but got nil")
 			} else if result.Default != nil && tc.expectedDR == nil {
 				t.Errorf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
@@ -2151,4 +2425,246 @@ r = local0 if {
 			}
 		})
 	}
+}
+
+// TestBaseDocEqIndexingAlternatingRefs covers a rule that reaches two
+// references by several scalar values each. The first of them converges --
+// every alternative keys to one node, which the rest of the path is built from
+// -- so the second is indexed too. Ranking such references last is no help
+// here: both are ranked last, and one is still first of the two.
+//
+// Only scalars converge. Affixes and composite values end the rule's path, so
+// only the first of two such references is indexed; see oneAffixEnd and
+// isComposite.
+func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
+	lookup := func(t *testing.T, index *baseDocEqIndex, resolver testResolver) int {
+		t.Helper()
+		result, err := index.Lookup(resolver)
+		if err != nil {
+			t.Fatalf("unexpected error during index lookup: %v", err)
+		}
+		return len(result.Rules)
+	}
+
+	// `x in <collection>` reaches the indexer as internal.member_2, which is
+	// the compiler's doing, so these go through it rather than the parser.
+	build := func(t *testing.T, module string) *baseDocEqIndex {
+		t.Helper()
+		c := MustCompileModules(map[string]string{"test.rego": module})
+		index := newBaseDocEqIndex(func(Ref) bool { return false })
+		if !index.Build(c.Modules["test.rego"].Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+		return index
+	}
+
+	t.Run("both references prune", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.subject in ["alice", "bob"]
+			input.action in ["read", "list"]
+		}
+		p if {
+			input.subject in ["alice", "carol"]
+			input.action in ["write", "delete"]
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice", "action": "read"}`, 1},
+			{`{"subject": "alice", "action": "write"}`, 1},
+			{`{"subject": "bob", "action": "read"}`, 1},
+			{`{"subject": "bob", "action": "write"}`, 0},  // bob is not in the second rule
+			{`{"subject": "carol", "action": "read"}`, 0}, // carol is not in the first
+			{`{"subject": "alice", "action": "nope"}`, 0}, // neither action matches
+			{`{"subject": "dave", "action": "read"}`, 0},  // neither subject matches
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	t.Run("three references prune", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.a in [1, 2]
+			input.b in [3, 4]
+			input.c in [5, 6]
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"a": 1, "b": 3, "c": 5}`, 1},
+			{`{"a": 2, "b": 4, "c": 6}`, 1},
+			{`{"a": 1, "b": 3, "c": 7}`, 0},
+			{`{"a": 1, "b": 9, "c": 5}`, 0},
+			{`{"a": 9, "b": 3, "c": 5}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// An affix's alternatives are leaves of the prefix trie, which cannot point
+	// several of them at one node, so a rule that reaches a reference by several
+	// of them still stops there. Two such references and the second is unindexed,
+	// so the lookup over-approximates -- it must never miss a rule that can hold.
+	t.Run("two references reached by affixes still stop the path", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			strings.any_prefix_match(input.path, ["/a", "/b"])
+			strings.any_suffix_match(input.name, [".go", ".rego"])
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"path": "/a/x", "name": "q.go"}`, 1},
+			{`{"path": "/c/x", "name": "q.go"}`, 0},
+			// The suffixes are not indexed below the prefixes, so the rule is
+			// still a candidate. Over-approximating is sound; missing it is not.
+			{`{"path": "/a/x", "name": "q.txt"}`, 1},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// Both ends of one reference are a conjunction the level cannot test: the
+	// tries hold leaves, so hanging the rule off both would admit it on either,
+	// which is looser than the rule. One end is indexed and the other left to
+	// evaluation -- the end whose shortest base string is longest, since that is
+	// the one admitting least. See oneAffixEnd.
+	t.Run("one reference reached by affixes at both ends indexes one end", func(t *testing.T) {
+		for _, tc := range []struct {
+			note   string
+			module string
+			// indexed names the end the lookups below expect to be tested.
+			cases map[string]int
+		}{
+			{
+				note: "suffixes are longer, so the suffixes are indexed",
+				module: `package test
+				p if {
+					strings.any_prefix_match(input.path, ["/a", "/b"])
+					strings.any_suffix_match(input.path, [".go", ".rego"])
+				}`,
+				cases: map[string]int{
+					`{"path": "/a/x.go"}`:  1,
+					`{"path": "/c/x.go"}`:  1,
+					`{"path": "/a/x.txt"}`: 0,
+					`{"path": "/c/x.txt"}`: 0,
+				},
+			},
+			{
+				// Counting the base strings would keep the single prefix here,
+				// and every absolute path matches "/".
+				note: "one short prefix loses to several longer suffixes",
+				module: `package test
+				p if {
+					strings.any_prefix_match(input.path, ["/"])
+					strings.any_suffix_match(input.path, [".go", ".rego"])
+				}`,
+				cases: map[string]int{
+					`{"path": "/x.go"}`:  1,
+					`{"path": "/x.txt"}`: 0,
+				},
+			},
+		} {
+			t.Run(tc.note, func(t *testing.T) {
+				index := build(t, tc.module)
+				for input, exp := range tc.cases {
+					if act := lookup(t, index, testResolver{input: MustParseTerm(input)}); exp != act {
+						t.Errorf("%s: expected %d rule(s), got %d", input, exp, act)
+					}
+				}
+			})
+		}
+	})
+
+	// A terminal reference is ranked after a converging one, so the `in` gets to
+	// converge and the affixes end the path once everything else is on it. Which
+	// the author wrote first does not decide it.
+	t.Run("an affix and an in collection are both indexed, either order", func(t *testing.T) {
+		for _, module := range []string{
+			`package test
+			p if {
+				strings.any_prefix_match(input.path, ["/a", "/b"])
+				input.x in {1, 2}
+			}`,
+			`package test
+			p if {
+				input.x in {1, 2}
+				strings.any_prefix_match(input.path, ["/a", "/b"])
+			}`,
+		} {
+			index := build(t, module)
+
+			for _, tc := range []struct {
+				input string
+				exp   int
+			}{
+				{`{"path": "/a/z", "x": 1}`, 1},
+				{`{"path": "/a/z", "x": 9}`, 0}, // the `in` prunes
+				{`{"path": "/c/z", "x": 1}`, 0}, // the prefixes prune
+			} {
+				if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+					t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+				}
+			}
+		}
+	})
+
+	// One affix is a single value, so it stays on the path and the alternatives
+	// that follow it are the ones that stop it.
+	t.Run("a single affix is indexed alongside the alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.subject in ["alice", "bob"]
+			startswith(input.path, "/v1/")
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice", "path": "/v1/things"}`, 1},
+			{`{"subject": "dave", "path": "/v1/things"}`, 0},
+			{`{"subject": "alice", "path": "/v2/things"}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// The membership is the only thing the rule constrains, so there is no path
+	// to continue and the alternatives stay separate children -- which rules
+	// with overlapping collections share.
+	t.Run("nothing below the alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if input.subject in ["alice", "bob"]
+		p if input.subject in ["alice", "carol"]`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice"}`, 2},
+			{`{"subject": "bob"}`, 1},
+			{`{"subject": "dave"}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
 }

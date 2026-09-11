@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -152,17 +153,39 @@ func TestStopWithMultipleCalls(t *testing.T) {
 		t.Fatal("expected bundle with at least one module but got:", u1)
 	}
 
-	done := make(chan struct{})
-	go func() {
-		d.Stop(ctx)
-		close(done)
-	}()
+	// Stop must be safe to call concurrently and more than once: the first
+	// call shuts the downloader down and any later call is a no-op, rather
+	// than blocking forever on the stop channel.
+	stopReturns := func(n int) bool {
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for range n {
+			go func() {
+				defer wg.Done()
+				d.Stop(ctx)
+			}()
+		}
 
-	d.Stop(ctx)
-	<-done
+		returned := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(returned)
+		}()
 
-	if !d.stopped {
-		t.Fatal("expected downloader to be stopped")
+		select {
+		case <-returned:
+			return true
+		case <-time.After(10 * time.Second):
+			return false
+		}
+	}
+
+	if !stopReturns(2) {
+		t.Fatal("expected concurrent Stop calls to return, but they blocked")
+	}
+
+	if !stopReturns(1) {
+		t.Fatal("expected Stop on an already-stopped downloader to return, but it blocked")
 	}
 }
 
@@ -506,7 +529,7 @@ func TestOneShotWithBundleEtag(t *testing.T) {
 
 	if fixture.updates[0].Bundle == nil {
 		// 200 response on first request, bundle should be present
-		t.Errorf("Expected bundle in response")
+		t.Error("Expected bundle in response")
 	}
 
 	if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
@@ -605,7 +628,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 
 				if fixture.updates[0].Bundle == nil {
 					// 200 response on first request, bundle should be present
-					t.Errorf("Expected bundle in response")
+					t.Error("Expected bundle in response")
 				}
 
 				if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
@@ -736,7 +759,7 @@ p contains 1 if {
 
 				if fixture.updates[0].Bundle == nil {
 					// 200 response on first request, bundle should be present
-					t.Errorf("Expected bundle in response")
+					t.Error("Expected bundle in response")
 				}
 
 				if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
@@ -793,8 +816,8 @@ func TestFailureUnexpected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var hErr HTTPError
-	if !errors.As(err, &hErr) {
+	hErr, ok := errors.AsType[HTTPError](err)
+	if !ok {
 		t.Fatal("expected HTTPError")
 	}
 	if hErr.StatusCode != 500 {
@@ -825,8 +848,8 @@ func TestFailureUnexpectedWithResponseBody(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var hErr HTTPError
-	if !errors.As(err, &hErr) {
+	hErr, ok := errors.AsType[HTTPError](err)
+	if !ok {
 		t.Fatal("expected HTTPError")
 	}
 	if hErr.StatusCode != 500 {
@@ -874,7 +897,7 @@ func TestEtagInResponse(t *testing.T) {
 
 	if fixture.updates[0].Bundle == nil {
 		// 200 response on first request, bundle should be present
-		t.Errorf("Expected bundle in response")
+		t.Error("Expected bundle in response")
 	}
 
 	err = fixture.d.oneShot(ctx)
@@ -888,7 +911,7 @@ func TestEtagInResponse(t *testing.T) {
 
 	if fixture.updates[1].Bundle != nil {
 		// 304 response on second request, bundle should _not_ be present
-		t.Errorf("Expected no bundle in response")
+		t.Error("Expected no bundle in response")
 	}
 }
 
@@ -1015,7 +1038,7 @@ func TestDownloadLongPollNotModifiedOn304(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	}
 	if resp.longPoll != fixture.d.longPollingEnabled {
-		t.Fatalf("Expected same value for longPoll and longPollingEnabled")
+		t.Fatal("Expected same value for longPoll and longPollingEnabled")
 	}
 }
 
@@ -1040,7 +1063,7 @@ func TestOneShotLongPollingSwitch(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	}
 	if fixture.d.longPollingEnabled != fixture.server.longPoll {
-		t.Fatalf("Expected same value for longPoll and longPollingEnabled")
+		t.Fatal("Expected same value for longPoll and longPollingEnabled")
 	}
 
 	fixture.server.longPoll = false
@@ -1049,7 +1072,7 @@ func TestOneShotLongPollingSwitch(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	}
 	if fixture.d.longPollingEnabled != fixture.server.longPoll {
-		t.Fatalf("Expected same value for longPollingEnabled and longPoll")
+		t.Fatal("Expected same value for longPollingEnabled and longPoll")
 	}
 }
 

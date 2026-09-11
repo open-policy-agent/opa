@@ -454,7 +454,7 @@ func testLoader(t *testing.T, loader DirectoryLoader, baseURL string, expectedFi
 		if err != nil && err != io.EOF {
 			t.Fatalf("Unexpected error: %s", err)
 		} else if err == nil && n >= testReadLimit {
-			t.Fatalf("Attempted to read too much data")
+			t.Fatal("Attempted to read too much data")
 		}
 
 		expectedContent, found := expectedFiles[f.Path()]

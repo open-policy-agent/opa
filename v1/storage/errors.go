@@ -52,37 +52,22 @@ func (err *Error) Error() string {
 
 // IsNotFound returns true if this error is a NotFoundErr.
 func IsNotFound(err error) bool {
-	if err, ok := err.(*Error); ok {
-		return err.Code == NotFoundErr
-	}
-	return false
+	return isError(err, NotFoundErr)
 }
 
 // IsWriteConflictError returns true if this error a WriteConflictErr.
 func IsWriteConflictError(err error) bool {
-	switch err := err.(type) {
-	case *Error:
-		return err.Code == WriteConflictErr
-	}
-	return false
+	return isError(err, WriteConflictErr)
 }
 
 // IsInvalidPatch returns true if this error is a InvalidPatchErr.
 func IsInvalidPatch(err error) bool {
-	switch err := err.(type) {
-	case *Error:
-		return err.Code == InvalidPatchErr
-	}
-	return false
+	return isError(err, InvalidPatchErr)
 }
 
 // IsInvalidTransaction returns true if this error is a InvalidTransactionErr.
 func IsInvalidTransaction(err error) bool {
-	switch err := err.(type) {
-	case *Error:
-		return err.Code == InvalidTransactionErr
-	}
-	return false
+	return isError(err, InvalidTransactionErr)
 }
 
 // IsIndexingNotSupported is a stub for backwards-compatibility.
@@ -114,4 +99,9 @@ func policyNotSupportedError() *Error {
 	return &Error{
 		Code: PolicyNotSupportedErr,
 	}
+}
+
+func isError(err error, code string) bool {
+	e, ok := err.(*Error)
+	return ok && e.Code == code
 }

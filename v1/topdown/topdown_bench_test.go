@@ -89,6 +89,10 @@ func BenchmarkObjectIteration(b *testing.B) {
 	}
 }
 
+// NOTE(sr): the modules passed here all end in `main if { fixture[i] }`, which
+// early-exits after the first binding of i. Despite the "Iteration" names, the
+// callers measure building fixture, not enumerating it. See
+// BenchmarkEnumerateInputObject for a benchmark that enumerates every element.
 func benchmarkIteration(b *testing.B, module string) {
 	p := ast.MustParseBody("data.test.main")
 	c := ast.MustCompileModules(map[string]string{"test.rego": module})
@@ -117,18 +121,13 @@ func BenchmarkLargeJSON(b *testing.B) {
 	for b.Loop() {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 			q := NewQuery(query).
 				WithCompiler(compiler).
 				WithStore(store).
 				WithTransaction(txn)
 
 			_, err := q.Run(ctx)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		})
 
 		if err != nil {
@@ -732,20 +731,14 @@ func BenchmarkObjectSubset(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
 						WithTransaction(txn)
 
 					_, err := q.Run(ctx)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					return err
 				})
 
 				if err != nil {
@@ -808,11 +801,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 						WithTransaction(txn)
 
 					_, err := q.Run(ctx)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					return err
 				})
 
 				if err != nil {
@@ -898,11 +887,7 @@ func BenchmarkGlob(b *testing.B) {
 						WithTransaction(txn)
 
 					_, err := q.Run(ctx)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					return err
 				})
 
 				if err != nil {

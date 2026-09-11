@@ -65,8 +65,6 @@ func TestOCIStorePath(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
-
 			var storePath string
 			if tc.explicit {
 				storePath = filepath.Join(t.TempDir(), "oci")
@@ -83,7 +81,7 @@ func TestOCIStorePath(t *testing.T) {
 					t.Fatalf("expected store path %q but got %q", storePath, d.localStorePath)
 				}
 			} else {
-				if shared := filepath.Join(os.TempDir(), "opa", "oci"); d.localStorePath == shared {
+				if shared := filepath.Join(t.TempDir(), "opa", "oci"); d.localStorePath == shared {
 					t.Fatalf("expected a private store but got the shared path %q", shared)
 				}
 
@@ -105,7 +103,7 @@ func TestOCIStorePath(t *testing.T) {
 				}
 			}
 
-			d.Stop(ctx)
+			d.Stop(t.Context())
 
 			if tc.wantRemoved {
 				assertRemoved(t, d.localStorePath)
@@ -117,15 +115,14 @@ func TestOCIStorePath(t *testing.T) {
 }
 
 func TestOCIDefaultStorePathIsUnique(t *testing.T) {
-	ctx := context.Background()
 	client := newOCIStoreTestClient(t)
 	config := ociStoreTestConfig(t, plugins.TriggerManual)
 
 	first := NewOCI(config, client, ociTestRef, "")
-	t.Cleanup(func() { first.Stop(ctx) })
+	t.Cleanup(func() { first.Stop(t.Context()) })
 
 	second := NewOCI(config, client, ociTestRef, "")
-	t.Cleanup(func() { second.Stop(ctx) })
+	t.Cleanup(func() { second.Stop(t.Context()) })
 
 	if first.localStorePath == second.localStorePath {
 		t.Fatalf("expected each downloader to get its own store but both got %q", first.localStorePath)
@@ -160,7 +157,7 @@ func TestOCIStopRemovesTemporaryStore(t *testing.T) {
 				done := make(chan struct{})
 				go func() {
 					defer close(done)
-					d.Stop(context.Background())
+					d.Stop(t.Context())
 				}()
 
 				select {
@@ -176,7 +173,7 @@ func TestOCIStopRemovesTemporaryStore(t *testing.T) {
 			afterStop: func(t *testing.T, d *OCIDownloader) {
 				t.Helper()
 
-				err := d.Trigger(context.Background())
+				err := d.Trigger(t.Context())
 				if err == nil {
 					t.Fatal("expected an error but got none")
 				}
@@ -189,8 +186,6 @@ func TestOCIStopRemovesTemporaryStore(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := context.Background()
-
 			d := NewOCI(ociStoreTestConfig(t, tc.trigger), newOCIStoreTestClient(t), ociTestRef, "")
 			storePath := d.localStorePath
 
@@ -199,10 +194,10 @@ func TestOCIStopRemovesTemporaryStore(t *testing.T) {
 			}
 
 			if tc.start {
-				d.Start(ctx)
+				d.Start(t.Context())
 			}
 
-			d.Stop(ctx)
+			d.Stop(t.Context())
 
 			if tc.afterStop != nil {
 				tc.afterStop(t, d)
@@ -214,8 +209,6 @@ func TestOCIStopRemovesTemporaryStore(t *testing.T) {
 }
 
 func TestOCIStopWaitsForInFlightTrigger(t *testing.T) {
-	ctx := context.Background()
-
 	inCallback := make(chan struct{})
 	release := make(chan struct{})
 
@@ -230,7 +223,7 @@ func TestOCIStopWaitsForInFlightTrigger(t *testing.T) {
 	triggerDone := make(chan struct{})
 	go func() {
 		defer close(triggerDone)
-		_ = d.Trigger(ctx)
+		_ = d.Trigger(t.Context())
 	}()
 
 	select {
@@ -242,7 +235,7 @@ func TestOCIStopWaitsForInFlightTrigger(t *testing.T) {
 	stopDone := make(chan struct{})
 	go func() {
 		defer close(stopDone)
-		d.Stop(ctx)
+		d.Stop(t.Context())
 	}()
 
 	select {

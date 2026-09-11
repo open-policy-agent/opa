@@ -16,6 +16,7 @@ import (
 	"slices"
 
 	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
+	"github.com/open-policy-agent/opa/v1/util/channel"
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -296,12 +297,12 @@ func (p *Plugin) flush(ctx context.Context) {
 //
 // Deprecated: Use BulkUpdateBundleStatus instead.
 func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
-	util.PushFIFO(p.bundleCh, status, p.metrics, statusBufferDropCounterName)
+	channel.PushFIFO(p.bundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // BulkUpdateBundleStatus notifies the plugin that the policy bundle was updated.
 func (p *Plugin) BulkUpdateBundleStatus(status map[string]*bundle.Status) {
-	util.PushFIFO(p.bulkBundleCh, status, p.metrics, statusBufferDropCounterName)
+	channel.PushFIFO(p.bulkBundleCh, status, p.metrics, statusBufferDropCounterName)
 }
 
 // UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.

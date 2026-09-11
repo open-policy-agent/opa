@@ -74,7 +74,7 @@ func TestOCIStorePathWiring(t *testing.T) {
 			}
 
 			// The shared path OPA used before OCI stores became per-downloader.
-			sharedPath := filepath.Join(os.TempDir(), "opa", "oci")
+			sharedPath := filepath.Join(tmpDir, "opa", "oci")
 			if _, err := os.Stat(sharedPath); !os.IsNotExist(err) {
 				t.Fatalf("expected no store at the shared path %q but got: %v", sharedPath, err)
 			}

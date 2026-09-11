@@ -12,9 +12,8 @@ import (
 	"regexp"
 	"strings"
 
-	"sigs.k8s.io/yaml"
-
 	"github.com/open-policy-agent/opa/internal/strvals"
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"

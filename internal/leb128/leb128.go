@@ -50,10 +50,7 @@ func MustReadVarUint64(r io.Reader) uint64 {
 // ReadVarUint32 tries to read a uint32 from r.
 func ReadVarUint32(r io.Reader) (uint32, error) {
 	u64, err := ReadVarUint64(r)
-	if err != nil {
-		return 0, err
-	}
-	return uint32(u64), nil
+	return uint32(u64), err
 }
 
 // ReadVarUint64 tries to read a uint64 from r.
@@ -78,10 +75,7 @@ func ReadVarUint64(r io.Reader) (uint64, error) {
 // ReadVarInt32 tries to read a int32 from r.
 func ReadVarInt32(r io.Reader) (int32, error) {
 	i64, err := ReadVarInt64(r)
-	if err != nil {
-		return 0, err
-	}
-	return int32(i64), nil
+	return int32(i64), err
 }
 
 // ReadVarInt64 tries to read a int64 from r.

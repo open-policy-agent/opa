@@ -23,7 +23,7 @@ func TestInvalidJSONInput(t *testing.T) {
 		var x any
 		err := util.UnmarshalJSON(tc, &x)
 		if err == nil {
-			t.Errorf("should be an error")
+			t.Error("should be an error")
 		}
 	}
 }
@@ -167,7 +167,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 		}
 
 		if !slices.Equal(exp, cpy) {
-			b.Fatalf("expected inputs to be unchanged")
+			b.Fatal("expected inputs to be unchanged")
 		}
 	})
 

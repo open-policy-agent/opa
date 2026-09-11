@@ -185,3 +185,17 @@ func mustAtoi(s string) int {
 	v, _ := Atoi(s)
 	return v
 }
+
+func TestStringToByteSlice(t *testing.T) {
+	for _, s := range []string{"", "a", "foo/bar"} {
+		bs := StringToByteSlice(s)
+
+		// must be equivalent to []byte(s), including being non-nil for ""
+		if bs == nil {
+			t.Errorf("StringToByteSlice(%q): expected non-nil slice", s)
+		}
+		if string(bs) != s {
+			t.Errorf("StringToByteSlice(%q): got %q", s, string(bs))
+		}
+	}
+}

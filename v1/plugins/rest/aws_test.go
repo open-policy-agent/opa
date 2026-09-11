@@ -1191,7 +1191,7 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		t.Setenv("AWS_ROLE_ARN", "BrokenRole")
 		_ = cs.populateFromEnv()
 		cs.expiration = time.Now()
-		creds, err = cs.credentials(t.Context())
+		_, err = cs.credentials(t.Context())
 		assertErr("failed to parse credential response from STS service: EOF", err, t)
 	})
 }

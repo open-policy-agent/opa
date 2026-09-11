@@ -159,6 +159,86 @@ func TestBundleRegoVersion(t *testing.T) {
 	}
 }
 
+// TestManifestNumericRegoVersionForFileGlobSemantics pins how the
+// file_rego_versions patterns are matched against module paths. The patterns
+// are compiled without separators, so '*' crosses '/' -- but a wildcard still
+// never stands in for a literal of the pattern, so a pattern with a '/*/'
+// segment requires both slashes to be present in the path.
+func TestManifestNumericRegoVersionForFileGlobSemantics(t *testing.T) {
+	tests := []struct {
+		note    string
+		pattern string
+		path    string
+		want    bool
+	}{
+		{
+			note:    "wildcard crosses the separator",
+			pattern: "/example/*.rego",
+			path:    "/example/authz/policy.rego",
+			want:    true,
+		},
+		{
+			note:    "wildcard does not stand in for a literal of the pattern",
+			pattern: "/example/*/policy.rego",
+			path:    "/example/policy.rego",
+			want:    false,
+		},
+		{
+			note:    "wildcard between literals",
+			pattern: "/example/*/policy.rego",
+			path:    "/example/authz/policy.rego",
+			want:    true,
+		},
+		{
+			note:    "super wildcard does not stand in for a literal either",
+			pattern: "/example/**/policy.rego",
+			path:    "/example/policy.rego",
+			want:    false,
+		},
+		{
+			note:    "leading wildcard matches the empty string",
+			pattern: "*/policy.rego",
+			path:    "/policy.rego",
+			want:    true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m := Manifest{FileRegoVersions: map[string]int{tc.pattern: 0}}
+
+			got, err := m.numericRegoVersionForFile(tc.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// A nil version means no pattern matched: RegoVersion is unset, so
+			// the resolver has nothing to fall back to.
+			if matched := got != nil; matched != tc.want {
+				t.Errorf("pattern %q against %q: expected match=%v, got %v",
+					tc.pattern, tc.path, tc.want, matched)
+			}
+		})
+	}
+}
+
+// TestManifestNumericRegoVersionForFileInvalidPattern ensures a malformed
+// pattern is reported rather than silently ignored. Note that gobwas/glob
+// v0.2.3 accepted "{a,b" and "a\\"; v1.0.0 rejects both.
+func TestManifestNumericRegoVersionForFileInvalidPattern(t *testing.T) {
+	for _, pattern := range []string{"{a,b", `a\`, "[]"} {
+		t.Run(pattern, func(t *testing.T) {
+			m := Manifest{FileRegoVersions: map[string]int{pattern: 0}}
+
+			if _, err := m.numericRegoVersionForFile("/example/policy.rego"); err == nil {
+				t.Fatalf("expected error for pattern %q", pattern)
+			} else if exp := "failed to compile glob pattern " + pattern; !strings.HasPrefix(err.Error(), exp) {
+				t.Errorf("expected error starting with %q, got %q", exp, err.Error())
+			}
+		})
+	}
+}
+
 // TestManifestNumericRegoVersionForFileDeterministic is a regression test
 // that ensures that resolving a file's rego-version is stable across
 // invocations when multiple patterns match the same path.
@@ -294,6 +374,160 @@ p contains x if {
 			}
 		})
 	}
+}
+
+func TestRead_LogicalKeywords(t *testing.T) {
+	v1Module := `package example
+		import future.keywords.and
+		import future.keywords.or
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	v0Module := `package example
+		import future.keywords.and
+		import future.keywords.or
+
+		allow {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	tests := []struct {
+		note         string
+		files        [][2]string
+		regoVersion  ast.RegoVersion
+		capabilities *ast.Capabilities
+		expErrs      []string
+	}{
+		{
+			note:  "per-keyword imports",
+			files: [][2]string{{"test.rego", v1Module}},
+		},
+		{
+			note: "wildcard future.keywords import",
+			files: [][2]string{{"test.rego", `package example
+				import future.keywords
+
+				allow if {
+					input.user == "alice" or (input.role == "admin" and input.verified)
+				}`},
+			},
+		},
+		{
+			note: "no import",
+			files: [][2]string{{"test.rego", `package example
+
+				allow if {
+					input.user == "alice" or input.role == "admin"
+				}`},
+			},
+			expErrs: []string{"test.rego:4: rego_parse_error: unexpected identifier token"},
+		},
+		{
+			note: "v0 bundle manifest",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 0}`},
+				{"test.rego", v0Module},
+			},
+		},
+		{
+			note: "v0 bundle manifest, rego.v1 import",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 0}`},
+				{"test.rego", `package example
+					import future.keywords.and
+					import future.keywords.or
+					import rego.v1
+
+					allow if {
+						input.user == "alice" or (input.role == "admin" and input.verified)
+					}`,
+				},
+			},
+		},
+		{
+			note: "per-file rego version",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 1, "file_rego_versions": {"/test.rego": 0}}`},
+				{"test.rego", v0Module},
+			},
+		},
+		{
+			note:        "v0 reader rego-version",
+			files:       [][2]string{{"test.rego", v0Module}},
+			regoVersion: ast.RegoV0,
+		},
+		{
+			note:         "capabilities without and/or",
+			files:        [][2]string{{"test.rego", v1Module}},
+			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
+			expErrs:      []string{"rego_parse_error: unexpected keyword, must be one of [contains every if in not]"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := archive.MustWriteTarGz(tc.files)
+			br := NewCustomReader(NewTarballLoaderWithBaseURL(buf, ""))
+
+			if tc.regoVersion != ast.RegoUndefined {
+				br = br.WithRegoVersion(tc.regoVersion)
+			}
+			if tc.capabilities != nil {
+				br = br.WithCapabilities(tc.capabilities)
+			}
+
+			bundle, err := br.Read()
+
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error(s):\n\n%v\n\nbut got nil", tc.expErrs)
+				}
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error:\n\n%s\n\nbut got:\n\n%s", expErr, err)
+					}
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			if len(bundle.Modules) != 1 {
+				t.Fatalf("expected 1 module but got %d", len(bundle.Modules))
+			}
+
+			// The keywords must survive as logical nodes, not be parsed as
+			// something else that happens to be valid.
+			var ands, ors int
+			ast.WalkExprs(bundle.Modules[0].Parsed, func(e *ast.Expr) bool {
+				switch {
+				case e.IsAnd():
+					ands++
+				case e.IsOr():
+					ors++
+				}
+				return false
+			})
+			if ands != 1 || ors != 1 {
+				t.Fatalf("expected 1 and-expression and 1 or-expression, got %d and %d in:\n\n%v",
+					ands, ors, bundle.Modules[0].Parsed)
+			}
+		})
+	}
+}
+
+func capabilitiesWithoutFutureKeywords(tb testing.TB, kws ...string) *ast.Capabilities {
+	tb.Helper()
+
+	caps := ast.CapabilitiesForThisVersion()
+	caps.FutureKeywords = slices.DeleteFunc(caps.FutureKeywords, func(kw string) bool {
+		return slices.Contains(kws, kw)
+	})
+
+	return caps
 }
 
 func TestReadWithSizeLimit(t *testing.T) {
@@ -1984,7 +2218,7 @@ func TestParsedModules(t *testing.T) {
 					t.Fatalf("Missing expected module %s, got: %+v", exp, parsedMods)
 				}
 				if mod == nil {
-					t.Fatalf("Expected module to be non-nil")
+					t.Fatal("Expected module to be non-nil")
 				}
 			}
 		})
@@ -2407,7 +2641,7 @@ func TestMerge(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			for i := range tc.bundles {
-				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(*tc.bundles[i]); err != nil {
+				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(tc.bundles[i]); err != nil {
 					panic(err)
 				}
 			}

@@ -55,7 +55,7 @@ func (p *findDefinitionParams) parserOptions() ast.ParserOptions {
 	return popts
 }
 
-func initOracle(root *cobra.Command, brand string) {
+func initOracle(root *cobra.Command) {
 
 	var findDefinitionParams = newFindDefinitionParams()
 

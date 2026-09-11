@@ -359,7 +359,7 @@ func (h *SlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 }
 
-func (h *SlogHandler) WithGroup(name string) slog.Handler {
+func (h *SlogHandler) WithGroup(string) slog.Handler {
 	return h
 }
 

@@ -34,7 +34,7 @@ func TestREPLJSONOutputBytes(t *testing.T) {
 	var buf bytes.Buffer
 	r := repl.New(store, "", &buf, "json", 0, "")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := r.OneShot(ctx, "1 == 1"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestRunServerUploadPolicy(t *testing.T) {
 
 			if tc.expErr {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 			} else {
 				if err != nil {

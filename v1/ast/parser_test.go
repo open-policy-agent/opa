@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (
@@ -2537,6 +2538,241 @@ func TestEvery(t *testing.T) {
 	assertParseErrorContains(t, "invalid domain (internal.member_3)", "every internal.member_3()", "illegal domain", opts)
 }
 
+func TestMembershipExprHint(t *testing.T) {
+	v0 := ParserOptions{RegoVersion: RegoV0}
+	hint := "(hint: `import future.keywords.in` for `x in xs` expressions)"
+
+	hinted := []struct {
+		note  string
+		input string
+	}{
+		{"bare membership expr", `p {
+			input.request.operation in {"CREATE", "UPDATE"}
+		}`},
+		{"negated", `p {
+			not x in xs
+		}`},
+		{"semicolon separated", `p {
+			x in xs; x
+		}`},
+		{"comprehension body", `p {
+			ys := [y | y in xs]
+		}`},
+		{"assigned", `p {
+			x := y in ys
+		}`},
+		{"unified", `p {
+			x = y in ys
+		}`},
+		{"key/value membership", `p {
+			"k", v in {"k": "v"}
+		}`},
+	}
+
+	for _, tc := range hinted {
+		assertParseErrorContains(t, tc.note, tc.input, hint, v0)
+		assertNoParseError(t, tc.input, ParserOptions{RegoVersion: RegoV1})
+	}
+
+	// The comma only earns a hint when a membership expr follows it.
+	assertParseErrorContains(t, "unrelated comma error gets no hint", `p {
+		x, y
+	}`,
+		"unexpected , token: expected \\n or ; or }\n\tx, y\n", v0)
+
+	// `in` on its own line is just a var in v0.
+	assertNoParseError(t, `p {
+		x
+		in
+	}`, v0)
+
+	// A recovered membership expr must not leave a hint for a later error.
+	if _, err := ParseBodyWithOpts("x in xs\n1 +++ 2", v0); err == nil {
+		t.Fatal("expected parse error")
+	} else if strings.Contains(err.Error(), "hint") {
+		t.Errorf("expected no hint on unrelated error, got: %v", err)
+	}
+}
+
+func TestMembershipExprHintWithLogicalKeywords(t *testing.T) {
+	v0 := ParserOptions{RegoVersion: RegoV0}
+	hint := "(hint: `import future.keywords.in` for `x in xs` expressions)"
+
+	tests := []struct {
+		note   string
+		module string
+	}{
+		{"membership on the lhs of `and`", `package test
+			import future.keywords.and
+			p { x in xs and y }`},
+		{"membership on the rhs of `and`", `package test
+			import future.keywords.and
+			p { y and x in xs }`},
+		{"membership on the rhs of `or`", `package test
+			import future.keywords.or
+			p { y or x in xs }`},
+		{"membership inside a not-body", `package test
+			import future.keywords.not
+			p { not { x in xs } }`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModuleWithOpts("test.rego", tc.module, v0)
+			if err == nil {
+				t.Fatal("expected parse error")
+			}
+			if !strings.Contains(err.Error(), hint) {
+				t.Errorf("expected hint %q, got: %v", hint, err)
+			}
+		})
+	}
+
+	// Unimported `and`/`or` get their own hint, not the `in` one.
+	t.Run("unimported and gets its own hint", func(t *testing.T) {
+		_, err := ParseModuleWithOpts("test.rego", "package test\np { x and y }", v0)
+		if err == nil {
+			t.Fatal("expected parse error")
+		}
+		exp := "(hint: `import future.keywords.and` for `x and y` expressions)"
+		if !strings.Contains(err.Error(), exp) {
+			t.Errorf("expected hint %q, got: %v", exp, err)
+		}
+	})
+}
+
+func TestInfixKeywordImportHint(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		version RegoVersion
+		expHint string
+	}{
+		{
+			note:    "`and` is a future keyword in v1",
+			module:  "package test\np if { x and y }",
+			version: RegoV1,
+			expHint: "(hint: `import future.keywords.and` for `x and y` expressions)",
+		},
+		{
+			note:    "`or` is a future keyword in v1",
+			module:  "package test\np if { x or y }",
+			version: RegoV1,
+			expHint: "(hint: `import future.keywords.or` for `x or y` expressions)",
+		},
+		{
+			note:    "`and` after a braced operand",
+			module:  "package test\np if { {x} and y }",
+			version: RegoV1,
+			expHint: "(hint: `import future.keywords.and` for `x and y` expressions)",
+		},
+		{
+			note:    "`in` is a future keyword in v0",
+			module:  "package test\np { x in xs }",
+			version: RegoV0,
+			expHint: "(hint: `import future.keywords.in` for `x in xs` expressions)",
+		},
+		{
+			note:    "`and` is importable in v0 too",
+			module:  "package test\np { x and y }",
+			version: RegoV0,
+			expHint: "(hint: `import future.keywords.and` for `x and y` expressions)",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{RegoVersion: tc.version})
+			if err == nil {
+				t.Fatal("expected parse error")
+			}
+			if !strings.Contains(err.Error(), tc.expHint) {
+				t.Errorf("expected hint %q, got: %v", tc.expHint, err)
+			}
+		})
+	}
+
+	// An identifier that isn't a future keyword must not be hinted at.
+	t.Run("unrelated identifier gets no hint", func(t *testing.T) {
+		_, err := ParseModuleWithOpts("test.rego", "package test\np if { x y }", ParserOptions{RegoVersion: RegoV1})
+		if err == nil {
+			t.Fatal("expected parse error")
+		}
+		if strings.Contains(err.Error(), "hint") {
+			t.Errorf("expected no hint, got: %v", err)
+		}
+	})
+}
+
+func TestRuleHeadKeywordImportHint(t *testing.T) {
+	v0 := ParserOptions{RegoVersion: RegoV0}
+	ifHint := "(hint: `import future.keywords.if` for `p if { ... }` rules)"
+	containsHint := "(hint: `import future.keywords.contains` for `p contains x` rules)"
+
+	tests := []struct {
+		note    string
+		module  string
+		expHint string
+	}{
+		{"if, braced body", "package test\np if { true }", ifHint},
+		{"if, one-line body", "package test\np if true", ifHint},
+		{"contains", "package test\np contains x { x := 1 }", containsHint},
+		{"contains and if", "package test\np contains x if { x := 1 }", containsHint},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModuleWithOpts("test.rego", tc.module, v0)
+			if err == nil {
+				t.Fatal("expected parse error")
+			}
+			if !strings.Contains(err.Error(), tc.expHint) {
+				t.Errorf("expected hint %q, got: %v", tc.expHint, err)
+			}
+		})
+	}
+
+	// Both are legal rule names in v0, and an unrelated bad head isn't a hint.
+	noHint := []struct {
+		note   string
+		module string
+		expErr bool
+	}{
+		{"rule named if", "package test\nif := 1", false},
+		{"rule named contains", "package test\ncontains := 1", false},
+		{"genuinely bad rule head", "package test\n1", true},
+	}
+
+	for _, tc := range noHint {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModuleWithOpts("test.rego", tc.module, v0)
+			if !tc.expErr {
+				if err != nil {
+					t.Fatalf("expected no error, got: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected parse error")
+			}
+			if strings.Contains(err.Error(), "hint") {
+				t.Errorf("expected no hint, got: %v", err)
+			}
+		})
+	}
+
+	// From v1 on the keywords are standard.
+	for _, module := range []string{
+		"package test\np if { true }",
+		"package test\np contains x if { x := 1 }",
+		"package test\nimport rego.v1\np if { true }",
+	} {
+		if _, err := ParseModuleWithOpts("test.rego", module, ParserOptions{RegoVersion: RegoV1}); err != nil {
+			t.Errorf("expected %q to parse in v1, got: %v", module, err)
+		}
+	}
+}
+
 func TestNestedExpressions(t *testing.T) {
 
 	n1 := IntNumberTerm(1)
@@ -2894,7 +3130,7 @@ func TestImport(t *testing.T) {
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
 	if err == nil {
-		t.Fatalf("Expected error, but got nil")
+		t.Fatal("Expected error, but got nil")
 	}
 	if len(err.(Errors)) > 1 {
 		t.Fatalf("Expected a single error, got %s", err)
@@ -5567,8 +5803,8 @@ func TestRuleFromBodyRefs(t *testing.T) {
 
 func assertErrorWithMessage(t *testing.T, err error, msg string) {
 	t.Helper()
-	var errs Errors
-	if !errors.As(err, &errs) {
+	errs, ok := errors.AsType[Errors](err)
+	if !ok {
 		t.Fatalf("expected Errors, got %v %[1]T", err)
 	}
 	if exp, act := 1, len(errs); exp != act {
@@ -6492,7 +6728,7 @@ else = {
 
 	curElse := rule.Else
 	if curElse == nil {
-		t.Fatalf("Expected an else block, got nil")
+		t.Fatal("Expected an else block, got nil")
 	}
 	assertLocationText(t, strings.TrimSpace(`
 else = y {
@@ -6515,7 +6751,7 @@ else = {
 
 	curElse = curElse.Else
 	if curElse == nil {
-		t.Fatalf("Expected an else block, got nil")
+		t.Fatal("Expected an else block, got nil")
 	}
 	assertLocationText(t, strings.TrimSpace(`
 else {
@@ -6531,12 +6767,12 @@ else = {
 	`), curElse.Location)
 	assertLocationText(t, "else", curElse.Head.Location)
 	if curElse.Head.Value.Location != nil {
-		t.Errorf("Expected a nil location")
+		t.Error("Expected a nil location")
 	}
 
 	curElse = curElse.Else
 	if curElse == nil {
-		t.Fatalf("Expected an else block, got nil")
+		t.Fatal("Expected an else block, got nil")
 	}
 	assertLocationText(t, strings.TrimSpace(`
 else = {
@@ -7978,7 +8214,7 @@ package foo`
 
 	_, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
 	if err == nil {
-		t.Fatalf("Expected error but got none")
+		t.Fatal("Expected error but got none")
 	}
 
 	if len(err.(Errors)) != 1 {
@@ -8434,7 +8670,7 @@ func generateDeeplyNestedObject(depth int) string {
 func assertLocationText(t *testing.T, expected string, actual *Location) {
 	t.Helper()
 	if actual == nil || actual.Text == nil {
-		t.Errorf("Expected a non nil location and text")
+		t.Error("Expected a non nil location and text")
 		return
 	}
 	if string(actual.Text) != expected {
@@ -9083,7 +9319,7 @@ func TestTemplateStringError(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			_, _, err := ParseStatements("", tc.expr)
 			if err == nil {
-				t.Fatalf("Expected error, got nil")
+				t.Fatal("Expected error, got nil")
 			}
 
 			if !strings.Contains(err.Error(), tc.expError) {
@@ -9126,7 +9362,7 @@ func TestTemplateStringCapabilities(t *testing.T) {
 
 			if tc.expErr != "" {
 				if err == nil {
-					t.Fatalf("Expected error, got nil")
+					t.Fatal("Expected error, got nil")
 				}
 
 				if !strings.Contains(err.Error(), tc.expErr) {
@@ -9576,7 +9812,7 @@ func TestNotImport(t *testing.T) {
 
 			if tc.expErr != "" {
 				if err == nil {
-					t.Fatalf("Expected error, got nil")
+					t.Fatal("Expected error, got nil")
 				}
 
 				if !strings.Contains(err.Error(), tc.expErr) {
@@ -9612,17 +9848,17 @@ func TestParseNotBody_InnerExprHasLocation(t *testing.T) {
 
 	outer := mod.Rules[0].Body[0]
 	if outer.Location == nil {
-		t.Fatalf("outer Expr has nil Location")
+		t.Fatal("outer Expr has nil Location")
 	}
 
 	not := outer.Terms.(*Not)
 	if not.Location == nil {
-		t.Fatalf("Not.Location is nil")
+		t.Fatal("Not.Location is nil")
 	}
 
 	inner := not.Body[0]
 	if inner.Location == nil {
-		t.Fatalf("inner Expr inside Not.Body has nil Location")
+		t.Fatal("inner Expr inside Not.Body has nil Location")
 	}
 	if inner.Location.Col != 4 {
 		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
@@ -10606,11 +10842,7 @@ func assertExplicitBodiesEqualInBody(t *testing.T, exp, act Body) {
 }
 
 func describeExprs(b Body) string {
-	parts := make([]string, 0, len(b))
-	for _, e := range b {
-		parts = append(parts, describeExpr(e))
-	}
-	return strings.Join(parts, "; ")
+	return strings.Join(util.Map(b, describeExpr), "; ")
 }
 
 func describeExpr(e *Expr) string {
@@ -10799,6 +11031,280 @@ func parserOptsWithFutureKeywords(kws ...string) ParserOptions {
 		opts.Capabilities = caps
 	}
 	return opts
+}
+
+func TestFutureKeywordActivationRoutes(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		keyword     string
+		specific    string // module importing the keyword specifically
+		wildcard    string // module importing all future keywords
+		noImport    string // module without any future keyword import
+		exp         string
+		noImportErr bool
+	}{
+		{
+			note:        "v0, in",
+			regoVersion: RegoV0,
+			keyword:     "in",
+			specific: `package test
+				import future.keywords.in
+				p { 1 in [1, 2] }`,
+			wildcard: `package test
+				import future.keywords
+				p { 1 in [1, 2] }`,
+			noImport: `package test
+				p { 1 in [1, 2] }`,
+			exp:         "internal.member_2(1, [1, 2])",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, in",
+			regoVersion: RegoV1,
+			keyword:     "in",
+			specific: `package test
+				import future.keywords.in
+				p if 1 in [1, 2]`,
+			wildcard: `package test
+				import future.keywords
+				p if 1 in [1, 2]`,
+			noImport: `package test
+				p if 1 in [1, 2]`,
+			exp: "internal.member_2(1, [1, 2])",
+		},
+		{
+			note:        "v0, every",
+			regoVersion: RegoV0,
+			keyword:     "every",
+			specific: `package test
+				import future.keywords.every
+				p { every x in [1, 2] { x } }`,
+			wildcard: `package test
+				import future.keywords
+				p { every x in [1, 2] { x } }`,
+			noImport: `package test
+				p { every x in [1, 2] { x } }`,
+			exp:         "every x in [1, 2] { x }",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, every",
+			regoVersion: RegoV1,
+			keyword:     "every",
+			specific: `package test
+				import future.keywords.every
+				p if every x in [1, 2] { x }`,
+			wildcard: `package test
+				import future.keywords
+				p if every x in [1, 2] { x }`,
+			noImport: `package test
+				p if every x in [1, 2] { x }`,
+			exp: "every x in [1, 2] { x }",
+		},
+		{
+			note:        "v0, contains",
+			regoVersion: RegoV0,
+			keyword:     "contains",
+			specific: `package test
+				import future.keywords.contains
+				p contains "a"`,
+			wildcard: `package test
+				import future.keywords
+				p contains "a"`,
+			noImport: `package test
+				p contains "a"`,
+			exp:         "true",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, contains",
+			regoVersion: RegoV1,
+			keyword:     "contains",
+			specific: `package test
+				import future.keywords.contains
+				p contains "a"`,
+			wildcard: `package test
+				import future.keywords
+				p contains "a"`,
+			noImport: `package test
+				p contains "a"`,
+			exp: "true",
+		},
+		{
+			note:        "v0, if",
+			regoVersion: RegoV0,
+			keyword:     "if",
+			specific: `package test
+				import future.keywords.if
+				p if { true }`,
+			wildcard: `package test
+				import future.keywords
+				p if { true }`,
+			noImport: `package test
+				p if { true }`,
+			exp:         "true",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, if",
+			regoVersion: RegoV1,
+			keyword:     "if",
+			specific: `package test
+				import future.keywords.if
+				p if { true }`,
+			wildcard: `package test
+				import future.keywords
+				p if { true }`,
+			noImport: `package test
+				p if { true }`,
+			exp: "true",
+		},
+		{
+			note:        "v0, not",
+			regoVersion: RegoV0,
+			keyword:     "not",
+			specific: `package test
+				import future.keywords.not
+				p { not {input.a; input.b} }`,
+			wildcard: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			noImport: `package test
+				p { not {input.a; input.b} }`,
+			exp:         "not {input.a; input.b}",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, not",
+			regoVersion: RegoV1,
+			keyword:     "not",
+			specific: `package test
+				import future.keywords.not
+				p if not {input.a; input.b}`,
+			wildcard: `package test
+				import future.keywords
+				p if not {input.a; input.b}`,
+			noImport: `package test
+				p if not {input.a; input.b}`,
+			exp:         "not {input.a; input.b}",
+			noImportErr: true,
+		},
+		{
+			note:        "v0, and",
+			regoVersion: RegoV0,
+			keyword:     "and",
+			specific: `package test
+				import future.keywords.and
+				p { input.a and input.b }`,
+			wildcard: `package test
+				import future.keywords
+				p { input.a and input.b }`,
+			noImport: `package test
+				p { input.a and input.b }`,
+			exp:         "input.a and input.b",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, and",
+			regoVersion: RegoV1,
+			keyword:     "and",
+			specific: `package test
+				import future.keywords.and
+				p if input.a and input.b`,
+			wildcard: `package test
+				import future.keywords
+				p if input.a and input.b`,
+			noImport: `package test
+				p if input.a and input.b`,
+			exp:         "input.a and input.b",
+			noImportErr: true,
+		},
+		{
+			note:        "v0, or",
+			regoVersion: RegoV0,
+			keyword:     "or",
+			specific: `package test
+				import future.keywords.or
+				p { input.a or input.b }`,
+			wildcard: `package test
+				import future.keywords
+				p { input.a or input.b }`,
+			noImport: `package test
+				p { input.a or input.b }`,
+			exp:         "input.a or input.b",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, or",
+			regoVersion: RegoV1,
+			keyword:     "or",
+			specific: `package test
+				import future.keywords.or
+				p if input.a or input.b`,
+			wildcard: `package test
+				import future.keywords
+				p if input.a or input.b`,
+			noImport: `package test
+				p if input.a or input.b`,
+			exp:         "input.a or input.b",
+			noImportErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			routes := []struct {
+				note   string
+				module string
+				opts   ParserOptions
+			}{
+				{
+					note:   "import future.keywords." + tc.keyword,
+					module: tc.specific,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion},
+				},
+				{
+					note:   "import future.keywords",
+					module: tc.wildcard,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion},
+				},
+				{
+					note:   "ParserOptions.FutureKeywords",
+					module: tc.noImport,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion, FutureKeywords: []string{tc.keyword}},
+				},
+				{
+					note:   "ParserOptions.AllFutureKeywords",
+					module: tc.noImport,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion, AllFutureKeywords: true},
+				},
+			}
+
+			for _, route := range routes {
+				t.Run(route.note, func(t *testing.T) {
+					mod, err := ParseModuleWithOpts("test.rego", route.module, route.opts)
+					if err != nil {
+						t.Fatalf("expected successful parse, got: %v", err)
+					}
+					if act := mod.Rules[0].Body.String(); act != tc.exp {
+						t.Errorf("expected body %q but got %q", tc.exp, act)
+					}
+				})
+			}
+
+			t.Run("not activated", func(t *testing.T) {
+				mod, err := ParseModuleWithOpts("test.rego", tc.noImport, ParserOptions{RegoVersion: tc.regoVersion})
+				if tc.noImportErr {
+					if err == nil {
+						t.Fatalf("expected parse error, got: %v", mod)
+					}
+				} else if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			})
+		})
+	}
 }
 
 func TestOperandRenderRoundTrip(t *testing.T) {

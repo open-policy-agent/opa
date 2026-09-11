@@ -856,8 +856,7 @@ func (a FuncArgs) Arg(x int) Type {
 // Compare returns -1, 0, 1 based on comparison between a and b.
 func Compare(a, b Type) int {
 	a, b = unwrapRecursive(unwrap(a)), unwrapRecursive(unwrap(b))
-	x := typeOrder(a)
-	y := typeOrder(b)
+	x, y := typeOrder(a), typeOrder(b)
 	if x > y {
 		return 1
 	} else if x < y {

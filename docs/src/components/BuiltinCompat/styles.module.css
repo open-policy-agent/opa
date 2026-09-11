@@ -1,0 +1,41 @@
+/* Compatibility columns, in the spirit of MDN's browser compatibility tables. Support colours are
+   translucent tints of Infima's semantic colours rather than fixed greens and reds, so they hold
+   up in both light and dark mode. */
+.heading {
+  text-align: center;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.heading a:link,
+.heading a:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.supported,
+.unsupported,
+.hostProvided {
+  text-align: center;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.supported a:link,
+.supported a:visited {
+  color: inherit;
+}
+
+.supported {
+  background-color: rgb(from var(--ifm-color-success) r g b / 18%);
+}
+
+.unsupported {
+  background-color: rgb(from var(--ifm-color-danger) r g b / 12%);
+}
+
+/* Left out of the Wasm module but still callable when the host SDK provides it: neither the green
+   of full support nor the red of none. */
+.hostProvided {
+  background-color: rgb(from var(--ifm-color-warning) r g b / 18%);
+}

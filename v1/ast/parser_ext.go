@@ -703,7 +703,12 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		case Body:
 			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
-				errs = append(errs, NewError(ParseErr, stmt[0].Location, "%s", err.Error()))
+				msg := err.Error()
+				if kw, ok := missingHeadKeyword(mod.regoVersion, stmt, stmts, i+1); ok {
+					msg = fmt.Sprintf("%s (hint: `import future.keywords.%s` for `%s` rules)",
+						msg, kw, headFutureKeywords[kw])
+				}
+				errs = append(errs, NewError(ParseErr, stmt[0].Location, "%s", msg))
 				continue
 			}
 			rule.generatedBody = true
@@ -745,6 +750,66 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 	attachRuleAnnotations(mod)
 
 	return mod, nil
+}
+
+// headFutureKeywords are the future keywords used in a rule head, mapped to an
+// example of the rule form each enables.
+var headFutureKeywords = map[string]string{
+	"if":       "p if { ... }",
+	"contains": "p contains x",
+}
+
+// missingHeadKeyword reports the rule-head future keyword a statement was
+// misparsed around. Unimported, the keyword is just a var, so `p if { ... }`
+// parses as the body `p` followed by a rule named `if`. idx is stmt's index
+// within stmts.
+func missingHeadKeyword(v RegoVersion, stmt Body, stmts []Statement, idx int) (string, bool) {
+	// From v1 on these are ordinary keywords.
+	if v != RegoV0 {
+		return "", false
+	}
+
+	if kw, ok := statementHeadKeyword(stmt); ok {
+		return kw, true
+	}
+
+	// The keyword starts its own statement; check the next one on the same line.
+	if idx+1 >= len(stmts) {
+		return "", false
+	}
+	next := stmts[idx+1]
+	if next.Loc() == nil || stmt.Loc() == nil || next.Loc().Row != stmt.Loc().Row {
+		return "", false
+	}
+
+	return statementHeadKeyword(next)
+}
+
+// statementHeadKeyword returns the rule-head future keyword a statement was
+// reduced to: a rule named after it, or a body holding only it as a var.
+func statementHeadKeyword(stmt Statement) (string, bool) {
+	var name Var
+
+	switch stmt := stmt.(type) {
+	case *Rule:
+		name = stmt.Head.Name
+	case Body:
+		if len(stmt) != 1 {
+			return "", false
+		}
+		term, ok := stmt[0].Terms.(*Term)
+		if !ok {
+			return "", false
+		}
+		if name, ok = term.Value.(Var); !ok {
+			return "", false
+		}
+	default:
+		return "", false
+	}
+
+	_, ok := headFutureKeywords[string(name)]
+	return string(name), ok
 }
 
 func ruleDeclarationHasKeyword(rule *Rule, keyword tokens.Token) bool {

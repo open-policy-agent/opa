@@ -3,7 +3,6 @@
 package download
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -53,7 +52,7 @@ func TestOCITargetAcceptHeaders(t *testing.T) {
 	}
 
 	// Resolve uses HEAD — any non-empty Accept is sufficient
-	if _, err := target.Resolve(context.Background(), "latest"); err != nil {
+	if _, err := target.Resolve(t.Context(), "latest"); err != nil {
 		t.Fatalf("Resolve failed (Accept header likely missing): %v", err)
 	}
 
@@ -63,7 +62,7 @@ func TestOCITargetAcceptHeaders(t *testing.T) {
 		Digest:    digest.Digest(digestHex),
 		Size:      100,
 	}
-	rc, err := target.Fetch(context.Background(), desc)
+	rc, err := target.Fetch(t.Context(), desc)
 	if err != nil {
 		t.Fatalf("Fetch failed (Accept header likely missing or wrong): %v", err)
 	}

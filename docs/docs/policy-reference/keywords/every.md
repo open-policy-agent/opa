@@ -1,6 +1,6 @@
 ---
 sidebar_label: every
-title: 'Rego Keyword Examples: every'
+title: 'Rego Keyword: every'
 ---
 
 Rego rules and statements are existentially quantified by default. This means

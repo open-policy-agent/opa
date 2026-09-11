@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -201,10 +202,7 @@ func BenchmarkObjectFind(b *testing.B) {
 }
 
 func BenchmarkObjectInsert(b *testing.B) {
-	nums := make([]*Term, 0, 100)
-	for i := range 100 {
-		nums = append(nums, InternedTerm(i))
-	}
+	nums := slices.Collect(InternedIntRange(0, 100))
 
 	b.Run("existing key and value", func(b *testing.B) {
 		obj := newobject(0)
@@ -275,13 +273,10 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 }
 
 // insert           38148     30049 ns/op   58912 B/op     528 allocs/op
-// terms_array      65698     17079 ns/op   34680 B/op     506 allocs/op
+// terms_array      106726    11183 ns/op	34968 B/op       7 allocs/op
 func BenchmarkObjectCreateWithInsertVsTermsArray(b *testing.B) {
 	n := 500
-	interned := make([]*Term, n)
-	for i := range n {
-		interned[i] = InternedTerm(i)
-	}
+	interned := slices.Collect(InternedIntRange(0, n))
 
 	b.Run("insert", func(b *testing.B) {
 		for b.Loop() {
@@ -536,6 +531,73 @@ func BenchmarkArrayCopy(b *testing.B) {
 			b.ResetTimer()
 			for b.Loop() {
 				_ = arr.Copy()
+			}
+		})
+	}
+}
+
+// BenchmarkArraySet is one Array.Set on an array of n elements. Set keeps the
+// cached hash up to date, and it does so by swapping the one element's hash
+// into the sum rather than resumming arr.hashs, so the cost does not follow n:
+//
+//	        resumming    swapping in
+//	   5       6.9 ns         5.3 ns
+//	  50      26.9 ns         5.3 ns
+//	 500     493.4 ns         5.3 ns
+//	5000      5179 ns         5.4 ns
+func BenchmarkArraySet(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			elems := make([]*Term, n)
+			for i := range elems {
+				elems[i] = IntNumberTerm(i)
+			}
+			arr := NewArray(elems...)
+			v := IntNumberTerm(-1)
+
+			b.ReportAllocs()
+			b.ResetTimer()
+
+			for b.Loop() {
+				arr.Set(n/2, v)
+			}
+		})
+	}
+}
+
+// BenchmarkArrayFill is what that costs in aggregate: setting every element of
+// an array of n elements once. Linear in n, where resumming on each Set made
+// it quadratic -- 1000x at n=5000.
+//
+//	        resumming    swapping in
+//	   5      34.7 ns        27.8 ns
+//	  50     930.6 ns       274.0 ns
+//	 500    244842 ns        2598 ns
+//	5000  26854962 ns       26813 ns
+//
+// This is the shape a large array literal in a policy takes on its way through
+// the compiler, where each Transform pass rebuilds the array element by
+// element: compiling a rule holding a 16000 element array spent 95% of its
+// time in rehash.
+func BenchmarkArrayFill(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			elems := make([]*Term, n)
+			for i := range elems {
+				elems[i] = IntNumberTerm(i)
+			}
+			arr := NewArray(elems...)
+			v := IntNumberTerm(-1)
+
+			b.ReportAllocs()
+			b.ResetTimer()
+
+			for b.Loop() {
+				for i := range n {
+					arr.Set(i, v)
+				}
 			}
 		})
 	}

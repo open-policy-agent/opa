@@ -348,6 +348,69 @@ func TestRequestLogging(t *testing.T) {
 	}
 }
 
+func TestDiagnosticHandlerLoggingLevel(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	cases := []struct {
+		name        string
+		newHandler  func(logging.Logger, http.Handler) http.Handler
+		wantAtInfo  bool
+		wantAtDebug bool
+	}{
+		{name: "main", newHandler: NewLoggingHandler, wantAtInfo: true, wantAtDebug: true},
+		{name: "diagnostic", newHandler: NewDiagnosticLoggingHandler, wantAtInfo: false, wantAtDebug: true},
+	}
+
+	for _, tc := range cases {
+		for _, lvl := range []struct {
+			name  string
+			level logging.Level
+		}{
+			{"info", logging.Info},
+			{"debug", logging.Debug},
+		} {
+			t.Run(tc.name+"/"+lvl.name, func(t *testing.T) {
+				logger := test.New()
+				logger.SetLevel(lvl.level)
+
+				handler := tc.newHandler(logger, inner)
+
+				// /health is served by both the main and diagnostic handlers
+				// (depending on which listener accepted the connection), so
+				// the log level decision must be driven by which handler is
+				// in play, not the request path.
+				req, err := http.NewRequest("GET", "/health", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				rec := httptest.NewRecorder()
+				handler.ServeHTTP(rec, req)
+
+				var gotReceived, gotSent bool
+				for _, ent := range logger.Entries() {
+					switch ent.Message {
+					case "Received request.":
+						gotReceived = true
+					case "Sent response.":
+						gotSent = true
+					}
+				}
+
+				want := tc.wantAtInfo
+				if lvl.level == logging.Debug {
+					want = tc.wantAtDebug
+				}
+
+				if gotReceived != want || gotSent != want {
+					t.Errorf("expected logged=%v at level %s, got received=%v sent=%v", want, lvl.name, gotReceived, gotSent)
+				}
+			})
+		}
+	}
+}
+
 func entriesForReq(ents []test.LogEntry, n uint64) []test.LogEntry {
 	var ret []test.LogEntry
 	for _, e := range ents {

@@ -281,8 +281,7 @@ func (*goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchma
 				for name, metric := range m.All() {
 					// Note: We only support int64 metrics right now, this should cover pretty
 					// much all the ones we would care about (timers and counters).
-					switch v := metric.(type) {
-					case int64:
+					if v, ok := metric.(int64); ok {
 						hist.Histogram(name).Update(v)
 					}
 				}
@@ -468,8 +467,7 @@ func runE2E(params benchmarkCommandParams, url string, input map[string]any) (te
 			// Add metrics for that evaluation into the top level histogram
 			if params.metrics {
 				for name, metric := range m {
-					switch v := metric.(type) {
-					case json.Number:
+					if v, ok := metric.(json.Number); ok {
 						num, err := v.Int64()
 						if err != nil {
 							benchErr = err
@@ -612,7 +610,7 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 		if params.benchMem {
 			fmt.Fprintf(w, "\t%s", br.MemString())
 		}
-		fmt.Fprintf(w, "\n")
+		fmt.Fprintln(w)
 	default:
 		data := [][]string{
 			{"samples", strconv.Itoa(br.N)},

@@ -53,6 +53,8 @@ type thread struct {
 	virtualCache    topdown.VirtualCache
 	store           storage.Store
 	logger          logging.Logger
+	framer          framer
+	consumed        int
 	mtx             sync.Mutex
 }
 
@@ -287,6 +289,17 @@ func (t *thread) stackEvents(from int) []*topdown.Event {
 		from++
 	}
 	return events
+}
+
+// stackTrace consumes any trace events not yet seen by the thread's framer, and returns
+// the resulting stack, ordered from the most recent frame to the least recent.
+func (t *thread) stackTrace() StackTrace {
+	for _, e := range t.stackEvents(t.consumed) {
+		t.framer.consume(t.consumed, e, t)
+		t.consumed++
+	}
+
+	return t.framer.stackTrace(t)
 }
 
 // Scope represents the variable state of a StackFrame.

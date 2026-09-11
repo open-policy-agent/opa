@@ -36,6 +36,8 @@ linters:
         - (*encoding/json/jsontext.Encoder).WriteValue
     forbidigo:
       forbid:
+        - pattern: '^errors\.As$'
+          message: "Prefer to use errors.AsType instead"
         - pattern: '^sort\.[A-Z][a-zA-Z]+$'
           message: "Prefer the more performant sort/search functions in the slices package"
     gocritic:
@@ -47,14 +49,9 @@ linters:
         - stringConcatSimplify
       disabled-checks:
         - appendAssign
-        # NOTE(ae): this one should be enabled, but there were too
-        # many violations to fix in one go... revisit later
-        - singleCaseSwitch
         # Reasonable rule, but not sure what to replace with in
         # many locations, so disabling for now
         - exitAfterDefer
-        # This is disabled from the perfomance tag  enabled further down.
-        - hugeParam
       enabled-tags:
         - performance
       settings:
@@ -63,14 +60,16 @@ linters:
           # lowered to something more reasonable, as the rule
           # is reasonable (replace long if-else chains with
           # switch)... just too many violations right now
-          minThreshold: 10
+          minThreshold: 5
+        hugeParam:
+          sizeThreshold: 400
     govet:
       disable:
-        # enable later and fix
-        - buildtag
-      enable:
-        - deepequalerrors
-        - nilness
+        - fieldalignment
+        - shadow
+        # definitely look into these isses when given time
+        - unusedwrite
+      enable-all: true
     lll:
       line-length: 200
     modernize:
@@ -87,7 +86,11 @@ linters:
       rules:
         - name: redefines-builtin-id
           disabled: true
+        - name: unused-parameter
+          disabled: false
         - name: unused-receiver
+          disabled: false
+        - name: unnecessary-format
           disabled: false
     staticcheck:
       checks:
@@ -104,6 +107,10 @@ linters:
           "-QF1003",
           "-QF1008",
         ]
+    usetesting:
+      os-temp-dir: true
+      context-background: true
+      context-todo: true
   exclusions:
     warn-unused: true
     generated: lax
@@ -113,6 +120,10 @@ linters:
       - legacy
       - std-error-handling
     rules:
+      - linters:
+          - gocritic
+        text: hugeParam
+        path: v1/test/|cmd/|v1/runtime/runtime.go|_test\.go
       - linters:
           - staticcheck
         text: SA1019 # Using a deprecated function, variable, constant or field

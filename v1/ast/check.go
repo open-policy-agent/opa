@@ -246,7 +246,6 @@ func (tc *typeChecker) getSchemaType(schemaAnnot *SchemaAnnotation, rule *Rule) 
 }
 
 func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
-
 	env = env.wrap()
 
 	schemaAnnots := getRuleAnnotation(as, rule)
@@ -357,23 +356,17 @@ func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
 		return tpe, nil
 	}
 
-	k := path[0]
 	typeV, err := nestedObject(env, path[1:], tpe)
-	if err != nil {
+	if err != nil || typeV == nil {
 		return nil, err
 	}
-	if typeV == nil {
-		return nil, nil
-	}
 
-	var dynamicProperty *types.DynamicProperty
-	typeK := env.GetByValue(k.Value)
+	typeK := env.GetByValue(path[0].Value)
 	if typeK == nil {
 		return nil, nil
 	}
-	dynamicProperty = types.NewDynamicProperty(typeK, typeV)
 
-	return types.NewObject(nil, dynamicProperty), nil
+	return types.NewObject(nil, types.NewDynamicProperty(typeK, typeV)), nil
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
@@ -395,11 +388,73 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 		}
 	}
 
-	if operator == "eq" {
+	switch operator {
+	case Equality.Name:
 		return checkExprEq(env, expr)
+	case Member.Name, MemberWithKey.Name:
+		if err := checkExprMember(env, expr, operator == MemberWithKey.Name); err != nil {
+			return err
+		}
 	}
 
 	return tc.checkExprBuiltin(env, expr)
+}
+
+// checkExprMember type checks the `in` operator, whose operands are declared as
+// any: what may be found in a collection depends on the collection's own type,
+// which a function declaration can't express.
+func checkExprMember(env *TypeEnv, expr *Expr, withKey bool) *Error {
+	arity := Member.Decl.Arity()
+	if withKey {
+		arity = MemberWithKey.Decl.Arity()
+	}
+
+	args := expr.Operands()
+	if len(args) < arity {
+		return nil // too few arguments; reported by checkExprBuiltin
+	}
+
+	collection := env.GetByValue(args[arity-1].Value)
+
+	// `in` yields false rather than erroring for operands it can't enumerate.
+	values := types.Values(collection)
+	if values == nil {
+		return nil
+	}
+
+	if withKey {
+		if err := checkExprMemberOperand(env, expr, args[0], types.Keys(collection)); err != nil {
+			return err
+		}
+	}
+
+	return checkExprMemberOperand(env, expr, args[arity-2], values)
+}
+
+// checkExprMemberOperand checks that term can occur in the collection being
+// searched, inferring the type of untyped terms (e.g. `some x in xs`) as it goes.
+func checkExprMemberOperand(env *TypeEnv, expr *Expr, term *Term, tpe types.Type) *Error {
+	if tpe == nil || types.Nil(tpe) {
+		return nil
+	}
+
+	have := env.GetByValue(term.Value)
+
+	// unifies rejects already-typed terms; unify1 infers types for untyped vars
+	// and checks the resolved parts of partially typed composites.
+	if (!types.Nil(have) && !unifies(have, tpe)) || !unify1(env, term, tpe, false) {
+		return &Error{
+			Code:     TypeErr,
+			Location: expr.Location,
+			Message:  "match error",
+			Details: &UnificationErrDetail{
+				Left:  have,
+				Right: tpe,
+			},
+		}
+	}
+
+	return nil
 }
 
 func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
@@ -477,14 +532,16 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 }
 
 func checkExprEq(env *TypeEnv, expr *Expr) *Error {
+	ops := expr.Operands()
+	num := len(ops)
 
-	pre := getArgTypes(env, expr.Operands())
-
-	if len(pre) < Equality.Decl.Arity() {
+	if num < Equality.Decl.Arity() {
+		pre := getArgTypes(env, ops)
 		return newArgError(expr.Location, expr.Operator(), "too few arguments", pre, Equality.Decl.FuncArgs())
 	}
 
-	if Equality.Decl.Arity() < len(pre) {
+	if Equality.Decl.Arity() < num {
+		pre := getArgTypes(env, ops)
 		return newArgError(expr.Location, expr.Operator(), "too many arguments", pre, Equality.Decl.FuncArgs())
 	}
 
@@ -896,7 +953,6 @@ func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {
 }
 
 func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx int) *Error {
-
 	if idx == len(ref) {
 		return nil
 	}
@@ -1172,10 +1228,48 @@ type ArgErrDetail struct {
 
 // Lines returns the string representation of the detail.
 func (d *ArgErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = "have: " + formatArgs(d.Have)
-	lines[1] = "want: " + d.Want.String()
-	return lines
+	have := "have: " + formatArgs(d.Have)
+	want := "want: " + d.Want.String()
+
+	if !tooWideForTypeErr(have, want) {
+		return []string{have, want}
+	}
+
+	// Positions that only exist on one side, as is the case for arity errors,
+	// have nothing to be compared against, and are collapsed to their outermost
+	// type constructor.
+	haveArgs := make([]string, len(d.Have))
+	for i := range d.Have {
+		haveArgs[i] = elideType(d.Have[i])
+	}
+	wantArgs := make([]string, len(d.Want.Args))
+	for i := range d.Want.Args {
+		wantArgs[i] = elideType(d.Want.Args[i])
+	}
+
+	for i := range min(len(haveArgs), len(wantArgs)) {
+		haveArgs[i], wantArgs[i] = diffArg(d.Have[i], d.Want.Args[i])
+	}
+
+	if d.Want.Variadic != nil {
+		wantArgs = append(wantArgs, elideType(d.Want.Variadic)+"...")
+	}
+
+	return []string{
+		"have: (" + strings.Join(haveArgs, ", ") + ")",
+		"want: (" + strings.Join(wantArgs, ", ") + ")",
+	}
+}
+
+// diffArg renders an actual and an expected argument type side by side. The two
+// are only diffed if they are actually in conflict: an argument that the
+// function would have accepted is not what the error is about, and expanding it
+// is what makes these messages unreadable in the first place.
+func diffArg(have, want types.Type) (string, string) {
+	if have != nil && want != nil && unifies(unwrapNamedType(have), unwrapNamedType(want)) {
+		return elideType(have), elideType(want)
+	}
+	return sprintDiff(have, want)
 }
 
 func (d *ArgErrDetail) nilType() bool {
@@ -1195,10 +1289,15 @@ func (a *UnificationErrDetail) nilType() bool {
 
 // Lines returns the string representation of the detail.
 func (a *UnificationErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = fmt.Sprint("left  : ", types.Sprint(a.Left))
-	lines[1] = fmt.Sprint("right : ", types.Sprint(a.Right))
-	return lines
+	leftLine := "left  : " + types.Sprint(a.Left)
+	rightLine := "right : " + types.Sprint(a.Right)
+
+	if !tooWideForTypeErr(leftLine, rightLine) {
+		return []string{leftLine, rightLine}
+	}
+
+	left, right := sprintDiff(a.Left, a.Right)
+	return []string{"left  : " + left, "right : " + right}
 }
 
 // RefErrUnsupportedDetail describes an undefined reference error where the
@@ -1211,12 +1310,11 @@ type RefErrUnsupportedDetail struct {
 
 // Lines returns the string representation of the detail.
 func (r *RefErrUnsupportedDetail) Lines() []string {
-	lines := []string{
+	return []string{
 		r.Ref.String(),
 		strings.Repeat("^", len(r.Ref[:r.Pos+1].String())),
 		fmt.Sprintf("have: %v", r.Have),
 	}
-	return lines
 }
 
 // RefErrInvalidDetail describes an undefined reference error where the referenced
@@ -1419,7 +1517,7 @@ func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Err
 }
 
 func getKeys(ref Ref, rule *Rule) ([]any, *Error) {
-	keys := []any{}
+	keys := make([]any, 0, len(ref))
 	for _, refElem := range ref {
 		key, err := JSON(refElem.Value)
 		if err != nil {
@@ -1469,15 +1567,12 @@ func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotatio
 }
 
 func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allowNet []string) (types.Type, *Error) {
-
 	var schema any
-
 	if annot.Schema != nil {
 		if ss == nil {
 			return nil, nil
 		}
-		schema = ss.Get(annot.Schema)
-		if schema == nil {
+		if schema = ss.Get(annot.Schema); schema == nil {
 			return nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)
 		}
 	} else if annot.Definition != nil {

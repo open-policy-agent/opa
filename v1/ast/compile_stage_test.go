@@ -193,7 +193,7 @@ func TestWithOnlyStagesUpToInternal(t *testing.T) {
 		{
 			name:          "up to SetRuleTree",
 			target:        StageSetRuleTree,
-			expectedCount: 8,
+			expectedCount: 9,
 			shouldContain: []StageID{
 				StageResolveRefs,
 				StageSetModuleTree,
@@ -207,7 +207,7 @@ func TestWithOnlyStagesUpToInternal(t *testing.T) {
 		{
 			name:          "up to BuildRuleIndices",
 			target:        StageBuildRuleIndices,
-			expectedCount: 32, // includes "after" stage from init()
+			expectedCount: 33, // includes "after" stage from init()
 			shouldContain: []StageID{
 				StageResolveRefs,
 				StageCheckTypes,
@@ -221,7 +221,7 @@ func TestWithOnlyStagesUpToInternal(t *testing.T) {
 		{
 			name:          "up to last stage",
 			target:        StageBuildRequiredCapabilities,
-			expectedCount: 34, // includes "after" stage from init()
+			expectedCount: 35, // includes "after" stage from init()
 			shouldContain: []StageID{
 				StageResolveRefs,
 				StageBuildRequiredCapabilities,
@@ -267,7 +267,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.WithStageAfter("CheckTypes", CompilerStageDefinition{
 			Name:       "CustomAfterCheckTypes",
 			MetricName: "custom_after_check_types",
-			Stage: func(c *Compiler) *Error {
+			Stage: func(*Compiler) *Error {
 				called = true
 				return nil
 			},
@@ -294,7 +294,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.WithStageAfter("CheckTypes", CompilerStageDefinition{
 			Name:       "CustomAfterCheckTypes",
 			MetricName: "custom_after_check_types",
-			Stage: func(c *Compiler) *Error {
+			Stage: func(*Compiler) *Error {
 				called = true
 				return nil
 			},
@@ -321,7 +321,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.WithStageAfter("CheckTypes", CompilerStageDefinition{
 			Name:       "CustomAfterCheckTypes",
 			MetricName: "custom_after_check_types",
-			Stage: func(c *Compiler) *Error {
+			Stage: func(*Compiler) *Error {
 				called = true
 				return nil
 			},

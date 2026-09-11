@@ -170,23 +170,23 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/json-no-header":
-			fmt.Fprintf(w, `{"foo":"bar"}`)
+			fmt.Fprint(w, `{"foo":"bar"}`)
 		case "/yaml-no-header":
-			fmt.Fprintf(w, `foo: bar`)
+			fmt.Fprint(w, `foo: bar`)
 		case "/json":
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"foo":"bar"}`)
+			fmt.Fprint(w, `{"foo":"bar"}`)
 		case "/yaml":
 			w.Header().Set("Content-Type", "application/yaml")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `foo: bar`)
+			fmt.Fprint(w, `foo: bar`)
 		case "/x-yaml":
 			w.Header().Set("Content-Type", "application/x-yaml")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `foo: bar`)
+			fmt.Fprint(w, `foo: bar`)
 		case "/text-no-header":
-			fmt.Fprintf(w, "*Hello World®")
+			fmt.Fprint(w, "*Hello World®")
 		}
 	}))
 
@@ -3461,8 +3461,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 		// Execute query and verify http.send latency shows up in metrics registry.
 		m := metrics.New()
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-		_, err := q.Run(t.Context())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3481,13 +3480,11 @@ func TestHTTPSendMetrics(t *testing.T) {
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL))).
 			WithInterQueryBuiltinCache(interQueryCache).
 			WithMetrics(m)
-		_, err := q.Run(t.Context())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 		// cache hit
-		_, err = q.Run(t.Context())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3502,8 +3499,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 
 		// Test 1: Single request - verify counter increments
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-		_, err := q.Run(context.Background())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3513,8 +3509,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 
 		// Test 2: Another request to different URL
 		q2 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL+"/other"))).WithMetrics(m)
-		_, err = q2.Run(context.Background())
-		if err != nil {
+		if _, err := q2.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3525,8 +3520,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 		// Test 3: Request with error should still increment counter
 		badURL := "http://localhost:1" // Port 1 should fail quickly
 		q3 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "raise_error": false})`, badURL))).WithMetrics(m)
-		_, err = q3.Run(context.Background())
-		if err != nil {
+		if _, err := q3.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 

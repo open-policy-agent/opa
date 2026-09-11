@@ -58,7 +58,7 @@ func TestParseExit1(t *testing.T) {
 		t.Fatalf("Expected exit code 1, got %v", errc)
 	}
 	if len(stderr) == 0 {
-		t.Fatalf("Expected output in stderr")
+		t.Fatal("Expected output in stderr")
 	}
 }
 

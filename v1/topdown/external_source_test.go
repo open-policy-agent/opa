@@ -396,8 +396,8 @@ check if data.authz.allow`)
 	if err == nil {
 		t.Fatal("Expected compilation error from external source, got nil")
 	}
-	var errs ast.Errors
-	if !errors.As(err, &errs) {
+	errs, ok := errors.AsType[ast.Errors](err)
+	if !ok {
 		t.Fatalf("Expected ast.Errors, got: %T: %v", err, err)
 	}
 	if !slices.ContainsFunc(errs, func(e *ast.Error) bool { return e.Code == ast.UnsafeVarErr }) {

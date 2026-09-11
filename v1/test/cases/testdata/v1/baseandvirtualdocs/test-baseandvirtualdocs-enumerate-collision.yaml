@@ -1,0 +1,85 @@
+---
+# The order in which base and virtual document keys are enumerated is not part
+# of the language contract, so every case sorts the comprehension result. sort
+# does not deduplicate, so a key yielded twice still fails these assertions.
+cases:
+  - note: baseandvirtualdocs/enumerate/key in base and virtual doc yielded once
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := sort([key | data.a[key].metadata])
+      - |
+        package a.b
+
+        q := 1
+    data:
+      a:
+        b:
+          metadata: interesting
+        c:
+          metadata: other
+    want_result:
+      - x: ["b", "c"]
+  - note: baseandvirtualdocs/enumerate/key in base and virtual doc yielded once at data root
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := sort([key | data.a[key].metadata])
+      - |
+        package a.b
+    data:
+      a:
+        b:
+          metadata: interesting
+        c:
+          metadata: other
+    want_result:
+      - x: ["b", "c"]
+  - note: baseandvirtualdocs/enumerate/keys only in virtual doc still yielded
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := sort([key | data.a[key].metadata])
+      - |
+        package a.b
+
+        other := 1
+      - |
+        package a.d
+
+        metadata := "virtual"
+    data:
+      a:
+        b:
+          metadata: base-b
+        c:
+          metadata: base-c
+    want_result:
+      - x: ["b", "c", "d"]
+  - note: baseandvirtualdocs/enumerate/key in base and virtual doc yielded once with values
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := sort([{key: value} | value := data.a[key].metadata])
+      - |
+        package a.b
+
+        q := 1
+    data:
+      a:
+        b:
+          metadata: interesting
+        c:
+          metadata: other
+    want_result:
+      - x:
+          - b: interesting
+          - c: other

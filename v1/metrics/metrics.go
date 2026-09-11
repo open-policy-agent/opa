@@ -346,12 +346,12 @@ var (
 	noOpCounterInstance   = &noOpCounter{}
 )
 
-func (*noOpMetrics) Info() Info                      { return Info{Name: "<built-in no-op>"} }
-func (*noOpMetrics) Timer(name string) Timer         { return noOpTimerInstance }
-func (*noOpMetrics) Histogram(name string) Histogram { return noOpHistogramInstance }
-func (*noOpMetrics) Counter(name string) Counter     { return noOpCounterInstance }
-func (*noOpMetrics) All() map[string]any             { return nil }
-func (*noOpMetrics) Clear()                          {}
+func (*noOpMetrics) Info() Info                 { return Info{Name: "<built-in no-op>"} }
+func (*noOpMetrics) Timer(string) Timer         { return noOpTimerInstance }
+func (*noOpMetrics) Histogram(string) Histogram { return noOpHistogramInstance }
+func (*noOpMetrics) Counter(string) Counter     { return noOpCounterInstance }
+func (*noOpMetrics) All() map[string]any        { return nil }
+func (*noOpMetrics) Clear()                     {}
 func (*noOpMetrics) MarshalJSON() ([]byte, error) {
 	return []byte(`{"name": "<built-in no-op>"}`), nil
 }
@@ -361,10 +361,10 @@ func (*noOpTimer) Stop() int64  { return 0 }
 func (*noOpTimer) Value() any   { return 0 }
 func (*noOpTimer) Int64() int64 { return 0 }
 
-func (*noOpHistogram) Update(v int64) {}
-func (*noOpHistogram) Value() any     { return nil }
+func (*noOpHistogram) Update(int64) {}
+func (*noOpHistogram) Value() any   { return nil }
 
 func (*noOpCounter) Incr()        {}
-func (*noOpCounter) Add(_ uint64) {}
+func (*noOpCounter) Add(uint64)   {}
 func (*noOpCounter) Value() any   { return 0 }
 func (*noOpCounter) Int64() int64 { return 0 }

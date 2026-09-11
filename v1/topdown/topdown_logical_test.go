@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -116,6 +117,13 @@ func TestTopDownLogicalAnd(t *testing.T) {
 					{x := 1; x > 0} and {x := 2; x > 1}
 				}`,
 		},
+		{
+			note: "chained explicit body operands",
+			module: `package test
+				p if {
+					{x := 1; x > 0} and true and {y := 2; y > 0}
+				}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -187,6 +195,13 @@ func TestTopDownLogicalOr(t *testing.T) {
 			module: `package test
 				p if {
 					{x := 0; x > 0} or {y := 2; y > 0}
+				}`,
+		},
+		{
+			note: "chained explicit body operands",
+			module: `package test
+				p if {
+					{x := 0; x > 0} or false or {y := 2; y > 0}
 				}`,
 		},
 	}
@@ -273,7 +288,7 @@ func runLogicalCase(t *testing.T, module string, expectedNotes []string, expectF
 
 	if !expectFail {
 		if len(res) == 0 {
-			t.Errorf("unexpected failure, empty query result set")
+			t.Error("unexpected failure, empty query result set")
 		}
 	} else {
 		if len(res) > 0 {
@@ -421,6 +436,62 @@ func runTouchCase(t *testing.T, label, module string, wantTouch int) {
 	}
 }
 
+func TestTopDownLogicalImplicitOperandAssignment(t *testing.T) {
+	// Regression test
+
+	t.Parallel()
+
+	tests := []struct {
+		note   string
+		module string
+		expErr string
+	}{
+		{
+			note: "and, implicit operand",
+			module: `package test
+				p if {
+					input.a and x := input.b
+					x == 1
+				}`,
+			expErr: "cannot assign vars inside implicit and operand",
+		},
+		{
+			note: "or, implicit operand",
+			module: `package test
+				p if {
+					input.a or x := input.b
+					x == 1
+				}`,
+			expErr: "cannot assign vars inside implicit or operand",
+		},
+		{
+			note: "not, implicit body",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not x := input.b
+					x == 1
+				}`,
+			expErr: "cannot assign vars inside negated expression",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			c := ast.NewCompiler()
+			c.Compile(map[string]*ast.Module{"test": ast.MustParseModuleWithOpts(tc.module, logicalParserOptions())})
+			if !c.Failed() {
+				t.Fatalf("expected compile error, got module: %v", c.Modules["test"])
+			}
+			if !strings.Contains(c.Errors.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expErr, c.Errors)
+			}
+		})
+	}
+}
+
 // TestTopDownLogicalBuiltinCallForm covers evaluation of calls to the `and`/`or`
 // set builtins in modules where the keywords of those names are active.
 func TestTopDownLogicalBuiltinCallForm(t *testing.T) {
@@ -498,6 +569,107 @@ func TestTopDownLogicalBuiltinCallForm(t *testing.T) {
 			exp := ast.MustParseTerm(tc.exp)
 			if exp.Value.Compare(res[0]["x"].Value) != 0 {
 				t.Errorf("expected %v, got %v", exp, res[0]["x"])
+			}
+		})
+	}
+}
+
+func TestTopDownLogicalRuleIndexing(t *testing.T) {
+	t.Parallel()
+
+	modules := []string{
+		`p if input.a = 1 and input.b = 2`,
+		`p if input.a = 1 and input.b = 2 and input.c = 3`,
+		`p if input.a = 1 or input.a = 2`,
+		`p if input.a = 1 or input.a = 2 or input.a = 3`,
+		`p if input.a = 1 or input.b = 2`,
+		`p if input.a = 1 or input.a`,
+		`p if input.a and input.b = 2`,
+		`p if {input.a = 1; input.b = 2} or {input.a = 2; input.b = 1}`,
+		`p if input.a = 1 and {input.b = 2 or input.b = 3}`,
+		`p if {input.a = 1 or input.a = 2} and {input.b = 1 or input.b = 2}`,
+		`p if {v = 1; input.a = v} and {v = 2; input.b = v}`,
+		`p if {input.a = x} and {x = 1}`,
+		`p if {x = 1} and {input.a = x}`,
+		`p if {input.a = x} or {x = 1}`,
+		`p if {input.a = x} and {x = 1} and {input.b = 2}`,
+		`p if {
+			{input.a = x} and {true}
+			{x = 1} and {true}
+		 }`,
+		`p if input.a = 1 or input.b = 2`,
+		`p if input.a = 1 or input.b = 2 or input.c = 3`,
+		`p if {input.a = 1; input.b = 2} or {input.a = 2; input.c = 1}`,
+		`p if {input.a = 1 or input.b = 1} and {input.b = 2 or input.c = 2}`,
+		`p if {input.a = 1 or input.b = 1} or {input.b = 2 or input.c = 2}`,
+		`p if input.a = 1 or count(input.b) = 3`,
+		`p if count(input.b) = 3 or input.a = 1`,
+		`p if input.a = 1 or not input.b = 2`,
+		`p if input.a in {1, 2} or input.b = 2`,
+		`p if glob.match("f*", [], input.a) or input.b = 2`,
+		`p if {input.a = x} or {x = 1; input.b = x}`,
+		`p if input.a or input.b = 2`,
+		`p if {input.a = 1 and input.b = 1} or {input.a = 1 and input.b = 2} or input.c = 3`,
+		`p if {input.a = 1; input.b = 1} or {input.a = 1; input.b = 2} or {input.a = 2}
+		 p if input.c = 1
+		 p if {input.a = 3 or input.b = 3} and input.c = 3`,
+		`p if not input.a = 1 and input.b = 2`,
+		`p if input.a in {1, 2} and input.b = 2`,
+		`p if glob.match("f*", [], input.a) and input.b = 2`,
+		`p if input.a = 1 and input.b = 2
+		 p if input.a = 2 or input.b = 2
+		 p if input.a`,
+		`p if input.a = 1 and input.b = 2 else if input.a = 2`,
+		`p contains x if {some x in [1, 2]; input.a = 1 or input.a = 2}`,
+		`p = "x" if input.a = 1 or input.a = 2
+		 p = "y" if input.a = 3`,
+	}
+
+	values := []string{`1`, `2`, `3`, `"foo"`, `true`}
+
+	inputs := []string{`{}`}
+	for _, a := range values {
+		inputs = append(inputs, `{"a": `+a+`}`, `{"b": `+a+`}`, `{"c": `+a+`}`)
+		for _, b := range values {
+			inputs = append(inputs, `{"a": `+a+`, "b": `+b+`}`)
+			for _, c := range values {
+				inputs = append(inputs, `{"a": `+a+`, "b": `+b+`, "c": `+c+`}`)
+			}
+		}
+	}
+
+	for i, module := range modules {
+		t.Run(fmt.Sprintf("module %d", i), func(t *testing.T) {
+			t.Parallel()
+
+			c := ast.NewCompiler()
+			mod := ast.MustParseModuleWithOpts("package test\n\n"+module, logicalParserOptions())
+			c.Compile(map[string]*ast.Module{"test": mod})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			for _, in := range inputs {
+				input := ast.MustParseTerm(in)
+
+				run := func(indexing bool) string {
+					t.Helper()
+
+					res, err := NewQuery(ast.MustParseBody("data.test.p = x")).
+						WithCompiler(c).
+						WithInput(input).
+						WithIndexing(indexing).
+						Run(t.Context())
+					if err != nil {
+						return fmt.Sprintf("error: %v", err)
+					}
+
+					return fmt.Sprintf("%v", res)
+				}
+
+				if exp, act := run(false), run(true); exp != act {
+					t.Errorf("input %v: expected %v (indexing disabled) but got %v", in, exp, act)
+				}
 			}
 		})
 	}

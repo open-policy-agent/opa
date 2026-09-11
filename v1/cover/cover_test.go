@@ -607,6 +607,86 @@ func seedBytes(seeds ...int64) []byte {
 	return buf
 }
 
+func TestCoverLogicalKeywords(t *testing.T) {
+	// The `or`/`and` expressions span two lines each, so
+	// the report has to attribute the operand lines as well as the line the
+	// operator starts on.
+	module := `package test
+
+import future.keywords.and
+import future.keywords.or
+
+p if {
+	input.a == 1 or  # 7
+		input.b == 2 # 8
+}
+
+s if {
+	input.a == 1 and # 12
+		input.c == 3 # 13
+}
+`
+
+	tests := []struct {
+		note          string
+		query         string
+		expCovered    []int
+		expNotCovered []int
+	}{
+		{
+			note:          "or, right operand short-circuited",
+			query:         "data.test.p",
+			expCovered:    []int{6, 7, 8},
+			expNotCovered: []int{11, 12, 13},
+		},
+		{
+			note:          "and, both operands evaluated",
+			query:         "data.test.s",
+			expCovered:    []int{11, 12, 13},
+			expNotCovered: []int{6, 7, 8},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsedModule, err := ast.ParseModuleWithOpts("test.rego", module, ast.ParserOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			cover := New()
+			rs, err := rego.New(
+				rego.ParsedModule(parsedModule),
+				rego.Query(tc.query),
+				rego.Input(map[string]any{"a": 1, "c": 3}),
+				rego.QueryTracer(cover),
+			).Eval(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(rs) == 0 {
+				t.Fatalf("expected %s to be defined", tc.query)
+			}
+
+			fr, ok := cover.Report(map[string]*ast.Module{"test.rego": parsedModule}).Files["test.rego"]
+			if !ok {
+				t.Fatal("Expected file report for test.rego")
+			}
+
+			for _, row := range tc.expCovered {
+				if !fr.IsCovered(row) {
+					t.Errorf("Expected row %d to be covered", row)
+				}
+			}
+			for _, row := range tc.expNotCovered {
+				if !fr.IsNotCovered(row) {
+					t.Errorf("Expected row %d to NOT be covered", row)
+				}
+			}
+		})
+	}
+}
+
 func TestCoverQueryTracerInterface(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()

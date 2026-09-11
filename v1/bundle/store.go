@@ -833,25 +833,16 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 func writeManifestToStore(opts *ActivateOpts, name string, manifest Manifest) error {
 	// Always write manifests to the named location. If the plugin is in the older style config
 	// then also write to the old legacy unnamed location.
-	if err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, manifest); err != nil {
-		return err
+	err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, manifest)
+	if err == nil && opts.legacy {
+		err = LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest)
 	}
 
-	if opts.legacy {
-		if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
 
 func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
-	if err := WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag); err != nil {
-		return err
-	}
-
-	return nil
+	return WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag)
 }
 
 func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
@@ -1313,11 +1304,7 @@ func LegacyWriteManifestToStore(ctx context.Context, store storage.Store, txn st
 //
 // Deprecated: Use WriteManifestToStore and named bundles instead.
 func LegacyEraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) error {
-	err := store.Write(ctx, txn, storage.RemoveOp, legacyManifestStoragePath, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return store.Write(ctx, txn, storage.RemoveOp, legacyManifestStoragePath, nil)
 }
 
 // LegacyReadRevisionFromStore will read the bundle manifest revision from the older single (unnamed) bundle manifest location.

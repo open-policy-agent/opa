@@ -77,8 +77,7 @@ func Compare(a, b any) int {
 	case nil:
 		return 0
 	case bool:
-		switch b := b.(type) {
-		case bool:
+		if b, ok := b.(bool); ok {
 			if a == b {
 				return 0
 			}
@@ -88,13 +87,11 @@ func Compare(a, b any) int {
 			return 1
 		}
 	case json.Number:
-		switch b := b.(type) {
-		case json.Number:
+		if b, ok := b.(json.Number); ok {
 			return compareJSONNumber(a, b)
 		}
 	case int:
-		switch b := b.(type) {
-		case int:
+		if b, ok := b.(int); ok {
 			if a == b {
 				return 0
 			} else if a < b {
@@ -103,8 +100,7 @@ func Compare(a, b any) int {
 			return 1
 		}
 	case float64:
-		switch b := b.(type) {
-		case float64:
+		if b, ok := b.(float64); ok {
 			if a == b {
 				return 0
 			} else if a < b {
@@ -113,8 +109,7 @@ func Compare(a, b any) int {
 			return 1
 		}
 	case string:
-		switch b := b.(type) {
-		case string:
+		if b, ok := b.(string); ok {
 			if a == b {
 				return 0
 			} else if a < b {
@@ -123,8 +118,7 @@ func Compare(a, b any) int {
 			return 1
 		}
 	case []any:
-		switch b := b.(type) {
-		case []any:
+		if b, ok := b.([]any); ok {
 			bLen := len(b)
 			aLen := len(a)
 			minLen := min(bLen, aLen)
@@ -142,8 +136,7 @@ func Compare(a, b any) int {
 			return 1
 		}
 	case map[string]any:
-		switch b := b.(type) {
-		case map[string]any:
+		if b, ok := b.(map[string]any); ok {
 			aKeys := KeysSorted(a)
 			bKeys := KeysSorted(b)
 			aLen := len(aKeys)

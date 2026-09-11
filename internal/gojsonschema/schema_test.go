@@ -249,7 +249,7 @@ func TestRefProperty(t *testing.T) {
 		for _, err := range result.Errors() {
 			fmt.Println(err.String())
 		}
-		t.Errorf("Got invalid validation result.")
+		t.Error("Got invalid validation result.")
 	}
 }
 
@@ -277,7 +277,7 @@ func TestFragmentLoader(t *testing.T) {
 		t.Errorf("Unexpected error while validating document: %T", err)
 	}
 	if !result.Valid() {
-		t.Errorf("Got invalid validation result.")
+		t.Error("Got invalid validation result.")
 	}
 
 	result, err = schema.Validate(invalidDocument)
@@ -285,7 +285,7 @@ func TestFragmentLoader(t *testing.T) {
 		t.Errorf("Unexpected error while validating document: %T", err)
 	}
 	if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
-		t.Errorf("Got invalid validation result.")
+		t.Error("Got invalid validation result.")
 	}
 }
 
@@ -390,7 +390,7 @@ func TestLocationIndependentIdentifier(t *testing.T) {
 	}
 
 	if len(result.Errors()) != 2 || result.Errors()[0].Type() != "false" || result.Errors()[1].Type() != "number_all_of" {
-		t.Errorf("Got invalid validation result.")
+		t.Error("Got invalid validation result.")
 	}
 }
 
@@ -404,7 +404,7 @@ func TestIncorrectRef(t *testing.T) {
 	s, err := NewSchema(schemaLoader)
 
 	if s != nil {
-		t.Errorf("Expected nil schema")
+		t.Error("Expected nil schema")
 	}
 	if err.Error() != "Object has no key 'fail'" {
 		t.Errorf("Expected error 'Object has no key 'fail'' but got '%s'", err.Error())
