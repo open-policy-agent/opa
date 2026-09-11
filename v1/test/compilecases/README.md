@@ -401,6 +401,19 @@ calls, and this corpus does not generate plans.
 
 Query compilation. Those cases still live in `v1/ast/compile_test.go`.
 
+## What this corpus will not carry
+
+**A capability set.** OPA's capabilities advertise what an implementation offers; they
+do not license a corpus to require a narrower one. Which subset of the language you
+support is your prerogative, and you may narrow it however you like — a case that said
+"compile this with `rule_head_refs` off and reject it" would be asserting OPA's way of
+describing a feature set rather than the language itself. OPA's own capability-gated
+tests stay in Go for that reason.
+
+Where a case does depend on something optional, it says so in a field a consumer can
+filter on — `rego_version`, `strict`, `experimental_keywords`, `schemas` — rather than
+by naming a capability set or an OPA release.
+
 The generator lives in `build/generate-compiler-cases`, alongside
 `build/generate-parser-cases` and `build/generate-extended-cases`, which do the
 same for the parser and evaluation corpora.
