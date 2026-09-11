@@ -27,6 +27,29 @@ config files, and the `yaml.unmarshal` builtin.
 If you were relying on `yes`/`no`/`on`/`off` being read as booleans, quote the value and
 use `true`/`false` instead.
 
+### Empty object and array literals are now typed as empty ([#7275](https://github.com/open-policy-agent/opa/issues/7275))
+
+The type checker used to give the empty object literal `{}` the type
+`object[any: any]` and the empty array literal `[]` the type `array[any]`, i.e.
+the types of a collection that may hold anything. Every other literal is typed
+by its contents, so referencing a key that isn't there is caught at compile
+time — but only for non-empty literals:
+
+```rego
+obj := {"foo": "bar"}
+obj.bar # rego_type_error: undefined ref: obj.bar
+
+obj := {}
+obj.bar # compiles
+```
+
+Empty literals are now typed as what they are: an object with no properties and
+an array with no items. Both examples above now fail to compile, and so does
+comparing an empty literal against a value whose type says it can't be empty
+(`{"foo": "bar"} == {}`), the same way `{"foo": "bar"} == {"bar": "foo"}`
+already did. Use `count(x) == 0` to test a collection for emptiness without
+asserting its type.
+
 ## 1.20.2
 
 This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency
