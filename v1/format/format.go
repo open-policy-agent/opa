@@ -1556,24 +1556,24 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*
 	var err error
 	switch numCallArgs {
 	case numDeclArgs: // Print infix where result is unassigned (e.g., x != y)
-		comments, err = w.writeTerm(terms[1], comments)
+		comments, err = w.writeInfixOperand(bi, terms[1], comments)
 		if err != nil {
 			return nil, err
 		}
 		w.write(" " + bi.Infix + " ")
-		return w.writeTerm(terms[2], comments)
+		return w.writeInfixOperand(bi, terms[2], comments)
 	case numDeclArgs + 1: // Print infix where result is assigned (e.g., z = x + y)
 		comments, err = w.writeTerm(terms[3], comments)
 		if err != nil {
 			return nil, err
 		}
 		w.write(" " + ast.Equality.Infix + " ")
-		comments, err = w.writeTerm(terms[1], comments)
+		comments, err = w.writeInfixOperand(bi, terms[1], comments)
 		if err != nil {
 			return nil, err
 		}
 		w.write(" " + bi.Infix + " ")
-		comments, err = w.writeTerm(terms[2], comments)
+		comments, err = w.writeInfixOperand(bi, terms[2], comments)
 		if err != nil {
 			return nil, err
 		}
@@ -1583,6 +1583,29 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*
 	// wrong arity even when the assignment notation is used
 	w.errs = append(w.errs, ArityFormatMismatchError(terms[1:], terms[0].String(), terms[0].Location, bi.Decl))
 	return w.writeFunctionCallPlain(terms, comments)
+}
+
+// writeInfixOperand writes term as an operand of the infix operator bi, adding
+// parens when the operand is a two-operand `in` call. `in` binds looser than
+// every infix operator except `=` and `:=` (Parser.parseTermIn sits between
+// parseExpr and parseTermRelation), so written bare such an operand is read back
+// with the enclosing operator inside it: `1 in [1] == true` parses as
+// `internal.member_2(1, equal([1], true))`.
+func (w *writer) writeInfixOperand(bi *ast.Builtin, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if bi.Infix != ast.Equality.Infix && bi.Infix != ast.Assign.Infix && isMemberCall(term) {
+		w.parenTerm = term
+	}
+	return w.writeTerm(term, comments)
+}
+
+// isMemberCall reports whether term is a call to the two-operand form of `in`.
+func isMemberCall(term *ast.Term) bool {
+	call, ok := term.Value.(ast.Call)
+	if !ok || len(call) != 3 {
+		return false
+	}
+	ref, ok := call[0].Value.(ast.Ref)
+	return ok && ast.Interned.Refs.Member.Equal(ref)
 }
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -1980,7 +2003,13 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 	if bi.Infix == "in" {
 		// NOTE(sr): `in` requires special handling, mirroring what happens in the parser,
 		// since there can be one or two lhs arguments.
-		return w.writeInOperator(true, x[1:], comments, loc, bi.Decl)
+		//
+		// The three-operand form always needs parens in a term position, or its comma
+		// is read as an element or argument separator. The two-operand form only needs
+		// them where parens says so: as an operand of another infix call it would be
+		// re-associated, but in a collection literal or a call argument it is already
+		// delimited and the parens would be noise.
+		return w.writeInOperator(parens || bi.Decl.Arity() == 3, x[1:], comments, loc, bi.Decl)
 	}
 
 	// TODO(tsandall): improve to consider precedence?
@@ -2028,6 +2057,10 @@ func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*
 	var err error
 	switch len(operands) {
 	case 2:
+		if parens {
+			w.write("(")
+			defer w.write(")")
+		}
 		comments, err = w.writeTermParens(true, operands[0], comments)
 		if err != nil {
 			return nil, err
