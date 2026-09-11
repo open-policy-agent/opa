@@ -1790,6 +1790,228 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 	}
 }
 
+func TestKeywordAsRuleName(t *testing.T) {
+	for _, kw := range []string{"every", "if", "in", "contains"} {
+		for _, decl := range []string{
+			kw + ` := 1`,
+			kw + ` = 1`,
+			kw + ` if { true }`,
+			kw + ` contains 1`,
+			kw + `(x) := x`,
+			`default ` + kw + ` := 1`,
+		} {
+			expected := kw + " keyword cannot be used for rule name"
+
+			t.Run("v1/"+decl, func(t *testing.T) {
+				_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: RegoV1})
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+				if !strings.Contains(err.Error(), expected) {
+					t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+				}
+			})
+
+			t.Run("v0+rego.v1/"+decl, func(t *testing.T) {
+				_, err := ParseModuleWithOpts("test.rego", "package test\nimport rego.v1\n"+decl, ParserOptions{RegoVersion: RegoV0})
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+				if !strings.Contains(err.Error(), expected) {
+					t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+				}
+			})
+
+			t.Run("v0/"+decl, func(t *testing.T) {
+				// Not keywords in v0, so these are valid rules or fail for other reasons.
+				_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: RegoV0})
+				if err != nil && strings.Contains(err.Error(), expected) {
+					t.Fatalf("unexpected keyword error in v0: %v", err)
+				}
+			})
+		}
+
+		t.Run("v1/ref head keeps working/"+kw, func(t *testing.T) {
+			if _, err := ParseModuleWithOpts("test.rego", "package test\n"+kw+".foo := 1", ParserOptions{RegoVersion: RegoV1}); err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+		})
+	}
+
+	// `contains` still parses as a var outside rule heads, which queries rely on.
+	t.Run("contains as query var", func(t *testing.T) {
+		assertParseOneExpr(t, "contains assignment", "contains := 1",
+			MustParseExpr("assign(contains, 1)"))
+	})
+
+	// `and`/`or` are only keywords once imported, so they're checked separately.
+	for _, kw := range []string{"and", "or"} {
+		for _, decl := range []string{
+			kw + ` := 1`,
+			kw + ` = 1`,
+			kw + ` if { true }`,
+			kw + ` contains 1`,
+			`default ` + kw + ` := 1`,
+		} {
+			expected := kw + " keyword cannot be used for rule name"
+
+			t.Run("v1/"+decl, func(t *testing.T) {
+				_, err := ParseModuleWithOpts("test.rego", "package test\nimport future.keywords."+kw+"\n"+decl, ParserOptions{RegoVersion: RegoV1})
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+				if !strings.Contains(err.Error(), expected) {
+					t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+				}
+			})
+
+			t.Run("v1/not imported/"+decl, func(t *testing.T) {
+				// Without the import they're plain idents, so these are valid rules.
+				_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: RegoV1})
+				if err != nil {
+					t.Fatalf("expected no error, got: %v", err)
+				}
+			})
+		}
+
+		t.Run("v1/ref head keeps working/"+kw, func(t *testing.T) {
+			if _, err := ParseModuleWithOpts("test.rego", "package test\nimport future.keywords."+kw+"\n"+kw+".foo := 1", ParserOptions{RegoVersion: RegoV1}); err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+		})
+
+		// `and(x, y)`/`or(x, y)` are the set intersection/union built-ins, so a
+		// leading '(' doesn't mark a rule head.
+		t.Run("call keeps working/"+kw, func(t *testing.T) {
+			assertParseOneExpr(t, kw+" call", kw+"({1}, {2})",
+				MustParseExpr(kw+"({1}, {2})"))
+		})
+	}
+}
+
+func TestReservedKeywordAsRuleName(t *testing.T) {
+	// These keywords are reserved in every Rego version, so unless the declaration
+	// uses a v1-only keyword, the same error is expected in v0 and v1.
+	tests := []struct {
+		keyword string
+		decls   []string
+		v1Decls []string
+	}{
+		{
+			// `not (x)` is a negated group, so `not(x) := x` isn't reported here.
+			keyword: "not",
+			decls:   []string{`not := 1`, `not = 1`, `default not := 1`},
+			v1Decls: []string{`not if { true }`, `not contains 1`},
+		},
+		{
+			keyword: "some",
+			decls:   []string{`some := 1`, `some = 1`, `some(x) := x`, `default some := 1`},
+			v1Decls: []string{`some if { true }`, `some contains 1`},
+		},
+		{
+			keyword: "as",
+			decls:   []string{`as := 1`, `as = 1`, `as(x) := x`, `default as := 1`},
+			v1Decls: []string{`as if { true }`, `as contains 1`},
+		},
+		{
+			// `package if` and `package contains` name a package after a keyword, so
+			// only the forms that can't be a package path are reported.
+			keyword: "package",
+			decls:   []string{`package := 1`, `package = 1`, `package(x) := x`, `default package := 1`},
+		},
+		{
+			keyword: "import",
+			decls:   []string{`import := 1`, `import = 1`, `import(x) := x`, `default import := 1`},
+		},
+	}
+
+	assert := func(t *testing.T, decl string, v RegoVersion, expected string) {
+		t.Helper()
+		_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: v})
+		if err == nil {
+			t.Fatal("expected error, got none")
+		}
+		if !strings.Contains(err.Error(), expected) {
+			t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+		}
+	}
+
+	for _, tc := range tests {
+		expected := tc.keyword + " keyword cannot be used for rule name"
+
+		for _, decl := range tc.decls {
+			for _, v := range []RegoVersion{RegoV0, RegoV1} {
+				t.Run(fmt.Sprintf("%v/%s", v, decl), func(t *testing.T) {
+					assert(t, decl, v, expected)
+				})
+			}
+		}
+
+		for _, decl := range tc.v1Decls {
+			t.Run("v1/"+decl, func(t *testing.T) {
+				assert(t, decl, RegoV1, expected)
+			})
+		}
+	}
+
+	// Keyword-named package paths and imports (`package contains`, `import if.foo`)
+	// are covered by TestPackageContainingKeywords and TestImportContainingKeywords.
+}
+
+func TestKeywordAsRuleNameFollowingImport(t *testing.T) {
+	// The parser reads one token ahead, so the statement following a keyword
+	// import used to be scanned before the scanner knew about the keyword.
+	tests := []struct {
+		note        string
+		module      string
+		regoVersion RegoVersion
+		expected    string
+	}{
+		{
+			note:        "future keyword import, v1",
+			module:      "package test\nimport future.keywords.or\nor := 1",
+			regoVersion: RegoV1,
+			expected:    "or keyword cannot be used for rule name",
+		},
+		{
+			note:        "future keyword import, v0",
+			module:      "package test\nimport future.keywords.every\nevery := 1",
+			regoVersion: RegoV0,
+			expected:    "every keyword cannot be used for rule name",
+		},
+		{
+			note:        "rego.v1 import, v0",
+			module:      "package test\nimport rego.v1\nif := 1",
+			regoVersion: RegoV0,
+			expected:    "if keyword cannot be used for rule name",
+		},
+		{
+			note:        "reserved keyword following import, v0",
+			module:      "package test\nimport future.keywords\nnot := 1",
+			regoVersion: RegoV0,
+			expected:    "not keyword cannot be used for rule name",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{RegoVersion: tc.regoVersion})
+			if err == nil {
+				t.Fatal("expected error, got none")
+			}
+			if !strings.Contains(err.Error(), tc.expected) {
+				t.Fatalf("expected error to contain %q, got:\n\n%v", tc.expected, err)
+			}
+		})
+	}
+
+	t.Run("non-keyword rule name following import", func(t *testing.T) {
+		if _, err := ParseModuleWithOpts("test.rego", "package test\nimport future.keywords.every\nevery_thing := 1", ParserOptions{RegoVersion: RegoV0}); err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+	})
+}
+
 func TestRefKeywordsEdgeCases(t *testing.T) {
 	t.Run("'in' kw first term in ref head rule following 'contains'", func(t *testing.T) {
 		input := `package test

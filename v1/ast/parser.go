@@ -443,6 +443,14 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	// point trying to parse packages, imports, etc. in the same order.
 	for p.s.tok != tokens.EOF {
 		var s *state
+
+		// Reported here rather than in parseRules: `package := 1` and `import := 1`
+		// are consumed by the statement parsers below, which fail pointing at the
+		// assign token instead of the keyword.
+		if !p.po.SkipRules && p.errKeywordRuleName(false) {
+			break
+		}
+
 		if p.s.tok == tokens.Package {
 			s = p.save()
 			if pkg := p.parsePackage(); pkg != nil {
@@ -459,8 +467,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			if imp := p.parseImport(); imp != nil {
 				if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
 					p.regoV1Import(imp)
+					p.reclassifyKeyword()
 				} else if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
 					p.futureImport(imp, allowedFutureKeywords)
+					p.reclassifyKeyword()
 				}
 				stmts = append(stmts, imp)
 				continue
@@ -766,6 +776,74 @@ func scanAheadRef(p *Parser) bool {
 	return false
 }
 
+// keywordRuleNameFollowers maps a keyword token to the tokens that, following it,
+// make the statement unambiguously a rule declaration.
+var (
+	ruleNameFollowers = []tokens.Token{tokens.Assign, tokens.Unify, tokens.If, tokens.Contains, tokens.LParen}
+	// `not`/`and`/`or` drop '(': at the start of a statement, `not (x)` is a negated
+	// group and `or(x, y)` a call to the set union built-in, not rule heads.
+	operatorRuleNameFollowers = []tokens.Token{tokens.Assign, tokens.Unify, tokens.If, tokens.Contains}
+	// `package`/`import` drop `if` and `contains`: both take a path that may itself
+	// be named after a keyword, as in `package contains` or `import if.foo`.
+	pathRuleNameFollowers    = []tokens.Token{tokens.Assign, tokens.Unify, tokens.LParen}
+	keywordRuleNameFollowers = map[tokens.Token][]tokens.Token{
+		tokens.Every:      ruleNameFollowers,
+		tokens.If:         ruleNameFollowers,
+		tokens.In:         ruleNameFollowers,
+		tokens.Some:       ruleNameFollowers,
+		tokens.As:         ruleNameFollowers,
+		tokens.Package:    pathRuleNameFollowers,
+		tokens.Import:     pathRuleNameFollowers,
+		tokens.Not:        operatorRuleNameFollowers,
+		tokens.LogicalAnd: operatorRuleNameFollowers,
+		tokens.LogicalOr:  operatorRuleNameFollowers,
+		// `contains` outside of a rule head parses as a plain var, so `contains := x`
+		// is still a legal query; as a rule it's caught by the rego-v1 check.
+		tokens.Contains: {tokens.If, tokens.Contains},
+	}
+)
+
+// reclassifyKeyword re-tags the lookahead token after an import that registered
+// new keywords with the scanner. The parser reads one token ahead, so the first
+// token of the statement following the import was scanned before the scanner
+// knew about the keyword, and would otherwise be treated as a plain identifier.
+func (p *Parser) reclassifyKeyword() {
+	if p.s.tok != tokens.Ident {
+		return
+	}
+
+	if tok, ok := allFutureKeywords[p.s.lit]; ok && p.s.s.IsKeyword(p.s.lit) {
+		p.s.tok = tok
+	}
+}
+
+// errKeywordRuleName reports an error if the current token is a keyword used as a
+// rule name, e.g. `every := 1`, and returns whether it did. A statement that began
+// with `default` can only be a rule, so no lookahead is needed there.
+func (p *Parser) errKeywordRuleName(isDefault bool) bool {
+	followers, ok := keywordRuleNameFollowers[p.s.tok]
+	if !ok {
+		return false
+	}
+
+	keyword, loc := p.s.tok, p.s.Loc()
+
+	if !isDefault {
+		s := p.save()
+		p.scan()
+		next := p.s.tok
+		p.restore(s)
+
+		if !slices.Contains(followers, next) {
+			return false
+		}
+	}
+
+	p.errorf(loc, "%s keyword cannot be used for rule name", keyword)
+
+	return true
+}
+
 // scanAheadLogicalCall rewrites an `and`/`or` keyword token to tokens.Ident when
 // it's immediately followed by `(`. Only valid where a term is expected: there,
 // the operator reading is impossible, so it must be a function (`&`/`|` set built-ins).
@@ -801,6 +879,9 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok != tokens.Ident {
+		if rule.Default {
+			p.errKeywordRuleName(true)
+		}
 		return nil
 	}
 
