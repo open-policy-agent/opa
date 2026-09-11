@@ -120,7 +120,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := pluginset.Get(result.factories, manager, managerConfig, result.metrics, result.logger, nil); err != nil {
+		if _, err := pluginset.New(result.factories, manager, managerConfig, result.metrics, result.logger, nil); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -168,7 +168,7 @@ func (c *Discovery) Start(ctx context.Context) error {
 		c.loadAndActivateBundleFromDisk(ctx)
 	} else {
 		// If bundle persistence isn't enabled, initialise plugins before starting the downloader
-		ps, err := pluginset.Get(c.factories, c.manager, c.manager.GetConfig(), c.metrics, c.logger, nil)
+		ps, err := pluginset.New(c.factories, c.manager, c.manager.GetConfig(), c.metrics, c.logger, nil)
 		if err != nil {
 			return err
 		}
@@ -524,7 +524,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		return nil, err
 	}
 
-	ps, err := pluginset.Get(c.factories, c.manager, overriddenConfig, c.metrics, c.logger, c.config.Trigger)
+	ps, err := pluginset.New(c.factories, c.manager, overriddenConfig, c.metrics, c.logger, c.config.Trigger)
 	if err != nil {
 		return nil, err
 	}

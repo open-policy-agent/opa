@@ -1105,7 +1105,9 @@ opa run -s -c opa-config.yaml -w
 
 `--set` and `--set-file` overrides are re-applied on top of the file on each
 reload, so a value overridden on the command line stays overridden. The files
-referenced by `--set-file` are not themselves watched.
+named by `--set-file` are re-read every time, so an edit to one of them is
+picked up too — but they are not watched, so it takes a change to the
+configuration file to trigger the reload that reads them.
 
 A few things do not change without a restart:
 
@@ -1116,15 +1118,23 @@ A few things do not change without a restart:
   reload changes one of them it is rejected and logged, and the running
   configuration is left untouched — so a restart is needed, but nothing is
   applied in part.
-- **Removing a plugin.** Plugins can be added and reconfigured, but not removed:
-  OPA cannot unregister a running plugin, so dropping `bundles`,
-  `decision_logs`, `status` or an entry under `plugins` is rejected rather than
-  leaving one running with settings the configuration no longer mentions.
-  Entries removed from `services` and `keys` are, however, still silently
-  retained.
+- **Turning a plugin off.** Plugins can be added and reconfigured, but not
+  removed: OPA cannot unregister a running plugin, so a reload that would leave
+  `decision_logs`, `status` or an entry under `plugins` without a plugin to run
+  is rejected rather than leaving one running with settings the configuration no
+  longer mentions. That covers dropping the section and emptying it, since an
+  empty `decision_logs` enables nothing either. `bundles` is the exception:
+  emptying it (`bundles: {}`) is applied, because the bundle plugin reads that
+  as "no bundles" and stops downloading and deactivates them. Dropping the
+  section outright is still rejected.
 - **Changing or removing a label.** Labels can be added, but the labels present
   at start-up always win, so changing or removing one is rejected the same way
   as the start-up-only options above.
+
+Entries removed from `services` and `keys` are neither applied nor rejected:
+they stay registered for the rest of the process, and OPA logs a warning saying
+so. Changing an entry that a plugin is already using has a related caveat — see
+below.
 
 If a reload fails for any other reason — a syntax error, or a `bundles` entry
 naming a service that doesn't exist — it is logged and the change is not
@@ -1132,6 +1142,17 @@ completed. Validating those sections requires the new `services` to be
 registered first, so part of the configuration may already be in effect;
 reverting the file undoes it, as each reload is applied on top of the last one
 that succeeded.
+
+:::info
+A running plugin only picks up a changed `services` entry if its own section
+changed too. The `status` plugin looks its client up on every upload and so is
+unaffected, but the `bundles` and `decision_logs` plugins hold on to the client
+they were built with, and both skip reconfiguring when their own configuration
+is unchanged. Rotating a service's credentials or URL on its own therefore
+leaves them talking to the old endpoint until OPA restarts. This is not specific
+to reloading the configuration file: discovery-driven reconfiguration behaves
+the same way.
+:::
 
 The configuration file is not watched when [discovery](#discovery) is enabled,
 since the discovered configuration — not the file on disk — is what the plugins

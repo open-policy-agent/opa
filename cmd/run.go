@@ -193,9 +193,9 @@ The --watch flag also applies to the file given by --config-file: when it change
 the running plugins without a restart. Plugins and labels can be added and plugins reconfigured this way. Changes OPA
 cannot apply are rejected and leave the running configuration untouched: options only read at start-up
 ("default_decision", "default_authorization_decision", "discovery", "distributed_tracing", "metrics_export",
-"persistence_directory", "server" and "storage"), changing or removing a label, and removing a plugin. The configuration
-file is not watched when discovery is enabled, as the discovered configuration is then what the plugins are configured
-with.
+"persistence_directory", "server" and "storage"), changing or removing a label, and turning a plugin off. The
+configuration file is not watched when discovery is enabled, as the discovered configuration is then what the plugins
+are configured with.
 
 OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will

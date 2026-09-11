@@ -18,9 +18,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	testLog "github.com/open-policy-agent/opa/v1/logging/test"
+	"github.com/open-policy-agent/opa/v1/plugins/bundle"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
 	sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
+	"github.com/open-policy-agent/opa/v1/storage"
 )
 
 func newConfigReloadRuntime(t *testing.T, config string) (*Runtime, string) {
@@ -321,6 +323,291 @@ func TestReloadConfigRejectsPluginRemoval(t *testing.T) {
 	}
 	if rt.Manager.GetConfig().DecisionLogs == nil {
 		t.Error("expected decision_logs to remain in the reported configuration")
+	}
+}
+
+func TestReloadConfigRejectsCustomPluginRemoval(t *testing.T) {
+	RegisterPlugin("reload_test", Factory{})
+
+	rt, configFile := newConfigReloadRuntime(t, `plugins:
+  reload_test: {}
+`)
+
+	if rt.Manager.Plugin("reload_test") == nil {
+		t.Fatal("expected custom plugin at boot")
+	}
+
+	writeConfig(t, configFile, `labels:
+  region: west
+`)
+
+	_, err := rt.reloadConfig(t.Context())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if exp := "removing plugins.reload_test requires a restart"; err.Error() != exp {
+		t.Errorf("expected error %q, got %q", exp, err.Error())
+	}
+}
+
+// A section that is still there but no longer enables its plugin is the same
+// removal as dropping it, and has to be rejected the same way.
+func TestReloadConfigRejectsDisablingPlugins(t *testing.T) {
+	for _, tc := range []struct {
+		note    string
+		start   string
+		next    string
+		message string
+	}{
+		{
+			note:    "decision_logs emptied",
+			start:   "decision_logs:\n  console: true\n",
+			next:    "decision_logs: {}\n",
+			message: "disabling decision_logs requires a restart",
+		},
+		{
+			note:    "decision_logs nulled",
+			start:   "decision_logs:\n  console: true\n",
+			next:    "decision_logs:\n",
+			message: "disabling decision_logs requires a restart",
+		},
+		{
+			note:    "decision_logs console turned off",
+			start:   "decision_logs:\n  console: true\n",
+			next:    "decision_logs:\n  console: false\n",
+			message: "disabling decision_logs requires a restart",
+		},
+		{
+			note:    "status emptied",
+			start:   "status:\n  console: true\n",
+			next:    "status: {}\n",
+			message: "disabling status requires a restart",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			rt, configFile := newConfigReloadRuntime(t, tc.start)
+
+			writeConfig(t, configFile, tc.next)
+
+			_, err := rt.reloadConfig(t.Context())
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if err.Error() != tc.message {
+				t.Errorf("expected error %q, got %q", tc.message, err.Error())
+			}
+			if logs.Lookup(rt.Manager) == nil && status.Lookup(rt.Manager) == nil {
+				t.Error("expected the plugin to still be registered")
+			}
+		})
+	}
+}
+
+// A rejected reload must not leave a plugin registered but never started: the
+// next reload would reconfigure it, and a plugin that isn't running never reads
+// from its reconfigure channel.
+func TestReloadConfigRejectedReloadStartsNothing(t *testing.T) {
+	rt, configFile := newConfigReloadRuntime(t, `decision_logs:
+  console: true
+`)
+
+	// Adds status, and disables decision_logs in the same write.
+	writeConfig(t, configFile, `decision_logs: {}
+status:
+  console: true
+`)
+
+	if _, err := rt.reloadConfig(t.Context()); err == nil {
+		t.Fatal("expected error")
+	}
+	if status.Lookup(rt.Manager) != nil {
+		t.Fatal("expected the status plugin not to have been registered by a rejected reload")
+	}
+
+	// Reverting leaves both plugins usable.
+	writeConfig(t, configFile, `decision_logs:
+  console: true
+status:
+  console: true
+`)
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if status.Lookup(rt.Manager) == nil {
+		t.Error("expected the status plugin to be started")
+	}
+}
+
+// An empty section still enables the plugin where it names the only configured
+// service, exactly as it would at start-up.
+func TestReloadConfigEmptyDecisionLogsPicksUpTheOnlyService(t *testing.T) {
+	server := sdktest.MustNewServer()
+	defer server.Stop()
+
+	rt, configFile := newConfigReloadRuntime(t, fmt.Sprintf(`services:
+  acme:
+    url: %q
+decision_logs:
+  console: true
+`, server.URL()))
+
+	writeConfig(t, configFile, fmt.Sprintf(`services:
+  acme:
+    url: %q
+decision_logs: {}
+`, server.URL()))
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+
+	p := logs.Lookup(rt.Manager)
+	if p == nil {
+		t.Fatal("expected decision log plugin to still be registered")
+	}
+	if got := p.Config().Service; got != "acme" {
+		t.Errorf("expected the plugin to default to service acme, got %q", got)
+	}
+}
+
+// The bundle plugin takes an empty "bundles" as "no bundles", so unlike the
+// other plugins it can be emptied without a restart.
+func TestReloadConfigEmptyBundlesDropsBundles(t *testing.T) {
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
+			"data.json": `{"reload": {"which": "b"}}`,
+		}),
+	)
+	defer server.Stop()
+
+	rt, configFile := newConfigReloadRuntime(t, fmt.Sprintf(`services:
+  acme:
+    url: %q
+bundles:
+  b:
+    resource: /bundles/b.tar.gz
+`, server.URL()))
+
+	writeConfig(t, configFile, fmt.Sprintf(`services:
+  acme:
+    url: %q
+bundles: {}
+`, server.URL()))
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+
+	p := bundle.Lookup(rt.Manager)
+	if p == nil {
+		t.Fatal("expected bundle plugin to still be registered")
+	}
+	if got := len(p.Config().Bundles); got != 0 {
+		t.Errorf("expected no bundles to be left configured, got %d", got)
+	}
+}
+
+func TestReloadConfigAppliesBundleChanges(t *testing.T) {
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/first.tar.gz", map[string]string{
+			"data.json": `{"reload": {"which": "first"}}`,
+		}),
+		sdktest.MockBundle("/bundles/second.tar.gz", map[string]string{
+			"data.json": `{"reload": {"which": "second"}}`,
+		}),
+	)
+	defer server.Stop()
+
+	config := func(resource string) string {
+		return fmt.Sprintf(`services:
+  acme:
+    url: %q
+bundles:
+  b:
+    resource: %s
+`, server.URL(), resource)
+	}
+
+	rt, configFile := newConfigReloadRuntime(t, config("/bundles/first.tar.gz"))
+
+	waitForBundle(t, rt, "first")
+
+	writeConfig(t, configFile, config("/bundles/second.tar.gz"))
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+
+	if got := bundle.Lookup(rt.Manager).Config().Bundles["b"].Resource; got != "/bundles/second.tar.gz" {
+		t.Fatalf("expected the bundle plugin to be reconfigured, got resource %q", got)
+	}
+
+	waitForBundle(t, rt, "second")
+}
+
+// waitForBundle blocks until data.reload.which has the expected value, which is
+// how far the bundle has got through downloading and activating.
+func waitForBundle(t *testing.T, rt *Runtime, exp string) {
+	t.Helper()
+
+	ctx := t.Context()
+	deadline := time.Now().Add(10 * time.Second)
+
+	for {
+		value, err := storage.ReadOne(ctx, rt.Store, storage.MustParsePath("/reload/which"))
+		if err == nil && value == exp {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for data.reload.which to become %q (last: %v, err: %v)", exp, value, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestReloadConfigWarnsOnDroppedService(t *testing.T) {
+	server := sdktest.MustNewServer()
+	defer server.Stop()
+
+	logger := testLog.New()
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig(t, configFile, fmt.Sprintf(`services:
+  acme:
+    url: %q
+  other:
+    url: %q
+`, server.URL(), server.URL()))
+
+	params := NewParams()
+	params.ConfigFile = configFile
+	params.Output = io.Discard
+	params.Logger = logger
+
+	rt, err := NewRuntime(t.Context(), params)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	writeConfig(t, configFile, fmt.Sprintf(`services:
+  acme:
+    url: %q
+`, server.URL()))
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+
+	found := slices.ContainsFunc(logger.Entries(), func(e testLog.LogEntry) bool {
+		return strings.Contains(e.Message, "Entries removed from services")
+	})
+	if !found {
+		t.Errorf("expected a warning about the dropped service, got %v", logger.Entries())
+	}
+
+	// Still there, which is what the warning is about.
+	if !slices.Contains(rt.Manager.Services(), "other") {
+		t.Error("expected the dropped service to stay registered")
 	}
 }
 
@@ -646,70 +933,123 @@ func TestChangedConfigKeys(t *testing.T) {
 
 func TestRemovedPlugins(t *testing.T) {
 	tests := []struct {
+		note    string
+		running []string
+		custom  []string
+		new     string
+		exp     []string
+	}{
+		{
+			note: "nothing running",
+			new:  "labels:\n  region: east\n",
+		},
+		{
+			note:    "retained",
+			running: []string{logs.Name},
+			new:     "decision_logs:\n  console: false\n",
+		},
+		{
+			note:    "removed",
+			running: []string{logs.Name},
+			new:     "labels:\n  region: west\n",
+			exp:     []string{"decision_logs"},
+		},
+		{
+			note:    "an empty section is still a section",
+			running: []string{logs.Name},
+			new:     "decision_logs:\n",
+			// pluginset reports this one, once the section has been parsed.
+		},
+		{
+			note: "a section that was never running is not a removal",
+			new:  "labels:\n  region: west\n",
+		},
+		{
+			note:    "several, reported in a stable order",
+			running: []string{bundle.Name, logs.Name, status.Name},
+			new:     "labels:\n  region: west\n",
+			exp:     []string{"bundles", "decision_logs", "status"},
+		},
+		{
+			note:    "the deprecated bundle key keeps the bundle plugin",
+			running: []string{bundle.Name},
+			new:     "bundle:\n  name: b\n  service: s\n",
+		},
+		{
+			note:    "the whole bundle group removed",
+			running: []string{bundle.Name},
+			new:     "labels:\n  region: west\n",
+			exp:     []string{"bundles"},
+		},
+		{
+			note:    "custom plugin removed",
+			running: []string{"foo", "bar"},
+			custom:  []string{"foo", "bar"},
+			new:     "plugins:\n  foo: {}\n",
+			exp:     []string{"plugins.bar"},
+		},
+		{
+			note:    "all custom plugins removed",
+			running: []string{"foo"},
+			custom:  []string{"foo"},
+			new:     "labels:\n  region: west\n",
+			exp:     []string{"plugins.foo"},
+		},
+		{
+			note:   "a registered custom plugin that never ran is not a removal",
+			custom: []string{"foo"},
+			new:    "labels:\n  region: west\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			newConf, err := rawConfigMap([]byte(tc.new))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			running := func(name string) bool { return slices.Contains(tc.running, name) }
+			if removed := removedPlugins(running, tc.custom, newConf); !slices.Equal(removed, tc.exp) {
+				t.Errorf("expected %v, got %v", tc.exp, removed)
+			}
+		})
+	}
+}
+
+func TestDroppedKeys(t *testing.T) {
+	tests := []struct {
 		note     string
 		old, new string
 		exp      []string
 	}{
 		{
-			note: "nothing configured",
+			note: "nothing to drop",
 			old:  "labels:\n  region: west\n",
 			new:  "labels:\n  region: east\n",
 		},
 		{
-			note: "retained",
-			old:  "decision_logs:\n  console: true\n",
-			new:  "decision_logs:\n  console: false\n",
+			note: "service retained",
+			old:  "services:\n  s:\n    url: http://localhost\n",
+			new:  "services:\n  s:\n    url: http://elsewhere\n",
 		},
 		{
-			note: "added",
-			old:  "labels:\n  region: west\n",
-			new:  "decision_logs:\n  console: true\n",
+			note: "service dropped",
+			old:  "services:\n  s:\n    url: http://localhost\n  t:\n    url: http://localhost\n",
+			new:  "services:\n  s:\n    url: http://localhost\n",
+			exp:  []string{"services"},
 		},
 		{
-			note: "removed",
-			old:  "decision_logs:\n  console: true\n",
+			note: "all services dropped",
+			old:  "services:\n  s:\n    url: http://localhost\n",
 			new:  "labels:\n  region: west\n",
-			exp:  []string{"decision_logs"},
+			exp:  []string{"services"},
 		},
 		{
-			note: "emptied counts as removed",
-			old:  "decision_logs:\n  console: true\n",
-			new:  "decision_logs:\n",
-			exp:  []string{"decision_logs"},
-		},
-		{
-			note: "empty to empty is not a removal",
-			old:  "decision_logs:\n",
+			note: "both",
+			old:  "services:\n  s:\n    url: http://localhost\nkeys:\n  k:\n    key: secret\n",
 			new:  "labels:\n  region: west\n",
-		},
-		{
-			note: "several, reported in a stable order",
-			old:  "status:\n  service: s\nbundles:\n  b:\n    service: s\ndecision_logs:\n  console: true\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"bundles", "decision_logs", "status"},
-		},
-		{
-			note: "migrating the deprecated bundle to bundles is not a removal",
-			old:  "bundle:\n  name: b\n  service: s\n",
-			new:  "bundles:\n  b:\n    service: s\n",
-		},
-		{
-			note: "the whole bundle group removed",
-			old:  "bundles:\n  b:\n    service: s\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"bundles"},
-		},
-		{
-			note: "custom plugin removed",
-			old:  "plugins:\n  foo: {}\n  bar: {}\n",
-			new:  "plugins:\n  foo: {}\n",
-			exp:  []string{"plugins.bar"},
-		},
-		{
-			note: "all custom plugins removed",
-			old:  "plugins:\n  foo: {}\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"plugins.foo"},
+			exp:  []string{"services", "keys"},
 		},
 	}
 
@@ -724,8 +1064,8 @@ func TestRemovedPlugins(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if removed := removedPlugins(oldConf, newConf); !slices.Equal(removed, tc.exp) {
-				t.Errorf("expected %v, got %v", tc.exp, removed)
+			if dropped := droppedKeys(oldConf, newConf, "services", "keys"); !slices.Equal(dropped, tc.exp) {
+				t.Errorf("expected %v, got %v", tc.exp, dropped)
 			}
 		})
 	}

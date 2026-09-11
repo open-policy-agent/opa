@@ -22,11 +22,25 @@ import (
 	"github.com/open-policy-agent/opa/internal/pluginset"
 	opa_config "github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/hooks"
+	"github.com/open-policy-agent/opa/v1/plugins/bundle"
+	"github.com/open-policy-agent/opa/v1/plugins/logs"
+	"github.com/open-policy-agent/opa/v1/plugins/status"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Top-level keys OPA only reads at start-up. A reload that changes one is
 // rejected rather than applied in part.
+//
+// None of these are inherently unreloadable; they are consumed once, while the
+// runtime is being built, by something that has no way to be handed a new
+// configuration afterwards. "storage" and "persistence_directory" pick the store
+// the compiler and every plugin already hold a reference to; "server",
+// "default_decision" and "default_authorization_decision" are baked into the
+// server and its routes; "distributed_tracing" and "metrics_export" construct a
+// tracer and a meter provider that are wired into the server and into every REST
+// client at creation, and neither is torn back down; "discovery" would hand
+// ownership of the plugin configuration to the discovery plugin, which is why
+// the watcher does not even start when it is set.
 var nonReloadableConfigKeys = []string{
 	"default_authorization_decision",
 	"default_decision",
@@ -43,10 +57,18 @@ var nonReloadableConfigKeys = []string{
 // either keeps the bundle plugin running. The manager cannot unregister a
 // plugin, so dropping a whole group would leave it running with its old settings
 // while disappearing from the reported configuration.
-var pluginConfigKeys = [][]string{
-	{"bundle", "bundles"},
-	{"decision_logs"},
-	{"status"},
+//
+// This catches a section going away outright, before anything is applied. A
+// section that is still there but no longer enables its plugin -- an empty
+// "decision_logs", say -- only shows up once the plugin configuration is parsed,
+// and is caught by pluginset.Configs.Orphaned instead.
+var pluginConfigKeys = []struct {
+	plugin string
+	keys   []string
+}{
+	{bundle.Name, []string{"bundle", "bundles"}},
+	{logs.Name, []string{"decision_logs"}},
+	{status.Name, []string{"status"}},
 }
 
 // How long to wait for the file to stop changing before reading it. Writers that
@@ -190,10 +212,11 @@ func (rt *Runtime) reloadConfig(ctx context.Context) (bool, error) {
 }
 
 // applyConfig hands a new configuration to the plugin manager. Plugins it no
-// longer mentions keep running: as with discovery, plugins can be added and
-// reconfigured but not removed. Validating the plugin sections needs the new
-// services registered first, so a failure there leaves the manager holding the
-// new services, keys and caching.
+// longer enables keep running: as with discovery, plugins can be added and
+// reconfigured but not removed, so a configuration that would drop one is
+// rejected. Validating the plugin sections needs the new services registered
+// first, so a failure there leaves the manager holding the new services, keys
+// and caching.
 func (rt *Runtime) applyConfig(ctx context.Context, bs []byte) error {
 	oldConf, err := rawConfigMap(rt.appliedConfig)
 	if err != nil {
@@ -210,7 +233,7 @@ func (rt *Runtime) applyConfig(ctx context.Context, bs []byte) error {
 	if relabelled := changedLabels(oldConf, newConf); len(relabelled) > 0 {
 		return fmt.Errorf("changing or removing labels (%s) requires a restart", strings.Join(relabelled, ", "))
 	}
-	if removed := removedPlugins(oldConf, newConf); len(removed) > 0 {
+	if removed := removedPlugins(rt.pluginRunning, registeredPluginNames(), newConf); len(removed) > 0 {
 		return fmt.Errorf("removing %s requires a restart", strings.Join(removed, ", "))
 	}
 
@@ -236,6 +259,10 @@ func (rt *Runtime) applyConfig(ctx context.Context, bs []byte) error {
 		rt.logger.Warn("%s", w)
 	}
 
+	if dropped := droppedKeys(oldConf, newConf, "services", "keys"); len(dropped) > 0 {
+		rt.logger.Warn("Entries removed from %s stay registered until OPA restarts.", strings.Join(dropped, " and "))
+	}
+
 	if err := rt.Manager.Reconfigure(parsed); err != nil {
 		return err
 	}
@@ -244,12 +271,20 @@ func (rt *Runtime) applyConfig(ctx context.Context, bs []byte) error {
 	factories := maps.Clone(registeredPlugins)
 	registeredPluginsMux.Unlock()
 
-	ps, err := pluginset.Get(factories, rt.Manager, parsed, rt.metrics, rt.logger, nil)
+	// Parsed before anything is registered, so that rejecting below leaves no
+	// half-built plugin behind.
+	configs, err := pluginset.Parse(factories, rt.Manager, parsed, rt.metrics, rt.logger, nil)
 	if err != nil {
 		return err
 	}
 
-	return ps.Apply(ctx)
+	// A section that is still present but no longer enables its plugin; the
+	// removedPlugins check above only sees one that is gone outright.
+	if len(configs.Orphaned) > 0 {
+		return fmt.Errorf("disabling %s requires a restart", strings.Join(configs.Orphaned, ", "))
+	}
+
+	return configs.Set(rt.Manager).Apply(ctx)
 }
 
 // rawConfigMap decodes a configuration as written, before defaults such as the
@@ -274,6 +309,31 @@ func changedKeys(oldConf, newConf map[string]any, keys []string) []string {
 	return changed
 }
 
+// droppedKeys returns the given keys that held entries the new configuration no
+// longer lists. The manager merges these rather than replacing them, so the
+// entries stay registered. Only the map form is inspected; "services" written as
+// an array is left alone.
+func droppedKeys(oldConf, newConf map[string]any, keys ...string) []string {
+	var dropped []string
+	for _, k := range keys {
+		oldEntries, _ := oldConf[k].(map[string]any)
+		newEntries, _ := newConf[k].(map[string]any)
+		for name := range oldEntries {
+			if _, ok := newEntries[name]; !ok {
+				dropped = append(dropped, k)
+				break
+			}
+		}
+	}
+
+	return dropped
+}
+
+// pluginRunning reports whether a plugin is registered under the given name.
+func (rt *Runtime) pluginRunning(name string) bool {
+	return rt.Manager.Plugin(name) != nil
+}
+
 // changedLabels returns the labels the new configuration changes or drops.
 // Additions are left out because those do take effect; the manager restores the
 // labels captured at start-up over anything else, which would be silent.
@@ -292,35 +352,44 @@ func changedLabels(oldConf, newConf map[string]any) []string {
 	return changed
 }
 
-// removedPlugins returns the plugin sections the new configuration drops. An
-// empty section counts as absent, since that enables nothing either.
-func removedPlugins(oldConf, newConf map[string]any) []string {
-	configured := func(conf map[string]any, group []string) string {
-		for _, k := range group {
-			if v, ok := conf[k]; ok && v != nil {
-				return k
-			}
-		}
-		return ""
-	}
-
+// removedPlugins returns the configuration sections of running plugins that the
+// new configuration drops outright. running reports whether a plugin of that
+// name is registered, so a section that never enabled anything is not mistaken
+// for a removal; custom names the plugins RegisterPlugin knows about.
+//
+// A section that is still present, however empty, is left alone here: the bundle
+// plugin reads an empty "bundles" as "no bundles" and tears its downloaders
+// down, and for the others pluginset reports the plugin as orphaned once the
+// section has been parsed.
+func removedPlugins(running func(name string) bool, custom []string, newConf map[string]any) []string {
 	var removed []string
 	for _, group := range pluginConfigKeys {
-		if was := configured(oldConf, group); was != "" && configured(newConf, group) == "" {
-			removed = append(removed, was)
+		if !running(group.plugin) {
+			continue
+		}
+		if !slices.ContainsFunc(group.keys, func(k string) bool { _, ok := newConf[k]; return ok }) {
+			removed = append(removed, group.keys[len(group.keys)-1])
 		}
 	}
 
-	oldCustom, _ := oldConf["plugins"].(map[string]any)
 	newCustom, _ := newConf["plugins"].(map[string]any)
-	for k := range oldCustom {
-		if _, ok := newCustom[k]; !ok {
-			removed = append(removed, "plugins."+k)
+	for _, name := range custom {
+		if _, ok := newCustom[name]; !ok && running(name) {
+			removed = append(removed, "plugins."+name)
 		}
 	}
 	slices.Sort(removed)
 
 	return removed
+}
+
+// registeredPluginNames returns the names custom plugins have been registered
+// under with RegisterPlugin.
+func registeredPluginNames() []string {
+	registeredPluginsMux.Lock()
+	defer registeredPluginsMux.Unlock()
+
+	return slices.Collect(maps.Keys(registeredPlugins))
 }
 
 func (rt *Runtime) onConfigReloadLogger(d time.Duration, err error) {

@@ -3487,7 +3487,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := pluginset.Get(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+	_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3524,7 +3524,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := pluginset.Get(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+	_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3583,7 +3583,7 @@ bundles:
 		t.Run(name, func(t *testing.T) {
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := pluginset.Get(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+			_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3646,7 +3646,7 @@ decision_logs:
 		t.Run(name, func(t *testing.T) {
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := pluginset.Get(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+			_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3716,7 +3716,7 @@ status:
 		t.Run(name, func(t *testing.T) {
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := pluginset.Get(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+			_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
