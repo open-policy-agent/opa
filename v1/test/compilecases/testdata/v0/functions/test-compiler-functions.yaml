@@ -1,0 +1,321 @@
+---
+# Generated externalized tests from TestCompilerFunctions
+cases:
+  - note: functions/multiple input types
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f([x]) = y {
+        	y = x
+        }
+
+        f({"foo": x}) = y {
+        	y = x
+        }
+    want:
+      - module: |
+          package x
+
+          f([__local0__]) = y {
+          	y = __local0__
+          }
+
+          f({"foo": __local1__}) = y {
+          	y = __local1__
+          }
+  - note: functions/multiple input types-2
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f([x]) = y {
+        	y = x
+        }
+
+        f([[x]]) = y {
+        	y = x
+        }
+    want:
+      - module: |
+          package x
+
+          f([__local0__]) = y {
+          	y = __local0__
+          }
+
+          f([[__local1__]]) = y {
+          	y = __local1__
+          }
+  - note: functions/constant input
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(1) = y {
+        	y = "foo"
+        }
+
+        f(2) = y {
+        	y = "bar"
+        }
+    want:
+      - module: |
+          package x
+
+          f(1) = y {
+          	y = "foo"
+          }
+
+          f(2) = y {
+          	y = "bar"
+          }
+  - note: functions/constant input-2
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(1, x) = y {
+        	y = x
+        }
+
+        f(x, y) = z {
+        	z = x+y
+        }
+    want:
+      - module: |
+          package x
+
+          f(1, __local0__) = y {
+          	y = __local0__
+          }
+
+          f(__local1__, __local2__) = z {
+          	plus(__local1__, __local2__, __local3__)
+          	z = __local3__
+          }
+  - note: functions/constant input-3
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(x, 1) = y {
+        	y = x
+        }
+
+        f(x, [y]) = z {
+        	z = x+y
+        }
+    want:
+      - module: |
+          package x
+
+          f(__local0__, 1) = y {
+          	y = __local0__
+          }
+
+          f(__local1__, [__local2__]) = z {
+          	plus(__local1__, __local2__, __local3__)
+          	z = __local3__
+          }
+  - note: functions/multiple input types (nested)
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f({"foo": {"bar": x}}) = y {
+        	y = x
+        }
+
+        f({"foo": [x]}) = y {
+        	y = x
+        }
+    want:
+      - module: |
+          package x
+
+          f({"foo": {"bar": __local0__}}) = y {
+          	y = __local0__
+          }
+
+          f({"foo": [__local1__]}) = y {
+          	y = __local1__
+          }
+  - note: functions/multiple output types
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(1) = y {
+        	y = "foo"
+        }
+
+        f(2) = y {
+        	y = 2
+        }
+    want:
+      - module: |
+          package x
+
+          f(1) = y {
+          	y = "foo"
+          }
+
+          f(2) = y {
+          	y = 2
+          }
+  - note: functions/namespacing
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(x) = y {
+        	data.y.f[x] = y
+        }
+      - |
+        package y
+
+        f[x] = y {
+        	y = "bar"
+        	x = "foo"
+        }
+    want:
+      - module: |
+          package x
+
+          f(__local0__) = y {
+          	data.y.f[__local0__] = y
+          }
+      - module: |
+          package y
+
+          f[x] = y {
+          	y = "bar"
+          	x = "foo"
+          }
+  - note: functions/implicit value
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(x) {
+        	x = "foo"
+        }
+    want:
+      - module: |
+          package x
+
+          f(__local0__) = true {
+          	__local0__ = "foo"
+          }
+  - note: functions/resolving
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(x) = x { true }
+      - |
+        package y
+
+        import data.x
+        import data.x.f as g
+
+        p { g(1, a) }
+        p { x.f(1, b) }
+        p { data.x.f(1, c) }
+    want:
+      - module: |
+          package x
+
+          f(__local0__) = __local0__ {
+          	true
+          }
+      - module: |
+          package y
+
+          p = true {
+          	data.x.f(1, a)
+          }
+
+          p = true {
+          	data.x.f(1, b)
+          }
+
+          p = true {
+          	data.x.f(1, c)
+          }
+  - note: functions/undefined
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        p {
+        	f(1)
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: undefined function f
+  - note: functions/must apply
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(1)
+
+        p {
+        	f
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 6
+        col: 2
+        message: function data.x.f used as reference, not called
+  - note: functions/must apply-2
+    rego_version: v0
+    modules:
+      - |
+        package x
+
+        f(1)
+        p { f.x }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 5
+        message: function data.x.f.x used as reference, not called
+  - note: functions/call argument ref output vars
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package x
+
+        f(x)
+
+        p { f(data.foo[i]) }
+    want:
+      - module: |
+          package x
+
+          f(__local0__) = true {
+          	true
+          }
+
+          p = true {
+          	__local1__ = data.foo[i]
+          	data.x.f(__local1__)
+          }

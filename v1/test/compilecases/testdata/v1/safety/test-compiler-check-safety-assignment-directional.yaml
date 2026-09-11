@@ -1,0 +1,76 @@
+---
+# Generated externalized tests from TestCompilerCheckSafetyAssignmentDirectional
+cases:
+  - note: safety/RHS var never bound is unsafe
+    modules:
+      - |
+        package test
+
+        p if { x := y; x = 7 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var y is unsafe
+  - note: safety/RHS var only reachable by backwards unification is unsafe
+    modules:
+      - |
+        package test
+
+        p := v if { x := y; x = 7; v := obj[x] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 13
+        message: var y is unsafe
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 28
+        message: var obj is unsafe
+  - note: safety/RHS var bound by another expression is safe
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p if { x := y; y = 7 }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	y = 7
+          	__local0__ = y
+          }
+  - note: safety/RHS ref iteration still binds its own vars
+    modules:
+      - |
+        package test
+
+        obj := {"a": 1, "b": 2}
+        p contains v if { some k; v := obj[k] }
+    want:
+      - module: |
+          package test
+
+          obj := {"a": 1, "b": 2} if {
+          	true
+          }
+
+          p contains __local1__ if {
+          	__local1__ = data.test.obj[__local0__]
+          }
+  - note: safety/chained assignments remain safe
+    modules:
+      - |
+        package test
+
+        p := y if { x := input.foo; y := x }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local0__ = input.foo
+          	__local1__ = __local0__
+          }

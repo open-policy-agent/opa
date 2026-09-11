@@ -1,0 +1,17 @@
+---
+# Generated externalized tests from TestCompilerCheckRuleConflictsDefaultFunction
+cases:
+  - note: conflicts/conflicting rules
+    modules:
+      - |
+        package pkg
+
+        default f(_) = 100
+        f(x, y) = x if {
+                       x == y
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: conflicting rules data.pkg.f found

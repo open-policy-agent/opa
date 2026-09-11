@@ -1,0 +1,65 @@
+---
+# Generated externalized tests from TestIllegalFunctionCallRewrite
+cases:
+  - note: functions/function call override of 'input' root document
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p := [input() | input := 1]
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 7
+        message: called function input shadowed
+    exhaustive: true
+  - note: functions/function call override of 'data' root document
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p := [data() | data := 1]
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 7
+        message: called function data shadowed
+    exhaustive: true
+  - note: functions/function call on override of 'input' root document in rule body
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p {
+        	input := 0
+        	input()
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 2
+        message: 'undefined function '
+    exhaustive: true
+  - note: functions/function call on override of 'data' root document in rule body
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p {
+        	data := 0
+        	data()
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 2
+        message: 'undefined function '
+    exhaustive: true

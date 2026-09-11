@@ -1,0 +1,690 @@
+---
+# Generated externalized tests from TestCompilerMockFunction
+cases:
+  - note: with/simple valid
+    modules:
+      - |
+        package test
+
+        now() = 123
+        p if { true with time.now_ns as now }
+    want:
+      - module: |
+          package test
+
+          now = 123 if {
+          	true
+          }
+
+          p = true if {
+          	true with time.now_ns as data.test.now
+          }
+  - note: with/simple valid, simple name
+    modules:
+      - |
+        package test
+
+        mock_concat(_, _) = "foo/bar"
+        p if { concat("/", input) with concat as mock_concat }
+    want:
+      # ast rather than module: the compiled rule `p = true if { __local2__ =
+      # input with concat as data.test.mock_concat; concat("/", __local2__) with
+      # concat as data.test.mock_concat }` prints as Rego that parses to a
+      # different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  }
+                ],
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    },
+                    {
+                      "type": "var",
+                      "value": "__local1__"
+                    }
+                  ],
+                  "name": "mock_concat",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "mock_concat"
+                    }
+                  ],
+                  "value": {
+                    "type": "string",
+                    "value": "foo/bar"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          }
+                        ]
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "concat"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "data"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            },
+                            {
+                              "type": "string",
+                              "value": "mock_concat"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "concat"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "/"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "concat"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "data"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            },
+                            {
+                              "type": "string",
+                              "value": "mock_concat"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: 'with/invalid ref: nonexistant'
+    modules:
+      - |
+        package test
+
+        p if { true with time.now_ns as now }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var now is unsafe
+  - note: 'with/valid ref: not a function, but arity = 0'
+    modules:
+      - |
+        package test
+
+        now = 1
+        p if { true with time.now_ns as now }
+    want:
+      - module: |
+          package test
+
+          now = 1 if {
+          	true
+          }
+
+          p = true if {
+          	true with time.now_ns as data.test.now
+          }
+  - note: 'with/ref: not a function, arity > 0'
+    modules:
+      - |
+        package test
+
+        http_send = { "body": "nope" }
+        p if { true with http.send as http_send }
+    want:
+      - module: |
+          package test
+
+          http_send = {"body": "nope"} if {
+          	true
+          }
+
+          p = true if {
+          	true with http.send as data.test.http_send
+          }
+  - note: 'with/invalid ref: arity mismatch'
+    modules:
+      - |
+        package test
+
+        http_send(_, _) = { "body": "nope" }
+        p if { true with http.send as http_send }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 13
+        message: 'http.send: arity mismatch'
+  - note: 'with/invalid ref: arity mismatch (in call)'
+    modules:
+      - |
+        package test
+
+        http_send(_, _) = { "body": "nope" }
+        p if { http.send({}) with http.send as http_send }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 22
+        message: 'http.send: arity mismatch'
+  - note: 'with/invalid ref: value another built-in with different type'
+    modules:
+      - |
+        package test
+
+        p if { true with http.send as net.lookup_ip_addr }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 13
+        message: 'http.send: arity mismatch'
+  - note: 'with/ref: value another built-in with compatible type'
+    modules:
+      - |
+        package test
+
+        p if { true with count as object.union_n }
+    want:
+      # ast rather than module: the compiled rule `p = true if { true with count
+      # as object.union_n }` prints as Rego that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": true
+                    },
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "count"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "object"
+                            },
+                            {
+                              "type": "string",
+                              "value": "union_n"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: 'with/valid: package import'
+    modules:
+      - |
+        package test
+
+        import data.mocks
+        p if { true with http.send as mocks.http_send }
+      - |
+        package mocks
+
+        http_send(_) = {}
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	true with http.send as data.mocks.http_send
+          }
+      - module: |
+          package mocks
+
+          http_send(__local0__) = {} if {
+          	true
+          }
+  - note: 'with/valid: function import'
+    modules:
+      - |
+        package test
+
+        import data.mocks.http_send
+        p if { true with http.send as http_send }
+      - |
+        package mocks
+
+        http_send(_) = {}
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	true with http.send as data.mocks.http_send
+          }
+      - module: |
+          package mocks
+
+          http_send(__local0__) = {} if {
+          	true
+          }
+  - note: 'with/invalid target: relation'
+    modules:
+      - |
+        package test
+
+        my_walk(_, _)
+        p if { true with walk as my_walk }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 18
+        message: 'with keyword replacing built-in function: target must not be a relation'
+  - note: 'with/invalid target: eq'
+    modules:
+      - |
+        package test
+
+        my_eq(_, _)
+        p if { true with eq as my_eq }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 18
+        message: 'with keyword replacing built-in function: replacement of "eq" invalid'
+  - note: 'with/invalid target: rego.metadata.chain'
+    modules:
+      - |
+        package test
+
+        p if { true with rego.metadata.chain as [] }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 18
+        message: 'with keyword replacing built-in function: replacement of "rego.metadata.chain" invalid'
+  - note: 'with/invalid target: rego.metadata.rule'
+    modules:
+      - |
+        package test
+
+        p if { true with rego.metadata.rule as {} }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 18
+        message: 'with keyword replacing built-in function: replacement of "rego.metadata.rule" invalid'
+  - note: 'with/invalid target: internal.print'
+    modules:
+      - |
+        package test
+
+        my_print(_, _)
+        p if { true with internal.print as my_print }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 18
+        message: 'with keyword replacing built-in function: replacement of internal function "internal.print" invalid'
+  - note: with/non-built-in function replaced value
+    modules:
+      - |
+        package test
+
+        original(_)
+        p if { original(true) with original as 123 }
+    want:
+      - module: |
+          package test
+
+          original(__local0__) = true if {
+          	true
+          }
+
+          p = true if {
+          	data.test.original(true) with data.test.original as 123
+          }
+  - note: with/non-built-in function replaced by another, arity 0
+    modules:
+      - |
+        package test
+
+        original() = 1
+        mock() = 2
+        p if { original() with original as mock }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 8
+        message: undefined function data.test.original
+  - note: with/non-built-in function replaced by another, arity 1
+    modules:
+      - |
+        package test
+
+        original(_)
+        mock(_)
+        p if { original(true) with original as mock }
+    want:
+      - module: |
+          package test
+
+          original(__local0__) = true if {
+          	true
+          }
+
+          mock(__local1__) = true if {
+          	true
+          }
+
+          p = true if {
+          	data.test.original(true) with data.test.original as data.test.mock
+          }
+  - note: with/non-built-in function replaced by built-in
+    modules:
+      - |
+        package test
+
+        original(_)
+        p if { original([1]) with original as count }
+    want:
+      # ast rather than module: the compiled rule `p = true if {
+      # data.test.original([1]) with data.test.original as count }` prints as Rego
+      # that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  }
+                ],
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  ],
+                  "name": "original",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "original"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "data"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          },
+                          {
+                            "type": "string",
+                            "value": "original"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "data"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            },
+                            {
+                              "type": "string",
+                              "value": "original"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "count"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: with/non-built-in function replaced by another, arity mismatch
+    modules:
+      - |
+        package test
+
+        original(_)
+        mock(_, _)
+        p if { original([1]) with original as mock }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 22
+        message: 'data.test.original: arity mismatch'
+  - note: with/non-built-in function replaced by built-in, arity mismatch
+    modules:
+      - |
+        package test
+
+        original(_)
+        p if { original([1]) with original as concat }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 22
+        message: 'data.test.original: arity mismatch'

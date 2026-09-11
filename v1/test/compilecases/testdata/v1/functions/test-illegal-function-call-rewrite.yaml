@@ -1,0 +1,68 @@
+---
+# Generated externalized tests from TestIllegalFunctionCallRewrite
+cases:
+  - note: functions/function call override in array comprehension value
+    modules:
+      - |
+        package test
+
+        p := [foo(bar) | foo := 1; bar := 2]
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 7
+        message: called function foo shadowed
+    exhaustive: true
+  - note: functions/function call override in set comprehension value
+    modules:
+      - |
+        package test
+
+        p := {foo(bar) | foo := 1; bar := 2}
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 7
+        message: called function foo shadowed
+    exhaustive: true
+  - note: functions/function call override in object comprehension value
+    modules:
+      - |
+        package test
+
+        p := {foo(bar): bar(foo) | foo := 1; bar := 2}
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 7
+        message: called function foo shadowed
+      - code: rego_compile_error
+        row: 3
+        col: 17
+        message: called function bar shadowed
+    exhaustive: true
+  - note: functions/function call override in array comprehension value-2
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p := [foo.bar(baz) | foo := 1; bar := 2; baz := 3]
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 7
+        message: called function foo.bar shadowed
+    exhaustive: true
+  - note: functions/nested function call override in array comprehension value
+    modules:
+      - |
+        package test
+
+        p := [baz(foo(bar)) | foo := 1; bar := 2]
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 11
+        message: called function foo shadowed
+    exhaustive: true
