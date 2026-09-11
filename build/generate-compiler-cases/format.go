@@ -122,6 +122,17 @@ func divergenceReason(mod, reparsed *ast.Module) string {
 func layout(mod *ast.Module) string {
 	var sb strings.Builder
 
+	// Package-scoped annotations sit above the package clause, where
+	// Module.AppendText puts them. Rule-scoped ones come out with their rule.
+	for _, a := range mod.Annotations {
+		if a.Scope != "package" && a.Scope != "subpackages" {
+			continue
+		}
+		sb.WriteString("# METADATA\n# ")
+		sb.WriteString(a.String())
+		sb.WriteString("\n")
+	}
+
 	sb.WriteString(mod.Package.String())
 	sb.WriteString("\n")
 

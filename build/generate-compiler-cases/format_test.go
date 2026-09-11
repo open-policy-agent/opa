@@ -219,7 +219,6 @@ func compileFor(tc compilecases.TestCase, popts ast.ParserOptions) []*ast.Module
 	for i, src := range tc.Modules {
 		name := compilecases.ModuleName(i)
 		modules[name] = ast.MustParseModuleWithOpts(src, popts)
-		modules[name].Package.Location = nil
 	}
 
 	c := ast.NewCompiler().

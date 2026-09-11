@@ -233,6 +233,7 @@ func wantParserOptions(tc compilecases.TestCase, imports [][]string, i int) (ast
 		RegoVersion:       version,
 		FutureKeywords:    opts.FutureKeywords,
 		AllFutureKeywords: opts.AllFutureKeywords,
+		ProcessAnnotation: true,
 	}
 	if tc.ExperimentalKeywords {
 		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))

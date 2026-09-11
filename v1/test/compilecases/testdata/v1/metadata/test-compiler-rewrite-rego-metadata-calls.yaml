@@ -1,0 +1,369 @@
+---
+# Generated externalized tests from TestCompilerRewriteRegoMetadataCalls
+cases:
+  - note: metadata/rego.metadata called, no metadata
+    modules:
+      - |
+        package test
+
+        p if {
+        	rego.metadata.chain()[0].path == ["test", "p"]
+        	rego.metadata.rule() == {}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = [{"path": ["test", "p"]}]
+          	__local3__ = {}
+          	__local0__ = __local2__
+          	__local0__[0].path = ["test", "p"]
+          	__local1__ = __local3__
+          	__local1__ = {}
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = true if {
+            	__local2__ = [{"path": ["test", "p"]}]
+            	__local3__ = {}
+            	__local0__ = __local2__
+            	equal(__local0__[0].path, ["test", "p"])
+            	__local1__ = __local3__
+            	equal(__local1__, {})
+            }
+  - note: metadata/rego.metadata called, no output var, no metadata
+    modules:
+      - |
+        package test
+
+        p if {
+        	rego.metadata.chain()
+        	rego.metadata.rule()
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = [{"path": ["test", "p"]}]
+          	__local1__ = {}
+          	__local0__
+          	__local1__
+          }
+  - note: metadata/rego.metadata called, with metadata
+    modules:
+      - |
+        # METADATA
+        # description: A test package
+        package test
+
+        # METADATA
+        # title: My P Rule
+        p if {
+        	rego.metadata.chain()[0].annotations.title == "My P Rule"
+        	rego.metadata.chain()[1].annotations.description == "A test package"
+        }
+
+        # METADATA
+        # title: My Other P Rule
+        p if {
+        	rego.metadata.rule().title == "My Other P Rule"
+        }
+    want:
+      - module: |
+          # METADATA
+          # {"description":"A test package","scope":"package"}
+          package test
+
+          # METADATA
+          # {"scope":"rule","title":"My P Rule"}
+          p = true if {
+          	__local3__ = [{"annotations": {"scope": "rule", "title": "My P Rule"}, "path": ["test", "p"]}, {"annotations": {"description": "A test package", "scope": "package"}, "path": ["test"]}]
+          	__local0__ = __local3__
+          	__local0__[0].annotations.title = "My P Rule"
+          	__local1__ = __local3__
+          	__local1__[1].annotations.description = "A test package"
+          }
+
+          # METADATA
+          # {"scope":"rule","title":"My Other P Rule"}
+          p = true if {
+          	__local4__ = {"scope": "rule", "title": "My Other P Rule"}
+          	__local2__ = __local4__
+          	__local2__.title = "My Other P Rule"
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            # METADATA
+            # {"description":"A test package","scope":"package"}
+            package test
+
+            # METADATA
+            # {"scope":"rule","title":"My P Rule"}
+            p = true if {
+            	__local3__ = [{"annotations": {"scope": "rule", "title": "My P Rule"}, "path": ["test", "p"]}, {"annotations": {"description": "A test package", "scope": "package"}, "path": ["test"]}]
+            	__local0__ = __local3__
+            	equal(__local0__[0].annotations.title, "My P Rule")
+            	__local1__ = __local3__
+            	equal(__local1__[1].annotations.description, "A test package")
+            }
+
+            # METADATA
+            # {"scope":"rule","title":"My Other P Rule"}
+            p = true if {
+            	__local4__ = {"scope": "rule", "title": "My Other P Rule"}
+            	__local2__ = __local4__
+            	equal(__local2__.title, "My Other P Rule")
+            }
+  - note: metadata/rego.metadata referenced multiple times
+    modules:
+      - |
+        # METADATA
+        # description: TEST
+        package test
+
+        p if {
+        	rego.metadata.chain()[0].path == ["test", "p"]
+        	rego.metadata.chain()[1].path == ["test"]
+        }
+    want:
+      - module: |
+          # METADATA
+          # {"description":"TEST","scope":"package"}
+          package test
+
+          p = true if {
+          	__local2__ = [{"path": ["test", "p"]}, {"annotations": {"description": "TEST", "scope": "package"}, "path": ["test"]}]
+          	__local0__ = __local2__
+          	__local0__[0].path = ["test", "p"]
+          	__local1__ = __local2__
+          	__local1__[1].path = ["test"]
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            # METADATA
+            # {"description":"TEST","scope":"package"}
+            package test
+
+            p = true if {
+            	__local2__ = [{"path": ["test", "p"]}, {"annotations": {"description": "TEST", "scope": "package"}, "path": ["test"]}]
+            	__local0__ = __local2__
+            	equal(__local0__[0].path, ["test", "p"])
+            	__local1__ = __local2__
+            	equal(__local1__[1].path, ["test"])
+            }
+  - note: metadata/rego.metadata return value
+    modules:
+      - |
+        package test
+
+        p := rego.metadata.chain()
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	__local1__ = [{"path": ["test", "p"]}]
+          	__local0__ = __local1__
+          }
+  - note: metadata/rego.metadata argument in function call
+    modules:
+      - |
+        package test
+
+        p if {
+        	q(rego.metadata.chain())
+        }
+
+        q(s) if {
+        	s == [{"path": ["test", "p"]}]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = [{"path": ["test", "p"]}]
+          	__local1__ = __local2__
+          	data.test.q(__local1__)
+          }
+
+          q(__local0__) = true if {
+          	__local0__ = [{"path": ["test", "p"]}]
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = true if {
+            	__local2__ = [{"path": ["test", "p"]}]
+            	__local1__ = __local2__
+            	data.test.q(__local1__)
+            }
+
+            q(__local0__) = true if {
+            	equal(__local0__, [{"path": ["test", "p"]}])
+            }
+  - note: metadata/rego.metadata used in array comprehension
+    modules:
+      - |
+        package test
+
+        p = [x | x := rego.metadata.chain()]
+    want:
+      - module: |
+          package test
+
+          p = __local3__ if {
+          	__local2__ = [{"path": ["test", "p"]}]
+          	true
+          	__local3__ = [__local0__ | __local1__ = __local2__; __local0__ = __local1__]
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] if {
+            	__local2__ = [{"path": ["test", "p"]}]
+            	true
+            }
+  - note: metadata/rego.metadata used in nested array comprehension
+    modules:
+      - |
+        package test
+
+        p if {
+        	y := [x | x := rego.metadata.chain()]
+        	y[0][0].path == ["test", "p"]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local3__ = [{"path": ["test", "p"]}]
+          	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__]
+          	__local1__[0][0].path = ["test", "p"]
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = true if {
+            	__local3__ = [{"path": ["test", "p"]}]
+            	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__]
+            	equal(__local1__[0][0].path, ["test", "p"])
+            }
+  - note: metadata/rego.metadata used in set comprehension
+    modules:
+      - |
+        package test
+
+        p = {x | x := rego.metadata.chain()}
+    want:
+      - module: |
+          package test
+
+          p = __local3__ if {
+          	__local2__ = [{"path": ["test", "p"]}]
+          	true
+          	__local3__ = {__local0__ | __local1__ = __local2__; __local0__ = __local1__}
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} if {
+            	__local2__ = [{"path": ["test", "p"]}]
+            	true
+            }
+  - note: metadata/rego.metadata used in nested set comprehension
+    modules:
+      - |
+        package test
+
+        p if {
+        	y := {x | some x in rego.metadata.chain()}
+        	y == {{"path": ["test", "p"]}}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local5__ = [{"path": ["test", "p"]}]
+          	__local3__ = {__local2__ | __local4__ = __local5__; __local2__ = __local4__[__local1__]}
+          	__local3__ = {{"path": ["test", "p"]}}
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = true if {
+            	__local5__ = [{"path": ["test", "p"]}]
+            	__local3__ = {__local2__ | __local4__ = __local5__; __local2__ = __local4__[__local1__]}
+            	equal(__local3__, {{"path": ["test", "p"]}})
+            }
+  - note: metadata/rego.metadata used in object comprehension
+    modules:
+      - |
+        package test
+
+        p = {i: x | x := rego.metadata.chain()[i]}
+    want:
+      - module: |
+          package test
+
+          p = __local3__ if {
+          	__local2__ = [{"path": ["test", "p"]}]
+          	true
+          	__local3__ = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]}
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} if {
+            	__local2__ = [{"path": ["test", "p"]}]
+            	true
+            }
+  - note: metadata/rego.metadata used in nested object comprehension
+    modules:
+      - |
+        package test
+
+        p if {
+        	y := {i: x | x := rego.metadata.chain()[i]}
+        	y[0].path == ["test", "p"]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local3__ = [{"path": ["test", "p"]}]
+          	__local1__ = {i: __local0__ | __local2__ = __local3__; __local0__ = __local2__[i]}
+          	__local1__[0].path = ["test", "p"]
+          }
+    want_stages:
+      RewriteRegoMetadataCalls:
+        - module: |
+            package test
+
+            p = true if {
+            	__local3__ = [{"path": ["test", "p"]}]
+            	__local1__ = {i: __local0__ | __local2__ = __local3__; __local0__ = __local2__[i]}
+            	equal(__local1__[0].path, ["test", "p"])
+            }

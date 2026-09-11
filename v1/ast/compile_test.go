@@ -5486,8 +5486,8 @@ package test
 # METADATA
 # title: My P Rule
 p if {
-	rego.metadata.chain()[0].title == "My P Rule"
-	rego.metadata.chain()[1].description == "A test package"
+	rego.metadata.chain()[0].annotations.title == "My P Rule"
+	rego.metadata.chain()[1].annotations.description == "A test package"
 }
 
 # METADATA
@@ -5507,9 +5507,9 @@ p = true if {
 		{"annotations": {"description": "A test package", "scope": "package"}, "path": ["test"]}
 	]
 	__local0__ = __local3__
-	equal(__local0__[0].title, "My P Rule")
+	equal(__local0__[0].annotations.title, "My P Rule")
 	__local1__ = __local3__
-	equal(__local1__[1].description, "A test package")
+	equal(__local1__[1].annotations.description, "A test package")
 }
 
 # METADATA
@@ -5565,7 +5565,7 @@ p if {
 }
 
 q(s) if {
-	s == ["test", "p"]
+	s == [{"path": ["test", "p"]}]
 }`,
 			exp: `package test
 
@@ -5576,7 +5576,7 @@ p = true if {
 }
 
 q(__local0__) = true if {
-	equal(__local0__, ["test", "p"])
+	equal(__local0__, [{"path": ["test", "p"]}])
 }`,
 		},
 		{
@@ -5597,14 +5597,14 @@ p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] if {
 
 p if {
 	y := [x | x := rego.metadata.chain()]
-	y[0].path == ["test", "p"]
+	y[0][0].path == ["test", "p"]
 }`,
 			exp: `package test
 
 p = true if {
 	__local3__ = [{"path": ["test", "p"]}];
 	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__];
-	equal(__local1__[0].path, ["test", "p"])
+	equal(__local1__[0][0].path, ["test", "p"])
 }`,
 		},
 		{
@@ -5624,15 +5624,15 @@ p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} if {
 			module: `package test
 
 p if {
-	y := {x | x := rego.metadata.chain()}
-	y[0].path == ["test", "p"]
+	y := {x | some x in rego.metadata.chain()}
+	y == {{"path": ["test", "p"]}}
 }`,
 			exp: `package test
 
 p = true if {
-	__local3__ = [{"path": ["test", "p"]}]
-	__local1__ = {__local0__ | __local2__ = __local3__; __local0__ = __local2__}
-	equal(__local1__[0].path, ["test", "p"])
+	__local5__ = [{"path": ["test", "p"]}]
+	__local3__ = {__local2__ | __local4__ = __local5__; __local2__ = __local4__[__local1__]}
+	equal(__local3__, {{"path": ["test", "p"]}})
 }`,
 		},
 		{

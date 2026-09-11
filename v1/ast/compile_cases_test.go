@@ -194,6 +194,10 @@ func assertCaseWant(t *testing.T, tc compilecases.TestCase, popts ParserOptions,
 		wantOpts.FutureKeywords = declared.FutureKeywords
 		wantOpts.AllFutureKeywords = declared.AllFutureKeywords
 
+		// Annotations are built from METADATA comments by the compiler and compared by
+		// Module.Compare, so the expected module has to be read with them processed.
+		wantOpts.ProcessAnnotation = true
+
 		exp, err := ParseModuleWithOpts(name, want.Module, wantOpts)
 		if err != nil {
 			t.Fatalf("%s: %s[%d].module does not parse: %v", tc.Filename, field, i, err)
