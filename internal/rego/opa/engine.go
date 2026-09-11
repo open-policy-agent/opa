@@ -26,7 +26,7 @@ func (*errEngineNotFound) Lines() []string {
 	}
 }
 
-// Engine repesents a factory for instances of EvalEngine implementations
+// Engine represents a factory for instances of EvalEngine implementations
 type Engine interface {
 	New() EvalEngine
 }

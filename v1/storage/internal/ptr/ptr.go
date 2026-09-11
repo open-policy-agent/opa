@@ -53,8 +53,8 @@ func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 			// Note(anders):
 			// This term is only created for the lookup, which is not great — especially
 			// considering the path likely was converted from a ref, where we had all
-			// the terms available already! Without chaging the storage API, our options
-			// for performant lookups are limitied to using interning or a pool. Prefer
+			// the terms available already! Without changing the storage API, our options
+			// for performant lookups are limited to using interning or a pool. Prefer
 			// interning when possible, as that is zero alloc. Using the pool avoids at
 			// least allocating a new term for every lookup, but still requires an alloc
 			// for the string Value.

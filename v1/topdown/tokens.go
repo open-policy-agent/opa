@@ -600,7 +600,7 @@ func timeFromValue(value ast.Value) (float64, error) {
 	}
 	timeFloat, ok := time.Float64()
 	if !ok {
-		return 0, errors.New("token time constraint: unvalid float64")
+		return 0, errors.New("token time constraint: invalid float64")
 	}
 	if timeFloat < 0 {
 		return 0, errors.New("token time constraint: must not be negative")

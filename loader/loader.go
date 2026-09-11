@@ -58,7 +58,7 @@ func GetBundleDirectoryLoaderFS(fsys fs.FS, path string, filter Filter) (bundle.
 	return v1.GetBundleDirectoryLoaderFS(fsys, path, filter)
 }
 
-// FilteredPaths is the same as FilterPathsFS using the current diretory file
+// FilteredPaths is the same as FilterPathsFS using the current directory file
 // system
 func FilteredPaths(paths []string, filter Filter) ([]string, error) {
 	return v1.FilteredPaths(paths, filter)

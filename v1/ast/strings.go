@@ -18,7 +18,7 @@ func TypeName(x any) string {
 }
 
 // ValueName returns a human readable name for the AST Value type.
-// This is preferrable over calling TypeName when the argument is known to be
+// This is preferable over calling TypeName when the argument is known to be
 // a Value, as this doesn't require reflection (= heap allocations).
 func ValueName(x Value) string {
 	switch x.(type) {

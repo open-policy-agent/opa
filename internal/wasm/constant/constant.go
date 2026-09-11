@@ -60,7 +60,7 @@ const ElementTypeAnyFunc byte = 0x70
 // BlockTypeEmpty represents a block type.
 const BlockTypeEmpty byte = 0x40
 
-// WASM global varialbe mutability flag.
+// WASM global variable mutability flag.
 const (
 	Const byte = iota
 	Mutable

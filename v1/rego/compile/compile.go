@@ -127,7 +127,7 @@ func New(opts ...CompileOption) *Compile {
 	c.regoOpts = append(c.regoOpts,
 		rego.Metrics(c.metrics),
 		// We require evaluating non-det builtins for the translated targets:
-		// We're not able to meaningfully tanslate things like http.send, sql.send, or
+		// We're not able to meaningfully translate things like http.send, sql.send, or
 		// io.jwt.decode_verify into SQL or UCAST, so we try to eval them out where possible.
 		rego.NondeterministicBuiltins(true),
 	)

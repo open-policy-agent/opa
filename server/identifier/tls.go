@@ -10,7 +10,7 @@ import (
 	v1 "github.com/open-policy-agent/opa/v1/server/identifier"
 )
 
-// TLSBased extracts the CN of the client's TLS ceritificate
+// TLSBased extracts the CN of the client's TLS certificate
 type TLSBased = v1.TLSBased
 
 // NewTLSBased returns a new TLSBased object.

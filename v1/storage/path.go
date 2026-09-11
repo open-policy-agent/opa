@@ -80,7 +80,7 @@ func NewPathForRef(ref ast.Ref) (path Path, err error) {
 	return path, nil
 }
 
-// Compare performs lexigraphical comparison on p and other and returns -1 if p
+// Compare performs lexicographical comparison on p and other and returns -1 if p
 // is less than other, 0 if p is equal to other, or 1 if p is greater than
 // other.
 func (p Path) Compare(other Path) (cmp int) {
