@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -287,6 +288,74 @@ func TestEventBuffer_Upload(t *testing.T) {
 				t.Fatalf("expected %d events, got %d", tc.numberOfEvents, len(allEvents))
 			}
 		})
+	}
+}
+
+// A chunk that fails to upload is requeued onto the buffer. Retrying it has to
+// keep reporting the failure, otherwise the plugin clears its error status and
+// resets the retry backoff while decisions are piling up undelivered.
+func TestEventBuffer_UploadRetryReportsFailure(t *testing.T) {
+	t.Parallel()
+
+	uploadPath := "/v1/test"
+
+	var (
+		mtx      sync.Mutex
+		uploaded []EventV1
+		failing  = true
+	)
+
+	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, r *http.Request) {
+		mtx.Lock()
+		defer mtx.Unlock()
+
+		if failing {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		uploaded = append(uploaded, decodeLogEvent(t, r.Body)...)
+		w.WriteHeader(http.StatusOK)
+	})
+	defer ts.Close()
+
+	e := newEventBuffer(4, defaultUploadSizeLimitBytes, client, uploadPath, plugins.TriggerPeriodic).
+		WithLogger(logging.NewNoOpLogger())
+	e.WithMetrics(metrics.New())
+	e.Push(newTestEvent(t, "id1", false))
+
+	const wantErr = "log upload failed, server replied with HTTP 500 Internal Server Error"
+
+	// The first attempt encodes the event and fails to upload it.
+	err := e.Upload(t.Context())
+	if err == nil || err.Error() != wantErr {
+		t.Fatalf("first upload: expected %q, got %v", wantErr, err)
+	}
+
+	// The second attempt retries the chunk requeued by the first one. Before the
+	// fix this returned nil because only the trailing encoder flush could produce
+	// a return value, and by now the encoder is empty.
+	err = e.Upload(t.Context())
+	if err == nil || err.Error() != wantErr {
+		t.Fatalf("retry of a failed chunk: expected %q, got %v", wantErr, err)
+	}
+
+	mtx.Lock()
+	failing = false
+	mtx.Unlock()
+
+	if err := e.Upload(t.Context()); err != nil {
+		t.Fatalf("upload after the server recovered: %v", err)
+	}
+
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	if len(uploaded) != 1 {
+		t.Fatalf("expected the requeued event to be delivered once, got %d events", len(uploaded))
+	}
+	if uploaded[0].DecisionID != "id1" {
+		t.Fatalf("expected decision ID id1, got %q", uploaded[0].DecisionID)
 	}
 }
 

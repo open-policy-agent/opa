@@ -237,6 +237,7 @@ func (b *eventBuffer) read() {
 // Upload reads events from the buffer and uploads them to the configured client.
 // All the events currently in the buffer are read and written to a gzip compressed JSON array to create a chunk of data.
 // Each chunk is limited by the uploadSizeLimitBytes.
+// Chunks that fail to upload are requeued onto the buffer and the first failure is returned.
 func (b *eventBuffer) Upload(ctx context.Context) error {
 	b.uploadLock.Lock()
 	defer b.uploadLock.Unlock()
@@ -248,6 +249,12 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 
 	eventLen := len(b.buffer)
 
+	// uploadErr holds the first upload failure so that the rest of the buffer is
+	// still drained before returning. Failed chunks are requeued by uploadChunks,
+	// so the caller has to see the error to report the plugin status and back off
+	// before the next attempt.
+	var uploadErr error
+
 	for range eventLen {
 		item := b.readBufItem()
 		if item == nil {
@@ -256,10 +263,8 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 
 		result := b.processBufferItem(item)
 		if result != nil {
-			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-				if b.logger != nil {
-					b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
-				}
+			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil && uploadErr == nil {
+				uploadErr = err
 			}
 		}
 	}
@@ -271,14 +276,18 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if b.logger != nil {
 			b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried.")
 		}
-		return nil
+		return uploadErr
 	}
 
 	if result == nil {
-		return nil
+		return uploadErr
 	}
 
-	return b.uploadChunks(ctx, result, b.client, b.uploadPath)
+	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil && uploadErr == nil {
+		uploadErr = err
+	}
+
+	return uploadErr
 }
 
 // uploadChunks attempts to upload multiple chunks to the configured client.
