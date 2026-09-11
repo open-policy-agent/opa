@@ -22,8 +22,24 @@ import (
 // times the whole query, so it shows what the trie's shape costs a caller: every
 // group ref here is a level, all of them resolve, and traversal used to walk a
 // private copy of the remaining levels under each one.
+//
+// Which group the subject belongs to is a dimension of its own. A lookup returns
+// its candidates in some definite order, and evaluation stops at the first rule
+// that holds, so a match at the head of that order is the best case and one at the
+// tail the worst -- a factor of two apart at these sizes. Timing a single position
+// measures the order candidates come back in as much as the index, and reports any
+// change to that order as a win or a regression of its own.
 func BenchmarkIndexedRulesetEval(b *testing.B) {
 	ctx := b.Context()
+
+	positions := []struct {
+		name  string
+		group func(n int) int
+	}{
+		{"first", func(int) int { return 0 }},
+		{"middle", func(n int) int { return n / 2 }},
+		{"last", func(n int) int { return n - 1 }},
+	}
 
 	for _, n := range []int{100, 500} {
 		b.Run(fmt.Sprintf("groups=%d", n), func(b *testing.B) {
@@ -41,21 +57,26 @@ func BenchmarkIndexedRulesetEval(b *testing.B) {
 				b.Fatal(err)
 			}
 
-			input := ast.MustParseTerm(fmt.Sprintf(`{"subject": "u%d_19", "resource": {"foo": "A"}}`, n-1))
+			for _, pos := range positions {
+				b.Run("match="+pos.name, func(b *testing.B) {
+					input := ast.MustParseTerm(fmt.Sprintf(`{"subject": "u%d_19", "resource": {"foo": "A"}}`, pos.group(n)))
 
-			// The subject is a member of the last group only, so exactly one rule
-			// holds however many of them the index left in the running.
-			if rs, err := pq.Eval(ctx, EvalParsedInput(input.Value)); err != nil {
-				b.Fatal(err)
-			} else if len(rs) != 1 {
-				b.Fatalf("expected one result, got %d", len(rs))
-			}
+					// The subject is a member of one group only, so exactly one
+					// rule holds however many of them the index left in the
+					// running.
+					if rs, err := pq.Eval(ctx, EvalParsedInput(input.Value)); err != nil {
+						b.Fatal(err)
+					} else if len(rs) != 1 {
+						b.Fatalf("expected one result, got %d", len(rs))
+					}
 
-			b.ResetTimer()
-			for b.Loop() {
-				if _, err := pq.Eval(ctx, EvalParsedInput(input.Value)); err != nil {
-					b.Fatal(err)
-				}
+					b.ResetTimer()
+					for b.Loop() {
+						if _, err := pq.Eval(ctx, EvalParsedInput(input.Value)); err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
 			}
 		})
 	}
