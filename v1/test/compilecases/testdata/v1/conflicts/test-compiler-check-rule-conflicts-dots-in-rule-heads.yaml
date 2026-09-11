@@ -1,0 +1,504 @@
+---
+# Generated externalized tests from TestCompilerCheckRuleConflictsDotsInRuleHeads
+cases:
+  - note: conflicts/arity mismatch, ref and non-ref rule
+    modules:
+      - |
+        package pkg
+
+        p.q.r if { true }
+      - |
+        package pkg.p.q
+
+        r(_) = 2
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: conflicting rules data.pkg.p.q.r found
+  - note: conflicts/two default rules, ref and non-ref rule
+    modules:
+      - |
+        package pkg
+
+        default p.q.r = 3
+        p.q.r if { true }
+      - |
+        package pkg.p.q
+
+        default r = 4
+        r = 2
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: multiple default rules data.pkg.p.q.r found at test-0.rego:3, test-1.rego:3
+  - note: conflicts/arity mismatch, ref and ref rule
+    modules:
+      - |
+        package pkg.a.b
+
+        p.q.r if { true }
+      - |
+        package pkg.a
+
+        b.p.q.r(_) = 2
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 1
+        message: conflicting rules data.pkg.a.b.p.q.r found
+  - note: conflicts/two default rules, ref and ref rule
+    modules:
+      - |
+        package pkg
+
+        default p.q.w.r = 3
+        p.q.w.r if { true }
+      - |
+        package pkg.p
+
+        default q.w.r = 4
+        q.w.r = 2
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: multiple default rules data.pkg.p.q.w.r found at test-0.rego:3, test-1.rego:3
+  - note: conflicts/multi-value + single-value rules, both with same ref prefix
+    modules:
+      - |
+        package pkg
+
+        p.q.w[x] = 1 if x := "foo"
+      - |
+        package pkg
+
+        p.q.w contains "bar"
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: conflicting rules data.pkg.p.q.w found
+  - note: conflicts/two multi-value rules, both with same ref
+    modules:
+      - |
+        package pkg
+
+        p.q.w contains "baz"
+      - |
+        package pkg
+
+        p.q.w contains "bar"
+    want:
+      - module: |
+          package pkg
+
+          p.q.w contains "baz" if {
+          	true
+          }
+      - module: |
+          package pkg
+
+          p.q.w contains "bar" if {
+          	true
+          }
+  - note: 'conflicts/module conflict: non-ref rule'
+    modules:
+      - |
+        package pkg.q
+
+        r if { true }
+      - |
+        package pkg.q.r
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: package pkg.q.r conflicts with rule r defined at test-0.rego:3
+  - note: 'conflicts/module conflict: ref rule'
+    modules:
+      - |
+        package pkg
+
+        p.q.r if { true }
+      - |
+        package pkg.p.q.r
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: package pkg.p.q.r conflicts with rule p.q.r defined at test-0.rego:3
+  - note: conflicts/single-value with other rule overlap
+    modules:
+      - |
+        package pkg
+
+        p.q.r if { true }
+      - |
+        package pkg
+
+        p.q.r.s if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p.q.r conflicts with:
+            rule data.pkg.p.q.r.s at test-1.rego:3
+  - note: conflicts/single-value with other rule overlap-2
+    modules:
+      - |
+        package pkg
+
+        p.q.r if { true }
+        p.q.r.s if { true }
+        p.q.r.t if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p.q.r conflicts with:
+            rule data.pkg.p.q.r.s at test-0.rego:4
+            rule data.pkg.p.q.r.t at test-0.rego:5
+  - note: conflicts/single-value with other rule overlap, unknown key
+    modules:
+      - |
+        package pkg
+
+        p := x if { x := 1 }
+        p.r[s] := 2 if { s := "foo" }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p conflicts with:
+            rule data.pkg.p.r[s] at test-0.rego:4
+  - note: conflicts/single-value with other partial object (same ref) overlap
+    modules:
+      - |
+        package pkg
+
+        p.q := 1
+        p.q[r] := 2 if { r := "foo" }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: conflicting rules data.pkg.p.q[r] found
+  - note: conflicts/single-value with other rule overlap, unknown key-2
+    modules:
+      - |
+        package pkg
+
+        p.q[r] = x if { r = input.key; x = input.foo }
+        p.q.r.s = x if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 11
+        message: var x is unsafe
+  - note: conflicts/single-value with other rule overlap, unknown ref var and key
+    modules:
+      - |
+        package pkg
+
+        p.q[r][s] = x if { r = input.key1; s = input.key2; x = input.foo }
+        p.q.r.s.t = x if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 13
+        message: var x is unsafe
+  - note: 'conflicts/single-value partial object with other partial object rule overlap, unknown keys (regression test for #5855; invalidated by multi-var refs)'
+    modules:
+      - |
+        package pkg
+
+        p[r] := x if { r = input.key; x = input.bar }
+        p.q[r] := x if { r = input.key; x = input.bar }
+    want:
+      - module: |
+          package pkg
+
+          p[r] := x if {
+          	r = input.key
+          	x = input.bar
+          }
+
+          p.q[r] := x if {
+          	r = input.key
+          	x = input.bar
+          }
+  - note: conflicts/single-value partial object with other partial object (implicit 'true' value) rule overlap, unknown keys
+    modules:
+      - |
+        package pkg
+
+        p[r] := x if { r = input.key; x = input.bar }
+        p.q[r] if { r = input.key }
+    want:
+      - module: |
+          package pkg
+
+          p[r] := x if {
+          	r = input.key
+          	x = input.bar
+          }
+
+          p.q[r] = true if {
+          	r = input.key
+          }
+  - note: conflicts/single-value partial object with multi-value rule (ref head) overlap, unknown key
+    modules:
+      - |
+        package pkg
+
+        import future.keywords
+        p[r] := x if { r = input.key; x = input.bar }
+        p.q contains r if { r = input.key }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords]
+        module: |
+          package pkg
+
+          p[r] := x if {
+          	r = input.key
+          	x = input.bar
+          }
+
+          p.q contains r if {
+          	r = input.key
+          }
+  - note: conflicts/single-value partial object with multi-value rule overlap, unknown key
+    modules:
+      - |
+        package pkg
+
+        p[r] := x if { r = input.key; x = input.bar }
+        p contains q if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: conflicting rules data.pkg.p found
+  - note: conflicts/single-value rule with known and unknown key
+    modules:
+      - |
+        package pkg
+
+        p.q[r] = x if { r = input.key; x = input.foo }
+        p.q.s = "x" if { true }
+    want:
+      - module: |
+          package pkg
+
+          p.q[r] = x if {
+          	r = input.key
+          	x = input.foo
+          }
+
+          p.q.s = "x" if {
+          	true
+          }
+  - note: conflicts/multi-value rule with other rule overlap
+    modules:
+      - |
+        package pkg
+
+        p contains v if { v := ["a", "b"][_] }
+        p.q := 42
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p conflicts with:
+            rule data.pkg.p.q at test-0.rego:4
+  - note: conflicts/multi-value rule with other rule (ref) overlap
+    modules:
+      - |
+        package pkg
+
+        p contains v if { v := ["a", "b"][_] }
+        p.q.r if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p conflicts with:
+            rule data.pkg.p.q.r at test-0.rego:4
+  - note: conflicts/multi-value rule (dots in head) with other rule (ref) overlap
+    modules:
+      - |
+        package pkg
+
+        import future.keywords
+        p.q contains v if { v := ["a", "b"][_] }
+        p.q.r if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 1
+        message: |-
+          rule data.pkg.p.q conflicts with:
+            rule data.pkg.p.q.r at test-0.rego:5
+  - note: conflicts/multi-value rule (dots and var in head) with other rule (ref) overlap
+    modules:
+      - |
+        package pkg
+
+        import future.keywords
+        p[q] contains v if { v := ["a", "b"][_] }
+        p.q.r if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 3
+        message: var q is unsafe
+  - note: 'conflicts/multi-value set rule with multi-value general-ref (object) rule, same name (regression test for #8860)'
+    modules:
+      - |
+        package pkg
+
+        import future.keywords
+        index contains p.id if { some p in input.prefs }
+        index[p.id] contains p if { some p in input.prefs }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 1
+        message: conflicting rules data.pkg.index[__local0__] found
+  - note: conflicts/multi-value general-ref (object) rules with same name do not conflict
+    modules:
+      - |
+        package pkg
+
+        import future.keywords
+        index[k] contains v if { k := "a"; v := 1 }
+        index[k] contains v if { k := "b"; v := 2 }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords]
+        module: |
+          package pkg
+
+          index[__local0__] contains __local1__ if {
+          	__local0__ = "a"
+          	__local1__ = 1
+          }
+
+          index[__local2__] contains __local3__ if {
+          	__local2__ = "b"
+          	__local3__ = 2
+          }
+  - note: conflicts/function with other rule (ref) overlap
+    modules:
+      - |
+        package pkg
+
+        p(x) := x
+        p.q.r if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p conflicts with:
+            rule data.pkg.p.q.r at test-0.rego:4
+  - note: conflicts/function with other rule (ref) overlap-2
+    modules:
+      - |
+        package pkg
+
+        p(x) := x
+        p.q.r if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p conflicts with:
+            rule data.pkg.p.q.r at test-0.rego:4
+  - note: conflicts/function (ref) with other rule (ref) overlap
+    modules:
+      - |
+        package pkg
+
+        p.q(x) := x
+        p.q.r if { true }
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p.q conflicts with:
+            rule data.pkg.p.q.r at test-0.rego:4
+  - note: conflicts/function within dynamic extent of rule
+    modules:
+      - |
+        package pkg
+
+        a[x].c := i if some i, x in ["one", "two"]
+        a.b.d(x) := x
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.a[x].c conflicts with:
+            rule data.pkg.a.b.d at test-0.rego:4
+  - note: conflicts/function within dynamic extent of rule (different packages)
+    modules:
+      - |
+        package pkg
+
+        a[x].c := i if some i, x in ["one", "two"]
+      - |
+        package pkg.a.b
+
+        d(x) := x
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.a[x].c conflicts with:
+            rule data.pkg.a.b.d at test-1.rego:3
+  - note: conflicts/function within dynamic extent, deeper nesting
+    modules:
+      - |
+        package pkg
+
+        p[x].q if x := "a"
+        p.r.s.t(x) := x
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.pkg.p[x].q conflicts with:
+            rule data.pkg.p.r.s.t at test-0.rego:4
+  - note: conflicts/non-function rule within dynamic extent (no conflict)
+    modules:
+      - |
+        package pkg
+
+        p[x].q if x := "a"
+        p.r.s := 1
+    want:
+      - module: |
+          package pkg
+
+          p[__local0__].q = true if {
+          	__local0__ = "a"
+          }
+
+          p.r.s := 1 if {
+          	true
+          }

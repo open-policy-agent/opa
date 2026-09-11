@@ -1,0 +1,1212 @@
+---
+# Generated externalized tests from TestCompilerCheckSafetyBodyErrors
+cases:
+  - note: safety/ref-head
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { a.b.c = "foo" }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var a is unsafe
+  - note: safety/ref-head-2
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]} }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var a is unsafe
+  - note: safety/negation
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { a = [1, 2, 3, 4]; not a[i] = x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var i is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var x is unsafe
+  - note: safety/negation-head
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p contains x if { a = [1, 2, 3, 4]; not a[i] = x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 37
+        message: var i is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 37
+        message: var x is unsafe
+  - note: safety/negation-multiple
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { a = [1, 2, 3, 4]; b = [1, 2, 3, 4]; not a[i] = x; not b[j] = x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 44
+        message: var i is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 44
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 58
+        message: var j is unsafe
+  - note: safety/negation-nested
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { a = [{"foo": ["bar", "baz"]}]; not a[0].foo = [a[0].foo[i], a[0].foo[j]] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 39
+        message: var i is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 39
+        message: var j is unsafe
+  - note: safety/builtin-input
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count([1, 2, x], x) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/builtin-input-name
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count(eq, 1) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var eq is unsafe
+  - note: safety/builtin-multiple
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x > 0; x <= 3; x != 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/unordered-object-keys
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = "a"; [{x: y, z: a}] = [{"a": 1, "b": 2}]}
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 17
+        message: var a is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 17
+        message: var y is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 17
+        message: var z is unsafe
+  - note: safety/unordered-sets
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = "a"; [{x, y}] = [{1, 2}]}
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 17
+        message: var y is unsafe
+  - note: safety/array-compr
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { _ = [x | x = data.a[_]; y > 1] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 32
+        message: var y is unsafe
+  - note: safety/array-compr-nested
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { _ = [x | x = a[_]; a = [y | y = data.a[_]; z > 1]] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 51
+        message: var z is unsafe
+  - note: safety/array-compr-closure
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { _ = [v | v = [x | x = data.a[_]]; x > 1] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 17
+        message: var x is unsafe
+  - note: safety/array-compr-term
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { _ = [u | true] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var u is unsafe
+  - note: safety/array-compr-term-nested
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { _ = [v | v = [w | w != 0]] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var w is unsafe
+  - note: safety/array-compr-mixed
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { _ = [x | y = [a | a = z[i]]] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var a is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var i is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var z is unsafe
+  - note: safety/array-compr-builtin
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { [true | eq != 2] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 16
+        message: var eq is unsafe
+  - note: safety/closure-self
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = [x | x = 1] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/closure-transitive
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = y; x = [y | y = 1] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/nested
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count(baz[i].attr[bar[dead.beef]], n) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var dead is unsafe
+  - note: safety/negated-import
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { not foo; not bar; not baz }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package a.b
+
+          p = true if {
+          	not input.aref.b.c
+          	not input.avar
+          	not data.m.n
+          }
+  - note: safety/rewritten
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p contains {"foo": dead[i]} if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 12
+        message: var dead is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 12
+        message: var i is unsafe
+  - note: safety/with-value
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { data.a.b.d.t with input as x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/with-value-2
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = data.a.b.d.t with input as x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/else-kw
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { false } else if { count(x, 1) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var x is unsafe
+  - note: safety/function
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        foo(x) = [y, z] if { split(x, y, z) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 22
+        message: var y is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 22
+        message: var z is unsafe
+  - note: safety/call-vars-input
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { f(x, x) } f(x) = x if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe in rule p
+  - note: safety/call-no-output
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { f(x) } f(x) = x if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe in rule p
+  - note: safety/call-too-few
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { f(1,x) } f(x,y) if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe in rule p
+  - note: safety/object-key-comprehension
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { { {p|x}: 0 } }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 13
+        message: var x is unsafe
+  - note: safety/set-value-comprehension
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { {1, {p|x}} }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 15
+        message: var x is unsafe
+  - note: safety/every
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { every y in [10] { x > y } }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 26
+        message: var x is unsafe
+  - note: safety/and, implicit body
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x and y }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, implicit body
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x or y }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/and, implicit body unification
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = 1 and y = 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, implicit body unification
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x = 1 or y = 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/and, implicit body builtin call output
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count(input.foo, x) and split("a/b", "/", y) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, implicit body builtin call output
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count(input.foo, x) or split("a/b", "/", y) }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/and, implicit body builtin call output, lhs only
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count(input.foo, x) and y > 0 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, implicit body builtin call output, lhs only
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { count(input.foo, x) or y > 0 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/and, implicit body ref var binding
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { input.foo[x] and input.bar[y] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, implicit body ref var binding
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { input.foo[x] or input.bar[y] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/and, implicit body ref var binding, lhs only
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { input.foo[x] and y > 0 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, implicit body ref var binding, lhs only
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { input.foo[x] or y > 0 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/and, explicit body
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { a := true; x := true; {x; y} and {a; b} }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 34
+        message: var y is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 45
+        message: var b is unsafe
+  - note: safety/or, explicit body
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { a := true; x := true; {x; y} or {a; b} }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 34
+        message: var y is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 44
+        message: var b is unsafe
+  - note: safety/and, LHS assignment does not bind to RHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { { x := 42 } and x < 100 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/or, LHS assignment does not bind ot RHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { { x := 42 } or x < 100 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/and, LHS unification does not bind to RHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { { x = 42 } and x < 100 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/or, LHS unification does not bind ot RHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { { x = 42 } or x < 100 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/and, RHS assignment does not bind to LHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x < 100 and { x := 42 } }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/or, RHS assignment does not bind to LHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x < 100 or { x := 42 } }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/and, RHS unification does not bind to LHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x < 100 and { x = 42 } }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/or, RHS unification does not bind to LHS
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x < 100 or { x = 42 } }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+  - note: safety/and, assignment does not bind to outer scope
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { {x := 1} and {y := 2}; x == 1; y == 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 31
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 39
+        message: var y is unsafe
+  - note: safety/or, assignment does not bind to outer scope
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { {x := 1} or {y := 2}; x == 1; y == 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 30
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 38
+        message: var y is unsafe
+  - note: safety/and, unification does not bind to outer scope
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { {x = 1} and {y = 2}; x == 1; y == 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/or, unification does not bind to outer scope
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { {x = 1} or {y = 2}; x == 1; y == 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe
+  - note: safety/assignment RHS not made safe via LHS (issue 3546)
+    strict: disabled
+    modules:
+      - |
+        package a.b
+
+        import future.keywords.and
+        import future.keywords.or
+        import input.aref.b.c as foo
+        import input.avar as bar
+        import data.m.n as baz
+
+        p if { x := y; x = 7 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 8
+        message: var y is unsafe

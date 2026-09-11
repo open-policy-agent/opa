@@ -1,0 +1,756 @@
+---
+# Generated externalized tests from TestRewriteLocalVarsBuiltinShadowing
+cases:
+  - note: vars/unify in body shadows built-in
+    modules:
+      - |
+        package test
+
+        p := count if { count = 5 }
+    want:
+      - module: |
+          package test
+
+          p := __local0__ if {
+          	__local0__ = 5
+          }
+  - note: vars/shadowing var used as ref head
+    modules:
+      - |
+        package test
+
+        p := v if { count = [1, 2, 3]; v := count[0] }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local0__ = [1, 2, 3]
+          	__local1__ = __local0__[0]
+          }
+  - note: 'vars/shadow in function else-branch (issue #3729)'
+    modules:
+      - |
+        package test
+
+        f(x, y, 1) := v if {
+        	v := x[y]
+        } else := count if {
+        	count = y
+        } else := [v] if {
+        	v := x[y[0]]
+        }
+    want:
+      # ast rather than module: the compiled rule `f(__local0__, __local1__, 1) :=
+      # __local2__ if { __local2__ = __local0__[__local1__] } else = __local3__ if
+      # { __local3__ = __local1__ } else = [__local4__] if { __local5__ =
+      # __local1__[0]; __local4__ = __local0__[__local5__] }` prints as Rego that
+      # parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "__local0__"
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local1__"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "else": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local3__"
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local1__"
+                        }
+                      ]
+                    }
+                  ],
+                  "else": {
+                    "body": [
+                      {
+                        "generated": true,
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "eq"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local5__"
+                          },
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "__local1__"
+                              },
+                              {
+                                "type": "number",
+                                "value": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "index": 1,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "eq"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local4__"
+                          },
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "__local0__"
+                              },
+                              {
+                                "type": "var",
+                                "value": "__local5__"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "head": {
+                      "args": [
+                        {
+                          "type": "var",
+                          "value": "__local0__"
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local1__"
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ],
+                      "assign": true,
+                      "name": "f",
+                      "ref": [
+                        {
+                          "type": "var",
+                          "value": "f"
+                        }
+                      ],
+                      "value": {
+                        "type": "array",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "__local4__"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ],
+                    "assign": true,
+                    "name": "f",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "f"
+                      }
+                    ],
+                    "value": {
+                      "type": "var",
+                      "value": "__local3__"
+                    }
+                  }
+                },
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    },
+                    {
+                      "type": "var",
+                      "value": "__local1__"
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ],
+                  "assign": true,
+                  "name": "f",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "f"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local2__"
+                  }
+                }
+              }
+            ]
+          }
+    want_stages:
+      RewriteLocalVars:
+        # ast rather than module: the compiled rule `f(__local0__, __local1__, 1) :=
+        # __local2__ if { __local2__ = __local0__[__local1__] } else = __local3__ if
+        # { __local3__ = __local1__ } else = [__local4__] if { __local4__ =
+        # __local0__[__local1__[0]] }` prints as Rego that parses to a different
+        # AST.
+        - ast: |
+            {
+              "package": {
+                "path": [
+                  {
+                    "type": "var",
+                    "value": "data"
+                  },
+                  {
+                    "type": "string",
+                    "value": "test"
+                  }
+                ]
+              },
+              "rules": [
+                {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local2__"
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "__local0__"
+                            },
+                            {
+                              "type": "var",
+                              "value": "__local1__"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "else": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "eq"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local3__"
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local1__"
+                          }
+                        ]
+                      }
+                    ],
+                    "else": {
+                      "body": [
+                        {
+                          "index": 0,
+                          "terms": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "eq"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "var",
+                              "value": "__local4__"
+                            },
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "__local0__"
+                                },
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "__local1__"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "value": 0
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "head": {
+                        "args": [
+                          {
+                            "type": "var",
+                            "value": "__local0__"
+                          },
+                          {
+                            "type": "var",
+                            "value": "__local1__"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ],
+                        "assign": true,
+                        "name": "f",
+                        "ref": [
+                          {
+                            "type": "var",
+                            "value": "f"
+                          }
+                        ],
+                        "value": {
+                          "type": "array",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "__local4__"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "head": {
+                      "args": [
+                        {
+                          "type": "var",
+                          "value": "__local0__"
+                        },
+                        {
+                          "type": "var",
+                          "value": "__local1__"
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ],
+                      "assign": true,
+                      "name": "f",
+                      "ref": [
+                        {
+                          "type": "var",
+                          "value": "f"
+                        }
+                      ],
+                      "value": {
+                        "type": "var",
+                        "value": "__local3__"
+                      }
+                    }
+                  },
+                  "head": {
+                    "args": [
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ],
+                    "assign": true,
+                    "name": "f",
+                    "ref": [
+                      {
+                        "type": "var",
+                        "value": "f"
+                      }
+                    ],
+                    "value": {
+                      "type": "var",
+                      "value": "__local2__"
+                    }
+                  }
+                }
+              ]
+            }
+  - note: vars/built-in call operator is preserved
+    modules:
+      - |
+        package test
+
+        p := n if { xs := [1, 2, 3]; n := count(xs) }
+    want:
+      - module: |
+          package test
+
+          p := __local1__ if {
+          	__local0__ = [1, 2, 3]
+          	count(__local0__, __local2__)
+          	__local1__ = __local2__
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            p := __local1__ if {
+            	__local0__ = [1, 2, 3]
+            	__local1__ = count(__local0__)
+            }
+  - note: vars/built-in name as function mock is preserved
+    modules:
+      - |
+        package test
+
+        orig(x) := concat("", x)
+        p := y if { y := orig(["a", "b"]) with orig as count }
+    want:
+      # ast rather than module: the compiled rule `p := __local1__ if {
+      # data.test.orig(["a", "b"], __local3__) with data.test.orig as count;
+      # __local1__ = __local3__ with data.test.orig as count }` prints as Rego
+      # that parses to a different AST.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "concat"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": ""
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "args": [
+                    {
+                      "type": "var",
+                      "value": "__local0__"
+                    }
+                  ],
+                  "assign": true,
+                  "name": "orig",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "orig"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local2__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "data"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          },
+                          {
+                            "type": "string",
+                            "value": "orig"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "string",
+                            "value": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "data"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            },
+                            {
+                              "type": "string",
+                              "value": "orig"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "count"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "data"
+                            },
+                            {
+                              "type": "string",
+                              "value": "test"
+                            },
+                            {
+                              "type": "string",
+                              "value": "orig"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "count"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local1__"
+                  }
+                }
+              }
+            ]
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            orig(__local0__) := concat("", __local0__) if {
+            	true
+            }
+
+            p := __local1__ if {
+            	__local1__ = data.test.orig(["a", "b"]) with data.test.orig as count
+            }

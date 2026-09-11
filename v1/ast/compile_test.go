@@ -6442,7 +6442,7 @@ func TestRewriteLocalVarsBuiltinShadowing(t *testing.T) {
 			exp: `
 				package test
 
-				f(__local0__, __local1__, 1) := __local2__ if { __local2__ = __local0__[__local1__] } else = __local3__ if { __local3__ = __local1__ } else = [__local4__] if { __local4__ = __local0__[__local1__[0]] }
+				f(__local0__, __local1__, 1) := __local2__ if { __local2__ = __local0__[__local1__] } else := __local3__ if { __local3__ = __local1__ } else := [__local4__] if { __local4__ = __local0__[__local1__[0]] }
 			`,
 		},
 		{

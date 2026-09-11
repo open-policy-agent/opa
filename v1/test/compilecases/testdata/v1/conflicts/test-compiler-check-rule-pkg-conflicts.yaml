@@ -1,0 +1,95 @@
+---
+# Generated externalized tests from TestCompilerCheckRulePkgConflicts
+cases:
+  - note: 'conflicts/Package can be declared within dynamic extent of rule (#6387 regression test)'
+    modules:
+      - |
+        package test
+
+        p[x] := y if { x := "a"; y := "b" }
+      - |
+        package test.p
+
+        q := 1
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := __local1__ if {
+          	__local0__ = "a"
+          	__local1__ = "b"
+          }
+      - module: |
+          package test.p
+
+          q := 1 if {
+          	true
+          }
+  - note: 'conflicts/Package can be declared deep within dynamic extent of rule (#6387 regression test)'
+    modules:
+      - |
+        package test
+
+        p[x] := y if { x := "a"; y := "b" }
+      - |
+        package test.p.q.r.s
+
+        t := 1
+    want:
+      - module: |
+          package test
+
+          p[__local0__] := __local1__ if {
+          	__local0__ = "a"
+          	__local1__ = "b"
+          }
+      - module: |
+          package test.p.q.r.s
+
+          t := 1 if {
+          	true
+          }
+  - note: conflicts/Package cannot be declared within extent of single-value rule (ground ref)
+    modules:
+      - |
+        package test
+
+        p := x if { x := "a" }
+      - |
+        package test.p
+
+        q := 1
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: package test.p conflicts with rule p defined at test-0.rego:3
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.test.p conflicts with:
+            rule data.test.p.q at test-1.rego:3
+    exhaustive: true
+  - note: conflicts/Package cannot be declared within extent of multi-value rule
+    modules:
+      - |
+        package test
+
+        p contains x if { x := "a" }
+      - |
+        package test.p
+
+        q := 1
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: package test.p conflicts with rule p defined at test-0.rego:3
+      - code: rego_type_error
+        row: 3
+        col: 1
+        message: |-
+          rule data.test.p conflicts with:
+            rule data.test.p.q at test-1.rego:3
+    exhaustive: true

@@ -147,6 +147,14 @@ func TestFormatModuleIsLayoutOnly(t *testing.T) {
 	var both, neither int
 
 	for _, tc := range set.Sorted().Cases {
+		// Only the cases that assert a compiled form. A case asserting diagnostics has
+		// no printed form to check, and its modules are left partway through the
+		// pipeline — where comparing a rule head whose key is set against one whose is
+		// not panics inside Module.Equal. See tmp/external_compilers/opa_bugs.md.
+		if !tc.Transform() && len(tc.WantStages) == 0 {
+			continue
+		}
+
 		plain, err := roundTrips(tc, func(m *ast.Module) string { return m.String() })
 		if err != nil {
 			t.Fatalf("%s: %v", tc.Note, err)
