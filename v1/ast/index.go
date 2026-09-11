@@ -5,7 +5,9 @@
 package ast
 
 import (
+	"cmp"
 	"maps"
+	"math/bits"
 	"slices"
 	"strings"
 	"sync"
@@ -54,6 +56,12 @@ type (
 		defaultRule    *Rule
 		kind           RuleKind
 		onlyGroundRefs bool
+		// rules holds one entry per rule and else branch the trie carries, groups
+		// the position of its ruleset among the rules Build was given. Reading the
+		// ids a lookup reached in increasing order groups them and orders each
+		// group by priority; see trieTraversalResult and gather.
+		rules  []*Rule
+		groups []int32
 	}
 )
 
@@ -81,7 +89,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	i.kind = rules[0].Head.RuleKind()
-	indices := newrefindices(i.isVirtual)
+	indices := newrefindices(i.isVirtual, newRefTable())
 	values := make(map[Var]Value)
 
 	// build indices for each rule.
@@ -105,25 +113,35 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	// build trie out of indices.
-	sorted := indices.Sorted()
+	levels := indices.Sorted()
 
 	for idx := range rules {
-		var prio int
 		WalkRules(rules[idx], func(rule *Rule) bool {
 			if rule.Default {
 				return false
 			}
+
+			// Ids are minted in WalkRules' order, so they ascend with priority
+			// within a ruleset -- the (insertion, priority) pair a node used to
+			// carry, in one integer:
+			//
+			//	f(x) := 1 if x == "a"  # group 0, id 0
+			//	else := 2 if x == "b"  #          id 1
+			//	f(x) := 3 if x == "c"  # group 1, id 2
+			id := int32(len(i.rules))
+			i.rules = append(i.rules, rule)
+			i.groups = append(i.groups, int32(idx))
+
 			// Each set of indices the rule can be reached through gets its own
-			// path. They share a priority, so a lookup arriving at the rule down
+			// path. They share an id, so a lookup arriving at the rule down
 			// several of them still reports it once (see trieTraversalResult.Add).
 			if len(indices.disjunctions[rule]) == 0 {
-				i.insertPath(sorted, indices.rules[rule], [...]int{idx, prio}, rule)
+				i.insertPath(indices.table, levels, indices.rules[rule], id, rule)
 			} else {
 				for _, path := range indices.paths(rule) {
-					i.insertPath(sorted, path, [...]int{idx, prio}, rule)
+					i.insertPath(indices.table, levels, path, id, rule)
 				}
 			}
-			prio++
 			return false
 		})
 	}
@@ -133,7 +151,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	return true
 }
 
-func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int, rule *Rule) {
+func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*refindex, id int32, rule *Rule) {
 	node := i.root
 
 	// The path stops at the last level it constrains. A rule that constrains
@@ -144,18 +162,24 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 	// attached mid-trie for the same reason.
 	remaining := len(path)
 
-	for _, ref := range sorted {
+	// One scratch slice for every level, not one per level: a rule's path crosses
+	// every level above the last it constrains, most of them constraining nothing.
+	var values []*refindex
+
+	for _, level := range levels {
 		if remaining == 0 {
 			break
 		}
 
-		var values []*refindex
+		values = values[:0]
 		for _, ri := range path {
-			if ri.Ref.Equal(ref) {
+			if ri.ref == level {
 				values = append(values, ri)
 			}
 		}
 		remaining -= len(values)
+
+		ref := table.ref(level)
 
 		// A var value records "this ref can be anything", which a concrete value
 		// for the same ref supersedes: everything on one path has to hold, so the
@@ -194,7 +218,7 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 				// goes looking for them.
 				for _, val := range oneAffixEnd(values) {
 					child := val.insertInto(node, ref)
-					child.append(prio, rule)
+					child.append(id, rule)
 				}
 				return
 			} else {
@@ -205,28 +229,18 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 		}
 	}
 
-	// Insert rule into trie with (insertion order, priority order)
-	// tuple. Retaining the insertion order allows us to return rules
-	// in the order they were passed to this function.
-	node.append(prio, rule)
+	node.append(id, rule)
 }
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	tr := ttrPool.Get().(*trieTraversalResult)
 
 	defer func() {
-		// Note(anderseknert): `clear`ing the map is not good enough here, as it'd mean
-		// resetting each of its slice values, costing us new allocations on each append
-		// in subsequent lookups
-		for i := range tr.unordered {
-			tr.unordered[i] = tr.unordered[i][:0]
-		}
-		tr.ordering = tr.ordering[:0]
-		tr.multiple = false
-		tr.exist = nil
-
+		tr.reset()
 		ttrPool.Put(tr)
 	}()
+
+	tr.grow(len(i.rules))
 
 	err := i.root.Traverse(resolver, tr)
 	if err != nil {
@@ -239,34 +253,11 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
 
-	if result.Rules == nil {
-		result.Rules = make([]*Rule, 0, len(tr.ordering))
-	} else {
-		result.Rules = result.Rules[:0]
-	}
+	result.Rules = result.Rules[:0]
 
 	clear(result.Else)
 
-	for _, pos := range tr.ordering {
-		if len(tr.unordered[pos]) == 0 {
-			continue
-		}
-
-		nodes := util.SortedFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		root := nodes[0].rule
-
-		result.Rules = append(result.Rules, root)
-		if len(nodes) > 1 {
-			if result.Else == nil {
-				result.Else = map[*Rule][]*Rule{}
-			}
-
-			result.Else[root] = make([]*Rule, len(nodes)-1)
-			for i := 1; i < len(nodes); i++ {
-				result.Else[root][i-1] = nodes[i].rule
-			}
-		}
-	}
+	i.gather(tr, result)
 
 	if !tr.multiple {
 		// even when the indexer hasn't seen multiple values, the rule itself could be one
@@ -292,8 +283,46 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	return result, nil
 }
 
+// gather reads the rules a traversal reached into result. Ids ascend with
+// priority, so a run of them sharing a group is that ruleset's definitions in
+// order, the first being the one to evaluate.
+func (i *baseDocEqIndex) gather(tr *trieTraversalResult, result *IndexResult) {
+	var root *Rule
+	group := int32(-1)
+
+	// Words are marked as they are first written to, in traversal order.
+	slices.Sort(tr.touched)
+
+	found := 0
+	for _, w := range tr.touched {
+		found += bits.OnesCount64(tr.hits[w])
+	}
+	result.Rules = slices.Grow(result.Rules, found)
+
+	// A word holds 64 ids: `w<<6` is the id of its first bit, TrailingZeros64 the
+	// offset of the lowest set one, and `word &= word - 1` clears it.
+	for _, w := range tr.touched {
+		for word := tr.hits[w]; word != 0; word &= word - 1 {
+			id := w<<6 | int32(bits.TrailingZeros64(word))
+			rule := i.rules[id]
+
+			if g := i.groups[id]; g != group {
+				group, root = g, rule
+				result.Rules = append(result.Rules, rule)
+				continue
+			}
+
+			if result.Else == nil {
+				result.Else = map[*Rule][]*Rule{}
+			}
+			result.Else[root] = append(result.Else[root], rule)
+		}
+	}
+}
+
 func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	tr := newTrieTraversalResult()
+	tr.grow(len(i.rules))
 
 	// Walk over the rule trie and accumulate _all_ rules
 	rw := &ruleWalker{result: tr}
@@ -302,27 +331,7 @@ func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
-	result.Rules = make([]*Rule, 0, len(tr.ordering))
-
-	for _, pos := range tr.ordering {
-		if len(tr.unordered[pos]) == 0 {
-			continue
-		}
-		slices.SortFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		nodes := tr.unordered[pos]
-		root := nodes[0].rule
-		result.Rules = append(result.Rules, root)
-		if len(nodes) > 1 {
-			if result.Else == nil {
-				result.Else = map[*Rule][]*Rule{}
-			}
-
-			result.Else[root] = make([]*Rule, len(nodes)-1)
-			for i := 1; i < len(nodes); i++ {
-				result.Else[root][i-1] = nodes[i].rule
-			}
-		}
-	}
+	i.gather(tr, result)
 
 	result.EarlyExit = !tr.multiple
 
@@ -344,11 +353,65 @@ type valueMapper struct {
 	MapValue func(Value) Value
 }
 
+// refID identifies one of the references an index is built on.
+type refID int32
+
+// refTable numbers the references an index is built on. One table is shared by
+// every refindices of a build, the scratch ones an `and`/`or` operand is
+// indexed into included, so that an id means the same thing wherever it turns
+// up.
+type refTable struct {
+	// refs are the references in id order; ids answers the other direction, and
+	// is only built past refTableScan entries.
+	refs []Ref
+	ids  *util.HasherMap[Ref, refID]
+}
+
+// refTableScan is how many references a table holds before it builds a map:
+// below that, comparing a ref to the few already here beats hashing it, and most
+// rulesets are indexed on a handful.
+const refTableScan = 8
+
+func newRefTable() *refTable {
+	return &refTable{}
+}
+
+func (t *refTable) intern(ref Ref) refID {
+	if t.ids == nil {
+		for id, other := range t.refs {
+			if RefEqual(other, ref) {
+				return refID(id)
+			}
+		}
+		if len(t.refs) < refTableScan {
+			t.refs = append(t.refs, ref)
+			return refID(len(t.refs) - 1)
+		}
+		t.ids = util.NewHasherMap[Ref, refID](RefEqual)
+		for id, other := range t.refs {
+			t.ids.Put(other, refID(id))
+		}
+	}
+
+	if id, ok := t.ids.Get(ref); ok {
+		return id
+	}
+	id := refID(len(t.refs))
+	t.refs = append(t.refs, ref)
+	t.ids.Put(ref, id)
+	return id
+}
+
+func (t *refTable) ref(id refID) Ref {
+	return t.refs[id]
+}
+
 type refindex struct {
-	Ref    Ref
 	Value  Value
 	Mapper *valueMapper
-	// Affix says whether Value is a string the value at Ref has to start or end
+	// ref is the reference this constrains, as numbered by the build's table.
+	ref refID
+	// Affix says whether Value is a string the value at ref has to start or end
 	// with, rather than one it has to equal -- what startswith, endswith and
 	// their strings.any_*_match forms contribute. Several of them for one ref
 	// are alternatives, as for `in`.
@@ -442,15 +505,25 @@ type refindices struct {
 	disjunctions map[*Rule][]alternatives
 	// outer holds the enclosing scope's indices when this is the scratch for an
 	// operand body: resolvable from inside, but not the operand's own.
-	outer     []*refindex
-	frequency *util.HasherMap[Ref, int]
-	// alternated holds the refs some rule reaches by more than one value, and
-	// what that costs insertPath. Sorted ranks them last, terminal after
-	// converging. An `or` is not recorded: its alternatives are separate paths,
-	// and only meet a second value for one ref once paths() combines them,
-	// after Sorted has run.
-	alternated *util.HasherMap[Ref, alternation]
-	sorted     []Ref
+	outer []*refindex
+	table *refTable
+	// stats holds what Sorted ranks the references by, indexed by ref id.
+	stats  []refStats
+	sorted []refID
+}
+
+// refStats is what one reference accumulated over a build, which is what decides
+// the order of the trie's levels. Dropped once the trie is built.
+type refStats struct {
+	// count is how often the ref took part in indexing a rule. Sorted passes
+	// over the ids that never counted: a scratch interns the refs of an operand
+	// that may turn out unindexable, and then nothing records them.
+	count int32
+	// alternated is whether some rule reaches the ref by more than one value,
+	// and what that costs insertPath. An `or` is not recorded: its alternatives
+	// are separate paths, and only meet a second value for one ref once paths()
+	// combines them, after Sorted has run.
+	alternated alternation
 }
 
 // maxIndexPaths caps the ways a single rule may be reached: `or` expressions
@@ -458,13 +531,21 @@ type refindices struct {
 // nodes cost more than evaluating the rule.
 const maxIndexPaths = 32
 
-func newrefindices(isVirtual func(Ref) bool) *refindices {
+func newrefindices(isVirtual func(Ref) bool, table *refTable) *refindices {
 	return &refindices{
-		isVirtual:  isVirtual,
-		rules:      map[*Rule][]*refindex{},
-		frequency:  util.NewHasherMap[Ref, int](RefEqual),
-		alternated: util.NewHasherMap[Ref, alternation](RefEqual),
+		isVirtual: isVirtual,
+		table:     table,
+		rules:     map[*Rule][]*refindex{},
 	}
+}
+
+// growTo extends s so that it can be indexed by every id below n, leaving what
+// it already holds in place.
+func growTo[T any](s []T, n int) []T {
+	if len(s) >= n {
+		return s
+	}
+	return append(s, make([]T, n-len(s))...)
 }
 
 func valueIsVar(v Value) bool {
@@ -594,7 +675,7 @@ func (i *refindices) require(rule *Rule, alts alternatives) {
 	default:
 		for _, alt := range alts {
 			for _, ri := range alt {
-				i.count(ri.Ref)
+				i.count(ri.ref)
 			}
 		}
 		if i.disjunctions == nil {
@@ -627,7 +708,7 @@ func (i *refindices) updateLogicalOr(rule *Rule, or *LogicalOr, values map[Var]V
 // all means nothing about it could be indexed. It is indexed into a scratch, so
 // that what it requires reaches the rule only through require().
 func (i *refindices) operandAlternatives(rule *Rule, body Body, values map[Var]Value) alternatives {
-	scratch := newrefindices(i.isVirtual)
+	scratch := newrefindices(i.isVirtual, i.table)
 	scratch.outer = append(slices.Clone(i.rules[rule]), i.outer...)
 	scratch.updateOperand(rule, body, values)
 
@@ -642,7 +723,7 @@ func (i *refindices) operandAlternatives(rule *Rule, body Body, values map[Var]V
 			// resolvable from the outside (see resolveVarToRef); that the ref
 			// has to be defined still holds.
 			if ri.isVar() {
-				alt[pos] = &refindex{Ref: ri.Ref, Value: anyValue, Mapper: ri.Mapper}
+				alt[pos] = &refindex{ref: ri.ref, Value: anyValue, Mapper: ri.Mapper}
 			}
 		}
 	}
@@ -697,46 +778,38 @@ func (i *refindices) isValidIndexRef(ref Ref) bool {
 		!i.isVirtual(ref)
 }
 
-// Sorted returns a sorted list of references that the indices were built from.
-// References that appear more frequently in the indexed rules are ordered
-// before less frequently appearing references.
-func (i *refindices) Sorted() []Ref {
-	if i.sorted == nil {
-		i.sorted = util.SortedFunc(i.frequency.Keys(), func(a, b Ref) int {
-			// A ref reached by several values is worth less as an early level,
-			// and one that ends the rule's path less again, however often
-			// either was recorded -- so both outrank frequency.
-			if altA, altB := i.alternationOf(a), i.alternationOf(b); altA != altB {
-				if altA > altB {
-					return 1
-				}
-				return -1
-			}
-			countsA, _ := i.frequency.Get(a)
-			countsB, _ := i.frequency.Get(b)
-			if countsA < countsB { // descending, we want highest-freq first
-				return 1
-			} else if countsA > countsB {
-				return -1
-			}
-			return a[0].Loc().Compare(b[0].Loc())
-		})
+// Sorted returns the references the indices were built from, ordered so that
+// the ones appearing in more of the indexed rules come first.
+func (i *refindices) Sorted() []refID {
+	if i.sorted != nil {
+		return i.sorted
 	}
+
+	for id, stats := range i.stats {
+		if stats.count > 0 {
+			i.sorted = append(i.sorted, refID(id))
+		}
+	}
+
+	slices.SortFunc(i.sorted, func(a, b refID) int {
+		// A ref reached by several values is worth less as an early level,
+		// and one that ends the rule's path less again, however often
+		// either was recorded -- so both outrank frequency.
+		if c := cmp.Compare(i.stats[a].alternated, i.stats[b].alternated); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(i.stats[b].count, i.stats[a].count); c != 0 { // descending
+			return c
+		}
+		if c := i.table.ref(a)[0].Loc().Compare(i.table.ref(b)[0].Loc()); c != 0 {
+			return c
+		}
+		// Refs built rather than parsed -- a function's args[n] -- share a
+		// location, so fall back on the order they were first seen in.
+		return cmp.Compare(a, b)
+	})
+
 	return i.sorted
-}
-
-func (i *refindices) Value(rule *Rule, ref Ref) Value {
-	if index := i.index(rule, ref); index != nil {
-		return index.Value
-	}
-	return nil
-}
-
-func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
-	if index := i.index(rule, ref); index != nil {
-		return index.Mapper
-	}
-	return nil
 }
 
 func (i *refindices) updateEq(rule *Rule, a, b Value, constants map[Var]Value) {
@@ -782,7 +855,7 @@ func (i *refindices) tryIndexWildcardRef(rule *Rule, a, b Value, constants map[V
 		return false
 	}
 
-	i.insert(rule, &refindex{Ref: groundPrefix, Value: resolvedValue})
+	i.insert(rule, &refindex{ref: i.table.intern(groundPrefix), Value: resolvedValue})
 	return true
 }
 
@@ -800,9 +873,9 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 		// variable earlier in the query OR a function argument variable.
 		match := expr.Operand(2)
 		if v, ok := match.Value.(Var); ok {
-			if ref := resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
+			if ref := i.resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
 				i.insert(rule, &refindex{
-					Ref:   ref,
+					ref:   i.table.intern(ref),
 					Value: arr.Value,
 					Mapper: &valueMapper{
 						Key: delim,
@@ -823,7 +896,7 @@ func (i *refindices) updateMember(rule *Rule, expr *Expr, constants map[Var]Valu
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
 	lvar, ok := lhs.Value.(Var)
 	if ok {
-		lref := resolveVarToRef(i.resolvable(rule), rule.Head.Args, lvar)
+		lref := i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, lvar)
 		if lref != nil {
 			i.updateMemberRefInValue(rule, lref, rhs, constants) // `ref in value`
 			return
@@ -849,7 +922,7 @@ func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lval Value
 		return
 	}
 
-	i.insert(rule, &refindex{Ref: rref, Value: lval})
+	i.insert(rule, &refindex{ref: i.table.intern(rref), Value: lval})
 }
 
 func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, constants map[Var]Value) {
@@ -891,9 +964,11 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 // rule may reach ref by, hoisting insert's scan out of the loop. insertAffixes
 // is the same for base strings; the two dedup on different key types.
 func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
+	id := i.table.intern(ref)
+
 	if len(members) < 2 {
 		for _, member := range members {
-			i.insert(rule, &refindex{Ref: ref, Value: member})
+			i.insert(rule, &refindex{ref: id, Value: member})
 		}
 		return
 	}
@@ -901,7 +976,7 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	// Unlike a prefix, a concrete member takes the place of a "reference is
 	// anything" entry (see insert), so the first one goes the ordinary way --
 	// the rule's list is short at that point, so the scan it costs is cheap.
-	i.insert(rule, &refindex{Ref: ref, Value: members[0]})
+	i.insert(rule, &refindex{ref: id, Value: members[0]})
 
 	// insert is the only one that may put a value somewhere other than the end
 	// of the list, which is what a var needs, so those go in through it and are
@@ -911,7 +986,7 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	if slices.ContainsFunc(rest, valueIsVar) {
 		for _, member := range rest {
 			if valueIsVar(member) {
-				i.insert(rule, &refindex{Ref: ref, Value: member})
+				i.insert(rule, &refindex{ref: id, Value: member})
 			}
 		}
 		rest = slices.DeleteFunc(slices.Clone(rest), valueIsVar)
@@ -921,7 +996,7 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	seen := util.NewHasherMap[Value, struct{}](ValueEqual)
 
 	for _, other := range i.rules[rule] {
-		if !other.Ref.Equal(ref) {
+		if other.ref != id {
 			continue
 		}
 		if !other.isVar() {
@@ -945,15 +1020,15 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 		seen.Put(member, struct{}{})
 		concrete++
 
-		*indices[pos] = refindex{Ref: ref, Value: member}
+		*indices[pos] = refindex{ref: id, Value: member}
 		pos++
 	}
 	i.rules[rule] = indices[:pos]
 
-	i.countN(ref, len(rest))
+	i.countN(id, len(rest))
 
 	if concrete > 1 {
-		i.alternate(ref, alternationConverging)
+		i.alternate(id, alternationConverging)
 	}
 }
 
@@ -963,7 +1038,7 @@ func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term)
 	case Ref:
 		ref = v
 	case Var:
-		ref = resolveVarToRef(i.resolvable(rule), args, v)
+		ref = i.resolveVarToRef(i.resolvable(rule), args, v)
 	default:
 		return nil
 	}
@@ -989,7 +1064,7 @@ func (i *refindices) resolveRefHead(rule *Rule, args []*Term, ref Ref) Ref {
 		return ref
 	}
 
-	resolved := resolveVarToRef(i.resolvable(rule), args, head)
+	resolved := i.resolveVarToRef(i.resolvable(rule), args, head)
 	if resolved == nil {
 		return nil
 	}
@@ -1018,10 +1093,10 @@ func (i *refindices) resolveRefHead(rule *Rule, args []*Term, ref Ref) Ref {
 //	<something with x>
 //
 // as we're not capturing `var = var` expressions in the index.
-func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
+func (i *refindices) resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
 	for _, other := range ri {
 		if v.Equal(other.Value) {
-			return other.Ref
+			return i.table.ref(other.ref)
 		}
 	}
 	for j, arg := range args {
@@ -1044,13 +1119,19 @@ func (i *refindices) resolvable(rule *Rule) []*refindex {
 
 // count records that ref took part in indexing a rule, which is what orders the
 // trie levels (see Sorted).
-func (i *refindices) count(ref Ref) {
+func (i *refindices) count(ref refID) {
 	i.countN(ref, 1)
 }
 
-func (i *refindices) countN(ref Ref, n int) {
-	count, _ := i.frequency.Get(ref)
-	i.frequency.Put(ref, count+n)
+func (i *refindices) countN(ref refID, n int) {
+	i.stat(ref).count += int32(n)
+}
+
+// stat returns the reference's statistics, making room for them if this is the
+// first thing recorded about it.
+func (i *refindices) stat(ref refID) *refStats {
+	i.stats = growTo(i.stats, int(ref)+1)
+	return &i.stats[ref]
 }
 
 // alternation is what a ref reached by several values costs the rest of the
@@ -1075,27 +1156,22 @@ const (
 // alternate records that a rule reaches ref by more than one value, and what
 // that costs. The worse kind recorded for a ref wins. Only the values
 // surviving insertPath's var-stripping count.
-func (i *refindices) alternate(ref Ref, kind alternation) {
-	if was, ok := i.alternated.Get(ref); ok && was >= kind {
+func (i *refindices) alternate(ref refID, kind alternation) {
+	if kind == alternationNone {
 		return
 	}
-	i.alternated.Put(ref, kind)
-}
 
-func (i *refindices) alternationOf(ref Ref) alternation {
-	if kind, ok := i.alternated.Get(ref); ok {
-		return kind
-	}
-	return alternationNone
+	stats := i.stat(ref)
+	stats.alternated = max(stats.alternated, kind)
 }
 
 func (i *refindices) insert(rule *Rule, index *refindex) {
-	i.count(index.Ref)
+	i.count(index.ref)
 
 	indexValueIsVar := index.isVar()
 
 	for pos, other := range i.rules[rule] {
-		if other.Ref.Equal(index.Ref) {
+		if other.ref == index.ref {
 			if other.Affix == index.Affix && ValueEqual(other.Value, index.Value) {
 				return
 			}
@@ -1116,7 +1192,7 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 				if index.Affix != affixNone || other.Affix != affixNone {
 					kind = alternationTerminal
 				}
-				i.alternate(index.Ref, kind)
+				i.alternate(index.ref, kind)
 			}
 		}
 	}
@@ -1124,24 +1200,24 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 	i.rules[rule] = append(i.rules[rule], index)
 }
 
-func (i *refindices) index(rule *Rule, ref Ref) *refindex {
-	for _, index := range i.rules[rule] {
-		if index.Ref.Equal(ref) {
-			return index
-		}
-	}
-	return nil
-}
-
 type trieWalker interface {
 	Do(any) trieWalker
 }
 
+// trieTraversalResult is what a walk of the trie -- a lookup, or the whole of it
+// for AllRules -- collects.
+//
+// The rules reached are a bitset over the index's rule ids, so reaching one down
+// several paths costs nothing to notice: the second arrival writes a bit that is
+// already set. Reading it back in id order is reading it grouped and in priority
+// order, ids having been handed out that way, so there is nothing left to sort.
 type trieTraversalResult struct {
-	unordered map[int][]*ruleNode
-	ordering  []int
-	exist     *Term
-	multiple  bool
+	hits []uint64
+	// touched holds the words of hits that were written to, so that clearing
+	// costs what a lookup found rather than what the index holds.
+	touched  []int32
+	exist    *Term
+	multiple bool
 }
 
 var ttrPool = &sync.Pool{
@@ -1151,20 +1227,34 @@ var ttrPool = &sync.Pool{
 }
 
 func newTrieTraversalResult() *trieTraversalResult {
-	return &trieTraversalResult{
-		unordered: make(map[int][]*ruleNode, 16),
+	return &trieTraversalResult{}
+}
+
+// grow makes room for an index holding n rules. The pool never sizes back down,
+// which is a byte per eight rules against an index costing hundreds per rule.
+func (tr *trieTraversalResult) grow(n int) {
+	tr.hits = growTo(tr.hits, (n+63)/64)
+}
+
+func (tr *trieTraversalResult) reset() {
+	for _, w := range tr.touched {
+		tr.hits[w] = 0
 	}
+	tr.touched = tr.touched[:0]
+	tr.multiple = false
+	tr.exist = nil
 }
 
 func (tr *trieTraversalResult) Add(t *trieNode) {
-	for _, node := range t.rules {
-		root := node.prio[0]
-		if nodes, ok := tr.unordered[root]; !ok || len(nodes) == 0 {
-			tr.ordering = append(tr.ordering, root)
-			tr.unordered[root] = append(nodes, node)
-		} else if !slices.ContainsFunc(nodes, node.prioEqual) {
-			tr.unordered[root] = append(nodes, node)
+	for _, id := range t.rules {
+		word, bit := id>>6, uint64(1)<<(uint(id)&63)
+		if tr.hits[word]&bit != 0 {
+			continue
 		}
+		if tr.hits[word] == 0 {
+			tr.touched = append(tr.touched, word)
+		}
+		tr.hits[word] |= bit
 	}
 	if t.multiple {
 		tr.multiple = true
@@ -1181,14 +1271,16 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 
 type trieNode struct {
 	// next is the level below this node, nil where the paths under it end.
-	next     *levelDetail
-	rules    []*ruleNode
+	next *levelDetail
+	// rules are the ids of the rules whose path ends here, see
+	// baseDocEqIndex.rules.
+	rules    []int32
 	value    *Term
 	multiple bool
 }
 
-func (node *trieNode) append(prio [2]int, rule *Rule) {
-	node.rules = append(node.rules, &ruleNode{prio, rule})
+func (node *trieNode) append(id int32, rule *Rule) {
+	node.rules = append(node.rules, id)
 
 	if node.value != nil && rule.Head.Value != nil && !node.value.Equal(rule.Head.Value) {
 		node.multiple = true
@@ -1197,19 +1289,6 @@ func (node *trieNode) append(prio [2]int, rule *Rule) {
 	if node.value == nil && rule.Head.DocKind() == CompleteDoc {
 		node.value = rule.Head.Value
 	}
-}
-
-type ruleNode struct {
-	prio [2]int
-	rule *Rule
-}
-
-func (a *ruleNode) prio1Cmp(b *ruleNode) int {
-	return a.prio[1] - b.prio[1]
-}
-
-func (a *ruleNode) prioEqual(b *ruleNode) bool {
-	return a.prio == b.prio
 }
 
 // levelDetail is everything a trieNode has by virtue of being a *level* -- the
@@ -1607,6 +1686,10 @@ func (d *levelDetail) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
+	// Which order the branches below are taken in does not decide the order the
+	// candidates come back in -- gather reads them by id. Only undefined coming
+	// before the nil return is load-bearing: a ref that resolved to nothing
+	// admits the rules wanting it undefined and no others.
 	if err = d.undefined.Traverse(resolver, tr); err != nil {
 		return err
 	}
@@ -1785,8 +1868,8 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 		if !ok {
 			return false
 		}
-		if ref := resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
-			i.insert(rule, &refindex{Ref: ref, Value: bval})
+		if ref := i.resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
+			i.insert(rule, &refindex{ref: i.table.intern(ref), Value: bval})
 			return true
 		}
 
@@ -1808,7 +1891,7 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 			return false
 		}
 
-		i.insert(rule, &refindex{Ref: v, Value: b})
+		i.insert(rule, &refindex{ref: i.table.intern(v), Value: b})
 		return true
 	}
 	return false

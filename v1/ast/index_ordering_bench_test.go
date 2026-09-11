@@ -18,10 +18,15 @@ import (
 // keep the benchmark and test deterministic we canonicalize first, then apply
 // a fixed-seed shuffle. This is the honest "no optimization" baseline: not a
 // deliberately-worst ordering, just one that ignores frequency.
-func unorderedRefs(seed int64) func(*refindices) []Ref {
-	return func(i *refindices) []Ref {
-		refs := i.frequency.Keys()
-		slices.SortFunc(refs, func(a, b Ref) int { return a.Compare(b) })
+func unorderedRefs(seed int64) func(*refindices) []refID {
+	return func(i *refindices) []refID {
+		var refs []refID
+		for id, stats := range i.stats {
+			if stats.count > 0 {
+				refs = append(refs, refID(id))
+			}
+		}
+		slices.SortFunc(refs, func(a, b refID) int { return i.table.ref(a).Compare(i.table.ref(b)) })
 		rand.New(rand.NewSource(seed)).Shuffle(len(refs), func(a, b int) {
 			refs[a], refs[b] = refs[b], refs[a]
 		})
@@ -34,11 +39,11 @@ func unorderedRefs(seed int64) func(*refindices) []Ref {
 // refindices.Sorted() directly -- letting us compare the real (descending)
 // ordering against alternatives using the exact same trie construction and
 // traversal code.
-func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []Ref) *baseDocEqIndex {
+func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []refID) *baseDocEqIndex {
 	idx := newBaseDocEqIndex(func(Ref) bool { return false })
 	idx.kind = rules[0].Head.RuleKind()
 
-	indices := newrefindices(idx.isVirtual)
+	indices := newrefindices(idx.isVirtual, newRefTable())
 	values := make(map[Var]Value)
 
 	for ridx := range rules {
@@ -63,20 +68,24 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []Ref) *baseDo
 	order := orderFn(indices)
 
 	for ridx := range rules {
-		var prio int
 		WalkRules(rules[ridx], func(rule *Rule) bool {
 			if rule.Default {
 				return false
 			}
+			id := int32(len(idx.rules))
+			idx.rules = append(idx.rules, rule)
+			idx.groups = append(idx.groups, int32(ridx))
+
 			node := idx.root
 			if len(indices.rules[rule]) > 0 {
-				for _, ref := range order {
+				for _, level := range order {
 					var vals []*refindex
 					for _, ri := range indices.rules[rule] {
-						if ri.Ref.Equal(ref) {
+						if ri.ref == level {
 							vals = append(vals, ri)
 						}
 					}
+					ref := indices.table.ref(level)
 					if len(vals) == 0 {
 						node = node.Insert(ref, nil, nil)
 					} else {
@@ -84,8 +93,7 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []Ref) *baseDo
 					}
 				}
 			}
-			node.append([...]int{ridx, prio}, rule)
-			prio++
+			node.append(id, rule)
 			return false
 		})
 	}
@@ -173,7 +181,7 @@ func BenchmarkRuleIndexRefOrdering(b *testing.B) {
 
 	orders := []struct {
 		name string
-		fn   func(*refindices) []Ref
+		fn   func(*refindices) []refID
 	}{
 		{"frequency-descending", (*refindices).Sorted}, // what Build() uses
 		{"unordered", unorderedRefs(1)},                // no frequency sort

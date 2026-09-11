@@ -516,24 +516,22 @@ func prefixTrieMatches(t *testing.T, trie *prefixTrie, nodes map[string]*trieNod
 
 	// Give each prefix node a rule of its own, so the traversal result names
 	// the prefixes it reached.
-	byRule := map[*Rule]string{}
+	byID := make([]string, 0, len(nodes))
 	for prefix, node := range nodes {
 		node.rules = node.rules[:0]
-		rule := &Rule{Head: NewHead(Var("p"), nil, InternedTerm(len(byRule)))}
-		byRule[rule] = prefix
-		node.append([2]int{len(byRule), 0}, rule)
+		node.append(int32(len(byID)), &Rule{Head: NewHead(Var("p"), nil, InternedTerm(len(byID)))})
+		byID = append(byID, prefix)
 	}
 
 	tr := newTrieTraversalResult()
+	tr.grow(len(byID))
 	if err := trie.traverse(s, testResolver{input: MustParseTerm(`{}`)}, tr); err != nil {
 		t.Fatal(err)
 	}
 
 	var matched []string
-	for _, pos := range tr.ordering {
-		for _, node := range tr.unordered[pos] {
-			matched = append(matched, byRule[node.rule])
-		}
+	for _, id := range collected(tr) {
+		matched = append(matched, byID[id])
 	}
 	slices.Sort(matched)
 
