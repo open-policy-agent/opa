@@ -79,6 +79,21 @@ func caseError(e *ast.Error) conformance.Error {
 // case with more than ten diagnostics would record a truncated set plus OPA's own
 // "too many errors"; the runner lifts it too.
 func compileCase(tc compilecases.TestCase, popts ast.ParserOptions) (*ast.Compiler, error) {
+	return compileCaseToStage(tc, popts, "")
+}
+
+// compileCaseToStage is compileCase, stopping after stage when one is named.
+//
+// The stage is checked against the compiler's own list first. WithOnlyStagesUpTo
+// runs the whole pipeline when it does not recognise its argument, so a name that
+// has drifted would otherwise record the full-pipeline form under a stage that no
+// longer exists — and the difference gate would then drop the assertion as
+// redundant. Failing here is what keeps a rename from quietly deleting coverage.
+func compileCaseToStage(tc compilecases.TestCase, popts ast.ParserOptions, stage string) (*ast.Compiler, error) {
+	if stage != "" && !slices.Contains(ast.AllStages(), ast.StageID(stage)) {
+		return nil, fmt.Errorf("%q is not one of the compiler's stages", stage)
+	}
+
 	modules := make(map[string]*ast.Module, len(tc.Modules))
 	for i, src := range tc.Modules {
 		name := compilecases.ModuleName(i)
@@ -93,6 +108,10 @@ func compileCase(tc compilecases.TestCase, popts ast.ParserOptions) (*ast.Compil
 		SetErrorLimit(0).
 		WithStrict(tc.StrictMode()).
 		WithEnablePrintStatements(tc.PrintStatements)
+
+	if stage != "" {
+		c = c.WithOnlyStagesUpTo(ast.StageID(stage))
+	}
 
 	c.Compile(modules)
 
@@ -114,6 +133,37 @@ func compiledWant(tc compilecases.TestCase) ([]compilecases.Want, []string, erro
 		return nil, nil, err
 	}
 
+	return wantFor(tc, popts, compiled)
+}
+
+// compiledWantAtStage is compiledWant for the modules as they stand once the
+// pipeline stops after stage.
+//
+// A diagnostic reported before the stage is reached is an error rather than
+// something to record: the field asserts a form, and there is only one of those if
+// the pipeline got that far cleanly. Failing generation is the point — a case that
+// cannot reach the stage it pins is a corpus defect, and finding out at load time
+// would turn it into a silent skip.
+func compiledWantAtStage(tc compilecases.TestCase, stage string) ([]compilecases.Want, []string, error) {
+	popts, err := parserOptions(tc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	compiled, err := compileCaseToStage(tc, popts, stage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(compiled.Errors) > 0 {
+		return nil, nil, fmt.Errorf("compiling up to %s reports %d diagnostic(s), starting with %s",
+			stage, len(compiled.Errors), compiled.Errors[0])
+	}
+
+	return wantFor(tc, popts, compiled)
+}
+
+func wantFor(tc compilecases.TestCase, popts ast.ParserOptions, compiled *ast.Compiler) ([]compilecases.Want, []string, error) {
 	imports, err := directiveImports(tc, popts)
 	if err != nil {
 		return nil, nil, err

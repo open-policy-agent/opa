@@ -217,6 +217,48 @@ func TestValidate(t *testing.T) {
 				Want: []Want{{Module: module}}, Exhaustive: true},
 			wantErr: "'exhaustive' only applies",
 		},
+		{
+			note: "a stage assertion alongside the full-pipeline one",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:       []Want{{Module: module}},
+				WantStages: map[string][]Want{"RewriteEquals": {{Module: module}}}},
+		},
+		{
+			// want_stages refines an assertion; it is not one. A case still has to
+			// say what the whole pipeline does.
+			note: "want_stages on its own",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				WantStages: map[string][]Want{"RewriteEquals": {{Module: module}}}},
+			wantErr: "expected 'want_errors', or 'want'",
+		},
+		{
+			note: "a stage the corpus does not know",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:       []Want{{Module: module}},
+				WantStages: map[string][]Want{"RewriteEqual": {{Module: module}}}},
+			wantErr: `'want_stages' names "RewriteEqual", which is not a compiler stage`,
+		},
+		{
+			note: "an unfilled stage",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:       []Want{{Module: module}},
+				WantStages: map[string][]Want{"RewriteEquals": nil}},
+			wantErr: "'want_stages.RewriteEquals' has no entries",
+		},
+		{
+			note: "a stage entry of the wrong length",
+			tc: TestCase{Note: "a", Modules: []string{module, module},
+				Want:       []Want{{Module: module}, {Module: module}},
+				WantStages: map[string][]Want{"RewriteEquals": {{Module: module}}}},
+			wantErr: "'want_stages.RewriteEquals' has 1 entries for 2 modules",
+		},
+		{
+			note: "a stage entry with both spellings",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Want:       []Want{{Module: module}},
+				WantStages: map[string][]Want{"RewriteEquals": {{Module: module, AST: "{}"}}}},
+			wantErr: "'want_stages.RewriteEquals[0]' has both 'module' and 'ast'",
+		},
 	}
 
 	for _, tc := range tests {
@@ -252,5 +294,31 @@ func TestLoadRejectsAnUnknownField(t *testing.T) {
 	}
 	if want := `unknown field "no_such_field"`; !strings.Contains(err.Error(), want) {
 		t.Errorf("expected an error containing %q, got %v", want, err)
+	}
+}
+
+// TestSortedStages pins the order the generator writes and the runner reports in.
+// Ranging WantStages directly would randomise both.
+func TestSortedStages(t *testing.T) {
+	tc := TestCase{WantStages: map[string][]Want{
+		"CheckTypes":            nil,
+		"ResolveRefs":           nil,
+		"RewriteEquals":         nil,
+		"RewriteLocalVars":      nil,
+		"CheckKeywordOverrides": nil,
+	}}
+
+	want := []string{"ResolveRefs", "CheckKeywordOverrides", "RewriteLocalVars", "RewriteEquals", "CheckTypes"}
+	if got := tc.SortedStages(); !slices.Equal(got, want) {
+		t.Errorf("expected pipeline order %v, got %v", want, got)
+	}
+}
+
+func TestStageIndex(t *testing.T) {
+	if got := StageIndex("ResolveRefs"); got != 0 {
+		t.Errorf("expected ResolveRefs to lead the pipeline, got index %d", got)
+	}
+	if got := StageIndex("nonsense"); got != -1 {
+		t.Errorf("expected an unknown stage to report -1, got %d", got)
 	}
 }

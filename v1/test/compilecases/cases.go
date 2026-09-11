@@ -11,9 +11,11 @@
 package compilecases
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"slices"
 	"strings"
 
@@ -45,6 +47,53 @@ const (
 // Strictnesses are the accepted values of a case's strict field.
 var Strictnesses = []string{StrictEnabled, StrictDisabled}
 
+// Stages are the compiler stages a case can pin an intermediate assertion to, in
+// pipeline order.
+//
+// A copy of ast.AllStages() to avoid dependency cycle.
+var Stages = []string{
+	"ResolveRefs",
+	"InitLocalVarGen",
+	"RewriteRuleHeadRefs",
+	"CheckKeywordOverrides",
+	"CheckDuplicateImports",
+	"RemoveImports",
+	"SetModuleTree",
+	"SetRuleTree",
+	"RewriteLocalVars",
+	"RewriteTemplateStrings",
+	"CheckVoidCalls",
+	"RewritePrintCalls",
+	"RewriteExprTerms",
+	"ParseMetadataBlocks",
+	"SetAnnotationSet",
+	"RewriteRegoMetadataCalls",
+	"SetGraph",
+	"RewriteComprehensionTerms",
+	"RewriteRefsInHead",
+	"RewriteWithValues",
+	"CheckRuleConflicts",
+	"CheckUndefinedFuncs",
+	"CheckSafetyRuleHeads",
+	"CheckSafetyRuleBodies",
+	"RewriteEquals",
+	"RewriteDynamicTerms",
+	"RewriteTestRulesForTracing",
+	"CheckRecursion",
+	"CheckTypes",
+	"CheckUnsafeBuiltins",
+	"CheckDeprecatedBuiltins",
+	"BuildRuleIndices",
+	"BuildComprehensionIndices",
+	"BuildRequiredCapabilities",
+}
+
+// StageIndex returns stage's position in the pipeline, or -1 where the corpus does
+// not know it.
+func StageIndex(stage string) int {
+	return slices.Index(Stages, stage)
+}
+
 // ModuleName returns the name given to the i-th module of a case.
 func ModuleName(i int) string {
 	return conformance.ModuleName(i)
@@ -67,6 +116,18 @@ type TestCase struct {
 	// Want is what compiling produces, one entry per module, in the same order.
 	// Generated, not authored: run `make generate` and review the diff.
 	Want []Want `json:"want,omitempty"  yaml:"want,omitempty"`
+
+	// WantStages is what the modules look like when the pipeline stops after a named
+	// stage, keyed by stage name, one entry per module.
+	//
+	// Additive, and never a conformance requirement: Want and WantErrors always
+	// describe the whole pipeline, so an implementation that is not split into OPA's
+	// stages ignores this field and loses nothing. One that is can assert the tighter
+	// intermediate form. Carried only where that form differs from the full-pipeline
+	// one, so its presence means the stage does something the endpoint hides.
+	//
+	// Generated, not authored: name the stage and run `make generate`.
+	WantStages map[string][]Want `json:"want_stages,omitempty"  yaml:"want_stages,omitempty"`
 }
 
 // Name returns the globally unique note identifying the case.
@@ -108,6 +169,17 @@ func (tc TestCase) Transform() bool {
 	return len(tc.Want) > 0
 }
 
+// SortedStages returns the stages tc pins an assertion to, in pipeline order.
+// Ranging WantStages directly is never right: the order reaches the generated file
+// and the failure output, and Go randomises it.
+func (tc TestCase) SortedStages() []string {
+	stages := slices.Collect(maps.Keys(tc.WantStages))
+	slices.SortFunc(stages, func(a, b string) int {
+		return cmp.Or(cmp.Compare(StageIndex(a), StageIndex(b)), strings.Compare(a, b))
+	})
+	return stages
+}
+
 // StrictMode reports whether the case must be compiled with the compiler's
 // strict mode on.
 func (tc TestCase) StrictMode() bool {
@@ -115,9 +187,9 @@ func (tc TestCase) StrictMode() bool {
 }
 
 // Validate returns an error if tc is not a well-formed case. A case asserts
-// diagnostics with want_errors, or what its modules compile to with want_modules
-// or want_ast, or both; an absent want_errors is itself the assertion that nothing
-// is reported.
+// diagnostics with want_errors, or what its modules compile to with want or its ast
+// form, or both; an absent want_errors is itself the assertion that nothing is
+// reported. want_stages is additive and asserts neither on its own.
 func (tc TestCase) Validate() error {
 	switch {
 	case tc.Note == "":
@@ -131,29 +203,21 @@ func (tc TestCase) Validate() error {
 			tc.Strict, Strictnesses)
 	case tc.Exhaustive && !tc.Failure():
 		return errors.New("'exhaustive' only applies to a case asserting 'want_errors'")
-	case tc.Transform() && len(tc.Want) != len(tc.Modules):
-		return fmt.Errorf("'want' has %d entries for %d modules; it takes one per module, in the same order",
-			len(tc.Want), len(tc.Modules))
 	case !tc.Failure() && !tc.Transform():
 		return errors.New("expected 'want_errors', or 'want' where the modules compile; run `make generate` to fill one in")
 	}
 
-	for i, want := range tc.Want {
-		switch {
-		case want.Module == "" && want.AST == "":
-			return fmt.Errorf("'want[%d]' has neither 'module' nor 'ast'", i)
-		case want.Module != "" && want.AST != "":
-			return fmt.Errorf("'want[%d]' has both 'module' and 'ast', which are two spellings of one assertion", i)
-		case want.AST != "" && len(want.Imports) > 0:
-			return fmt.Errorf("'want[%d].imports' only applies to an entry asserting 'module'", i)
+	if tc.Transform() {
+		if err := tc.validateWant("want", tc.Want); err != nil {
+			return err
 		}
 	}
 
-	for i, want := range tc.Want {
-		if err := conformance.CheckTrailingWhitespace(fmt.Sprintf("want[%d].module", i), want.Module); err != nil {
-			return err
+	for _, stage := range tc.SortedStages() {
+		if StageIndex(stage) < 0 {
+			return fmt.Errorf("'want_stages' names %q, which is not a compiler stage the corpus knows", stage)
 		}
-		if _, err := tc.WantParserOptions(i); err != nil {
+		if err := tc.validateWant("want_stages."+stage, tc.WantStages[stage]); err != nil {
 			return err
 		}
 	}
@@ -176,6 +240,41 @@ func (tc TestCase) Validate() error {
 	return nil
 }
 
+// validateWant checks one list of expectations, whether it is the full-pipeline
+// want or the one pinned to a stage. field names it for the error.
+func (tc TestCase) validateWant(field string, want []Want) error {
+	if len(want) == 0 {
+		return fmt.Errorf("'%s' has no entries; run `make generate` to fill it in", field)
+	}
+
+	if len(want) != len(tc.Modules) {
+		return fmt.Errorf("'%s' has %d entries for %d modules; it takes one per module, in the same order",
+			field, len(want), len(tc.Modules))
+	}
+
+	for i, w := range want {
+		at := fmt.Sprintf("%s[%d]", field, i)
+
+		switch {
+		case w.Module == "" && w.AST == "":
+			return fmt.Errorf("'%s' has neither 'module' nor 'ast'", at)
+		case w.Module != "" && w.AST != "":
+			return fmt.Errorf("'%s' has both 'module' and 'ast', which are two spellings of one assertion", at)
+		case w.AST != "" && len(w.Imports) > 0:
+			return fmt.Errorf("'%s.imports' only applies to an entry asserting 'module'", at)
+		}
+
+		if err := conformance.CheckTrailingWhitespace(at+".module", w.Module); err != nil {
+			return err
+		}
+		if _, err := tc.wantOptions(at, w); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // WantOptions is how a Want entry's Module has to be parsed. Stated without
 // reference to v1/ast, so a consumer can map it onto its own parser.
 type WantOptions struct {
@@ -187,13 +286,26 @@ type WantOptions struct {
 // WantParserOptions interprets the imports on the i-th Want entry. An import it does
 // not recognise is an error rather than a no-op.
 func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
+	if i >= len(tc.Want) {
+		return WantOptions{RegoVersion: tc.RegoVersion}, nil
+	}
+	return tc.wantOptions(fmt.Sprintf("want[%d]", i), tc.Want[i])
+}
+
+// WantStageParserOptions is WantParserOptions for the i-th entry of the assertion
+// pinned to stage.
+func (tc TestCase) WantStageParserOptions(stage string, i int) (WantOptions, error) {
+	want := tc.WantStages[stage]
+	if i >= len(want) {
+		return WantOptions{RegoVersion: tc.RegoVersion}, nil
+	}
+	return tc.wantOptions(fmt.Sprintf("want_stages.%s[%d]", stage, i), want[i])
+}
+
+func (tc TestCase) wantOptions(at string, w Want) (WantOptions, error) {
 	out := WantOptions{RegoVersion: tc.RegoVersion}
 
-	if i >= len(tc.Want) {
-		return out, nil
-	}
-
-	for _, imp := range tc.Want[i].Imports {
+	for _, imp := range w.Imports {
 		switch {
 		case imp == "rego.v1":
 			// Not v0-compat-v1: that mode requires the import the printed form no
@@ -206,13 +318,13 @@ func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
 		case strings.HasPrefix(imp, "future.keywords."):
 			kw := strings.TrimPrefix(imp, "future.keywords.")
 			if kw == "" || strings.Contains(kw, ".") {
-				return WantOptions{}, fmt.Errorf("unrecognised 'want[%d].imports' entry %q", i, imp)
+				return WantOptions{}, fmt.Errorf("unrecognised '%s.imports' entry %q", at, imp)
 			}
 			out.FutureKeywords = append(out.FutureKeywords, kw)
 
 		default:
-			return WantOptions{}, fmt.Errorf("unrecognised 'want[%d].imports' entry %q; "+
-				"expected rego.v1, future.keywords or future.keywords.<keyword>", i, imp)
+			return WantOptions{}, fmt.Errorf("unrecognised '%s.imports' entry %q; "+
+				"expected rego.v1, future.keywords or future.keywords.<keyword>", at, imp)
 		}
 	}
 

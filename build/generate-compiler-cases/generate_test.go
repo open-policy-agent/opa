@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -743,5 +744,199 @@ cases:
 	}
 	if want := `unknown field "no_such_field"`; !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected an error containing %q, got %v", want, err)
+	}
+}
+
+// TestGenerateFillsWantStages covers the additive stage assertion: the case names
+// a stage, the generator records what the modules look like there, and want keeps
+// describing the whole pipeline.
+func TestGenerateFillsWantStages(t *testing.T) {
+	corpus := `---
+cases:
+  - note: transforms/hoisted dynamic term
+    modules:
+      - |
+        package test
+
+        q := 1
+
+        p if {
+        	[q]
+        }
+    want_stages:
+      RewriteEquals: []
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	set, err := compilecases.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tc := set.Cases[0]
+	if got := tc.SortedStages(); !slices.Equal(got, []string{"RewriteEquals"}) {
+		t.Fatalf("expected RewriteEquals to survive, got %v", got)
+	}
+
+	// The point of the field: the stage form is not the full-pipeline one.
+	if stage, full := tc.WantStages["RewriteEquals"][0].Module, tc.Want[0].Module; stage == full {
+		t.Fatalf("expected the stage form to differ from the full-pipeline form, both are:\n%s", full)
+	}
+	if want := "[data.test.q]"; !strings.Contains(tc.WantStages["RewriteEquals"][0].Module, want) {
+		t.Errorf("expected the stage form to contain %q, got:\n%s", want, tc.WantStages["RewriteEquals"][0].Module)
+	}
+	if want := "__local0__ = data.test.q"; !strings.Contains(tc.Want[0].Module, want) {
+		t.Errorf("expected the full-pipeline form to contain %q, got:\n%s", want, tc.Want[0].Module)
+	}
+}
+
+// TestGenerateDropsStagesMatchingTheFullPipeline is the difference gate. A stage
+// whose form is the endpoint's again asserts nothing the endpoint does not, and
+// keeping it would pin OPA's stage decomposition for no gain.
+func TestGenerateDropsStagesMatchingTheFullPipeline(t *testing.T) {
+	corpus := `---
+cases:
+  - note: transforms/nothing left to do
+    modules:
+      - |
+        package test
+
+        q := 1
+
+        p if {
+        	[q]
+        }
+    want_stages:
+      RewriteDynamicTerms: []
+      BuildRequiredCapabilities: []
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	set, err := compilecases.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := set.Cases[0].SortedStages(); len(got) != 0 {
+		t.Fatalf("expected every stage to be dropped, got %v", got)
+	}
+	if bs, err := os.ReadFile(filepath.Join(dir, "test-cases.yaml")); err != nil {
+		t.Fatal(err)
+	} else if strings.Contains(string(bs), "want_stages") {
+		t.Errorf("expected want_stages to be removed from the file, got:\n%s", bs)
+	}
+}
+
+// TestGenerateRejectsAnUnreachableStage keeps a defective case loud. A case whose
+// diagnostics are raised before the stage it pins has no form to record there, and
+// finding that out at load time would turn a corpus defect into a silent skip.
+func TestGenerateRejectsAnUnreachableStage(t *testing.T) {
+	corpus := `---
+cases:
+  - note: safety/unsafe var, stage pinned after the check
+    modules:
+      - |
+        package test
+
+        p if {
+        	x == 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 4
+        message: var x is unsafe
+    want_stages:
+      CheckTypes: []
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Generate(dir)
+	if err == nil {
+		t.Fatal("expected generation to be rejected")
+	}
+	if want := "compiling up to CheckTypes reports"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected an error containing %q, got %v", want, err)
+	}
+}
+
+// TestGenerateRejectsAnUnknownStage guards the vocabulary. WithOnlyStagesUpTo runs
+// the whole pipeline when it does not recognise the stage, so a typo would
+// otherwise record the full-pipeline form under a name that means nothing.
+func TestGenerateRejectsAnUnknownStage(t *testing.T) {
+	corpus := `---
+cases:
+  - note: transforms/typo
+    modules:
+      - |
+        package test
+
+        p if {
+        	true
+        }
+    want_stages:
+      RewriteDynamicTerm: []
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Generate(dir)
+	if err == nil {
+		t.Fatal("expected generation to be rejected")
+	}
+	if want := `"RewriteDynamicTerm", which is not a compiler stage`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected an error containing %q, got %v", want, err)
+	}
+}
+
+// TestCompileCaseToStageRejectsAStageTheCompilerDoesNotHave guards the one path
+// where a stale name does real damage. WithOnlyStagesUpTo runs the whole pipeline
+// when it does not recognise its argument, so without this check a renamed stage
+// would compile to the endpoint, match the full-pipeline want, and be dropped by the
+// difference gate — deleting the assertion instead of failing.
+func TestCompileCaseToStageRejectsAStageTheCompilerDoesNotHave(t *testing.T) {
+	tc := compilecases.TestCase{
+		Note:    "transforms/stale stage",
+		Modules: []string{"package test\n\np if {\n\ttrue\n}\n"},
+	}
+
+	popts, err := parserOptions(tc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A name compilecases.Stages could plausibly still carry after OPA renamed it.
+	if _, err := compileCaseToStage(tc, popts, "RewriteEqualsOp"); err == nil {
+		t.Fatal("expected a stage the compiler does not have to be rejected")
+	} else if want := `"RewriteEqualsOp" is not one of the compiler's stages`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected an error containing %q, got %v", want, err)
+	}
+
+	// The real one still works, so the guard is not rejecting everything.
+	if _, err := compileCaseToStage(tc, popts, "RewriteEquals"); err != nil {
+		t.Fatalf("expected a real stage to be accepted, got %v", err)
 	}
 }

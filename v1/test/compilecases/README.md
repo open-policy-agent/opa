@@ -56,6 +56,7 @@ line. The loader names the offending line rather than stripping it.
 | `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
 | `want` | what compiling produces, one entry per module — see [Transformations](#transformations) |
+| `want_stages` | what the modules look like partway through, keyed by compiler stage — see [Stages](#stages) |
 
 Activate a future keyword with an `import` in the module rather than a field on
 the case, for the reason the [parser corpus](../parsercases/README.md#future-keywords)
@@ -183,6 +184,61 @@ in, and annotated with what disqualified it:
           {
 ```
 
+## Stages
+
+`want_stages` records what the modules look like when the pipeline stops after a
+named stage. It is keyed by stage name, and each value has the same shape as `want`
+— one entry per module, `module` or `ast`:
+
+```yaml
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = data.test.q
+          	[__local0__]
+          }
+    want_stages:
+      RewriteEquals:
+        - module: |
+            package test
+
+            p = true if {
+            	[data.test.q]
+            }
+```
+
+**It is additive, and never a conformance requirement.** `want` and `want_errors`
+always describe the whole pipeline, so an implementation that is not split into
+OPA's stages ignores `want_stages` and loses no coverage. One that is can assert the
+tighter intermediate form. Requiring it would impose OPA's internal architecture on
+every implementation, which is the thing this corpus exists to avoid — and OPA's own
+`StageID` identifiers are explicitly not stable across versions.
+
+A stage is carried **only where its form differs from the full-pipeline one**. An
+intermediate assertion equal to the endpoint asserts nothing the endpoint does not,
+so the generator drops it; what survives is the set of stages that do something the
+endpoint hides. Name a stage with an empty value and run `make generate` to fill it
+in — or to have it removed.
+
+The legal names are `compilecases.Stages`, a copy of `ast.AllStages()` — the schema
+package does not import `v1/ast`, since the runner is `package ast` and that would
+cycle. `TestCorpusStagesMatchCompiler` keeps the two agreeing.
+
+What catches a renamed or reordered stage is the fixtures, not that test. A stage
+whose *behaviour* or *position* changes produces a different `want_stages` value, and
+`TestGeneratedFixturesDoNotDrift` byte-compares the regenerated corpus. A stage that
+is *renamed* leaves a key neither the loader nor the generator recognises — and both
+check the name against `ast.AllStages()` before compiling, because
+`WithOnlyStagesUpTo` runs the whole pipeline on a name it does not have, which would
+otherwise record the endpoint's form and let the difference gate drop the assertion
+as redundant.
+
+A case whose diagnostics are raised *before* the stage it names fails generation
+rather than recording anything: the field asserts a form, and there is only one of
+those if the pipeline got that far cleanly.
+
 ## Several modules
 
 A case compiles all of its `modules` together — how conflicts, cross-package
@@ -303,8 +359,7 @@ calls, and this corpus does not generate plans.
 
 ## What this corpus does not carry yet
 
-Query compilation, and the transformation tests that assert a mid-pipeline form
-rather than a compiled one. Those still live in `v1/ast/compile_test.go`.
+Query compilation. Those cases still live in `v1/ast/compile_test.go`.
 
 The generator lives in `build/generate-compiler-cases`, alongside
 `build/generate-parser-cases` and `build/generate-extended-cases`, which do the

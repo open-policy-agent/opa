@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -103,6 +104,10 @@ func generateFile(path string, mode fs.FileMode) error {
 			}
 		}
 
+		if err := fillStages(tc, caseNodes.Content[i]); err != nil {
+			return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
+		}
+
 		if err := tc.Validate(); err != nil {
 			return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
 		}
@@ -132,7 +137,9 @@ func fillTransform(tc *compilecases.TestCase, node *yaml.Node) error {
 
 	tc.Want = want
 
-	corpusgen.SetMapValue(node, "want", wantNode(want, reasons))
+	// Ahead of want_stages: the endpoint is what every consumer reads, and the
+	// intermediate forms refine it.
+	corpusgen.SetMapValue(node, "want", wantNode(want, reasons), "want_stages")
 
 	return nil
 }
@@ -165,4 +172,70 @@ func wantNode(want []compilecases.Want, reasons []string) *yaml.Node {
 	}
 
 	return seq
+}
+
+// fillStages writes what the modules look like at each stage the case names, and
+// drops a stage whose form is the full-pipeline one again.
+//
+// The drop is the point of the field. An intermediate assertion equal to the
+// endpoint asserts nothing the endpoint does not, and carrying it would pin OPA's
+// stage decomposition — which the StageID identifiers are explicitly not stable
+// enough to bear — for no gain. What survives is the set of stages that do
+// something the endpoint hides.
+//
+// A case asserting want_errors keeps every stage it names: with no full-pipeline
+// form to compare against, the intermediate one is the only form it has.
+func fillStages(tc *compilecases.TestCase, node *yaml.Node) error {
+	if len(tc.WantStages) == 0 {
+		return nil
+	}
+
+	filled := make(map[string][]compilecases.Want, len(tc.WantStages))
+	reasons := make(map[string][]string, len(tc.WantStages))
+
+	for _, stage := range tc.SortedStages() {
+		if compilecases.StageIndex(stage) < 0 {
+			return fmt.Errorf("'want_stages' names %q, which is not a compiler stage the corpus knows", stage)
+		}
+
+		want, why, err := compiledWantAtStage(*tc, stage)
+		if err != nil {
+			return fmt.Errorf("want_stages.%s: %w", stage, err)
+		}
+
+		if tc.Transform() && slices.EqualFunc(want, tc.Want, sameWant) {
+			continue
+		}
+
+		filled[stage], reasons[stage] = want, why
+	}
+
+	tc.WantStages = filled
+
+	if len(filled) == 0 {
+		corpusgen.DeleteMapValue(node, "want_stages")
+		return nil
+	}
+
+	corpusgen.SetMapValue(node, "want_stages", wantStagesNode(*tc, reasons))
+
+	return nil
+}
+
+// sameWant reports whether two expectations say the same thing.
+func sameWant(a, b compilecases.Want) bool {
+	return a.Module == b.Module && a.AST == b.AST && slices.Equal(a.Imports, b.Imports)
+}
+
+// wantStagesNode renders the pinned stages in pipeline order. A mapping's key order
+// does not survive loading, so the file's order is the generator's to choose, and
+// pipeline order is the one a reader can follow.
+func wantStagesNode(tc compilecases.TestCase, reasons map[string][]string) *yaml.Node {
+	m := &yaml.Node{Kind: yaml.MappingNode}
+
+	for _, stage := range tc.SortedStages() {
+		corpusgen.SetMapValue(m, stage, wantNode(tc.WantStages[stage], reasons[stage]))
+	}
+
+	return m
 }

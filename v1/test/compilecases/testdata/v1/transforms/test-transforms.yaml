@@ -78,6 +78,11 @@ cases:
   - note: transforms/dynamic term hoisted out of a collection
     # A ref inside a composite cannot be evaluated in place, so it is hoisted into
     # a local assignment ahead of the expression that uses it.
+    #
+    # RewriteEquals is the last stage before the hoist that changes this module, so
+    # pinning it records the form the hoist starts from. want_stages is additive
+    # and never a requirement: want above is the whole pipeline, and an
+    # implementation that is not split into OPA's stages ignores the field.
     modules:
       - |
         package test
@@ -99,6 +104,18 @@ cases:
           	__local0__ = data.test.q
           	[__local0__]
           }
+    want_stages:
+      RewriteEquals:
+        - module: |
+            package test
+
+            q := 1 if {
+            	true
+            }
+
+            p = true if {
+            	[data.test.q]
+            }
   - note: transforms/print erased when not enabled
     # print() is not part of a policy's meaning, so it is erased unless the caller
     # asks for it. The rule keeps its other expressions.
