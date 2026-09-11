@@ -1,0 +1,1263 @@
+---
+# Generated externalized tests from TestCompilerNotImport
+cases:
+  - note: negation/no import
+    modules:
+      - |
+        package negation
+
+        p if {
+        	not input.x + input.y == input.z
+        }
+    want:
+      - module: |
+          package negation
+
+          p = true if {
+          	__local1__ = input.x
+          	__local2__ = input.y
+          	plus(__local1__, __local2__, __local0__)
+          	not __local0__ = input.z
+          }
+  - note: negation/negated call, equal
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+        p if {
+        	not 1 + 2 == 3
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {plus(1, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated call, unification
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+        p if {
+        	not 1 + 2 = 3
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {plus(1, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated call, unification, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+        p if {
+        	not { 1 + 2 = 3 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {plus(1, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated call with refs (local var expansion)
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+        p if {
+        	not input.x + input.y == input.z
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {__local1__ = input.x; __local2__ = input.y; plus(__local1__, __local2__, __local0__); __local0__ = input.z}
+          }
+  - note: negation/negated call with vars, inside comprehension
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p := [x | x := "foo"; not f(input.x)]
+
+        f(_) := true
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p := __local2__ if {
+          	__local2__ = [__local0__ | __local0__ = "foo"; not {__local3__ = input.x; data.negation.f(__local3__)}]
+          }
+
+          f(__local1__) := true if {
+          	true
+          }
+  - note: negation/negated call with vars, inside comprehension, assignment in implicit not body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p := [x | not x := "foo" ]
+
+        f(_) := true
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 11
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: negation/negated call with vars, inside every
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	every x in input.x {
+        		not f(x, input.y)
+        	}
+        }
+
+        f(_, _) := true
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	__local4__ = input.x
+          	every __local0__, __local1__ in __local4__ {
+          		not {__local5__ = input.y; data.negation.f(__local1__, __local5__)}
+          	}
+          }
+
+          f(__local2__, __local3__) := true if {
+          	true
+          }
+  - note: negation/negated assignment
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a := 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: negation/negated assignment, outer ref to var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a := 1
+        	a = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: negation/negated assignment, outer redeclaration of var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a := 1
+        	a := 2
+        	a == 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: negation/negated assignment, implicit not body nested in explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { not a := 1 }
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 8
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: negation/negated assignment, explicit not-body
+    strict: disabled
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a := 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {__local0__ = 1}
+          }
+  - note: negation/negated assignment, explicit not-body, outer ref to var
+    strict: disabled
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a := 1 }
+        	a = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {__local0__ = 1}
+          	a = 1
+          }
+  - note: negation/negated assignment, call
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a := 1 + 2
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: cannot assign vars inside negated expression
+    exhaustive: true
+  - note: negation/negated assignment, call, explicit not-body
+    strict: disabled
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a := 1 + 2 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {plus(1, 2, __local1__); __local0__ = __local1__}
+          }
+  - note: negation/negated assignment, call, output var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not plus(1, 2, a)
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated assignment, call, output var, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { plus(1, 2, a) }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {plus(1, 2, a)}
+          }
+  - note: negation/negated equality, unsafe var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a == 1
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated equality, unsafe var, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a == 1 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 8
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated unification, unsafe var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a = 1
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated unification, unsafe var, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a = 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {a = 1}
+          }
+  - note: negation/negated unification, unsafe var, call
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a = 1 + 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated unification, call, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a = 1 + 2 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {plus(1, 2, __local0__); a = __local0__}
+          }
+  - note: negation/negated enumeration, unsafe var (wildcard)
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not input.a[_]
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var _ is unsafe
+    exhaustive: true
+  - note: negation/negated enumeration, wildcard, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { input.a[_] }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {input.a[_]}
+          }
+  - note: negation/negated safe var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 1
+        	not a + 2 = 3
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {plus(a, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated safe var, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 1
+        	not { a + 2 = 3 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {plus(a, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated safe var, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a + 2 = 3
+        	a = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {plus(a, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated safe var, explicit not-body, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a + 2 = 3 }
+        	a = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {plus(a, 2, __local0__); __local0__ = 3}
+          }
+  - note: negation/negated unsafe var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a + 2 = 3
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated unsafe var, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a + 2 = 3 }
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 8
+        message: var a is unsafe
+    exhaustive: true
+  - note: negation/negated and non-negated unification on same var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 2
+        	not a = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 2
+          	not a = 1
+          }
+  - note: negation/negated and non-negated unification on same var, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 2
+        	not { a = 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 2
+          	not {a = 1}
+          }
+  - note: negation/negated assignment override, explicit not-body
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 2
+        	not {
+        		a := 1
+        		a == 3
+        	}
+        	a == 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 2
+          	not {__local0__ = 1; __local0__ = 3}
+          	a = 2
+          }
+  - note: negation/negated and non-negated unification on same var, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a = 1
+        	a = 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 2
+          	not a = 1
+          }
+  - note: negation/negated and non-negated unification on same var, explicit not-body, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a = 1 }
+        	a = 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 2
+          	not {a = 1}
+          }
+  - note: negation/negated and non-negated unification on same var, calls, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not a = f(1)
+        	a = f(2)
+        }
+
+        f(x) := x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	data.negation.f(2, __local2__)
+          	a = __local2__
+          	not {data.negation.f(1, __local1__); a = __local1__}
+          }
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+  - note: negation/negated and non-negated unification on same var, calls, explicit not-body, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { a = f(1) }
+        	a = f(2)
+        }
+
+        f(x) := x
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	data.negation.f(2, __local2__)
+          	a = __local2__
+          	not {data.negation.f(1, __local1__); a = __local1__}
+          }
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+  - note: negation/nested negation (comprehension)
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not [v |
+        		v := 1
+        		not v = 2
+        	]
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not [__local0__ | __local0__ = 1; not __local0__ = 2]
+          }
+  - note: negation/nested negation (comprehension), explicit not-bodies
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		[v |
+        			v := 1
+        			not { v = 2 }
+        		]
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {[__local0__ | __local0__ = 1; not {__local0__ = 2}]}
+          }
+  - note: negation/nested negation (comprehension), outer closure var reference
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	v := 1
+        	not [42 |
+        		not v = 2
+        	]
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	__local0__ = 1
+          	not [42 | not __local0__ = 2]
+          }
+  - note: negation/nested negation (comprehension), outer closure var reference, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not [42 |
+        		not v = 2
+        	]
+        	v = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	v = 1
+          	not [42 | not v = 2]
+          }
+  - note: negation/nested negation (comprehension), outer closure var reference, explicit not-bodies, rearranged
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		[42 |
+        			not { v = 2 }
+        		]
+        	}
+        	v = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	v = 1
+          	not {[42 | not {v = 2}]}
+          }
+  - note: negation/nested negation (comprehension), unsafe var reference
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not [42 |
+        		not v = 2
+        	]
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 3
+        message: var v is unsafe
+    exhaustive: true
+  - note: negation/nested negation (comprehension), inner var override
+    strict: disabled
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	v := 1
+        	not [42 |
+        		v := 2
+        		not v = 1
+        	]
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	__local0__ = 1
+          	not [42 | __local1__ = 2; not __local1__ = 1]
+          }
+  - note: negation/explicit not-body, enumeration
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		x = [1, 2][_]
+        		x > 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {__local0__ = [1, 2]; x = __local0__[_]; gt(x, 2)}
+          }
+  - note: negation/explicit not-body, enumeration, reordering
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		x = [1, 2][_]
+        		x > y
+        	}
+        	y = 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	y = 2
+          	not {__local0__ = [1, 2]; x = __local0__[_]; gt(x, y)}
+          }
+  - note: negation/explicit not-body, enumeration, some in
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		some x in [1, 2]
+        		x > 3
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {__local3__ = [1, 2]; __local2__ = __local3__[__local1__]; gt(__local2__, 3)}
+          }
+  - note: negation/explicit not-body, enumeration, some in, reordering
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		some x in [1, 2]
+        		x < y
+        	}
+        	y = 3
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	y = 3
+          	not {__local3__ = [1, 2]; __local2__ = __local3__[__local1__]; lt(__local2__, y)}
+          }
+  - note: negation/explicit not-body, var indirection
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		a = 1
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {a = 1; b = a; plus(a, 1, __local0__); __local0__ = 2}
+          }
+  - note: negation/explicit not-body, var indirection, safe var (unification)
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	x = 1
+        	not {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	x = 1
+          	not {a = x; b = a; plus(a, 1, __local0__); __local0__ = 2}
+          }
+  - note: negation/explicit not-body, var indirection, safe var (assignment)
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	x := 1
+        	not {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	__local0__ = 1
+          	not {a = __local0__; b = a; plus(a, 1, __local1__); __local1__ = 2}
+          }
+  - note: negation/explicit not-body, var indirection, unsafe var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not {
+        		a = x
+        		b = a
+        		a + 1 = 2
+        	}
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 3
+        message: var a is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 3
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 8
+        col: 3
+        message: var b is unsafe
+    exhaustive: true
+  - note: negation/explicit not-body, nested negations
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if not {
+        	not {
+        		not false
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	not {not {not false}}
+          }
+  - note: negation/explicit not-body, nested negations, ref to outer var
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 1
+        	not {
+        		a = 2
+        		not {
+        			a = 3
+        			not a = 4
+        		}
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {a = 2; not {a = 3; not a = 4}}
+          }
+  - note: negation/explicit not-body, nested negations, ref to outer var, inner override
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 1
+        	not {
+        		a := 2
+        		not {
+        			a = 3
+        			not a = 4
+        		}
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {__local0__ = 2; not {__local0__ = 3; not __local0__ = 4}}
+          }
+  - note: negation/explicit not-body, nested negations, ref to outer var, multiple inner overrides
+    strict: disabled
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	a = 1
+        	not {
+        		a := 2
+        		not {
+        			a := 3
+        			not a = 4
+        		}
+        	}
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package negation
+
+          p = true if {
+          	a = 1
+          	not {__local0__ = 2; not {__local1__ = 3; not __local1__ = 4}}
+          }
+  - note: 'negation/no import, negated undefined function (regression: GH#8717)'
+    modules:
+      - |
+        package negation
+
+        p if {
+        	not f(1)
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: undefined function f
+    exhaustive: true
+  - note: 'negation/implicit not-body, negated undefined function (regression: GH#8717)'
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not f(1)
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 6
+        col: 2
+        message: undefined function f
+    exhaustive: true
+  - note: 'negation/explicit not-body, negated undefined function (regression: GH#8717)'
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+        	not { f(1) }
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 6
+        col: 8
+        message: undefined function f
+    exhaustive: true

@@ -33,18 +33,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1 and y := 2
         }
     want_errors:
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 2
         message: cannot assign vars inside implicit and operand
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 13
         message: cannot assign vars inside implicit and operand
     exhaustive: true
@@ -53,7 +52,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -61,11 +59,11 @@ cases:
         }
     want_errors:
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 2
         message: cannot assign vars inside implicit or operand
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 12
         message: cannot assign vars inside implicit or operand
     exhaustive: true
@@ -75,7 +73,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	input.a and x := input.b
@@ -83,7 +80,7 @@ cases:
         }
     want_errors:
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 14
         message: cannot assign vars inside implicit and operand
     exhaustive: true
@@ -92,7 +89,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -101,7 +97,7 @@ cases:
         }
     want_errors:
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 13
         message: cannot assign vars inside implicit or operand
     exhaustive: true
@@ -110,7 +106,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -120,7 +115,7 @@ cases:
         }
     want_errors:
       - code: rego_compile_error
-        row: 7
+        row: 6
         col: 13
         message: cannot assign vars inside implicit or operand
     exhaustive: true
@@ -147,7 +142,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         import future.keywords.not
 
@@ -156,7 +150,7 @@ cases:
         }
     want_errors:
       - code: rego_compile_error
-        row: 9
+        row: 8
         col: 18
         message: cannot assign vars inside negated expression
     exhaustive: true
@@ -166,7 +160,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         import future.keywords.not
 
@@ -175,7 +168,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+      - imports: [future.keywords.and, future.keywords.not]
         module: |
           package logic
 
@@ -188,14 +181,13 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	{ x := 1; x > 0 } and true and { y := 2; y > 0 }
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -213,7 +205,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -221,7 +212,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -263,18 +254,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x = 1 and y = 2
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -283,7 +273,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -291,11 +280,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -305,18 +294,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	count(input.x, x) and count(input.y, y)
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -325,7 +313,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -333,11 +320,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -347,18 +334,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	input[x] and input[y]
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -367,7 +353,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -375,11 +360,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -389,7 +374,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	true and {
@@ -399,7 +383,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -414,7 +398,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -425,7 +408,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -441,7 +424,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -452,7 +434,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -468,7 +450,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -480,7 +461,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -497,7 +478,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -508,7 +488,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -524,7 +504,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -536,7 +515,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -554,18 +533,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p := [x, y] if {
         	{ x := 1 } and { y := 2 }
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -575,7 +553,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p := [x, y] if {
@@ -583,11 +560,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -597,18 +574,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p := [x, y] if {
         	{ x = 1 } and { y = 2 }
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -617,7 +593,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p := [x, y] if {
@@ -625,11 +600,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -639,18 +614,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p := [x, y] if {
         	{ input[x] = 1 } and { input[y] = 2 }
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -659,7 +633,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p := [x, y] if {
@@ -667,11 +640,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -681,18 +654,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p := [x, y] if {
         	{ count(input.x, x) } and { count(input.y, y) }
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -701,7 +673,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p := [x, y] if {
@@ -709,11 +680,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 7
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 6
+        row: 5
         col: 10
         message: var y is unsafe
     exhaustive: true
@@ -723,14 +694,13 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	input.x > 1 and input.y < 2
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -748,7 +718,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -756,7 +725,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -775,14 +744,13 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	(input.x + 1) > 0 and input.y > 0
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -801,7 +769,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -809,7 +776,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -829,18 +796,17 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	(x + 1) > 0 and y > 0
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true
@@ -850,7 +816,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	true and {
@@ -861,7 +826,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -878,7 +843,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -890,7 +854,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -908,7 +872,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	true and {
@@ -919,15 +882,15 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 8
+        row: 7
         col: 3
         message: var a is unsafe
       - code: rego_unsafe_var_error
-        row: 8
+        row: 7
         col: 3
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 9
+        row: 8
         col: 3
         message: var b is unsafe
     exhaustive: true
@@ -936,7 +899,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -948,15 +910,15 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 8
+        row: 7
         col: 3
         message: var a is unsafe
       - code: rego_unsafe_var_error
-        row: 8
+        row: 7
         col: 3
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 9
+        row: 8
         col: 3
         message: var b is unsafe
     exhaustive: true
@@ -966,7 +928,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x = 1
@@ -978,7 +939,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -996,7 +957,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1009,7 +969,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1028,7 +988,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -1036,7 +995,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1049,7 +1008,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1058,7 +1016,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1072,7 +1030,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -1080,7 +1037,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1095,7 +1052,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1104,7 +1060,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1120,7 +1076,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -1131,7 +1086,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1147,7 +1102,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1159,7 +1113,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1176,7 +1130,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -1188,7 +1141,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1205,7 +1158,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1218,7 +1170,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1236,7 +1188,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	true and f(42) with input.x as 1
@@ -1245,7 +1196,7 @@ cases:
         f(x) := x + input.x
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1262,7 +1213,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1272,7 +1222,7 @@ cases:
         f(x) := x + input.x
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1290,7 +1240,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	{ f(42) with input.x as 1 } and true
@@ -1299,7 +1248,7 @@ cases:
         f(x) := x + input.x
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1318,7 +1267,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1328,7 +1276,7 @@ cases:
         f(x) := x + input.x
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1348,7 +1296,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	true and { f(42) with input.x as 1 }
@@ -1357,7 +1304,7 @@ cases:
         f(x) := x + input.x
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1376,7 +1323,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1386,7 +1332,7 @@ cases:
         f(x) := x + input.x
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1406,7 +1352,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         import future.keywords.not
         p if {
@@ -1418,7 +1363,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+      - imports: [future.keywords.and, future.keywords.not]
         module: |
           package logic
 
@@ -1431,7 +1376,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         import future.keywords.not
@@ -1444,7 +1388,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+      - imports: [future.keywords.not, future.keywords.or]
         module: |
           package logic
 
@@ -1458,7 +1402,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -1466,7 +1409,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1479,7 +1422,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1488,7 +1430,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1502,7 +1444,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	x := 1
@@ -1510,7 +1451,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1523,7 +1464,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1532,7 +1472,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1546,7 +1486,6 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p if {
         	every x in [1, 2, 3] {
@@ -1555,7 +1494,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1570,7 +1509,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1580,7 +1518,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1596,12 +1534,11 @@ cases:
         package logic
 
         import future.keywords.and
-        import future.keywords.or
 
         p := [x | some x in input.x; x > 0 and x < 10]
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.and]
         module: |
           package logic
 
@@ -1613,13 +1550,12 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p := [x | some x in input.x; x > 0 or x < 10]
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.or]
+      - imports: [future.keywords.or]
         module: |
           package logic
 
@@ -1717,7 +1653,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         import future.keywords.not
@@ -1726,7 +1661,7 @@ cases:
         }
     want:
       # The compiler drops directive imports; a consumer must put them in effect.
-      - imports: [future.keywords.and, future.keywords.not, future.keywords.or]
+      - imports: [future.keywords.not, future.keywords.or]
         module: |
           package logic
 
@@ -1738,7 +1673,6 @@ cases:
       - |
         package logic
 
-        import future.keywords.and
         import future.keywords.or
 
         p if {
@@ -1746,11 +1680,11 @@ cases:
         }
     want_errors:
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var x is unsafe
       - code: rego_unsafe_var_error
-        row: 7
+        row: 6
         col: 2
         message: var y is unsafe
     exhaustive: true

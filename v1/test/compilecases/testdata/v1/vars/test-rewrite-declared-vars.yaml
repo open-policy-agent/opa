@@ -1,0 +1,885 @@
+---
+# Generated externalized tests from TestRewriteDeclaredVars
+cases:
+  - note: vars/rewrite unify
+    modules:
+      - |
+        package test
+
+        x = 1
+        y = 2
+        p if { some x; input = [x, y] }
+    want:
+      - module: |
+          package test
+
+          x = 1 if {
+          	true
+          }
+
+          y = 2 if {
+          	true
+          }
+
+          p = true if {
+          	__local1__ = data.test.y
+          	input = [__local0__, __local1__]
+          }
+  - note: vars/rewrite call
+    modules:
+      - |
+        package test
+
+        x = []
+        y = {}
+        p if { some x; walk(y, [x, y]) }
+    want:
+      - module: |
+          package test
+
+          x = [] if {
+          	true
+          }
+
+          y = {} if {
+          	true
+          }
+
+          p = true if {
+          	__local1__ = data.test.y
+          	__local2__ = data.test.y
+          	walk(__local1__, [__local0__, __local2__])
+          }
+  - note: vars/rewrite term
+    modules:
+      - |
+        package test
+
+        x = "a"
+        y = 1
+        q contains [2, "b"]
+        p if { some x; q[[y,x]] }
+    want:
+      - module: |
+          package test
+
+          x = "a" if {
+          	true
+          }
+
+          y = 1 if {
+          	true
+          }
+
+          q contains [2, "b"] if {
+          	true
+          }
+
+          p = true if {
+          	__local1__ = data.test.y
+          	data.test.q[[__local1__, __local0__]]
+          }
+  - note: 'vars/with: rewrite target'
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := "foo"
+        	true with input[x] as 1
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = "foo"
+          	true with input[__local0__] as 1
+          }
+  - note: 'vars/with: rewrite target in comprehension term'
+    modules:
+      - |
+        package test
+
+        p if {
+        	foo := "bar"
+        	{ { 2 | true with input[foo] as 1} | true }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = "bar"
+          	{__local1__ | __local1__ = {2 | true with input[__local0__] as 1}}
+          }
+  - note: vars/single-value rule with ref head
+    modules:
+      - |
+        package test
+
+        p.r.q[s] = t if {
+        	t := 1
+        	s := input.foo
+        }
+    want:
+      - module: |
+          package test
+
+          p.r.q[__local1__] = __local0__ if {
+          	__local0__ = 1
+          	__local1__ = input.foo
+          }
+  - note: vars/rewrite some x in xs
+    modules:
+      - |
+        package test
+
+        import future.keywords.in
+        xs = ["a", "b", "c"]
+        p if { some x in xs; x == "a" }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.in]
+        module: |
+          package test
+
+          xs = ["a", "b", "c"] if {
+          	true
+          }
+
+          p = true if {
+          	__local2__ = data.test.xs[__local1__]
+          	__local2__ = "a"
+          }
+  - note: vars/rewrite some k, x in xs
+    modules:
+      - |
+        package test
+
+        import future.keywords.in
+        xs = ["a", "b", "c"]
+        p if { some k, x in xs; x == "a"; k == 2 }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.in]
+        module: |
+          package test
+
+          xs = ["a", "b", "c"] if {
+          	true
+          }
+
+          p = true if {
+          	__local1__ = data.test.xs[__local0__]
+          	__local1__ = "a"
+          	__local0__ = 2
+          }
+  - note: 'vars/rewrite some k, x in xs[i]'
+    modules:
+      - |
+        package test
+
+        import future.keywords.in
+        xs = [["a", "b", "c"], []]
+        p if {
+        	some i
+        	some k, x in xs[i]
+        	x == "a"
+        	k == 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.in]
+        module: |
+          package test
+
+          xs = [["a", "b", "c"], []] if {
+          	true
+          }
+
+          p = true if {
+          	__local2__ = data.test.xs[__local0__][__local1__]
+          	__local2__ = "a"
+          	__local1__ = 2
+          }
+  - note: 'vars/rewrite some k, x in xs[i] with `i` as ref'
+    modules:
+      - |
+        package test
+
+        import future.keywords.in
+        i = 0
+        xs = [["a", "b", "c"], []]
+        p if {
+        	some k, x in xs[i]
+        	x == "a"
+        	k == 2
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.in]
+        module: |
+          package test
+
+          i = 0 if {
+          	true
+          }
+
+          xs = [["a", "b", "c"], []] if {
+          	true
+          }
+
+          p = true if {
+          	__local2__ = data.test.i
+          	__local1__ = data.test.xs[__local2__][__local0__]
+          	__local1__ = "a"
+          	__local0__ = 2
+          }
+  - note: 'vars/rewrite some: with modifier on domain'
+    modules:
+      - |
+        package test
+
+        p if {
+        	some k, x in input with input as [1, 1, 1]
+        	k == 0
+        	x == 1
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local1__ = input[__local0__] with input as [1, 1, 1]
+          	__local0__ = 0
+          	__local1__ = 1
+          }
+  - note: vars/rewrite every
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        i = 0
+        xs = [1, 2]
+        k = "foo"
+        v = "bar"
+        p if {
+        	every k, v in xs { k + v > i }
+        }
+    want:
+      - module: |
+          package test
+
+          i = 0 if {
+          	true
+          }
+
+          xs = [1, 2] if {
+          	true
+          }
+
+          k = "foo" if {
+          	true
+          }
+
+          v = "bar" if {
+          	true
+          }
+
+          p = true if {
+          	__local2__ = data.test.xs
+          	every __local0__, __local1__ in __local2__ {
+          		plus(__local0__, __local1__, __local3__)
+          		__local4__ = data.test.i
+          		gt(__local3__, __local4__)
+          	}
+          }
+  - note: 'vars/rewrite every: unused key var'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every k, v in [1] { v >= 1 }
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 22
+        message: declared var k unused
+  - note: 'vars/rewrite every: unused generated key var'
+    modules:
+      - |
+        package test
+
+        p if {
+        	every __local0__, v in [1] { v >= 1 }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local3__ = [1]
+          	every __local1__, __local2__ in __local3__ {
+          		gte(__local2__, 1)
+          	}
+          }
+  - note: 'vars/rewrite every: unused value var'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every v in [1] { true }
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 19
+        message: declared var v unused
+  - note: 'vars/rewrite every: wildcard value var, used key'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every k, _ in [1] { k >= 0 }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local1__ = [1]
+          	every __local0__, _ in __local1__ {
+          		gte(__local0__, 0)
+          	}
+          }
+  - note: 'vars/rewrite every: wildcard key+value var'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every _, _ in [1] { true }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = [1]
+          	every _, _ in __local0__ {
+          		true
+          	}
+          }
+  - note: 'vars/rewrite every: declared vars with different scopes'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	some x
+        	x = 10
+        	every x in [1] { x == 1 }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 10
+          	__local3__ = [1]
+          	every __local1__, __local2__ in __local3__ {
+          		__local2__ = 1
+          	}
+          }
+  - note: 'vars/rewrite every: declared vars used in body'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	some y
+        	y = 10
+        	every x in [1] { x == y }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = 10
+          	__local3__ = [1]
+          	every __local1__, __local2__ in __local3__ {
+          		__local2__ = __local0__
+          	}
+          }
+  - note: 'vars/rewrite every: pops declared var stack'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p contains x if {
+        	some x
+        	x = 10
+        	every _ in [1] { true }
+        }
+    want:
+      - module: |
+          package test
+
+          p contains __local0__ if {
+          	__local0__ = 10
+          	__local2__ = [1]
+          	every __local1__, _ in __local2__ {
+          		true
+          	}
+          }
+  - note: 'vars/rewrite every: nested'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	xs := [[1], [2]]
+        	every v in [1] {
+        		every w in xs[v] {
+        			w == 2
+        		}
+        	}
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = [[1], [2]]
+          	__local5__ = [1]
+          	every __local1__, __local2__ in __local5__ {
+          		__local6__ = __local0__[__local2__]
+          		every __local3__, __local4__ in __local6__ {
+          			__local4__ = 2
+          		}
+          	}
+          }
+  - note: 'vars/rewrite every: with modifier on domain'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every x in input { x == 1 } with input as [1, 1, 1]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = input with input as [1, 1, 1]
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__ = 1
+          	} with input as [1, 1, 1]
+          }
+  - note: 'vars/rewrite every: with modifier on domain with declared var'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	xs := [1, 2]
+        	every x in input { x == 1 } with input as xs
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local0__ = [1, 2]
+          	__local3__ = input with input as __local0__
+          	every __local1__, __local2__ in __local3__ {
+          		__local2__ = 1
+          	} with input as __local0__
+          }
+  - note: 'vars/rewrite every: with modifier on body'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every x in [2] { x == input } with input as 2
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = [2] with input as 2
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__ = input
+          	} with input as 2
+          }
+  - note: 'vars/rewrite every: with modifier on body, using every''s key+value'
+    modules:
+      - |
+        package test
+
+        # import future.keywords.in
+        # import future.keywords.every
+        p if {
+        	every x, y in input { true with data.test.q[x][y] as 100 }
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = input
+          	every __local0__, __local1__ in __local2__ {
+          		true with data.test.q[__local0__][__local1__] as 100
+          	}
+          }
+  - note: vars/rewrite closures
+    modules:
+      - |
+        package test
+
+        x = 1
+        y = 2
+        p if {
+        	some x, z
+        	z = 3
+        	[x | x = 2; y = 2; some z; z = 4]
+        }
+    want:
+      - module: |
+          package test
+
+          x = 1 if {
+          	true
+          }
+
+          y = 2 if {
+          	true
+          }
+
+          p = true if {
+          	__local1__ = 3
+          	[__local0__ | __local0__ = 2; data.test.y = 2; __local2__ = 4]
+          }
+  - note: vars/rewrite head var
+    modules:
+      - |
+        package test
+
+        x = "a"
+        y = 1
+        z = 2
+        p[x] = [y, z] if {
+        	some x, z
+        	x = "b"
+        	z = 4
+        }
+    want:
+      - module: |
+          package test
+
+          x = "a" if {
+          	true
+          }
+
+          y = 1 if {
+          	true
+          }
+
+          z = 2 if {
+          	true
+          }
+
+          p[__local0__] = __local2__ if {
+          	__local0__ = "b"
+          	__local1__ = 4
+          	__local3__ = data.test.y
+          	__local2__ = [__local3__, __local1__]
+          }
+  - note: vars/rewrite call with root document ref as arg
+    modules:
+      - |
+        package test
+
+        p if {
+        	f(input, "bar")
+        }
+
+        f(x, y) if {
+        	x[y]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local2__ = input
+          	data.test.f(__local2__, "bar")
+          }
+
+          f(__local0__, __local1__) = true if {
+          	__local0__[__local1__]
+          }
+  - note: vars/redeclare err
+    modules:
+      - |
+        package test
+
+        p if {
+        	some x
+        	some x
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var x declared above
+  - note: vars/redeclare err, some/in
+    modules:
+      - |
+        package test
+
+        p if {
+        	some x
+        	some i, x in []
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var x declared above
+  - note: vars/redeclare assigned err
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	some x
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var x assigned above
+  - note: vars/redeclare assigned err, some/in
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	some i, x in []
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var x assigned above
+  - note: vars/redeclare reference err
+    modules:
+      - |
+        package test
+
+        p if {
+        	data.q[x]
+        	some x
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var x referenced above
+  - note: vars/redeclare reference err, some/in
+    modules:
+      - |
+        package test
+
+        p if {
+        	data.q[x]
+        	some i, x in []
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var x referenced above
+  - note: vars/declare unused err
+    modules:
+      - |
+        package test
+
+        p if {
+        	some x
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 2
+        message: declared var x unused
+  - note: vars/declare unsafe err
+    modules:
+      - |
+        package test
+
+        p contains x if {
+        	some x
+        	x == 1
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 5
+        col: 2
+        message: var x is unsafe
+  - note: vars/declare arg err
+    modules:
+      - |
+        package test
+
+        f([a]) if {
+        	some a
+        	a = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 2
+        message: arg a redeclared
+  - note: vars/assign in implicit and operand err
+    modules:
+      - |
+        package test
+
+        import future.keywords.and
+
+        p if {
+        	input.a and x := input.b
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 14
+        message: cannot assign vars inside implicit and operand
+  - note: vars/assign in implicit or operand err
+    modules:
+      - |
+        package test
+
+        import future.keywords.or
+
+        p if {
+        	input.a or x := input.b
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 13
+        message: cannot assign vars inside implicit or operand
+  - note: vars/assign in implicit not body err
+    modules:
+      - |
+        package test
+
+        import future.keywords.not
+
+        p if {
+        	not x := input.b
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: cannot assign vars inside negated expression
+  - note: vars/assign in implicit and operand nested in explicit or operand err
+    modules:
+      - |
+        package test
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	input.a or { input.b and x := input.c }
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 7
+        col: 27
+        message: cannot assign vars inside implicit and operand
+  - note: vars/assign in explicit or operand
+    modules:
+      - |
+        package test
+
+        import future.keywords.or
+
+        p if {
+        	input.a or { x := input.b; x == 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true if {
+          	input.a or {
+          		__local0__ = input.b
+          		__local0__ = 1
+          	}
+          }
+  - note: vars/assign in explicit not body
+    modules:
+      - |
+        package test
+
+        import future.keywords.not
+
+        p if {
+        	not { x := input.b; x == 1 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package test
+
+          p = true if {
+          	not {__local0__ = input.b; __local0__ = 1}
+          }

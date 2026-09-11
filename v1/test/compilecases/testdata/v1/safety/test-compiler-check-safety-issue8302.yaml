@@ -1,0 +1,236 @@
+---
+# Generated externalized tests from TestCompilerCheckSafetyIssue8302
+cases:
+  - note: safety/safe/simple equality
+    modules:
+      - |
+        package t
+
+        p if { x = 1; y = x }
+    want:
+      - module: |
+          package t
+
+          p = true if {
+          	x = 1
+          	y = x
+          }
+  - note: safety/safe/ordered comprehension
+    modules:
+      - |
+        package t
+
+        f(x) := x
+        p := z if { x = 2; y = f([v | v = x][0]); z = f(y) }
+    want:
+      - module: |
+          package t
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p := z if {
+          	x = 2
+          	__local1__ = [v | v = x]
+          	__local4__ = __local1__[0]
+          	data.t.f(__local4__, __local2__)
+          	y = __local2__
+          	data.t.f(y, __local3__)
+          	z = __local3__
+          }
+  - note: safety/safe/issue-8302 shape must compile
+    modules:
+      - |
+        package t
+
+        f(x) := x
+        p := z if { y = f([v | v = x][0]); z = f(y); x = 2 }
+    want:
+      - module: |
+          package t
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p := z if {
+          	x = 2
+          	__local1__ = [v | v = x]
+          	__local4__ = __local1__[0]
+          	data.t.f(__local4__, __local2__)
+          	y = __local2__
+          	data.t.f(y, __local3__)
+          	z = __local3__
+          }
+  - note: safety/safe/double indirection through comprehension
+    modules:
+      - |
+        package t
+
+        f(x) := x
+        p := w if {
+        	y = f([v | v = x][0])
+        	z = f([v | v = y][0])
+        	w = f(z)
+        	x = 2
+        }
+    want:
+      - module: |
+          package t
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p := w if {
+          	x = 2
+          	__local1__ = [v | v = x]
+          	__local6__ = __local1__[0]
+          	data.t.f(__local6__, __local2__)
+          	y = __local2__
+          	__local3__ = [v | v = y]
+          	__local7__ = __local3__[0]
+          	data.t.f(__local7__, __local4__)
+          	z = __local4__
+          	data.t.f(z, __local5__)
+          	w = __local5__
+          }
+  - note: safety/safe/with modifier
+    modules:
+      - |
+        package t
+
+        f(x) := x
+        p := z if { y = f([v | v = x][0]) with input as {}; z = f(y); x = 2 }
+    want:
+      - module: |
+          package t
+
+          f(__local0__) := __local0__ if {
+          	true
+          }
+
+          p := z if {
+          	x = 2
+          	__local1__ = [v | v = x] with input as {}
+          	__local4__ = __local1__[0] with input as {}
+          	data.t.f(__local4__, __local2__) with input as {}
+          	y = __local2__ with input as {}
+          	data.t.f(y, __local3__)
+          	z = __local3__
+          }
+  - note: safety/safe/every after grounding
+    modules:
+      - |
+        package t
+
+        p if { xs = [1]; every y in xs { y == 1 } }
+    want:
+      - module: |
+          package t
+
+          p = true if {
+          	xs = [1]
+          	__local2__ = xs
+          	every __local0__, __local1__ in __local2__ {
+          		__local1__ = 1
+          	}
+          }
+  - note: safety/safe/issue-8302 with +1 function
+    modules:
+      - |
+        package t
+
+        f(x) := x + 1
+        p := z if { y = f([v | v = x][0]); z = f(y); x = 2 }
+    want:
+      - module: |
+          package t
+
+          f(__local0__) := __local1__ if {
+          	plus(__local0__, 1, __local1__)
+          }
+
+          p := z if {
+          	x = 2
+          	__local2__ = [v | v = x]
+          	__local5__ = __local2__[0]
+          	data.t.f(__local5__, __local3__)
+          	y = __local3__
+          	data.t.f(y, __local4__)
+          	z = __local4__
+          }
+  - note: safety/unsafe/unbound var
+    modules:
+      - |
+        package t
+
+        p if { y = x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var y is unsafe
+  - note: safety/unsafe/circular unify
+    modules:
+      - |
+        package t
+
+        p if { x = y; y = x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var x is unsafe
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var y is unsafe
+  - note: safety/unsafe/unbound comprehension var
+    modules:
+      - |
+        package t
+
+        p if { xs = [v | v = x] }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 18
+        message: var v is unsafe
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 18
+        message: var x is unsafe
+  - note: safety/unsafe/negation of unbound
+    modules:
+      - |
+        package t
+
+        p if { not x }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var x is unsafe
+  - note: 'safety/unsafe/:= cannot reorder through comprehension (directional)'
+    strict: disabled
+    modules:
+      - |
+        package t
+
+        f(x) := x
+        p := z if { y := f([v | v = x][0]); z := f(y); x := 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 25
+        message: var v is unsafe
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 25
+        message: var x is unsafe

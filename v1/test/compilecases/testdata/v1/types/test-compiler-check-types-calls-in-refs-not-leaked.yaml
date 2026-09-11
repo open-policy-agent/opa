@@ -1,0 +1,49 @@
+---
+# Generated externalized tests from TestCompilerCheckTypesCallsInRefsNotLeaked
+cases:
+  - note: types/builtin call as ref subject
+    modules:
+      - |
+        package test
+
+        q := opa.runtime()[0].foo
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 6
+        message: 'undefined ref: opa.runtime()[0].foo'
+  - note: types/rego.metadata.chain() call as ref subject
+    modules:
+      - |
+        package test
+
+        p := rego.metadata.chain()[0].annotations
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 6
+        message: 'undefined ref: rego.metadata.chain()[0].annotations'
+  - note: types/function call as ref subject
+    modules:
+      - |
+        package test
+
+        f(x) := {"a": x}
+
+        p := f(1)[0]
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 6
+        message: 'undefined ref: data.test.f(1)[0]'
+  - note: types/call in ref index position
+    modules:
+      - |
+        package test
+
+        p := {"a": 1}[count([1, 2])]
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 6
+        message: 'undefined ref: {"a": 1}[count([1, 2])]'
