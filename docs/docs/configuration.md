@@ -1133,8 +1133,9 @@ A few things do not change without a restart:
 
 Entries removed from `services` and `keys` are neither applied nor rejected:
 they stay registered for the rest of the process, and OPA logs a warning saying
-so. Changing an entry that a plugin is already using has a related caveat — see
-below.
+so. Changing an entry is applied normally — a plugin already using a service
+picks the new client up, so credentials and URLs can be rotated without a
+restart.
 
 If a reload fails for any other reason — a syntax error, or a `bundles` entry
 naming a service that doesn't exist — it is logged and the change is not
@@ -1142,17 +1143,6 @@ completed. Validating those sections requires the new `services` to be
 registered first, so part of the configuration may already be in effect;
 reverting the file undoes it, as each reload is applied on top of the last one
 that succeeded.
-
-:::info
-A running plugin only picks up a changed `services` entry if its own section
-changed too. The `status` plugin looks its client up on every upload and so is
-unaffected, but the `bundles` and `decision_logs` plugins hold on to the client
-they were built with, and both skip reconfiguring when their own configuration
-is unchanged. Rotating a service's credentials or URL on its own therefore
-leaves them talking to the old endpoint until OPA restarts. This is not specific
-to reloading the configuration file: discovery-driven reconfiguration behaves
-the same way.
-:::
 
 The configuration file is not watched when [discovery](#discovery) is enabled,
 since the discovered configuration — not the file on disk — is what the plugins

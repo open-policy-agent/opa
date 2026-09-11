@@ -476,6 +476,7 @@ type buffer interface {
 type Plugin struct {
 	manager       *plugins.Manager
 	config        Config
+	clientConfig  *rest.Config // the service client config the buffer was built with
 	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
 	b             buffer
 	statusMtx     sync.Mutex
@@ -630,6 +631,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		logger:   manager.Logger().WithFields(map[string]any{"plugin": Name}),
 		status:   &lstat.Status{},
 	}
+	plugin.clientConfig = manager.Client(plugin.config.Service).Config()
 
 	switch parsedConfig.Reporting.BufferType {
 	case eventBufferType:
@@ -1017,8 +1019,12 @@ func (p *Plugin) doOneShot(ctx context.Context) (err error) {
 
 func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	newConfig := config.(*Config)
+	newClientConfig := p.manager.Client(newConfig.Service).Config()
 
-	if reflect.DeepEqual(p.config, *newConfig) {
+	// The client is captured by the buffer, so a service the plugin already
+	// points at having been re-registered has to count as a change too --
+	// otherwise a rotated credential or a moved URL never reaches the uploader.
+	if reflect.DeepEqual(p.config, *newConfig) && p.clientConfig.Equal(newClientConfig) {
 		p.logger.Debug("Decision log uploader configuration unchanged.")
 		return
 	}
@@ -1028,6 +1034,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 
 	p.logger.Info("Decision log uploader configuration changed.")
 	p.config = *newConfig
+	p.clientConfig = newClientConfig
 
 	// upload all events in the current buffer type
 	if err := p.b.Upload(ctx); err != nil && !util.ErrorIs[*bufferEmpty](err) {

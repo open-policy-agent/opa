@@ -546,6 +546,47 @@ bundles:
 	waitForBundle(t, rt, "second")
 }
 
+// A service moving under a bundle whose own configuration is untouched still
+// has to reach the running downloader.
+func TestReloadConfigAppliesServiceChanges(t *testing.T) {
+	first := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
+			"data.json": `{"reload": {"which": "first"}}`,
+		}),
+	)
+	defer first.Stop()
+
+	second := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
+			"data.json": `{"reload": {"which": "second"}}`,
+		}),
+	)
+	defer second.Stop()
+
+	config := func(url string) string {
+		return fmt.Sprintf(`services:
+  acme:
+    url: %q
+bundles:
+  b:
+    resource: /bundles/b.tar.gz
+`, url)
+	}
+
+	rt, configFile := newConfigReloadRuntime(t, config(first.URL()))
+
+	waitForBundle(t, rt, "first")
+
+	// Only the service URL changes; the bundles section is byte-identical.
+	writeConfig(t, configFile, config(second.URL()))
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+
+	waitForBundle(t, rt, "second")
+}
+
 // waitForBundle blocks until data.reload.which has the expected value, which is
 // how far the bundle has got through downloading and activating.
 func waitForBundle(t *testing.T, rt *Runtime, exp string) {
