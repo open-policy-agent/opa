@@ -233,15 +233,23 @@ func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storag
 		return err
 	}
 
-	for _, u := range updates {
+	_, err = txn.applyUpdates(path, updates)
+	return err
+}
+
+// applyUpdates returns the number of updates it managed to write. On
+// badger.ErrTxnTooBig that count lets callers owning the transaction's life
+// cycle commit, open a new one, and resume with the rest.
+func (txn *transaction) applyUpdates(path storage.Path, updates []update) (int, error) {
+	for i, u := range updates {
 		if u.delete {
 			if err := txn.underlying.Delete(u.key); err != nil {
-				return err
+				return i, err
 			}
 			txn.metrics.Counter(deletedKeysCounter).Add(1)
 		} else {
 			if err := txn.underlying.Set(u.key, u.value); err != nil {
-				return err
+				return i, err
 			}
 			txn.metrics.Counter(writtenKeysCounter).Add(1)
 		}
@@ -252,7 +260,7 @@ func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storag
 			Removed: u.delete,
 		})
 	}
-	return nil
+	return len(updates), nil
 }
 
 func (txn *transaction) partitionWrite(op storage.PatchOp, path storage.Path, value any) ([]update, error) {
@@ -342,14 +350,19 @@ func (txn *transaction) partitionWriteMultiple(node *partitionTrie, path storage
 		return txn.doPartitionWriteMultiple(node, path, v, result)
 	}
 
-	return nil, &storage.Error{Code: storage.InvalidPatchErr, Message: "value cannot be partitioned"}
+	return nil, notPartitionable(path, value)
 }
 
 func (txn *transaction) doPartitionWriteMultiple(node *partitionTrie, path storage.Path, bs []byte, result []update) ([]update, error) {
 	var obj map[string]json.RawMessage
 	err := util.Unmarshal(bs, &obj)
 	if err != nil {
-		return nil, &storage.Error{Code: storage.InvalidPatchErr, Message: "value cannot be partitioned"}
+		return nil, notPartitionable(path, bs)
+	}
+	if obj == nil {
+		// JSON null unmarshals into a nil map without error; writing zero
+		// updates for it would drop the value silently.
+		return nil, notPartitionable(path, bs)
 	}
 
 	for k, v := range obj {
@@ -379,6 +392,59 @@ func (txn *transaction) doPartitionWriteMultiple(node *partitionTrie, path stora
 	}
 
 	return result, nil
+}
+
+// notPartitionable reports a value inside a partition that is not an object,
+// and so cannot be split into one key per member.
+func notPartitionable(path storage.Path, value any) error {
+	return &storage.Error{
+		Code: storage.InvalidPatchErr,
+		Message: fmt.Sprintf("value at %s cannot be partitioned: expected object, found %s",
+			toString(path), jsonTypeName(value)),
+	}
+}
+
+func jsonTypeName(value any) string {
+	switch v := value.(type) {
+	case json.RawMessage:
+		return rawJSONTypeName(v)
+	case []uint8:
+		return rawJSONTypeName(v)
+	case map[string]any, map[string]json.RawMessage:
+		return "object"
+	case []any:
+		return "array"
+	case string:
+		return "string"
+	case bool:
+		return "boolean"
+	case nil:
+		return "null"
+	case json.Number, float64, int, int64:
+		return "number"
+	}
+	return fmt.Sprintf("%T", value)
+}
+
+func rawJSONTypeName(bs []byte) string {
+	trimmed := bytes.TrimLeft(bs, " \t\r\n")
+	switch {
+	case len(trimmed) == 0:
+		return "empty value"
+	case trimmed[0] == '{':
+		return "malformed object"
+	case trimmed[0] == '[':
+		return "array"
+	case trimmed[0] == '"':
+		return "string"
+	case trimmed[0] == 't', trimmed[0] == 'f':
+		return "boolean"
+	case trimmed[0] == 'n':
+		return "null"
+	case trimmed[0] == '-', trimmed[0] >= '0' && trimmed[0] <= '9':
+		return "number"
+	}
+	return "malformed value"
 }
 
 func (txn *transaction) partitionWriteOne(op storage.PatchOp, path storage.Path, value any) ([]update, error) {
@@ -439,8 +505,14 @@ func (txn *transaction) GetPolicy(_ context.Context, id string) ([]byte, error) 
 }
 
 func (txn *transaction) UpsertPolicy(_ context.Context, id string, bs []byte) error {
+	return wrapError(txn.upsertPolicy(id, bs))
+}
+
+// upsertPolicy skips the error wrapping UpsertPolicy does, so that callers can
+// still recognise badger.ErrTxnTooBig.
+func (txn *transaction) upsertPolicy(id string, bs []byte) error {
 	if err := txn.underlying.Set(txn.pm.PolicyID2Key(id), bs); err != nil {
-		return wrapError(err)
+		return err
 	}
 	txn.metrics.Counter(writtenKeysCounter).Add(1)
 	txn.event.Policy = append(txn.event.Policy, storage.PolicyEvent{

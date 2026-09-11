@@ -36,6 +36,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
 	"github.com/open-policy-agent/opa/v1/server/authorizer"
+	"github.com/open-policy-agent/opa/v1/storage/disk"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tracing"
 
@@ -2336,4 +2337,67 @@ decision_logs.console := true
 	if h.onDiscover.DecisionLogs == nil {
 		t.Error("expected discovered decision_logs config to be visible to the hook")
 	}
+}
+
+func TestInitDiskStoreLargeBundle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	ctx := t.Context()
+
+	const users = 5000
+
+	data := map[string]any{}
+	for i := range users {
+		data[fmt.Sprintf("user%d", i)] = map[string]string{
+			"role": fmt.Sprintf("role%d", i%7),
+		}
+	}
+
+	bs, err := json.Marshal(map[string]any{"users": data})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := archive.MustWriteTarGz([][2]string{
+		{"/data.json", string(bs)},
+		{"/policy.rego", "package example\n\nroles := object.keys(data.users)\n"},
+	})
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundlePath := filepath.Join(rootDir, "bundle.tar.gz")
+		if err := os.WriteFile(bundlePath, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		params := NewParams()
+		params.Paths = []string{bundlePath}
+		params.BundleMode = true
+		params.BundleLazyLoadingMode = true
+		params.DiskStorage = &disk.Options{
+			Dir:        filepath.Join(rootDir, "disk"),
+			Partitions: []storage.Path{storage.MustParsePath("/users/*")},
+			Badger:     "memtablesize=100000;valuethreshold=600",
+		}
+
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, rt.Store)
+		defer rt.Store.Abort(ctx, txn)
+
+		for _, i := range []int{0, users / 2, users - 1} {
+			path := storage.MustParsePath(fmt.Sprintf("/users/user%d/role", i))
+			act, err := rt.Store.Read(ctx, txn, path)
+			if err != nil {
+				t.Fatalf("read %v: %v", path, err)
+			}
+			if exp := fmt.Sprintf("role%d", i%7); act != exp {
+				t.Fatalf("read %v: expected %v, got %v", path, exp, act)
+			}
+		}
+	})
 }
