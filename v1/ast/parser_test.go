@@ -1889,6 +1889,75 @@ func TestKeywordAsRuleName(t *testing.T) {
 	}
 }
 
+func TestReservedKeywordAsRuleName(t *testing.T) {
+	// These keywords are reserved in every Rego version, so unless the declaration
+	// uses a v1-only keyword, the same error is expected in v0 and v1.
+	tests := []struct {
+		keyword string
+		decls   []string
+		v1Decls []string
+	}{
+		{
+			// `not (x)` is a negated group, so `not(x) := x` isn't reported here.
+			keyword: "not",
+			decls:   []string{`not := 1`, `not = 1`, `default not := 1`},
+			v1Decls: []string{`not if { true }`, `not contains 1`},
+		},
+		{
+			keyword: "some",
+			decls:   []string{`some := 1`, `some = 1`, `some(x) := x`, `default some := 1`},
+			v1Decls: []string{`some if { true }`, `some contains 1`},
+		},
+		{
+			keyword: "as",
+			decls:   []string{`as := 1`, `as = 1`, `as(x) := x`, `default as := 1`},
+			v1Decls: []string{`as if { true }`, `as contains 1`},
+		},
+		{
+			// `package if` and `package contains` name a package after a keyword, so
+			// only the forms that can't be a package path are reported.
+			keyword: "package",
+			decls:   []string{`package := 1`, `package = 1`, `package(x) := x`, `default package := 1`},
+		},
+		{
+			keyword: "import",
+			decls:   []string{`import := 1`, `import = 1`, `import(x) := x`, `default import := 1`},
+		},
+	}
+
+	assert := func(t *testing.T, decl string, v RegoVersion, expected string) {
+		t.Helper()
+		_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: v})
+		if err == nil {
+			t.Fatal("expected error, got none")
+		}
+		if !strings.Contains(err.Error(), expected) {
+			t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+		}
+	}
+
+	for _, tc := range tests {
+		expected := tc.keyword + " keyword cannot be used for rule name"
+
+		for _, decl := range tc.decls {
+			for _, v := range []RegoVersion{RegoV0, RegoV1} {
+				t.Run(fmt.Sprintf("%v/%s", v, decl), func(t *testing.T) {
+					assert(t, decl, v, expected)
+				})
+			}
+		}
+
+		for _, decl := range tc.v1Decls {
+			t.Run("v1/"+decl, func(t *testing.T) {
+				assert(t, decl, RegoV1, expected)
+			})
+		}
+	}
+
+	// Keyword-named package paths and imports (`package contains`, `import if.foo`)
+	// are covered by TestPackageContainingKeywords and TestImportContainingKeywords.
+}
+
 func TestKeywordAsRuleNameFollowingImport(t *testing.T) {
 	// The parser reads one token ahead, so the statement following a keyword
 	// import used to be scanned before the scanner knew about the keyword.

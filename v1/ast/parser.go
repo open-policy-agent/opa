@@ -443,6 +443,14 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	// point trying to parse packages, imports, etc. in the same order.
 	for p.s.tok != tokens.EOF {
 		var s *state
+
+		// Reported here rather than in parseRules: `package := 1` and `import := 1`
+		// are consumed by the statement parsers below, which fail pointing at the
+		// assign token instead of the keyword.
+		if !p.po.SkipRules && p.errKeywordRuleName(false) {
+			break
+		}
+
 		if p.s.tok == tokens.Package {
 			s = p.save()
 			if pkg := p.parsePackage(); pkg != nil {
@@ -775,10 +783,17 @@ var (
 	// `not`/`and`/`or` drop '(': at the start of a statement, `not (x)` is a negated
 	// group and `or(x, y)` a call to the set union built-in, not rule heads.
 	operatorRuleNameFollowers = []tokens.Token{tokens.Assign, tokens.Unify, tokens.If, tokens.Contains}
-	keywordRuleNameFollowers  = map[tokens.Token][]tokens.Token{
+	// `package`/`import` drop `if` and `contains`: both take a path that may itself
+	// be named after a keyword, as in `package contains` or `import if.foo`.
+	pathRuleNameFollowers    = []tokens.Token{tokens.Assign, tokens.Unify, tokens.LParen}
+	keywordRuleNameFollowers = map[tokens.Token][]tokens.Token{
 		tokens.Every:      ruleNameFollowers,
 		tokens.If:         ruleNameFollowers,
 		tokens.In:         ruleNameFollowers,
+		tokens.Some:       ruleNameFollowers,
+		tokens.As:         ruleNameFollowers,
+		tokens.Package:    pathRuleNameFollowers,
+		tokens.Import:     pathRuleNameFollowers,
 		tokens.Not:        operatorRuleNameFollowers,
 		tokens.LogicalAnd: operatorRuleNameFollowers,
 		tokens.LogicalOr:  operatorRuleNameFollowers,
@@ -803,12 +818,12 @@ func (p *Parser) reclassifyKeyword() {
 }
 
 // errKeywordRuleName reports an error if the current token is a keyword used as a
-// rule name, e.g. `every := 1`. A statement that began with `default` can only be
-// a rule, so no lookahead is needed there.
-func (p *Parser) errKeywordRuleName(isDefault bool) {
+// rule name, e.g. `every := 1`, and returns whether it did. A statement that began
+// with `default` can only be a rule, so no lookahead is needed there.
+func (p *Parser) errKeywordRuleName(isDefault bool) bool {
 	followers, ok := keywordRuleNameFollowers[p.s.tok]
 	if !ok {
-		return
+		return false
 	}
 
 	keyword, loc := p.s.tok, p.s.Loc()
@@ -820,11 +835,13 @@ func (p *Parser) errKeywordRuleName(isDefault bool) {
 		p.restore(s)
 
 		if !slices.Contains(followers, next) {
-			return
+			return false
 		}
 	}
 
 	p.errorf(loc, "%s keyword cannot be used for rule name", keyword)
+
+	return true
 }
 
 // scanAheadLogicalCall rewrites an `and`/`or` keyword token to tokens.Ident when
@@ -862,7 +879,9 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok != tokens.Ident {
-		p.errKeywordRuleName(rule.Default)
+		if rule.Default {
+			p.errKeywordRuleName(true)
+		}
 		return nil
 	}
 
