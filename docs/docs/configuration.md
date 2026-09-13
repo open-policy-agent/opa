@@ -118,7 +118,7 @@ multiple services.
 | `services[_].tls.ca_cert`                     | `string` | No                    | The path to the root CA certificate. If not provided, this defaults to TLS using the host's root CA set.                                               |
 | `services[_].tls.system_ca_required`          | `bool`   | No (default: `false`) | Require system certificate appended with root CA certificate.                                                                                          |
 | `services[_].allow_insecure_tls`              | `bool`   | No                    | Allow insecure TLS.                                                                                                                                    |
-| `services[_].type`                            | `string` | No (default: empty)   | Optional parameter that allows to use an "OCI" service type. This will allow bundle and discovery plugins to download bundles from an OCI registry.    |
+| `services[_].type`                            | `string` | No (default: empty)   | Optional parameter that allows you to use an "OCI" service type. This will allow bundle and discovery plugins to download bundles from an OCI registry.    |
 
 Services can be defined as an array or object. When defined as an object, the
 object keys override the `services[_].name` fields. For example:
