@@ -154,6 +154,28 @@ leading zero (`1.2.3+01`) all still parse.
 
 Authored by @sueun-dev
 
+### Rule indexing sees a lookup into a collection in base data
+
+A rule gated on a subject being a key of a collection in base data was recorded only as
+"this reference must be defined", so a ruleset of one rule per group left every rule a
+candidate:
+
+```rego
+allow if data.groups.admins.members[input.subject]
+
+allow if data.groups.devs.members[input.subject]
+```
+
+The index now asks the collection -- one hash lookup, nothing stored per member -- where
+every candidate is going to be evaluated anyway. A `--partial` query filtering data is
+the case that gains: 500 rules that all stayed candidates come back as one. A ruleset
+that can stop at the first definition that holds is left alone, since asking about all
+of them to exclude any is the work evaluation was about to do.
+
+Only an object is indexed this way: base data comes from JSON and holds no set, and an
+array cannot answer without being walked. `value in collection` asks after the
+collection's *values* rather than its keys, and is not indexed either.
+
 ## 1.20.2
 
 This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency

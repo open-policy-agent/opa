@@ -1,0 +1,161 @@
+---
+cases:
+  - note: a member of one group reaches that group's rule
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p := "devs" if data.groups.devs.members[input.subject]
+
+        p := "admins" if data.groups.admins.members[input.subject]
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+        admins:
+          members:
+            bob: true
+    input_term: '{"subject": "bob"}'
+    want_result:
+      - x: admins
+  - note: a member of no group reaches no rule
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p := "devs" if data.groups.devs.members[input.subject]
+
+        p := "admins" if data.groups.admins.members[input.subject]
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+        admins:
+          members:
+            bob: true
+    input_term: '{"subject": "carol"}'
+    want_result: []
+  - note: in over an object in data tests its values, not its keys
+    query: data.indexing.q = x
+    modules:
+      - |
+        package indexing
+
+        q contains "by-key" if input.subject in data.groups.devs.members
+
+        q contains "by-value" if input.role in data.groups.devs.members
+    data:
+      groups:
+        devs:
+          members:
+            alice: admin
+    input_term: '{"subject": "alice", "role": "admin"}'
+    want_result:
+      - x:
+          - by-value
+  - note: membership in an array in data is not indexed but still evaluates
+    query: data.indexing.s = x
+    modules:
+      - |
+        package indexing
+
+        s := "devs" if input.subject in data.groups.devs.member_list
+
+        s := "admins" if input.subject in data.groups.admins.member_list
+    data:
+      groups:
+        devs:
+          member_list:
+            - alice
+        admins:
+          member_list:
+            - bob
+    input_term: '{"subject": "bob"}'
+    want_result:
+      - x: admins
+  - note: a collection the data does not hold reaches no rule
+    query: data.indexing.t = x
+    modules:
+      - |
+        package indexing
+
+        t if data.groups.devs.members[input.subject]
+    data:
+      groups: {}
+    input_term: '{"subject": "alice"}'
+    want_result: []
+  - note: a with statement replacing the collection is seen
+    query: data.indexing.caller.v = x
+    modules:
+      - |
+        package indexing
+
+        u if data.groups.devs.members[input.subject]
+      - |
+        package indexing.caller
+
+        v if data.indexing.u with data.groups.devs.members as {"carol": true}
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+    input_term: '{"subject": "carol"}'
+    want_result:
+      - x: true
+  - note: a with statement may replace the collection with a set
+    query: data.indexing.caller.n = x
+    modules:
+      - |
+        package indexing
+
+        w contains "g0" if data.groups.g0.members[input.subject]
+
+        w contains "g1" if data.groups.g1.members[input.subject]
+      - |
+        package indexing.caller
+
+        n := c if {
+        	c := count(data.indexing.w) with data.groups.g0.members as {"carol"}
+        }
+    data:
+      groups:
+        g0:
+          members:
+            alice: true
+        g1:
+          members:
+            bob: true
+    input_term: '{"subject": "carol"}'
+    want_result:
+      - x: 1
+  - note: a set the subject is not in reaches no rule
+    query: data.indexing.caller.n = x
+    modules:
+      - |
+        package indexing
+
+        w contains "g0" if data.groups.g0.members[input.subject]
+
+        w contains "g1" if data.groups.g1.members[input.subject]
+      - |
+        package indexing.caller
+
+        n := c if {
+        	c := count(data.indexing.w) with data.groups.g0.members as {"dave"}
+        }
+    data:
+      groups:
+        g0:
+          members:
+            alice: true
+        g1:
+          members:
+            bob: true
+    input_term: '{"subject": "carol"}'
+    want_result:
+      - x: 0
