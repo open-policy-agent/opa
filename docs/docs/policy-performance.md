@@ -203,6 +203,25 @@ A bare reference used as a boolean check (without an explicit comparison) is als
 | `input.x.y`  | yes     |                               |
 | `input.x[i]` | no      | reference contains a variable |
 
+A reference into base data whose last element is the only variable in it is a lookup in the collection at the ground prefix, and is indexed on that last element:
+
+```rego
+allow if data.groups.admins.members[input.subject]
+```
+
+The collection's keys are not known when the index is built, so the index asks the collection as the lookup runs — one hash lookup, whatever the collection holds, and nothing stored per member. Reading it then, rather than at build time, also means a collection whose data has since changed, or that a `with` statement has replaced, is seen as it is now.
+
+Only an object is indexed this way. A set would answer the same question, but base data comes from JSON and holds none; an array cannot answer it without being walked. Nor is `input.subject in data.groups.admins.members` indexed — `in` asks after the collection's _values_, which is a walk for either.
+
+The collection is only asked about where every candidate is going to be evaluated anyway. A ruleset whose definitions all produce the same value lets evaluation stop at the first that holds, and asking about all of them to exclude any would be the work evaluation was about to do. Partial evaluation always asks, since its residual is built from every candidate, and so does a ruleset that cannot stop early — a partial set or object, or definitions that disagree on the value.
+
+| Expression                                    | Indexed | Notes                          |
+| --------------------------------------------- | ------- | ------------------------------ |
+| `data.groups.devs.members[input.subject]`     | yes     | asks the collection for a key  |
+| `data.groups[input.g].members[input.subject]` | no      | prefix contains a variable     |
+| `data.groups.devs.members[input.subject[i]]`  | no      | key contains a variable        |
+| `input.groups.devs.members[input.subject]`    | no      | collection is not in base data |
+
 #### Logical (`and`/`or`) statements
 
 Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/logical) are indexed on the indexable statements found inside their operands, following the rules above. An `and` requires both of its operands, so each is indexed on its own and an operand with nothing indexable in it still leaves the other to narrow the rule. An `or` requires only one of its operands, so it is indexed only when every operand has something indexable: an operand that doesn't could be satisfied by any input, leaving nothing the rule can be excluded on. Combining the two multiplies the ways a rule can be reached, as in `{input.a == 1 or input.a == 2} and {input.b == 1 or input.b == 2}`, which has four; past 32 for a single rule only the conditions common to every combination are indexed.
