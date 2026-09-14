@@ -288,6 +288,9 @@ func (t *Set) toMap() map[string]any {
 }
 
 func (t *Set) String() string {
+	if t.of == nil {
+		return typeSet
+	}
 	return typeSet + "[" + Sprint(t.of) + "]"
 }
 
