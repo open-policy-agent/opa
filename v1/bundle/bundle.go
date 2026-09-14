@@ -1414,11 +1414,9 @@ func (b Bundle) Copy() Bundle {
 
 	// Copy data.
 	var x any = b.Data
-
-	if err := util.RoundTrip(&x); err != nil {
+	if err := util.RoundTripFast(&x); err != nil {
 		panic(err)
 	}
-
 	if x != nil {
 		b.Data = x.(map[string]any)
 	}
