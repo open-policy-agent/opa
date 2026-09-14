@@ -486,11 +486,16 @@ func NewIterator(raw []Raw) storage.Iterator {
 func getdepth(path string, isDir bool) int {
 	if isDir {
 		cleanedPath := strings.Trim(filepath.ToSlash(path), "/")
-		return len(strings.Split(cleanedPath, "/"))
+		return segmentCount(cleanedPath)
 	}
 
 	basePath := strings.Trim(filepath.Dir(filepath.ToSlash(path)), "/")
-	return len(strings.Split(basePath, "/"))
+	return segmentCount(basePath)
+}
+
+// segmentCount avoids the []string allocation of len(strings.Split(path, "/")).
+func segmentCount(path string) int {
+	return strings.Count(path, "/") + 1
 }
 
 func getFileStoragePath(path string) (storage.Path, error) {
