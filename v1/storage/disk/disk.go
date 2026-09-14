@@ -616,7 +616,7 @@ func (db *Store) Write(ctx context.Context, txn storage.Transaction, op storage.
 		return err
 	}
 	val := util.Reference(value)
-	if err := util.RoundTrip(val); err != nil {
+	if err := util.RoundTripFast(val); err != nil {
 		return wrapError(err)
 	}
 	return underlying.Write(ctx, op, path, *val)

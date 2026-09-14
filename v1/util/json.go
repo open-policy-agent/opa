@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/open-policy-agent/opa/internal/yaml"
@@ -153,6 +155,90 @@ func NeedsRoundTrip(x any) bool {
 		return false
 	}
 	return true
+}
+
+// RoundTripFast is equivalent to [RoundTrip], but recurses natively through
+// map[string]any and []any instead of going through JSON bytes, falling
+// back to [RoundTrip] for any other type.
+func RoundTripFast(x *any) error {
+	if x == nil {
+		return nil
+	}
+	y, err := roundTripFastValue(*x, 0, nil)
+	if err != nil {
+		return err
+	}
+	*x = y
+	return nil
+}
+
+// startDetectingCyclesAfter matches encoding/json's own threshold.
+const startDetectingCyclesAfter = 1000
+
+// depth/seen detect cycles the way encoding/json does: native recursion
+// doesn't get that check for free from json.Marshal like RoundTrip's
+// fallback path does.
+func roundTripFastValue(v any, depth int, seen map[uintptr]struct{}) (any, error) {
+	switch x := v.(type) {
+	case nil, bool, string, json.Number:
+		return x, nil
+	case map[string]any:
+		if x == nil {
+			return nil, nil
+		}
+		ptr := uintptr(reflect.ValueOf(x).UnsafePointer())
+		if depth >= startDetectingCyclesAfter {
+			if _, ok := seen[ptr]; ok {
+				return nil, fmt.Errorf("json: unsupported value: encountered a cycle via %T", x)
+			}
+			seen = markSeen(seen, ptr)
+		}
+		cpy := maps.Clone(x)
+		for k, e := range cpy {
+			c, err := roundTripFastValue(e, depth+1, seen)
+			if err != nil {
+				return nil, err
+			}
+			cpy[k] = c
+		}
+		delete(seen, ptr)
+		return cpy, nil
+	case []any:
+		if x == nil {
+			return nil, nil
+		}
+		ptr := uintptr(reflect.ValueOf(x).UnsafePointer())
+		if depth >= startDetectingCyclesAfter {
+			if _, ok := seen[ptr]; ok {
+				return nil, fmt.Errorf("json: unsupported value: encountered a cycle via %T", x)
+			}
+			seen = markSeen(seen, ptr)
+		}
+		cpy := slices.Clone(x)
+		for i, e := range cpy {
+			c, err := roundTripFastValue(e, depth+1, seen)
+			if err != nil {
+				return nil, err
+			}
+			cpy[i] = c
+		}
+		delete(seen, ptr)
+		return cpy, nil
+	default:
+		y := v
+		if err := RoundTrip(&y); err != nil {
+			return nil, err
+		}
+		return y, nil
+	}
+}
+
+func markSeen(seen map[uintptr]struct{}, ptr uintptr) map[uintptr]struct{} {
+	if seen == nil {
+		seen = map[uintptr]struct{}{}
+	}
+	seen[ptr] = struct{}{}
+	return seen
 }
 
 // Reference returns a pointer to its argument unless the argument already is

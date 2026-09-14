@@ -2138,7 +2138,7 @@ func (*Rego) parseRawInput(rawInput *any, m metrics.Metrics) (ast.Value, error) 
 
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
 	// []any, the only array type ast.InterfaceToValue can work with
-	if err := util.RoundTrip(rawPtr); err != nil {
+	if err := util.RoundTripFast(rawPtr); err != nil {
 		return nil, err
 	}
 

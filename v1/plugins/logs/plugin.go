@@ -286,7 +286,7 @@ func roundtripJSONToAST(x any) (ast.Value, error) {
 	rawPtr := util.Reference(x)
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
 	// []any, the only array type ast.InterfaceToValue can work with
-	if err := util.RoundTrip(rawPtr); err != nil {
+	if err := util.RoundTripFast(rawPtr); err != nil {
 		return nil, err
 	}
 
@@ -1382,7 +1382,7 @@ func eventToFields(event EventV1) map[string]any {
 	}
 	if event.NDBuiltinCache != nil {
 		v := *event.NDBuiltinCache
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["nd_builtin_cache"] = v
 		}
 	}
@@ -1397,7 +1397,7 @@ func eventToFields(event EventV1) map[string]any {
 	addIfHasLen(fields, "metrics", event.Metrics)
 	if event.RequestID != 0 {
 		var v any = event.RequestID
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["req_id"] = v
 		}
 	}
@@ -1408,14 +1408,14 @@ func eventToFields(event EventV1) map[string]any {
 
 	if len(event.RuleLabels) > 0 {
 		var v any = event.RuleLabels
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["rule_labels"] = v
 		}
 	}
 
 	if len(event.Custom) > 0 {
 		var v any = event.Custom
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["custom"] = v
 		}
 	}
