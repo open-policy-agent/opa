@@ -1,0 +1,48 @@
+---
+# Generated externalized tests from TestQueryCompilerCheckKeywordOverrides
+cases:
+  - note: query/input assigned (strict)
+    strict: enabled
+    query:
+      body: 'input := 1'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 1
+        message: variables must not shadow input (use a different variable name)
+  - note: query/input assigned (non-strict)
+    strict: disabled
+    query:
+      body: 'input := 1'
+      want: |
+        __localq0__ = 1
+  - note: query/data assigned (strict)
+    strict: enabled
+    query:
+      body: 'data := 1'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 1
+        message: variables must not shadow data (use a different variable name)
+  - note: query/data assigned (non-strict)
+    strict: disabled
+    query:
+      body: 'data := 1'
+      want: |
+        __localq0__ = 1
+  - note: query/nested input assigned (strict)
+    strict: enabled
+    query:
+      body: 'd := [input | input := 1]'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 15
+        message: variables must not shadow input (use a different variable name)
+  - note: query/nested input assigned (non-strict)
+    strict: disabled
+    query:
+      body: 'd := [input | input := 1]'
+      want: |
+        __localq1__ = [__localq0__ | __localq0__ = 1]

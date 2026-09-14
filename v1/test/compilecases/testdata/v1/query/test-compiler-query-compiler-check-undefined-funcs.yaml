@@ -1,0 +1,43 @@
+---
+# Generated externalized tests from TestCompilerQueryCompilerCheckUndefinedFuncs
+cases:
+  - note: query/undefined function, in a query
+    query:
+      body: data.foo(1)
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: undefined function data.foo
+  - note: query/undefined global function
+    query:
+      body: foo(1)
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: undefined function foo
+  - note: query/undefined function via a var
+    query:
+      body: 'x = "f"; data[x](1)'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 10
+        message: undefined function data[x]
+  - note: query/undefined function via a declared var
+    query:
+      body: 'x := "f"; data[x](1)'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 11
+        message: undefined function data[x]
+  - note: query/undefined function via a declared var in an array
+    query:
+      body: 'x := "f"; data[[x]](1)'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 11
+        message: undefined function data[[x]]

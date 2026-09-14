@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -80,6 +81,33 @@ func generateFile(path string, mode fs.FileMode) error {
 		}
 
 		switch {
+		case tc.QueryCase() && len(reported) == 0:
+			// A query that compiles: what the case asserts is the compiled query, not
+			// what its environment modules turned into.
+			rego, marshalled, qerr := compiledQueryWant(*tc)
+			if qerr != nil {
+				return fmt.Errorf("%s: %s: %w", path, tc.Note, qerr)
+			}
+
+			// Inside the query group, so the query and what it compiles to read as one
+			// thing rather than two keys a reader has to associate. Whichever form is
+			// written, the other is removed: a query that becomes printable — or stops
+			// being printable — must not end up carrying both.
+			node := corpusgen.MapValue(caseNodes.Content[i], "query")
+			if node == nil {
+				return fmt.Errorf("%s: %s: the case has a query but no 'query' mapping to fill", path, tc.Note)
+			}
+
+			tc.Query.Want, tc.Query.WantAST = rego, marshalled
+
+			if rego != "" {
+				corpusgen.DeleteMapValue(node, "want_ast")
+				corpusgen.SetMapValue(node, "want", corpusgen.Literal(strings.TrimRight(rego, "\n")+"\n"))
+			} else {
+				corpusgen.DeleteMapValue(node, "want")
+				corpusgen.SetMapValue(node, "want_ast", corpusgen.Literal(marshalled))
+			}
+
 		case tc.Transform() && len(reported) > 0:
 			return fmt.Errorf("%s: %s: the case asserts what its modules compile to, but they report %d diagnostic(s), starting with %s",
 				path, tc.Note, len(reported), reported[0])

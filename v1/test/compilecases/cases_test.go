@@ -342,3 +342,84 @@ func TestStageIndex(t *testing.T) {
 		t.Errorf("expected an unknown stage to report -1, got %d", got)
 	}
 }
+
+// TestValidateQueryCases covers what the nested query group makes impossible and what it
+// still has to check. A half-stated query case — an expected query with no query — cannot
+// be written down at all, which is the point of the grouping.
+func TestValidateQueryCases(t *testing.T) {
+	module := "package test\n\np if {\n\ttrue\n}\n"
+
+	tests := []struct {
+		note    string
+		tc      TestCase
+		wantErr string
+	}{
+		{
+			note: "a query case asserting what the query compiles to",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Query: &QuerySpec{Body: "p", Package: "test", Want: "data.test.p"}},
+		},
+		{
+			note: "a query case asserting diagnostics",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Query:      &QuerySpec{Body: "eq()"},
+				WantErrors: []Error{{Code: "rego_type_error", Row: 1, Message: "arity mismatch"}}},
+		},
+		{
+			// The modules are the environment, so a query case has no need of them.
+			note: "a query case with no modules",
+			tc:   TestCase{Note: "a", Query: &QuerySpec{Body: "1 = 1", Want: "1 = 1"}},
+		},
+		{
+			note:    "a query group with no body",
+			tc:      TestCase{Note: "a", Modules: []string{module}, Query: &QuerySpec{Want: "x"}},
+			wantErr: "'query' needs a 'body' to compile",
+		},
+		{
+			note: "a query case that says nothing",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Query: &QuerySpec{Body: "p"}},
+			wantErr: "expected 'want_errors', or 'query.want'",
+		},
+		{
+			// A directive among the imports activates the keyword.
+			note: "a query whose imports activate a keyword and name a ref",
+			tc: TestCase{Note: "a",
+				Query: &QuerySpec{Body: "input.x or foo.y",
+					Imports: []string{"future.keywords.or", "data.x.y.z as foo"},
+					Want:    "input.x or data.x.y.z.y"}},
+		},
+		{
+			note: "a query whose imports name a malformed keyword directive",
+			tc: TestCase{Note: "a",
+				Query: &QuerySpec{Body: "input.x", Imports: []string{"future.keywords.a.b"}, Want: "input.x"}},
+			wantErr: "unrecognised 'query.imports' entry \"future.keywords.a.b\"",
+		},
+		{
+			// The modules are context; what they compile to says nothing about the query.
+			note: "a query case asserting what its modules compile to",
+			tc: TestCase{Note: "a", Modules: []string{module},
+				Query: &QuerySpec{Body: "p", Want: "data.test.p"},
+				Want:  []Want{{Module: module}}},
+			wantErr: "asserts 'query.want', not 'want'",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			err := tc.tc.Validate()
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected an error containing %q, got none", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("expected an error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}

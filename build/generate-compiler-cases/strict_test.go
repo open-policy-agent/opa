@@ -138,6 +138,20 @@ func outcome(tc compilecases.TestCase, strict bool) (string, []*ast.Module, erro
 	for _, e := range c.Errors {
 		lines = append(lines, caseError(e).String())
 	}
+
+	// A query case's outcome is the query compiler's; its modules are only the
+	// environment. Comparing those alone would call a setting immaterial whenever the
+	// only thing strict mode changes is what the query reports.
+	if tc.QueryCase() && len(c.Errors) == 0 {
+		_, qerrs, qerr := compileQuery(tc, c)
+		if qerr != nil {
+			return "", nil, qerr
+		}
+		for _, e := range qerrs {
+			lines = append(lines, e.String())
+		}
+	}
+
 	slices.Sort(lines)
 
 	out := make([]*ast.Module, 0, len(tc.Modules))

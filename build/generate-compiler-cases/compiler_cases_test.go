@@ -30,8 +30,11 @@ func TestLoadCompilerTestCases(t *testing.T) {
 			if tc.Ignore {
 				t.Errorf("%s: expected an unfiltered load to ignore nothing", tc.Note)
 			}
-			if !tc.Failure() && !tc.Transform() {
-				t.Errorf("%s: expected want_errors, want_modules or want_ast", tc.Note)
+			// A query case asserts what its query compiles to; every other one asserts
+			// what its modules do.
+			asserted := tc.Failure() || tc.Transform() || tc.QueryCase()
+			if !asserted {
+				t.Errorf("%s: expected want_errors, want, or query.want", tc.Note)
 			}
 			if other, ok := notes[tc.Note]; ok {
 				t.Errorf("%s: note is already used by %s", tc.Note, other)
@@ -333,6 +336,19 @@ func TestSchemasFilter(t *testing.T) {
 	for _, tc := range sets[0].Cases {
 		if got := SchemasFilter()(tc); got != (len(tc.Schemas) > 0) {
 			t.Errorf("%s: expected the filter to reject only a case carrying schemas, got %v", tc.Note, got)
+		}
+	}
+}
+
+func TestQueryFilter(t *testing.T) {
+	cases := []*CompilerTestCase{
+		{TestCase: compilecases.TestCase{Note: "module case"}},
+		{TestCase: compilecases.TestCase{Note: "query case", Query: &compilecases.QuerySpec{Body: "input.x"}}},
+	}
+
+	for _, tc := range cases {
+		if got := QueryFilter()(tc); got != tc.QueryCase() {
+			t.Errorf("%s: expected the filter to reject only a query case, got %v", tc.Note, got)
 		}
 	}
 }

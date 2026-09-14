@@ -1,0 +1,39 @@
+---
+# Generated externalized tests from TestQueryCompilerRewriteTemplateStrings
+cases:
+  - note: query/empty template string
+    query:
+      body: '$""'
+      want: |
+        internal.template_string([""], __localq0__); __localq0__
+  - note: query/non-empty template string with no expressions
+    query:
+      body: '$"foo"'
+      want: |
+        internal.template_string(["foo"], __localq0__); __localq0__
+  - note: query/template string with value expressions
+    query:
+      body: '$"{true} {null} {42} {1.2} {"foo"} {[1, 2]} {{1, 2}} {{"a": 1, "b": 2}}"'
+      want: |
+        __localq4__ = {__localq0__ | __localq0__ = [1, 2]}; __localq5__ = {__localq1__ | __localq1__ = {1, 2}}; __localq6__ = {__localq2__ | __localq2__ = {"a": 1, "b": 2}}; internal.template_string([true, " ", null, " ", 42, " ", 1.2, " ", "foo", " ", __localq4__, " ", __localq5__, " ", __localq6__], __localq3__); __localq3__
+  - note: query/template string with var and ref expressions
+    query:
+      body: 'x := 42; $"{x} {input.y}"'
+      want: |
+        __localq0__ = 42; __localq3__ = {__localq1__ | __localq1__ = input.y}; internal.template_string([{__localq0__}, " ", __localq3__], __localq2__); __localq2__
+  - note: query/template string with call expressions
+    query:
+      body: '$"{array.concat([1], [2])} {1 + 2} {true != false}"'
+      want: |
+        __localq7__ = {__localq0__ | array.concat([1], [2], __localq3__); __localq0__ = __localq3__}; __localq8__ = {__localq1__ | plus(1, 2, __localq4__); __localq1__ = __localq4__}; __localq9__ = {__localq2__ | neq(true, false, __localq5__); __localq2__ = __localq5__}; internal.template_string([__localq7__, " ", __localq8__, " ", __localq9__], __localq6__); __localq6__
+  - note: query/template string with comprehension expressions
+    query:
+      body: '$"{[x | x := input.xs[_]]} {{y | y := input.ys[_]}} {{a: b | a := input.as[_]; b := input.bs[_]}}"'
+      want: |
+        __localq8__ = {__localq4__ | __localq4__ = [__localq0__ | __localq0__ = input.xs[_]]}; __localq9__ = {__localq5__ | __localq5__ = {__localq1__ | __localq1__ = input.ys[_]}}; __localq10__ = {__localq6__ | __localq6__ = {__localq2__: __localq3__ | __localq2__ = input["as"][_]; __localq3__ = input.bs[_]}}; internal.template_string([__localq8__, " ", __localq9__, " ", __localq10__], __localq7__); __localq7__
+  - note: query/binding
+    strict: disabled
+    query:
+      body: 'x := 42; y := $"{x}"'
+      want: |
+        __localq0__ = 42; internal.template_string([{__localq0__}], __localq2__); __localq1__ = __localq2__

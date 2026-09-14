@@ -93,6 +93,15 @@ func SchemasFilter() Filters {
 	}
 }
 
+// QueryFilter will filter out any test case that compiles a query. A query is a body
+// rather than a module, so running these needs a body parser and the QueryCompiler entry
+// point; an implementation with neither says so here.
+func QueryFilter() Filters {
+	return func(tc *CompilerTestCase) bool {
+		return tc.QueryCase()
+	}
+}
+
 // LoadCompilerTestCases returns the compiler conformance corpus, which is the
 // committed cases unchanged — a consumer that wants only those can read the
 // embedded YAML directly and skip this package entirely.

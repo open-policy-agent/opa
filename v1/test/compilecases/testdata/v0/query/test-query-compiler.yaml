@@ -1,0 +1,12 @@
+---
+# Generated externalized tests from TestQueryCompiler
+cases:
+  - note: query/unsafe var that is a future keyword
+    rego_version: v0
+    query:
+      body: 1 in 2
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 1
+        col: 3
+        message: 'var in is unsafe (hint: `import future.keywords.in` to import a future keyword)'

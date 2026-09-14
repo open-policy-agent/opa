@@ -1,0 +1,33 @@
+---
+# Generated externalized tests from TestQueryCompilerWithDeprecatedBuiltins
+cases:
+  - note: query/all() built-in (strict)
+    strict: enabled
+    query:
+      body: 'all([true, false])'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'deprecated built-in function calls in expression: all'
+  - note: query/all() built-in (non-strict)
+    strict: disabled
+    query:
+      body: 'all([true, false])'
+      want: |
+        all([true, false])
+  - note: query/any() built-in (strict)
+    strict: enabled
+    query:
+      body: 'any([true, false])'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'deprecated built-in function calls in expression: any'
+  - note: query/any() built-in (non-strict)
+    strict: disabled
+    query:
+      body: 'any([true, false])'
+      want: |
+        any([true, false])

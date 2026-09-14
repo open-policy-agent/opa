@@ -105,7 +105,7 @@ func ModuleName(i int) string {
 type TestCase struct {
 	Filename             string   `json:"-"                                yaml:"-"`                               // name of file that case was loaded from
 	Note                 string   `json:"note"                             yaml:"note"`                            // globally unique identifier for this test case
-	Modules              []string `json:"modules"                          yaml:"modules"`                         // policies to compile, named test-0.rego, test-1.rego, ...
+	Modules              []string `json:"modules,omitempty"                yaml:"modules,omitempty"`               // policies to compile, named test-0.rego, test-1.rego, ...
 	RegoVersion          string   `json:"rego_version,omitempty"           yaml:"rego_version,omitempty"`          // rego version to parse the modules as: v0, v1 (default), or v0-compat-v1
 	Strict               string   `json:"strict,omitempty"                 yaml:"strict,omitempty"`                // enabled, disabled, or absent where strict mode does not change the outcome
 	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
@@ -121,6 +121,11 @@ type TestCase struct {
 	// Want is what compiling produces, one entry per module, in the same order.
 	// Generated, not authored: run `make generate` and review the diff.
 	Want []Want `json:"want,omitempty"  yaml:"want,omitempty"`
+
+	// Query, where present, makes this a query case: what it asserts is what the *query*
+	// compiles to, and the modules are the environment it is compiled in. Nil for every
+	// other case.
+	Query *QuerySpec `json:"query,omitempty"  yaml:"query,omitempty"`
 
 	// WantStages is what the modules look like when the pipeline stops after a named
 	// stage, keyed by stage name, one entry per module.
@@ -169,9 +174,39 @@ type Want struct {
 	AST string `json:"ast,omitempty"  yaml:"ast,omitempty"`
 }
 
+// QuerySpec is a query to compile against a case's modules, with the context it is
+// compiled in and what it must compile to.
+type QuerySpec struct {
+	// Body is the query, as Rego.
+	Body string `json:"body"  yaml:"body"`
+
+	// Package is the package the query is compiled relative to.
+	Package string `json:"package,omitempty"  yaml:"package,omitempty"`
+
+	// Imports is in effect for Body and Want; including directive imports like future.keywords
+	Imports []string `json:"imports,omitempty"  yaml:"imports,omitempty"`
+
+	// Want is what compiling Body produces, as Rego. Compared as an AST, like
+	// Want.Module: the text is only how it is written down. Absent where the case asserts
+	// want_errors instead.
+	//
+	// Generated, not authored: run `make generate` and review the diff.
+	Want string `json:"want,omitempty"  yaml:"want,omitempty"`
+
+	// WantAST is the same assertion marshalled, for a compiled query with no Rego
+	// spelling that parses back to it.
+	WantAST string `json:"want_ast,omitempty"  yaml:"want_ast,omitempty"`
+}
+
 // Transform reports whether tc asserts what its modules compile to.
 func (tc TestCase) Transform() bool {
 	return len(tc.Want) > 0
+}
+
+// QueryCase reports whether tc compiles a query rather than asserting what its modules
+// compile to.
+func (tc TestCase) QueryCase() bool {
+	return tc.Query != nil
 }
 
 // SortedSchemas returns the schema references tc attaches, in a stable order. Ranging
@@ -207,7 +242,7 @@ func (tc TestCase) Validate() error {
 	switch {
 	case tc.Note == "":
 		return errors.New("missing 'note'")
-	case len(tc.Modules) == 0:
+	case len(tc.Modules) == 0 && !tc.QueryCase():
 		return errors.New("missing 'modules'")
 	case tc.RegoVersion != "" && !slices.Contains(RegoVersions, tc.RegoVersion):
 		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
@@ -216,8 +251,31 @@ func (tc TestCase) Validate() error {
 			tc.Strict, Strictnesses)
 	case tc.Exhaustive && !tc.Failure():
 		return errors.New("'exhaustive' only applies to a case asserting 'want_errors'")
-	case !tc.Failure() && !tc.Transform():
+	case tc.QueryCase() && tc.Transform():
+		return errors.New("a case compiling a 'query' asserts 'query.want', not 'want': its modules are the environment the query is compiled in")
+	case tc.QueryCase() && tc.Query.Body == "":
+		// Absent, not blank: a body of nothing but whitespace is a case in its own right.
+		return errors.New("'query' needs a 'body' to compile")
+	case tc.QueryCase() && tc.Query.Want != "" && tc.Query.WantAST != "":
+		return errors.New("'query' has both 'want' and 'want_ast', which are two spellings of one assertion")
+	case tc.QueryCase() && !tc.Failure() && tc.Query.Want == "" && tc.Query.WantAST == "":
+		return errors.New("expected 'want_errors', or 'query.want' where the query compiles; run `make generate` to fill one in")
+	case !tc.QueryCase() && !tc.Failure() && !tc.Transform():
 		return errors.New("expected 'want_errors', or 'want' where the modules compile; run `make generate` to fill one in")
+	}
+
+	// Not query.body: the check exists so a module can be written as a block scalar, and a
+	// query is a scalar either way. One that is nothing but whitespace is a case in its
+	// own right — an empty query cannot be compiled.
+	if tc.QueryCase() {
+		if err := conformance.CheckTrailingWhitespace("query.want", tc.Query.Want); err != nil {
+			return err
+		}
+		// A directive among the query's imports decides how its body reads, so a malformed
+		// one is rejected here rather than at the parse it would silently change.
+		if _, err := tc.QueryParserOptions(); err != nil {
+			return err
+		}
 	}
 
 	if tc.Transform() {
@@ -325,33 +383,67 @@ func (tc TestCase) WantStageParserOptions(stage string, i int) (WantOptions, err
 	return tc.wantOptions(fmt.Sprintf("want_stages.%s[%d]", stage, i), want[i])
 }
 
+// QueryParserOptions are the options query.body and query.want are read with, taken from
+// the directives among the query's own imports — the same list that is in scope for it,
+// and the same derivation OPA makes for a query handed to it with `--import`.
+func (tc TestCase) QueryParserOptions() (WantOptions, error) {
+	out := WantOptions{RegoVersion: tc.RegoVersion}
+	if !tc.QueryCase() {
+		return out, nil
+	}
+
+	for _, imp := range tc.Query.Imports {
+		// A non-directive is a ref in scope, which is not this function's business.
+		if _, err := directiveOption("query.imports", imp, &out); err != nil {
+			return WantOptions{}, err
+		}
+	}
+
+	return out, nil
+}
+
 func (tc TestCase) wantOptions(at string, w Want) (WantOptions, error) {
 	out := WantOptions{RegoVersion: tc.RegoVersion}
 
 	for _, imp := range w.Imports {
-		switch {
-		case imp == "rego.v1":
-			// Not v0-compat-v1: that mode requires the import the printed form no
-			// longer carries.
-			out.RegoVersion = "v1"
-
-		case imp == "future.keywords":
-			out.AllFutureKeywords = true
-
-		case strings.HasPrefix(imp, "future.keywords."):
-			kw := strings.TrimPrefix(imp, "future.keywords.")
-			if kw == "" || strings.Contains(kw, ".") {
-				return WantOptions{}, fmt.Errorf("unrecognised '%s.imports' entry %q", at, imp)
-			}
-			out.FutureKeywords = append(out.FutureKeywords, kw)
-
-		default:
+		directive, err := directiveOption(at+".imports", imp, &out)
+		if err != nil {
+			return WantOptions{}, err
+		}
+		if !directive {
 			return WantOptions{}, fmt.Errorf("unrecognised '%s.imports' entry %q; "+
 				"expected rego.v1, future.keywords or future.keywords.<keyword>", at, imp)
 		}
 	}
 
 	return out, nil
+}
+
+// directiveOption folds a directive import into parser options, reporting whether imp was
+// a directive at all. A query's imports hold the refs in scope for it too, and those are
+// not directives.
+func directiveOption(at, imp string, out *WantOptions) (bool, error) {
+	switch {
+	case imp == "rego.v1":
+		// Not v0-compat-v1: that mode requires the import the printed form no
+		// longer carries.
+		out.RegoVersion = "v1"
+
+	case imp == "future.keywords":
+		out.AllFutureKeywords = true
+
+	case strings.HasPrefix(imp, "future.keywords."):
+		kw := strings.TrimPrefix(imp, "future.keywords.")
+		if kw == "" || strings.Contains(kw, ".") {
+			return false, fmt.Errorf("unrecognised '%s' entry %q", at, imp)
+		}
+		out.FutureKeywords = append(out.FutureKeywords, kw)
+
+	default:
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // ModuleNames returns the names the case's modules are compiled under.

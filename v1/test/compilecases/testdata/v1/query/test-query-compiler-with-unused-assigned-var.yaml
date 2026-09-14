@@ -1,0 +1,63 @@
+---
+# Generated externalized tests from TestQueryCompilerWithUnusedAssignedVar
+cases:
+  - note: query/array comprehension (strict)
+    strict: enabled
+    query:
+      body: '[1 | x := 2]'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 6
+        message: assigned var x unused
+  - note: query/array comprehension (non-strict)
+    strict: disabled
+    query:
+      body: '[1 | x := 2]'
+      want: |
+        [1 | __localq0__ = 2]
+  - note: query/set comprehension (strict)
+    strict: enabled
+    query:
+      body: '{1 | x := 2}'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 6
+        message: assigned var x unused
+  - note: query/set comprehension (non-strict)
+    strict: disabled
+    query:
+      body: '{1 | x := 2}'
+      want: |
+        {1 | __localq0__ = 2}
+  - note: query/object comprehension (strict)
+    strict: enabled
+    query:
+      body: '{1: 2 | x := 2}'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 9
+        message: assigned var x unused
+  - note: query/object comprehension (non-strict)
+    strict: disabled
+    query:
+      body: '{1: 2 | x := 2}'
+      want: |
+        {1: 2 | __localq0__ = 2}
+  - note: 'query/every: unused var in body (strict)'
+    strict: enabled
+    query:
+      body: 'every _ in [] { x := 10 }'
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 17
+        message: assigned var x unused
+  - note: 'query/every: unused var in body (non-strict)'
+    strict: disabled
+    query:
+      body: 'every _ in [] { x := 10 }'
+      want: |
+        __localq2__ = []; every __localq0__, _ in __localq2__ { __localq1__ = 10 }

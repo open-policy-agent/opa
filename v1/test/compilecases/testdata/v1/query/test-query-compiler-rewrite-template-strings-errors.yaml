@@ -1,0 +1,11 @@
+---
+# Generated externalized tests from TestQueryCompilerRewriteTemplateStringsErrors
+cases:
+  - note: query/unsafe var
+    query:
+      body: '$"{x}"'
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 1
+        col: 1
+        message: var x is unsafe

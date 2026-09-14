@@ -37,9 +37,29 @@ func parserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
 	return popts, nil
 }
 
+// queryParserOptions are the options a query case's body and expectation are read with.
+func queryParserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
+	popts, err := parserOptions(tc)
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+
+	declared, err := tc.QueryParserOptions()
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+	popts.FutureKeywords = declared.FutureKeywords
+	popts.AllFutureKeywords = declared.AllFutureKeywords
+
+	return popts, nil
+}
+
 // caseDiagnostics compiles a case's modules and returns the diagnostics, sorted. A
 // module that does not parse is an error rather than a diagnostic: parse behaviour
 // belongs to the parser corpus.
+//
+// For a query case the diagnostics are the query compiler's: its modules are the
+// environment and have to compile cleanly.
 func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 	popts, err := parserOptions(tc)
 	if err != nil {
@@ -51,13 +71,30 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 		return nil, err
 	}
 
+	if tc.QueryCase() {
+		if len(compiled.Errors) > 0 {
+			return nil, fmt.Errorf("a query case's modules are its environment and must compile, but they report %d diagnostic(s), starting with %s",
+				len(compiled.Errors), compiled.Errors[0])
+		}
+
+		_, qerrs, qerr := compileQuery(tc, compiled)
+		if qerr != nil {
+			return nil, qerr
+		}
+		return sortedErrors(qerrs), nil
+	}
+
 	reported := make([]conformance.Error, 0, len(compiled.Errors))
 	for _, e := range compiled.Errors {
 		reported = append(reported, caseError(e))
 	}
 
-	// The runner matches as a set, but a generated file has to be stable.
-	slices.SortFunc(reported, func(a, b conformance.Error) int {
+	return sortedErrors(reported), nil
+}
+
+// sortedErrors orders diagnostics for a stable file. The runner matches as a set.
+func sortedErrors(in []conformance.Error) []conformance.Error {
+	slices.SortFunc(in, func(a, b conformance.Error) int {
 		return cmp.Or(
 			cmp.Compare(a.ModuleOrDefault(), b.ModuleOrDefault()),
 			cmp.Compare(a.Row, b.Row),
@@ -66,8 +103,138 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 			cmp.Compare(a.Message, b.Message),
 		)
 	})
+	return in
+}
 
-	return reported, nil
+// compileQuery compiles a case's query against its already-compiled modules, returning
+// the compiled body and whatever the query compiler reported.
+//
+// The options come off the case rather than from the caller: a query is read with the
+// directives among its own imports, not with whatever the modules were parsed under.
+func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.Body, []conformance.Error, error) {
+	popts, err := queryParserOptions(tc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	query, err := ast.ParseBodyWithOpts(tc.Query.Body, popts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query.body does not parse: %w", err)
+	}
+
+	qc := compiled.QueryCompiler()
+
+	// Set only where the case names one: an empty QueryContext is not the same as none.
+	if tc.Query.Package != "" || len(tc.Query.Imports) > 0 {
+		var qctx *ast.QueryContext
+
+		if tc.Query.Package != "" {
+			pkg, perr := ast.ParsePackage("package " + tc.Query.Package)
+			if perr != nil {
+				return nil, nil, fmt.Errorf("query.package does not parse: %w", perr)
+			}
+			qctx = qctx.WithPackage(pkg)
+		}
+		if len(tc.Query.Imports) > 0 {
+			decls := make([]string, 0, len(tc.Query.Imports))
+			for _, path := range tc.Query.Imports {
+				decls = append(decls, "import "+path)
+			}
+			imports, ierr := ast.ParseImports(strings.Join(decls, "\n"))
+			if ierr != nil {
+				return nil, nil, fmt.Errorf("query.imports do not parse: %w", ierr)
+			}
+			qctx = qctx.WithImports(imports)
+		}
+
+		qc = qc.WithContext(qctx)
+	}
+
+	body, cerr := qc.Compile(query)
+	if cerr == nil {
+		return body, nil, nil
+	}
+
+	errs, ok := errors.AsType[ast.Errors](cerr)
+	if !ok {
+		return nil, nil, fmt.Errorf("compiling the query failed with %v, which is not an ast.Errors", cerr)
+	}
+
+	out := make([]conformance.Error, 0, len(errs))
+	for _, e := range errs {
+		out = append(out, caseError(e))
+	}
+
+	return nil, out, nil
+}
+
+// compiledQuery returns what the case's query compiles to: Rego where the printed body
+// parses back to it, marshalled AST where it does not.
+//
+// Checked rather than assumed, exactly as formatModule checks a module. A query cannot
+// declare the imports its own compiled form needs, so `and`, `or` and `not` all print as
+// text that reads differently when reparsed — committing that text unverified would
+// produce a fixture asserting something the compiler never emitted.
+func compiledQueryWant(tc compilecases.TestCase) (rego, marshalled string, err error) {
+	popts, perr := queryParserOptions(tc)
+	if perr != nil {
+		return "", "", perr
+	}
+
+	body, qerr := compiledQueryBody(tc)
+	if qerr != nil {
+		return "", "", qerr
+	}
+
+	text := body.String()
+
+	if back, berr := ast.ParseBodyWithOpts(text, popts); berr == nil && body.Equal(back) {
+		return text, "", nil
+	}
+
+	m, merr := marshalBody(body)
+	if merr != nil {
+		return "", "", merr
+	}
+
+	return "", m, nil
+}
+
+// marshalBody renders a compiled query as the AST form of a query expectation.
+func marshalBody(body ast.Body) (string, error) {
+	restore := astJSON.GetOptions()
+	astJSON.SetOptions(conformance.MarshalOptions(false, false))
+	defer astJSON.SetOptions(restore)
+
+	bs, err := json.Marshal(body)
+	if err != nil {
+		return "", err
+	}
+
+	return conformance.FormatAST(bs)
+}
+
+// compiledQueryBody compiles the case's query and returns the body it produced.
+func compiledQueryBody(tc compilecases.TestCase) (ast.Body, error) {
+	popts, err := parserOptions(tc)
+	if err != nil {
+		return nil, err
+	}
+
+	compiled, err := compileCase(tc, popts)
+	if err != nil {
+		return nil, err
+	}
+
+	body, qerrs, qerr := compileQuery(tc, compiled)
+	if qerr != nil {
+		return nil, qerr
+	}
+	if len(qerrs) > 0 {
+		return nil, fmt.Errorf("the query reports %d diagnostic(s), starting with %s", len(qerrs), qerrs[0])
+	}
+
+	return body, nil
 }
 
 func caseError(e *ast.Error) conformance.Error {

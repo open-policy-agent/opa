@@ -1,0 +1,324 @@
+---
+# Generated externalized tests from TestQueryCompiler
+cases:
+  - note: query/empty query
+    query:
+      body: "   \t \n # foo \n"
+    want_errors:
+      - code: rego_compile_error
+        row: 0
+        message: empty query cannot be compiled
+  - note: query/invalid eq
+    query:
+      body: eq()
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'eq: arity mismatch'
+        detail: |-
+          have: ()
+          want: (any, any)
+  - note: query/invalid eq-2
+    query:
+      body: eq(1)
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'eq: arity mismatch'
+        detail: |-
+          have: (number)
+          want: (any, any)
+  - note: query/rewrite assignment
+    strict: disabled
+    query:
+      body: 'a := 1; [b, c] := data.foo'
+      want: |
+        __localq0__ = 1; [__localq1__, __localq2__] = data.foo
+  - note: query/exports resolved
+    strict: disabled
+    modules:
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.x.y.z as foo
+        import data.g.h.k
+
+        p contains x if { q[x]; not r[x] }
+        q contains x if { foo[i] = x }
+        z = 400 if { true }
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.bar
+        import data.x.y.p
+
+        r contains x if { bar[x] = 100; p = 101 }
+    query:
+      body: z
+      package: a.b.c
+      want: |
+        data.a.b.c.z
+  - note: query/imports resolved
+    strict: disabled
+    modules:
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.x.y.z as foo
+        import data.g.h.k
+
+        p contains x if { q[x]; not r[x] }
+        q contains x if { foo[i] = x }
+        z = 400 if { true }
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.bar
+        import data.x.y.p
+
+        r contains x if { bar[x] = 100; p = 101 }
+    query:
+      body: z
+      package: a.b.c.d
+      imports: [data.a.b.c.z]
+      want: |
+        data.a.b.c.z
+  - note: query/rewrite comprehensions
+    query:
+      body: '[x[i] | a = [[1], [2]]; x = a[j]]'
+      want: |
+        [__localq0__ | a = [[1], [2]]; x = a[j]; __localq0__ = x[i]]
+  - note: query/unsafe vars
+    query:
+      body: z
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 1
+        col: 1
+        message: var z is unsafe
+  - note: query/unsafe declared var
+    query:
+      body: '[1 | some x; x == 1]'
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 1
+        col: 14
+        message: var x is unsafe
+  - note: query/safe vars
+    query:
+      body: 'data; abc'
+      package: ex
+      imports: [input.xyz as abc]
+      want: |
+        data; input.xyz
+  - note: query/reorder
+    query:
+      body: 'x != 1; x = 0'
+      want: |
+        x = 0; neq(x, 1)
+  - note: query/bad with target
+    query:
+      body: x = 1 with foo.p as null
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 12
+        message: with keyword target must reference existing input, data, or a function
+  - note: query/rewrite with value
+    strict: disabled
+    modules:
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.x.y.z as foo
+        import data.g.h.k
+
+        p contains x if { q[x]; not r[x] }
+        q contains x if { foo[i] = x }
+        z = 400 if { true }
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.bar
+        import data.x.y.p
+
+        r contains x if { bar[x] = 100; p = 101 }
+    query:
+      body: '1 with input as [z]'
+      package: a.b.c
+      want: |
+        __localq1__ = data.a.b.c.z; __localq0__ = [__localq1__]; 1 with input as __localq0__
+  - note: query/built-in function arity mismatch
+    query:
+      body: 'startswith("x")'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'startswith: arity mismatch'
+        detail: |-
+          have: (string)
+          want: (search: string, base: string)
+  - note: query/built-in function arity mismatch (arity 0)
+    strict: disabled
+    query:
+      body: 'x := opa.runtime("foo")'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 6
+        message: 'opa.runtime: arity mismatch'
+        detail: |-
+          have: (string, ???)
+          want: ()
+  - note: query/built-in function arity mismatch, nested
+    query:
+      body: count(sum())
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 7
+        message: 'sum: arity mismatch'
+        detail: |-
+          have: (???)
+          want: (collection: any<array[number], set[number]>)
+  - note: query/check types
+    strict: disabled
+    modules:
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.x.y.z as foo
+        import data.g.h.k
+
+        p contains x if { q[x]; not r[x] }
+        q contains x if { foo[i] = x }
+        z = 400 if { true }
+      - |
+        package a.b.c
+
+        import rego.v1
+        import data.bar
+        import data.x.y.p
+
+        r contains x if { bar[x] = 100; p = 101 }
+    query:
+      body: 'x = data.a.b.c.z; y = null; x = y'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 29
+        message: match error
+        detail: |-
+          left  : number
+          right : null
+  - note: query/undefined function
+    query:
+      body: data.deadbeef(x)
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: undefined function data.deadbeef
+  - note: query/composite ref subject not leaked in type error
+    query:
+      body: '[1, 2][i][j]'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'undefined ref: [1, 2][i][j]'
+        detail: |-
+          [1, 2][i][j]
+          ^^^^^^^^^
+          have: number
+  - note: query/dynamic index local not leaked in type error
+    query:
+      body: '[1, 2][input.x][j]'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'undefined ref: [1, 2][input.x][j]'
+        detail: |-
+          [1, 2][input.x][j]
+          ^^^^^^^^^^^^^^^
+          have: number
+  - note: query/nested dynamic index locals not leaked in type error
+    query:
+      body: '[1, 2][input.a[input.b]][j]'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'undefined ref: [1, 2][input.a[input.b]][j]'
+        detail: |-
+          [1, 2][input.a[input.b]][j]
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+          have: number
+  - note: query/call ref subject not leaked in type error
+    query:
+      body: 'opa.runtime()[0].foo'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'undefined ref: opa.runtime()[0].foo'
+        detail: |-
+          opa.runtime()[0].foo
+                        ^
+                        have: 0
+                        want (type): string
+  - note: query/call index local not leaked in type error
+    query:
+      body: '{"a": 1}[count([1, 2])]'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'undefined ref: {"a": 1}[count([1, 2])]'
+        detail: |-
+          {"a": 1}[count([1, 2])]
+                   ^
+                   have (type): number
+                   want (one of): ["a"]
+  - note: query/nested call arguments not leaked in type error
+    query:
+      body: 'count(input.a[input.b])[0]'
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 1
+        message: 'undefined ref: count(input.a[input.b])[0]'
+        detail: |-
+          count(input.a[input.b])[0]
+          ^^^^^^^^^^^^^^^^^^^^^^^
+          have: number
+  - note: query/imports resolved without package
+    query:
+      body: abc
+      imports: [input.xyz as abc]
+      want: |
+        input.xyz
+  - note: query/void call used as value
+    query:
+      body: x = print(1)
+    want_errors:
+      - code: rego_type_error
+        row: 1
+        col: 5
+        message: print(1) used as value
+  - note: query/print call erasure
+    query:
+      body: print(1)
+      want: |
+        true

@@ -1,0 +1,39 @@
+---
+# Generated externalized tests from TestQueryCompilerAndOrImports
+cases:
+  - note: query/and basic
+    query:
+      body: input.x and input.y
+      imports: [future.keywords.and, future.keywords.or, future.keywords.not]
+      want: |
+        input.x and input.y
+  - note: query/or basic
+    query:
+      body: input.x or input.y
+      imports: [future.keywords.and, future.keywords.or, future.keywords.not]
+      want: |
+        input.x or input.y
+  - note: query/explicit body with internal local
+    query:
+      body: '{x := 1; x > 0} and true'
+      imports: [future.keywords.and, future.keywords.or, future.keywords.not]
+      want: |
+        { __localq0__ = 1; gt(__localq0__, 0) } and true
+  - note: query/assign in implicit or operand
+    query:
+      body: 'input.x or y := input.y'
+      imports: [future.keywords.and, future.keywords.or, future.keywords.not]
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 12
+        message: cannot assign vars inside implicit or operand
+  - note: query/assign in implicit not body
+    query:
+      body: 'input.x and not y := input.y'
+      imports: [future.keywords.and, future.keywords.or, future.keywords.not]
+    want_errors:
+      - code: rego_compile_error
+        row: 1
+        col: 17
+        message: cannot assign vars inside negated expression

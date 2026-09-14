@@ -57,6 +57,7 @@ line. The loader names the offending line rather than stripping it.
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
 | `want` | what compiling produces, one entry per module — see [Transformations](#transformations) |
 | `schemas` | JSON Schemas the modules refer to from their metadata annotations — see [Schemas](#schemas) |
+| `query` | a query to compile against the modules, instead of asserting what they compile to — see [Queries](#queries) |
 | `want_stages` | what the modules look like partway through, keyed by compiler stage — see [Stages](#stages) |
 
 Activate a future keyword with an `import` in the module rather than a field on
@@ -184,6 +185,80 @@ in, and annotated with what disqualified it:
       - ast: |
           {
 ```
+
+## Queries
+
+A case that carries a `query` asserts what **the query** compiles to, not what its
+modules do. The modules are the environment the query is compiled in, and must compile
+cleanly themselves:
+
+```yaml
+  - note: query/relative to a package
+    modules:
+      - |
+        package a.b.c
+
+        p if {
+        	true
+        }
+    query:
+      body: p
+      package: a.b.c
+      want: |
+        data.a.b.c.p
+```
+
+The query, its context and what it compiles to are **one group**, not four keys a reader
+has to associate. `query.body` is required; `package`, `imports`, `want` and `want_ast`
+are optional.
+The group being absent is what makes a case an ordinary module case, so a half-stated one
+— an expected query with no query to compile — cannot be written down.
+
+`want_errors` on a query case is what compiling the *query* reported. `want` is not
+allowed there — the modules are context, and recording what they turned into would say
+nothing about the query.
+
+`package` and `imports` hold paths, without the `package` and `import` keywords; the
+runner puts those back.
+
+A **directive** among those imports is in effect for `body` and `want` as well as being in
+scope. That is how a query activates a future keyword: a body has nowhere to carry an
+import of its own, so the ones handed to it alongside do the work. `opa eval 'true or
+false' --import future.keywords.or` is the same mechanism, and OPA derives a query's
+parser options from the same list it puts in the query context:
+
+```yaml
+  - note: query/or, simple
+    query:
+      body: input.x or input.y
+      imports: [future.keywords.or, data.x.y.z as foo]
+      want: |
+        input.x or input.y
+```
+
+Refs in scope and directives sit in one list, as they do on the command line; the runner
+passes all of them to the query context and reads the directives off them.
+
+The set is load-bearing, not decoration. Read `body` without `or` active and
+`input.x or input.y` is three expressions rather than one, and the case quietly asserts
+something else. It can also change what the compiler *reports*: `input.x and not y :=
+input.y` is rejected as an assignment inside a negated expression with `not` active, and
+as one inside an implicit `and` operand without it.
+
+`query.want_ast` is the fallback where the compiled query has no Rego spelling that parses
+back to it, and it is the same choice `want[i].ast` makes for a module — except that a
+query has nowhere to put an import. A module whose compiled form needs `and` or `or` active
+declares it in `want[i].imports`; a query cannot, so the AST form is the only one that
+holds. The generator decides by attempting the round-trip, never by being told, and writes
+one form or the other — never both.
+
+A query case may have no `modules` at all — a query compiled against an empty
+environment is a case in its own right.
+
+**A query is a body, not a module**, so running these needs a body parser as well as the
+query-compiler entry point. `QueryFilter()` is for an implementation with neither. Note
+that the parser corpus asserts module parsing only, so it does not yet establish the
+baseline these cases rest on.
 
 ## Schemas
 
@@ -431,6 +506,11 @@ support is your prerogative, and you may narrow it however you like — a case t
 "compile this with `rule_head_refs` off and reject it" would be asserting OPA's way of
 describing a feature set rather than the language itself. OPA's own capability-gated
 tests stay in Go for that reason.
+
+**An unsafe built-in set.** `WithUnsafeBuiltins` restricts which built-ins a caller may
+invoke. That is a host's decision about its own deployment, not a property of the
+language, and its diagnostics are only reachable for an implementation that has the
+concept at all — the same argument as capabilities above. OPA's tests for it stay in Go.
 
 Where a case does depend on something optional, it says so in a field a consumer can
 filter on — `rego_version`, `strict`, `experimental_keywords`, `schemas` — rather than

@@ -1,0 +1,15 @@
+---
+# Generated externalized tests from TestQueryCompilerRewrittenVars
+cases:
+  - note: query/assign
+    strict: disabled
+    query:
+      body: 'a := 1'
+      want: |
+        __localq0__ = 1
+  - note: query/suppress only seen
+    strict: disabled
+    query:
+      body: 'b = 1; a := b'
+      want: |
+        b = 1; __localq0__ = b

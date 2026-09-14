@@ -6,7 +6,9 @@ package ast
 
 import (
 	"encoding/json"
+	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -57,6 +59,17 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 	got := make([]conformance.Error, 0, len(c.Errors))
 	for _, e := range c.Errors {
 		got = append(got, caseError(e))
+	}
+
+	// A query case's diagnostics come from compiling the query, so its modules must
+	// compile cleanly whatever it asserts.
+	if tc.QueryCase() {
+		if len(got) > 0 {
+			t.Fatalf("%s: a query case's modules are its environment and must compile, got:%s",
+				tc.Filename, indented(got))
+		}
+		assertCaseQuery(t, tc, popts, c)
+		return
 	}
 
 	// An absent want_errors is itself an assertion: nothing may be reported. That
@@ -157,6 +170,115 @@ func compileCaseModules(t *testing.T, tc compilecases.TestCase, popts ParserOpti
 	c.Compile(modules)
 
 	return c
+}
+
+// assertCaseQuery compiles the case's query against its modules and checks what came
+// back: the compiled query where the case names one, the diagnostics otherwise.
+func assertCaseQuery(t *testing.T, tc compilecases.TestCase, popts ParserOptions, c *Compiler) {
+	t.Helper()
+
+	// A directive among the query's imports is in effect for its body, which is how a
+	// body activates a future keyword.
+	declared, err := tc.QueryParserOptions()
+	if err != nil {
+		t.Fatalf("%s: %v", tc.Filename, err)
+	}
+	popts.FutureKeywords = declared.FutureKeywords
+	popts.AllFutureKeywords = declared.AllFutureKeywords
+
+	query, perr := ParseBodyWithOpts(tc.Query.Body, popts)
+	if perr != nil {
+		t.Fatalf("%s: query.body does not parse: %v", tc.Filename, perr)
+	}
+
+	qc := c.QueryCompiler()
+
+	// The context is the package the query is relative to and the imports in scope, and
+	// is set only where the case names one: an empty QueryContext is not the same as none.
+	if tc.Query.Package != "" || len(tc.Query.Imports) > 0 {
+		var qctx *QueryContext
+
+		if tc.Query.Package != "" {
+			pkg, perr := ParsePackage("package " + tc.Query.Package)
+			if perr != nil {
+				t.Fatalf("%s: query.package does not parse: %v", tc.Filename, perr)
+			}
+			qctx = qctx.WithPackage(pkg)
+		}
+		if len(tc.Query.Imports) > 0 {
+			imports, ierr := ParseImports(importDecls(tc.Query.Imports))
+			if ierr != nil {
+				t.Fatalf("%s: query.imports do not parse: %v", tc.Filename, ierr)
+			}
+			qctx = qctx.WithImports(imports)
+		}
+
+		qc = qc.WithContext(qctx)
+	}
+
+	compiled, cerr := qc.Compile(query)
+
+	got := make([]conformance.Error, 0)
+	if cerr != nil {
+		errs, ok := errors.AsType[Errors](cerr)
+		if !ok {
+			t.Fatalf("%s: compiling the query failed with %v, which is not an ast.Errors", tc.Filename, cerr)
+		}
+		for _, e := range errs {
+			got = append(got, caseError(e))
+		}
+	}
+
+	if tc.Failure() {
+		if len(got) == 0 {
+			t.Fatalf("%s: expected compiling the query to fail, but it succeeded", tc.Filename)
+		}
+		assertCaseErrors(t, tc.Filename, tc.WantErrors, got, tc.Exhaustive)
+		return
+	}
+
+	if len(got) > 0 {
+		t.Fatalf("%s: expected the query to compile, got:%s", tc.Filename, indented(got))
+	}
+
+	// The AST form is the assertion where the compiled query has no Rego spelling that
+	// parses back to it — a query cannot declare the imports its own printed form needs.
+	if tc.Query.WantAST != "" {
+		bs, merr := json.Marshal(compiled)
+		if merr != nil {
+			t.Fatalf("%s: marshalling the compiled query: %v", tc.Filename, merr)
+		}
+
+		formatted, ferr := conformance.FormatAST(bs)
+		if ferr != nil {
+			t.Fatalf("%s: formatting the compiled query: %v", tc.Filename, ferr)
+		}
+
+		if formatted != tc.Query.WantAST {
+			t.Fatalf("%s: the query does not compile to query.want_ast (-want, +got):\n%s",
+				tc.Filename, cmp.Diff(tc.Query.WantAST, formatted))
+		}
+		return
+	}
+
+	exp, err := ParseBodyWithOpts(tc.Query.Want, popts)
+	if err != nil {
+		t.Fatalf("%s: query.want does not parse: %v", tc.Filename, err)
+	}
+
+	if !exp.Equal(compiled) {
+		t.Fatalf("%s: the query does not compile to query.want\n--- want\n%v\n--- got\n%v",
+			tc.Filename, exp, compiled)
+	}
+}
+
+// importDecls renders import paths as the declarations ParseImports reads.
+func importDecls(paths []string) string {
+	decls := make([]string, 0, len(paths))
+	for _, path := range paths {
+		decls = append(decls, "import "+path)
+	}
+	return strings.Join(decls, "\n")
 }
 
 // assertCaseWant compares the compiled modules against the case's expectations —
