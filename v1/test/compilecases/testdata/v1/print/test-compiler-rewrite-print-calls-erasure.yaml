@@ -1,0 +1,110 @@
+---
+# Generated externalized tests from TestCompilerRewritePrintCallsErasure
+cases:
+  - note: print/no-op
+    modules:
+      - |
+        package test
+
+        p if { true }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	true
+          }
+  - note: print/replace empty body with true
+    modules:
+      - |
+        package test
+
+        p if { print(1) }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	true
+          }
+  - note: print/rule body
+    modules:
+      - |
+        package test
+
+        p if { false; print(1) }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	false
+          }
+  - note: print/set comprehension body
+    modules:
+      - |
+        package test
+
+        p if { {1 | false; print(1)} }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	{1 | false}
+          }
+  - note: print/array comprehension body
+    modules:
+      - |
+        package test
+
+        p if { [1 | false; print(1)] }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	[1 | false]
+          }
+  - note: print/object comprehension body
+    modules:
+      - |
+        package test
+
+        p if { {"x": 1 | false; print(1)} }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	{"x": 1 | false}
+          }
+  - note: print/every body
+    modules:
+      - |
+        package test
+
+        p if { every _ in [] { false; print(1) } }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	__local1__ = []
+          	every __local0__, _ in __local1__ {
+          		false
+          	}
+          }
+  - note: print/in head
+    modules:
+      - |
+        package test
+
+        p = {1 | print("x")}
+    want:
+      - module: |
+          package test
+
+          p = __local0__ if {
+          	__local0__ = {1 | true}
+          }

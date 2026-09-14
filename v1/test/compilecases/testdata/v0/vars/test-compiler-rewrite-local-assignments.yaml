@@ -1,0 +1,88 @@
+---
+# Generated externalized tests from TestCompilerRewriteLocalAssignments
+cases:
+  - note: vars/local assignments 9
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        shadow_roots_1 { data := 1; input := 2; input > data }
+    want:
+      - module: |
+          package test
+
+          shadow_roots_1 = true {
+          	__local0__ = 1
+          	__local1__ = 2
+          	gt(__local1__, __local0__)
+          }
+  - note: vars/local assignments 10
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        shadow_roots_2 { input := {"a": 1}; input.a > 0  }
+    want:
+      - module: |
+          package test
+
+          shadow_roots_2 = true {
+          	__local0__ = {"a": 1}
+          	__local1__ = __local0__.a
+          	gt(__local1__, 0)
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            shadow_roots_2 = true {
+            	__local0__ = {"a": 1}
+            	gt(__local0__.a, 0)
+            }
+  - note: vars/local assignments 11
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        skip_with_target {
+        	a := 1
+        	input := 2
+        	data.p with input as a
+        	data.p with input.foo as a
+        }
+    want:
+      - module: |
+          package test
+
+          skip_with_target = true {
+          	__local0__ = 1
+          	__local1__ = 2
+          	data.p with input as __local0__
+          	data.p with input.foo as __local0__
+          }
+  - note: vars/local assignments 19
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        skip_with_target_in_assignment {
+        	input := 1
+        	a := [true | true with input as 2; true with input.foo as 3]
+        }
+    want:
+      - module: |
+          package test
+
+          skip_with_target_in_assignment = true {
+          	__local0__ = 1
+          	__local1__ = [true | true with input as 2; true with input.foo as 3]
+          }

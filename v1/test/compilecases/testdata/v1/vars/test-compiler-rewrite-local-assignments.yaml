@@ -1,0 +1,559 @@
+---
+# Generated externalized tests from TestCompilerRewriteLocalAssignments
+cases:
+  - note: vars/local assignments 0
+    modules:
+      - |
+        package test
+
+        body if { a := 1; a > 0 }
+    want:
+      - module: |
+          package test
+
+          body = true if {
+          	__local0__ = 1
+          	gt(__local0__, 0)
+          }
+  - note: vars/local assignments 1
+    modules:
+      - |
+        package test
+
+        head_vars(a) = b if { b := a }
+    want:
+      - module: |
+          package test
+
+          head_vars(__local0__) = __local1__ if {
+          	__local1__ = __local0__
+          }
+  - note: vars/local assignments 2
+    modules:
+      - |
+        package test
+
+        head_key contains a if { a := 1 }
+    want:
+      - module: |
+          package test
+
+          head_key contains __local0__ if {
+          	__local0__ = 1
+          }
+  - note: vars/local assignments 3
+    modules:
+      - |
+        package test
+
+        head_unsafe_var contains a if { some a }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 26
+        message: var a is unsafe
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            head_unsafe_var contains __local0__ if {
+            	true
+            }
+  - note: vars/local assignments 4
+    modules:
+      - |
+        package test
+
+        p = {1,2,3}
+        x = 4
+        head_nested contains p[x] if {
+        	some x
+        }
+    want:
+      - module: |
+          package test
+
+          p = {1, 2, 3} if {
+          	true
+          }
+
+          x = 4 if {
+          	true
+          }
+
+          head_nested contains __local1__ if {
+          	__local1__ = data.test.p[__local0__]
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            p = {1, 2, 3} if {
+            	true
+            }
+
+            x = 4 if {
+            	true
+            }
+
+            head_nested contains data.test.p[__local0__] if {
+            	true
+            }
+  - note: vars/local assignments 5
+    modules:
+      - |
+        package test
+
+        p = {1,2}
+        head_closure_nested contains p[x] if {
+        	y = [true | some x; x = 1]
+        }
+    want:
+      - module: |
+          package test
+
+          p = {1, 2} if {
+          	true
+          }
+
+          head_closure_nested contains __local1__ if {
+          	y = [true | __local0__ = 1]
+          	__local1__ = data.test.p[x]
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            p = {1, 2} if {
+            	true
+            }
+
+            head_closure_nested contains data.test.p[x] if {
+            	y = [true | __local0__ = 1]
+            }
+  - note: vars/local assignments 6
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        nested if {
+        	a := [1,2,3]
+        	x := [true | a[i] > 1]
+        }
+    want:
+      - module: |
+          package test
+
+          nested = true if {
+          	__local0__ = [1, 2, 3]
+          	__local1__ = [true | __local2__ = __local0__[i]; gt(__local2__, 1)]
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            nested = true if {
+            	__local0__ = [1, 2, 3]
+            	__local1__ = [true | gt(__local0__[i], 1)]
+            }
+  - note: vars/local assignments 7
+    modules:
+      - |
+        package test
+
+        x = 2
+        shadow_globals contains x if { x := 1 }
+    want:
+      - module: |
+          package test
+
+          x = 2 if {
+          	true
+          }
+
+          shadow_globals contains __local0__ if {
+          	__local0__ = 1
+          }
+  - note: vars/local assignments 8
+    modules:
+      - |
+        package test
+
+        shadow_rule contains shadow_rule if { shadow_rule := 1 }
+    want:
+      - module: |
+          package test
+
+          shadow_rule contains __local0__ if {
+          	__local0__ = 1
+          }
+  - note: vars/local assignments 12
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        shadow_comprehensions if {
+        	a := 1
+        	[true | a := 2; b := 1]
+        	b := 2
+        }
+    want:
+      - module: |
+          package test
+
+          shadow_comprehensions = true if {
+          	__local0__ = 1
+          	[true | __local1__ = 2; __local2__ = 1]
+          	__local3__ = 2
+          }
+  - note: vars/local assignments 13
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        	scoping if {
+        		[true | a := 1]
+        		[true | a := 2]
+        	}
+    want:
+      - module: |
+          package test
+
+          scoping = true if {
+          	[true | __local0__ = 1]
+          	[true | __local1__ = 2]
+          }
+  - note: vars/local assignments 14
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        object_keys if {
+        	{k: v1, "k2": v2} := {"foo": 1, "k2": 2}
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var k is unsafe
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var v1 is unsafe
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            object_keys = true if {
+            	{"k2": __local0__, k: __local1__} = {"foo": 1, "k2": 2}
+            }
+  - note: vars/local assignments 15
+    modules:
+      - |
+        package test
+
+        head_array_comprehensions = [[x] | x := 1]
+        head_set_comprehensions = {[x] | x := 1}
+        head_object_comprehensions = {k: [x] | k := "foo"; x := 1}
+    want:
+      - module: |
+          package test
+
+          head_array_comprehensions = __local4__ if {
+          	__local4__ = [[__local0__] | __local0__ = 1]
+          }
+
+          head_set_comprehensions = __local5__ if {
+          	__local5__ = {[__local1__] | __local1__ = 1}
+          }
+
+          head_object_comprehensions = __local6__ if {
+          	__local6__ = {__local2__: [__local3__] | __local2__ = "foo"; __local3__ = 1}
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            head_array_comprehensions = [[__local0__] | __local0__ = 1] if {
+            	true
+            }
+
+            head_set_comprehensions = {[__local1__] | __local1__ = 1} if {
+            	true
+            }
+
+            head_object_comprehensions = {__local2__: [__local3__] | __local2__ = "foo"; __local3__ = 1} if {
+            	true
+            }
+  - note: vars/local assignments 16
+    modules:
+      - |
+        package test
+
+        rewritten_object_key if {
+        	k := "foo"
+        	{k: 1}
+        }
+    want:
+      - module: |
+          package test
+
+          rewritten_object_key = true if {
+          	__local0__ = "foo"
+          	{__local0__: 1}
+          }
+  - note: vars/local assignments 17
+    modules:
+      - |
+        package test
+
+        rewritten_object_key_head contains [{k: 1}] if {
+        	k := "foo"
+        }
+    want:
+      - module: |
+          package test
+
+          rewritten_object_key_head contains [{__local0__: 1}] if {
+          	__local0__ = "foo"
+          }
+  - note: vars/local assignments 18
+    modules:
+      - |
+        package test
+
+        rewritten_object_key_head_value = [{k: 1}] if {
+        	k := "foo"
+        }
+    want:
+      - module: |
+          package test
+
+          rewritten_object_key_head_value = [{__local0__: 1}] if {
+          	__local0__ = "foo"
+          }
+  - note: vars/local assignments 20
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        rewrite_with_value_in_assignment if {
+        	a := 1
+        	b := 1 with input as [a]
+        }
+    want:
+      - module: |
+          package test
+
+          rewrite_with_value_in_assignment = true if {
+          	__local0__ = 1
+          	__local1__ = 1 with input as [__local0__]
+          }
+  - note: vars/local assignments 21
+    modules:
+      - |
+        package test
+
+        rewrite_with_value_in_expr if {
+        	a := 1
+        	a > 0 with input as [a]
+        }
+    want:
+      - module: |
+          package test
+
+          rewrite_with_value_in_expr = true if {
+          	__local0__ = 1
+          	gt(__local0__, 0) with input as [__local0__]
+          }
+  - note: vars/local assignments 22
+    modules:
+      - |
+        package test
+
+        rewrite_nested_with_value_in_expr if {
+        	a := 1
+        	a > 0 with input as object.union({"a": a}, {"max_a": max([a])})
+        }
+    want:
+      - module: |
+          package test
+
+          rewrite_nested_with_value_in_expr = true if {
+          	__local0__ = 1
+          	max([__local0__], __local1__)
+          	object.union({"a": __local0__}, {"max_a": __local1__}, __local2__)
+          	gt(__local0__, 0) with input as __local2__
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            rewrite_nested_with_value_in_expr = true if {
+            	__local0__ = 1
+            	gt(__local0__, 0) with input as object.union({"a": __local0__}, {"max_a": max([__local0__])})
+            }
+  - note: vars/local assignments 23
+    modules:
+      - |
+        package test
+
+        global = {}
+        ref_shadowed if {
+        	global := {"a": 1}
+        	global.a > 0
+        }
+    want:
+      - module: |
+          package test
+
+          global = {} if {
+          	true
+          }
+
+          ref_shadowed = true if {
+          	__local0__ = {"a": 1}
+          	__local1__ = __local0__.a
+          	gt(__local1__, 0)
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            global = {} if {
+            	true
+            }
+
+            ref_shadowed = true if {
+            	__local0__ = {"a": 1}
+            	gt(__local0__.a, 0)
+            }
+  - note: vars/local assignments 25
+    modules:
+      - |
+        package test
+
+        f({"x": [x]}) = y if { x == 1; y := 2 }
+    want:
+      - module: |
+          package test
+
+          f({"x": [__local0__]}) = __local1__ if {
+          	__local0__ = 1
+          	__local1__ = 2
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            f({"x": [__local0__]}) = __local1__ if {
+            	equal(__local0__, 1)
+            	__local1__ = 2
+            }
+  - note: vars/local assignments 26
+    modules:
+      - |
+        package test
+
+        f(x, [x]) = x if { x == 1 }
+    want:
+      - module: |
+          package test
+
+          f(__local0__, [__local0__]) = __local0__ if {
+          	__local0__ = 1
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            f(__local0__, [__local0__]) = __local0__ if {
+            	equal(__local0__, 1)
+            }
+  - note: vars/local assignments 27
+    modules:
+      - |
+        package test
+
+        f(x) = {x[0]: 1} if { true }
+    want:
+      - module: |
+          package test
+
+          f(__local0__) = __local1__ if {
+          	__local2__ = __local0__[0]
+          	__local1__ = {__local2__: 1}
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            f(__local0__) = {__local0__[0]: 1} if {
+            	true
+            }
+  - note: vars/local assignments 28
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f({{t | t := 0}: 1}) if {
+        	true
+        }
+    want:
+      - module: |
+          package test
+
+          f(__local1__) = true if {
+          	__local2__ = {__local0__ | __local0__ = 0}
+          	__local1__ = {__local2__: 1}
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            f({{__local0__ | __local0__ = 0}: 1}) = true if {
+            	true
+            }
+  - note: vars/local assignments 29
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        f({{t | t := 0}}) if {
+        	true
+        }
+    want:
+      - module: |
+          package test
+
+          f(__local1__) = true if {
+          	__local2__ = {__local0__ | __local0__ = 0}
+          	__local1__ = {__local2__}
+          }
+    want_stages:
+      RewriteLocalVars:
+        - module: |
+            package test
+
+            f({{__local0__ | __local0__ = 0}}) = true if {
+            	true
+            }

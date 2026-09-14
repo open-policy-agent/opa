@@ -1,0 +1,541 @@
+---
+# Generated externalized tests from TestCompilerCheckSafetyBodyReordering
+cases:
+  - note: reordering/noop
+    modules:
+      - |
+        package test
+
+        p if {
+        	x = 1; x != 0
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	x = 1
+          	neq(x, 0)
+          }
+  - note: reordering/var/ref
+    modules:
+      - |
+        package test
+
+        p if {
+        	a[i] = x; a = [1, 2, 3, 4]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	a = [1, 2, 3, 4]
+          	a[i] = x
+          }
+  - note: reordering/var/ref (nested)
+    modules:
+      - |
+        package test
+
+        p if {
+        	a = [1, 2, 3, 4]; a[b[i]] = x; b = [0, 0, 0, 0]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	a = [1, 2, 3, 4]
+          	b = [0, 0, 0, 0]
+          	__local0__ = b[i]
+          	a[__local0__] = x
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        - module: |
+            package test
+
+            p = true if {
+            	a = [1, 2, 3, 4]
+            	b = [0, 0, 0, 0]
+            	a[b[i]] = x
+            }
+  - note: reordering/negation
+    modules:
+      - |
+        package test
+
+        import future.keywords.not
+
+        p if {
+        	a = [true, false]; b = [true, false]; not a[i]; b[i]
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.not]
+        module: |
+          package test
+
+          p = true if {
+          	a = [true, false]
+          	b = [true, false]
+          	b[i]
+          	not a[i]
+          }
+  - note: reordering/built-in
+    modules:
+      - |
+        package test
+
+        p if {
+        	x != 0; count([1, 2, 3], x)
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	count([1, 2, 3], x)
+          	neq(x, 0)
+          }
+  - note: reordering/var/var 1
+    modules:
+      - |
+        package test
+
+        p if {
+        	x = y; z = 1; y = z
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	z = 1
+          	y = z
+          	x = y
+          }
+  - note: reordering/var/var 2
+    modules:
+      - |
+        package test
+
+        p if {
+        	x = y; 1 = z; z = y
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	1 = z
+          	z = y
+          	x = y
+          }
+  - note: reordering/var/var 3
+    modules:
+      - |
+        package test
+
+        p if {
+        	x != 0; y = x; y = 1
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	y = 1
+          	y = x
+          	neq(x, 0)
+          }
+  - note: reordering/array compr/var
+    modules:
+      - |
+        package test
+
+        p if {
+        	x != 0; [y | y = 1] = x
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	[y | y = 1] = x
+          	neq(x, 0)
+          }
+  - note: reordering/array compr/array
+    modules:
+      - |
+        package test
+
+        p if {
+        	[1] != [x]; [y | y = 1] = [x]
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	[y | y = 1] = [x]
+          	neq([1], [x])
+          }
+  - note: reordering/with
+    modules:
+      - |
+        package a.b.d
+
+        import rego.v1
+        import input.x as y
+
+        t = true if { input = {y.secret: [{y.keyid}]} }
+        x = false if { true }
+      - |
+        package test
+
+        p if {
+        	data.a.b.d.t with input as x; x = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package a.b.d
+
+          t = true if {
+          	__local0__ = input.x.secret
+          	__local1__ = input.x.keyid
+          	input = {__local0__: [{__local1__}]}
+          }
+
+          x = false if {
+          	true
+          }
+      - module: |
+          package test
+
+          p = true if {
+          	x = 1
+          	data.a.b.d.t with input as x
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        # The compiler drops directive imports; a consumer must put them in effect.
+        - imports: [rego.v1]
+          module: |
+            package a.b.d
+
+            t = true if {
+            	input = {input.x.secret: [{input.x.keyid}]}
+            }
+
+            x = false if {
+            	true
+            }
+        - module: |
+            package test
+
+            p = true if {
+            	x = 1
+            	data.a.b.d.t with input as x
+            }
+  - note: reordering/with-2
+    modules:
+      - |
+        package a.b.d
+
+        import rego.v1
+        import input.x as y
+
+        t = true if { input = {y.secret: [{y.keyid}]} }
+        x = false if { true }
+      - |
+        package test
+
+        p if {
+        	data.a.b.d.t with input.x as x; x = 1
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package a.b.d
+
+          t = true if {
+          	__local0__ = input.x.secret
+          	__local1__ = input.x.keyid
+          	input = {__local0__: [{__local1__}]}
+          }
+
+          x = false if {
+          	true
+          }
+      - module: |
+          package test
+
+          p = true if {
+          	x = 1
+          	data.a.b.d.t with input.x as x
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        # The compiler drops directive imports; a consumer must put them in effect.
+        - imports: [rego.v1]
+          module: |
+            package a.b.d
+
+            t = true if {
+            	input = {input.x.secret: [{input.x.keyid}]}
+            }
+
+            x = false if {
+            	true
+            }
+        - module: |
+            package test
+
+            p = true if {
+            	x = 1
+            	data.a.b.d.t with input.x as x
+            }
+  - note: reordering/with-nop
+    modules:
+      - |
+        package test
+
+        p if {
+        	data.somedoc[x] with input as true
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	data.somedoc[x] with input as true
+          }
+  - note: reordering/ref-head
+    modules:
+      - |
+        package test
+
+        p if {
+        	s = [["foo"], ["bar"]]; x = y[0]; y = s[_]; contains(x, "oo")
+        }
+    want:
+      - module: |
+          package test
+
+          p = true if {
+          	s = [["foo"], ["bar"]]
+          	y = s[_]
+          	x = y[0]
+          	contains(x, "oo")
+          }
+  - note: reordering/userfunc
+    modules:
+      - |
+        package a.b.funcs
+
+        import rego.v1
+
+        fn(x) = y if {
+        	trim(x, ".", y)
+        }
+      - |
+        package test
+
+        p if {
+        	split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package a.b.funcs
+
+          fn(__local0__) = y if {
+          	trim(__local0__, ".", y)
+          }
+      - module: |
+          package test
+
+          p = true if {
+          	data.a.b.funcs.fn("...foo.bar..", y)
+          	split(y, ".", z)
+          }
+  - note: reordering/and, implicit body
+    modules:
+      - |
+        package test
+
+        import future.keywords.and
+
+        p if {
+        	x and y; x = true; y = false
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and]
+        module: |
+          package test
+
+          p = true if {
+          	x = true
+          	y = false
+          	x and y
+          }
+  - note: reordering/or, implicit body
+    modules:
+      - |
+        package test
+
+        import future.keywords.or
+
+        p if {
+        	x or y; x = true; y = false
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true if {
+          	x = true
+          	y = false
+          	x or y
+          }
+  - note: reordering/and, explicit body
+    modules:
+      - |
+        package test
+
+        import future.keywords.and
+
+        p if {
+        	{ x } and { y }; x = true; y = false
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and]
+        module: |
+          package test
+
+          p = true if {
+          	x = true
+          	y = false
+          	{
+          		x
+          	} and {
+          		y
+          	}
+          }
+  - note: reordering/or, explicit body
+    modules:
+      - |
+        package test
+
+        import future.keywords.or
+
+        p if {
+        	{ x } or { y }; x = true; y = false
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true if {
+          	x = true
+          	y = false
+          	{
+          		x
+          	} or {
+          		y
+          	}
+          }
+  - note: reordering/and, explicit body, internal reordering
+    modules:
+      - |
+        package test
+
+        import future.keywords.and
+
+        p if {
+        	{ 1 == z; z = 3 } and { 2 == z; z = 3 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and]
+        module: |
+          package test
+
+          p = true if {
+          	{
+          		z = 3
+          		1 = z
+          	} and {
+          		z = 3
+          		2 = z
+          	}
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        # The compiler drops directive imports; a consumer must put them in effect.
+        - imports: [future.keywords.and]
+          module: |
+            package test
+
+            p = true if {
+            	{
+            		z = 3
+            		equal(1, z)
+            	} and {
+            		z = 3
+            		equal(2, z)
+            	}
+            }
+  - note: reordering/or, explicit body, internal reordering
+    modules:
+      - |
+        package test
+
+        import future.keywords.or
+
+        p if {
+        	{ 1 == z; z = 3 } or { 2 == z; z = 3 }
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package test
+
+          p = true if {
+          	{
+          		z = 3
+          		1 = z
+          	} or {
+          		z = 3
+          		2 = z
+          	}
+          }
+    want_stages:
+      CheckSafetyRuleBodies:
+        # The compiler drops directive imports; a consumer must put them in effect.
+        - imports: [future.keywords.or]
+          module: |
+            package test
+
+            p = true if {
+            	{
+            		z = 3
+            		equal(1, z)
+            	} or {
+            		z = 3
+            		equal(2, z)
+            	}
+            }

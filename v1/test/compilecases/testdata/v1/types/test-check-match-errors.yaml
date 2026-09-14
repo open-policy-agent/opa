@@ -1,0 +1,377 @@
+---
+# Generated externalized tests from TestCheckMatchErrors
+cases:
+  - note: types/null
+    modules:
+      - |
+        package test
+
+        p if {
+        	null = true
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : null
+          right : boolean
+    exhaustive: true
+  - note: types/boolean
+    modules:
+      - |
+        package test
+
+        p if {
+        	true = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : boolean
+          right : null
+    exhaustive: true
+  - note: types/number
+    modules:
+      - |
+        package test
+
+        p if {
+        	1 = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : number
+          right : null
+    exhaustive: true
+  - note: types/string
+    modules:
+      - |
+        package test
+
+        p if {
+        	"hello" = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : null
+    exhaustive: true
+  - note: types/array
+    modules:
+      - |
+        package test
+
+        p if {
+        	[1,2,3] = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : array<number, number, number>
+          right : null
+    exhaustive: true
+  - note: types/array-nested
+    modules:
+      - |
+        package test
+
+        p if {
+        	[1,2,3] = [1,2,"3"]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : array<number, number, number>
+          right : array<number, number, string>
+    exhaustive: true
+  - note: types/array-nested-2
+    modules:
+      - |
+        package test
+
+        p if {
+        	[1,2] = [1,2,3]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : array<number, number>
+          right : array<number, number, number>
+    exhaustive: true
+  - note: types/array-dynamic
+    modules:
+      - |
+        package test
+
+        p if {
+        	[ true | true ] = [x | a = [1, "foo"]; x = a[_]]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : array[boolean]
+          right : array[any<number, string>]
+    exhaustive: true
+  - note: types/object
+    modules:
+      - |
+        package test
+
+        p if {
+        	{"a": 1, "b": 2} = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : object<a: number, b: number>
+          right : null
+    exhaustive: true
+  - note: types/object-nested
+    modules:
+      - |
+        package test
+
+        p if {
+        	{"a": 1, "b": "2"} = {"a": 1, "b": 2}
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : object<a: number, b: string>
+          right : object<a: number, b: number>
+    exhaustive: true
+  - note: types/object-nested-2
+    modules:
+      - |
+        package test
+
+        p if {
+        	{"a": 1} = {"a": 1, "b": "2"}
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : object<a: number>
+          right : object<a: number, b: string>
+    exhaustive: true
+  - note: types/set
+    modules:
+      - |
+        package test
+
+        p if {
+        	{1,2,3} = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : set[number]
+          right : null
+    exhaustive: true
+  - note: types/any
+    modules:
+      - |
+        package test
+
+        p if {
+        	x = ["str", 1]; x[_] = null
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 18
+        message: match error
+        detail: |-
+          left  : any<number, string>
+          right : null
+    exhaustive: true
+  - note: types/member-array
+    modules:
+      - |
+        package test
+
+        p if {
+        	"a" in [1, 2]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-array-nested
+    modules:
+      - |
+        package test
+
+        p if {
+        	[1, "a"] in [[1, 2]]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : array<number, string>
+          right : array<number, number>
+    exhaustive: true
+  - note: types/member-set
+    modules:
+      - |
+        package test
+
+        p if {
+        	"a" in {1, 2}
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-object
+    modules:
+      - |
+        package test
+
+        p if {
+        	"a" in {"x": 1}
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-call
+    modules:
+      - |
+        package test
+
+        p if {
+        	"a" in numbers.range(1, 5)
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-result-captured
+    modules:
+      - |
+        package test
+
+        p if {
+        	x = "a" in [1, 2]; x
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 6
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-with-key-key
+    modules:
+      - |
+        package test
+
+        p if {
+        	"a", 1 in [1, 2]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-with-key-value
+    modules:
+      - |
+        package test
+
+        p if {
+        	0, "a" in [1, 2]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+    exhaustive: true
+  - note: types/member-with-key-object-key
+    modules:
+      - |
+        package test
+
+        p if {
+        	1, 1 in {"x": 1}
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 2
+        message: match error
+        detail: |-
+          left  : number
+          right : string
+    exhaustive: true
