@@ -5,6 +5,7 @@
 package logs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"math"
@@ -261,12 +262,8 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 			break
 		}
 
-		result := b.processBufferItem(item)
-		if result != nil {
-			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil && uploadErr == nil {
-				uploadErr = err
-			}
-		}
+		chunks := b.processBufferItem(item)
+		uploadErr = cmp.Or(uploadErr, b.uploadChunks(ctx, chunks, b.client, b.uploadPath))
 	}
 
 	// flush any chunks that didn't hit the upload limit
@@ -279,15 +276,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		return uploadErr
 	}
 
-	if result == nil {
-		return uploadErr
-	}
-
-	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil && uploadErr == nil {
-		uploadErr = err
-	}
-
-	return uploadErr
+	return cmp.Or(uploadErr, b.uploadChunks(ctx, result, b.client, b.uploadPath))
 }
 
 // uploadChunks attempts to upload multiple chunks to the configured client.
