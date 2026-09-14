@@ -2,6 +2,7 @@ package util
 
 import (
 	"cmp"
+	"slices"
 )
 
 // Keys returns a slice of keys from any map.
@@ -16,6 +17,13 @@ func Keys[M ~map[K]V, K comparable, V any](m M) []K {
 // KeysSorted returns a slice of keys from any map, sorted in ascending order.
 func KeysSorted[M ~map[K]V, K cmp.Ordered, V any](m M) []K {
 	return Sorted(Keys(m))
+}
+
+// KeysSortedFunc returns a slice of keys from any map, sorted by cmp.
+func KeysSortedFunc[M ~map[K]V, K comparable, V any](m M, cmp func(K, K) int) []K {
+	keys := Keys(m)
+	slices.SortFunc(keys, cmp)
+	return keys
 }
 
 // MapKeys returns a slice of keys from m, transformed by f.
