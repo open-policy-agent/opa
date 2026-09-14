@@ -26,10 +26,15 @@ var (
 	// N represents an instance of the number type.
 	N Type = NewNumber()
 	// A represents the superset of all types.
-	A Type = NewAny()
+	A Type = Any{}
 
 	// Boxed set types.
 	SetOfAny, SetOfStr, SetOfNum Type = NewSet(A), NewSet(S), NewSet(N)
+
+	jsonString  = [...]byte{'{', '"', 't', 'y', 'p', 'e', '"', ':', '"', 's', 't', 'r', 'i', 'n', 'g', '"', '}'}
+	jsonBoolean = [...]byte{'{', '"', 't', 'y', 'p', 'e', '"', ':', '"', 'b', 'o', 'o', 'l', 'e', 'a', 'n', '"', '}'}
+	jsonNumber  = [...]byte{'{', '"', 't', 'y', 'p', 'e', '"', ':', '"', 'n', 'u', 'm', 'b', 'e', 'r', '"', '}'}
+	jsonNull    = [...]byte{'{', '"', 't', 'y', 'p', 'e', '"', ':', '"', 'n', 'u', 'l', 'l', '"', '}'}
 )
 
 // Sprint returns the string representation of the type.
@@ -108,10 +113,8 @@ func Named(name string, t Type) *NamedType {
 }
 
 // MarshalJSON returns the JSON encoding of t.
-func (t Null) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"type": t.typeMarker(),
-	})
+func (Null) MarshalJSON() ([]byte, error) {
+	return jsonNull[:], nil
 }
 
 func unwrap(t Type) Type {
@@ -144,7 +147,7 @@ func NewBoolean() Boolean {
 
 // MarshalJSON returns the JSON encoding of t.
 func (Boolean) MarshalJSON() ([]byte, error) {
-	return util.StringToByteSlice(`{"type":"boolean"}`), nil
+	return jsonBoolean[:], nil
 }
 
 func (t Boolean) String() string {
@@ -161,7 +164,7 @@ func NewString() String {
 
 // MarshalJSON returns the JSON encoding of t.
 func (String) MarshalJSON() ([]byte, error) {
-	return util.StringToByteSlice(`{"type":"string"}`), nil
+	return jsonString[:], nil
 }
 
 func (String) String() string {
@@ -178,7 +181,7 @@ func NewNumber() Number {
 
 // MarshalJSON returns the JSON encoding of t.
 func (Number) MarshalJSON() ([]byte, error) {
-	return util.StringToByteSlice(`{"type":"number"}`), nil
+	return jsonNumber[:], nil
 }
 
 func (Number) String() string {
@@ -219,10 +222,7 @@ func (t *Array) toMap() map[string]any {
 
 func (t *Array) String() string {
 	prefix := "array"
-	buf := make([]string, 0, len(t.static))
-	for _, tpe := range t.static {
-		buf = append(buf, Sprint(tpe))
-	}
+	buf := util.Map(t.static, Sprint)
 	repr := prefix
 	if len(buf) > 0 {
 		repr += "<" + strings.Join(buf, ", ") + ">"
@@ -650,15 +650,11 @@ func (t Any) Union(other Any) Any {
 }
 
 func (t Any) String() string {
-	prefix := "any"
 	if len(t) == 0 {
-		return prefix
+		return "any"
 	}
-	buf := make([]string, len(t))
-	for i := range t {
-		buf[i] = Sprint(t[i])
-	}
-	return prefix + "<" + strings.Join(buf, ", ") + ">"
+	buf := util.Map(t, Sprint)
+	return "any<" + strings.Join(buf, ", ") + ">"
 }
 
 // Function represents a function type.
@@ -723,20 +719,14 @@ func (t *Function) FuncArgs() FuncArgs {
 // NamedFuncArgs returns the function's arguments, with a name and
 // description if available.
 func (t *Function) NamedFuncArgs() FuncArgs {
-	args := make([]Type, len(t.args))
-	copy(args, t.args)
-	return FuncArgs{Args: args, Variadic: t.variadic}
+	return FuncArgs{Args: slices.Clone(t.args), Variadic: t.variadic}
 }
 
 // Args returns the function's arguments as a slice, ignoring variadic arguments.
 //
 // Deprecated: Use FuncArgs instead.
 func (t *Function) Args() []Type {
-	cpy := make([]Type, len(t.args))
-	for i := range t.args {
-		cpy[i] = unwrap(t.args[i])
-	}
-	return cpy
+	return util.Map(t.args, unwrap)
 }
 
 // Arity returns the number of arguments in the function signature.

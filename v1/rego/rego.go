@@ -1983,7 +1983,7 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 	var queryImports []*ast.Import
 	for _, imp := range imports {
 		path := imp.Path.Value.(ast.Ref)
-		if path.HasPrefix([]*ast.Term{ast.FutureRootDocument}) || path.HasPrefix([]*ast.Term{ast.RegoRootDocument}) {
+		if path.HasPrefix(ast.FutureKeywordsRef[:1]) || path.HasPrefix(ast.RegoV1CompatibleRef[:1]) {
 			queryImports = append(queryImports, imp)
 		}
 	}
@@ -2998,17 +2998,7 @@ func parseStringsToRefs(s []string) ([]ast.Ref, error) {
 	if len(s) == 0 {
 		return nil, nil
 	}
-
-	refs := make([]ast.Ref, len(s))
-	for i := range refs {
-		var err error
-		refs[i], err = ast.ParseRef(s[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return refs, nil
+	return util.TryMap(s, ast.ParseRef)
 }
 
 // helper function to finish a built-in function call. If an error occurred,

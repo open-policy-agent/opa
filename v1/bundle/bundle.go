@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -1411,7 +1412,6 @@ func (b Bundle) Equal(other Bundle) bool {
 
 // Copy returns a deep copy of the bundle.
 func (b Bundle) Copy() Bundle {
-
 	// Copy data.
 	var x any = b.Data
 	if err := util.RoundTripFast(&x); err != nil {
@@ -1423,9 +1423,7 @@ func (b Bundle) Copy() Bundle {
 
 	// Copy modules.
 	for i := range b.Modules {
-		bs := make([]byte, len(b.Modules[i].Raw))
-		copy(bs, b.Modules[i].Raw)
-		b.Modules[i].Raw = bs
+		b.Modules[i].Raw = slices.Clone(b.Modules[i].Raw)
 		b.Modules[i].Parsed = b.Modules[i].Parsed.Copy()
 	}
 

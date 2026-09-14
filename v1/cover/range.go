@@ -108,11 +108,7 @@ func (s rangeSet) Add(r Range) {
 
 // Slice returns the ranges in the set as a slice, sorted by Range.Compare.
 func (s rangeSet) Slice() []Range {
-	rs := make([]Range, 0, len(s))
-	for _, r := range s {
-		rs = append(rs, r)
-	}
-	return util.SortedFunc(rs, Range.Compare)
+	return util.SortedFunc(util.Values(s), Range.Compare)
 }
 
 // fileRangeSets maps a file to the set of ranges recorded for it.

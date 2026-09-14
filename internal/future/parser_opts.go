@@ -15,16 +15,14 @@ import (
 // `ast.ParserOptions` that can be used to parse a statement according to the
 // included "future.keywords" and "future.keywords.xyz" imports.
 func ParserOptionsFromFutureImports(imports []*ast.Import) (ast.ParserOptions, error) {
-	popts := ast.ParserOptions{
-		FutureKeywords: []string{},
-	}
+	popts := ast.ParserOptions{}
 	for _, imp := range imports {
 		path := imp.Path.Value.(ast.Ref)
 		if !ast.FutureRootDocument.Equal(path[0]) {
 			continue
 		}
 		if len(path) >= 2 {
-			if string(path[1].Value.(ast.String)) != "keywords" {
+			if !path.HasPrefix(ast.FutureKeywordsRef) {
 				return popts, fmt.Errorf("unknown future import: %v", imp)
 			}
 			if len(path) == 2 {

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Errors represents a series of errors encountered during parsing, compiling,
@@ -16,21 +18,14 @@ import (
 type Errors []*Error
 
 func (e Errors) Error() string {
-
 	if len(e) == 0 {
 		return "no error(s)"
 	}
-
 	if len(e) == 1 {
-		return fmt.Sprintf("1 error occurred: %v", e[0].Error())
+		return "1 error occurred: " + e[0].Error()
 	}
 
-	s := make([]string, len(e))
-	for i, err := range e {
-		s[i] = err.Error()
-	}
-
-	return fmt.Sprintf("%d errors occurred:\n%s", len(e), strings.Join(s, "\n"))
+	return fmt.Sprintf("%d errors occurred:\n%s", len(e), strings.Join(util.Map(e, (*Error).Error), "\n"))
 }
 
 // Sort sorts the error slice by location. If the locations are equal then the

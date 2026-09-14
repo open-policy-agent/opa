@@ -991,11 +991,7 @@ func (c *Compiler) PassesTypeCheck(body Body) bool {
 
 // PassesTypeCheckRules determines whether the given rules passes type checking
 func (c *Compiler) PassesTypeCheckRules(rules []*Rule) Errors {
-	elems := make([]util.T, 0, len(rules))
-
-	for _, rule := range rules {
-		elems = append(elems, rule)
-	}
+	elems := util.ToSliceOf[util.T](rules)
 
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
@@ -4736,8 +4732,7 @@ func (n *TreeNode) Copy() *TreeNode {
 	}
 
 	if n.Sorted != nil {
-		result.Sorted = make([]Value, len(n.Sorted))
-		copy(result.Sorted, n.Sorted)
+		result.Sorted = slices.Clone(n.Sorted)
 	}
 
 	return result
@@ -4844,11 +4839,9 @@ func (g *Graph) Sort() (sorted []util.T, ok bool) {
 		temp:   map[util.T]struct{}{},
 	}
 
-	nodesList := make([]util.T, 0, len(g.nodes))
-	for node := range g.nodes {
-		nodesList = append(nodesList, node)
-	}
+	nodesList := util.Keys(g.nodes)
 	sortGraphNodes(nodesList)
+
 	for _, node := range nodesList {
 		if !sorter.Visit(node) {
 			return nil, false
@@ -6275,13 +6268,13 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		})
 		return result, NewTerm(cpy).SetLocation(term.Location)
 	case Set:
-		cpy := NewSet()
+		terms := make([]*Term, 0, v.Len())
 		for _, term := range v.Slice() {
 			var rw *Term
 			result, rw = rewriteDynamicsOne(original, f, term, result)
-			cpy.Add(rw)
+			terms = append(terms, rw)
 		}
-		return result, NewTerm(cpy).SetLocation(term.Location)
+		return result, SetTerm(terms...).SetLocation(term.Location)
 	case *ArrayComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
@@ -7473,7 +7466,7 @@ func validateWithBuiltinTarget(bi *Builtin, target Ref, loc *location.Location) 
 	}
 
 	switch {
-	case target.HasPrefix(Ref([]*Term{VarTerm("internal")})):
+	case len(target) > 0 && Var("internal").Equal(target[0].Value):
 		return NewError(CompileErr, loc, "with keyword replacing built-in function: replacement of internal function %q invalid", target)
 
 	case bi.Relation:

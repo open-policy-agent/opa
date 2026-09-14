@@ -144,7 +144,7 @@ type baseCache struct {
 	root *baseCacheElem
 }
 
-func newBaseCache() *baseCache {
+func newBaseCache() BaseCache {
 	return &baseCache{
 		root: newBaseCacheElem(),
 	}

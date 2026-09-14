@@ -11,6 +11,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/open-policy-agent/opa/internal/edittree"
 )
@@ -150,22 +151,15 @@ func getJSONPaths(operand ast.Value) (paths []ast.Ref, err error) {
 			paths = append(paths, filter)
 		}
 	case ast.Set:
-		paths = make([]ast.Ref, 0, v.Len())
-		for _, item := range v.Slice() {
-			filter, err := parsePath(item)
-			if err != nil {
-				return nil, err
-			}
-			paths = append(paths, filter)
-		}
+		paths, err = util.TryMap(v.Slice(), parsePath)
 	default:
 		return nil, builtins.NewOperandTypeErr(2, v, "set", "array")
 	}
 
-	return paths, nil
+	return paths, err
 }
 
-// parsePath parses a JSON pointer path or array of path segments into an ast.Ref.
+// parsePath parsese a JSON pointer path or array of path segments into an ast.Ref.
 func parsePath(path *ast.Term) (ast.Ref, error) {
 	// paths can either be a `/` separated json path or
 	// an array or set of values

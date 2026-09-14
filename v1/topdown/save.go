@@ -370,11 +370,7 @@ func newSaveSupport() *saveSupport {
 }
 
 func (s *saveSupport) List() []*ast.Module {
-	result := make([]*ast.Module, 0, len(s.modules))
-	for _, module := range s.modules {
-		result = append(result, module)
-	}
-	return result
+	return util.Values(s.modules)
 }
 
 func (s *saveSupport) Exists(path ast.Ref) bool {

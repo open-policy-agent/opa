@@ -244,7 +244,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (any, error) {
 		}
 		return v.native, nil
 	case Set:
-		buf := []any{}
+		buf := make([]any, 0, v.Len())
 		iter := func(x *Term) error {
 			x1, err := valueToInterface(x.Value, resolver, opt)
 			if err != nil {

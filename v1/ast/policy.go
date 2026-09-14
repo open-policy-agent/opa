@@ -36,6 +36,8 @@ var FunctionArgRootDocument = VarTerm("args")
 // features.
 var FutureRootDocument = VarTerm("future")
 
+var FutureKeywordsRef = Ref{FutureRootDocument, InternedTerm("keywords")}
+
 // RegoRootDocument names the document containing new, to-become-default,
 // features in a future versioned release.
 var RegoRootDocument = VarTerm("rego")
@@ -451,8 +453,7 @@ func (c *Comment) String() string {
 // Copy returns a deep copy of c.
 func (c *Comment) Copy() *Comment {
 	cpy := *c
-	cpy.Text = make([]byte, len(c.Text))
-	copy(cpy.Text, c.Text)
+	cpy.Text = slices.Clone(c.Text)
 	return &cpy
 }
 

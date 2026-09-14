@@ -114,8 +114,8 @@ func registeredConfigSpecs() []any {
 	out := make([]any, 0, len(registeredSpecs))
 	for _, s := range registeredSpecs {
 		out = append(out, map[string]any{
-			"pattern": util.ToSliceOfAny(s.Pattern),
-			"keys":    util.ToSliceOfAny(s.Keys),
+			"pattern": util.ToSliceOf[any](s.Pattern),
+			"keys":    util.ToSliceOf[any](s.Keys),
 		})
 	}
 	return out

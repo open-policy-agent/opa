@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Errors is a wrapper for multiple loader errors.
@@ -21,10 +22,7 @@ func (e Errors) Error() string {
 	if len(e) == 1 {
 		return "1 error occurred during loading: " + e[0].Error()
 	}
-	buf := make([]string, len(e))
-	for i := range buf {
-		buf[i] = e[i].Error()
-	}
+	buf := util.Map(e, error.Error)
 	return fmt.Sprintf("%v errors occurred during loading:\n", len(e)) + strings.Join(buf, "\n")
 }
 

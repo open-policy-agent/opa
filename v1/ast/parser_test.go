@@ -3519,7 +3519,7 @@ func TestRegoV1Import(t *testing.T) {
 	assertParseErrorContains(t, "rego.v1 + alias", "import rego.v1 as xyz", "`rego` imports cannot be aliased", popts)
 
 	assertParseImport(t, "import rego.v1",
-		"import rego.v1", &Import{Path: RefTerm(VarTerm("rego"), StringTerm("v1"))},
+		"import rego.v1", &Import{Path: RefTerm(RegoRootDocument, StringTerm("v1"))},
 		ParserOptions{})
 
 	tests := []struct {

@@ -412,10 +412,7 @@ func (c *Config) Clone() *Config {
 		}
 	}
 
-	if c.Warnings != nil {
-		clone.Warnings = make([]string, len(c.Warnings))
-		copy(clone.Warnings, c.Warnings)
-	}
+	clone.Warnings = slices.Clone(c.Warnings)
 
 	return clone
 }

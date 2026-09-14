@@ -58,10 +58,8 @@ func matchRef(targetRef ast.Ref, node ast.Node, compiler *ast.Compiler, parsed *
 	if parsed != nil {
 		prefix := nodeRef.ConstantPrefix()
 		for _, imp := range parsed.Imports {
-			if path, ok := imp.Path.Value.(ast.Ref); ok {
-				if prefix.HasPrefix(path) {
-					result.addRef(imp.Path.Location)
-				}
+			if path, ok := imp.Path.Value.(ast.Ref); ok && prefix.HasPrefix(path) {
+				result.addRef(imp.Path.Location)
 			}
 		}
 	}

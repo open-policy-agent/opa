@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	pkg_tracing "github.com/open-policy-agent/opa/v1/tracing"
+	"github.com/open-policy-agent/opa/v1/util"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -18,17 +19,9 @@ func init() {
 type factory struct{}
 
 func (*factory) NewTransport(tr http.RoundTripper, opts pkg_tracing.Options) http.RoundTripper {
-	return otelhttp.NewTransport(tr, convertOpts(opts)...)
+	return otelhttp.NewTransport(tr, util.ToSliceOf[otelhttp.Option](opts)...)
 }
 
 func (*factory) NewHandler(f http.Handler, label string, opts pkg_tracing.Options) http.Handler {
-	return otelhttp.NewHandler(f, label, convertOpts(opts)...)
-}
-
-func convertOpts(opts pkg_tracing.Options) []otelhttp.Option {
-	otelOpts := make([]otelhttp.Option, 0, len(opts))
-	for _, opt := range opts {
-		otelOpts = append(otelOpts, opt.(otelhttp.Option))
-	}
-	return otelOpts
+	return otelhttp.NewHandler(f, label, util.ToSliceOf[otelhttp.Option](opts)...)
 }

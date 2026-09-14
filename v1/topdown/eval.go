@@ -134,8 +134,8 @@ var (
 	deecPool        = util.NewSyncPool[deferredEarlyExitContainer]()
 	resolverPool    = util.NewSyncPool[evalResolver]()
 	arraysRecPool   = util.NewSyncPool[biunifyArraysRecParams]()
-	evalFuncPool    = util.NewResettablePool[evalFunc, *evalFunc]()
-	evalBuiltinPool = util.NewResettablePool[evalBuiltin, *evalBuiltin]()
+	evalFuncPool    = util.NewResettablePool[evalFunc]()
+	evalBuiltinPool = util.NewResettablePool[evalBuiltin]()
 )
 
 func (e *eval) Run(iter evalIterator) error {
@@ -377,17 +377,13 @@ func (e *eval) evalExpr(iter evalIterator) error {
 	}
 
 	if e.cancel != nil && e.cancel.Cancelled() {
+		cancelErr := &Error{Code: CancelErr, Message: "caller cancelled query execution"}
 		if e.ctx != nil && e.ctx.Err() != nil {
-			return &Error{
-				Code:    CancelErr,
-				Message: e.ctx.Err().Error(),
-				err:     e.ctx.Err(),
-			}
+			err := e.ctx.Err()
+			cancelErr.Message = err.Error()
+			cancelErr.err = err
 		}
-		return &Error{
-			Code:    CancelErr,
-			Message: "caller cancelled query execution",
-		}
+		return cancelErr
 	}
 
 	if e.index >= len(e.query) {
@@ -4971,7 +4967,7 @@ func merge(a, b ast.Value) (ast.Value, bool) {
 // objects can be merged with other objects. If the values cannot be merged,
 // objB value will be overwritten by objA value.
 func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
-	result = ast.NewObject()
+	result = ast.NewObjectWithCapacity(objA.Len() + objB.Len())
 	stop := objA.Until(func(k, v *ast.Term) bool {
 		if v2 := objB.Get(k); v2 == nil {
 			result.Insert(k, v)

@@ -154,10 +154,7 @@ func (e *ErrorV1) WithError(err error) *ErrorV1 {
 
 // WithASTErrors updates e to include detailed AST errors.
 func (e *ErrorV1) WithASTErrors(errors []*ast.Error) *ErrorV1 {
-	e.Errors = make([]error, len(errors))
-	for i := range e.Errors {
-		e.Errors[i] = errors[i]
-	}
+	e.Errors = util.ToSliceOf[error](errors)
 	return e
 }
 

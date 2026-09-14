@@ -1271,14 +1271,8 @@ func (d *ArgErrDetail) Lines() []string {
 	// Positions that only exist on one side, as is the case for arity errors,
 	// have nothing to be compared against, and are collapsed to their outermost
 	// type constructor.
-	haveArgs := make([]string, len(d.Have))
-	for i := range d.Have {
-		haveArgs[i] = elideType(d.Have[i])
-	}
-	wantArgs := make([]string, len(d.Want.Args))
-	for i := range d.Want.Args {
-		wantArgs[i] = elideType(d.Want.Args[i])
-	}
+	haveArgs := util.Map(d.Have, elideType)
+	wantArgs := util.Map(d.Want.Args, elideType)
 
 	for i := range min(len(haveArgs), len(wantArgs)) {
 		haveArgs[i], wantArgs[i] = diffArg(d.Have[i], d.Want.Args[i])
@@ -1448,7 +1442,9 @@ func getOneOfForNode(node *typeTreeNode) []Value {
 func getOneOfForType(tpe types.Type) (result []Value) {
 	switch tpe := tpe.(type) {
 	case *types.Object:
-		for _, k := range tpe.Keys() {
+		keys := tpe.Keys()
+		result = slices.Grow(result, len(keys))
+		for _, k := range keys {
 			v, err := InterfaceToValue(k)
 			if err != nil {
 				panic(err)
@@ -1460,6 +1456,7 @@ func getOneOfForType(tpe types.Type) (result []Value) {
 		return getOneOfForType(tpe.Unwrap())
 
 	case types.Any:
+		result = slices.Grow(result, len(tpe))
 		for _, object := range tpe {
 			objRes := getOneOfForType(object)
 			result = append(result, objRes...)
@@ -1583,7 +1580,6 @@ func getObjectType(ref Ref, o types.Type, rule *Rule, d *types.DynamicProperty) 
 }
 
 func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotation) {
-
 	for _, x := range as.GetSubpackagesScope(rule.Module.Package.Path) {
 		result = append(result, x.Schemas...)
 	}
