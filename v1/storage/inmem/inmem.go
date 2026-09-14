@@ -345,7 +345,7 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 
 	val := util.Reference(value)
 	if db.roundTripOnWrite {
-		if err := util.RoundTrip(val); err != nil {
+		if err := util.RoundTripFast(val); err != nil {
 			return err
 		}
 	}

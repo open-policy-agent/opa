@@ -2,6 +2,8 @@ package inmem_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -186,6 +188,46 @@ func BenchmarkWriteCollection(b *testing.B) {
 	}
 
 	AllStores(map[string]any{}).BenchWithTxn(b, writeTxn, operation).VerifyRead(b, path, value)
+}
+
+// BenchmarkWriteAlreadyNativeTree writes a tree already in JSON-native form.
+// Only "Go (roundtrip)" exercises util.RoundTripFast.
+//
+// Go (roundtrip), with util.RoundTrip:
+// leaves=10        5378 ns/op    4891 B/op    96 allocs/op
+// leaves=100      42741 ns/op   39484 B/op   829 allocs/op
+// leaves=1000    457729 ns/op  457670 B/op  8052 allocs/op
+// leaves=10000  4526693 ns/op 4769717 B/op 80114 allocs/op
+//
+// Go (roundtrip), with util.RoundTripFast:
+// leaves=10        938.3 ns/op   2584 B/op    20 allocs/op
+// leaves=100        6762 ns/op  20576 B/op   112 allocs/op
+// leaves=1000      71098 ns/op 217728 B/op  1012 allocs/op
+// leaves=10000    661971 ns/op 2090469 B/op 10026 allocs/op
+func BenchmarkWriteAlreadyNativeTree(b *testing.B) {
+	for _, n := range []int{10, 100, 1000, 10000} {
+		value := benchNativeTree(n)
+		b.Run(fmt.Sprintf("leaves=%d", n), func(b *testing.B) {
+			operation := func(ctx context.Context, target *target) error {
+				return target.store.Write(ctx, target.txn, storage.AddOp, path, value)
+			}
+
+			AllStores(map[string]any{}).BenchWithTxn(b, writeTxn, operation).VerifyRead(b, path, value)
+		})
+	}
+}
+
+func benchNativeTree(n int) map[string]any {
+	arr := make([]any, 0, n/2)
+	obj := make(map[string]any, n/2)
+	for i := range n {
+		if i%2 == 0 {
+			arr = append(arr, map[string]any{"i": json.Number(strconv.Itoa(i)), "s": "value"})
+		} else {
+			obj[fmt.Sprintf("key%d", i)] = json.Number(strconv.Itoa(i))
+		}
+	}
+	return map[string]any{"arr": arr, "obj": obj}
 }
 
 // Go          48750 ns/op   27040 B/op    311 allocs/op
