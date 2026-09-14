@@ -1096,8 +1096,8 @@ applied.
 
 By default the configuration file is read once, at start-up. Running with the
 `-w`/`--watch` flag makes `opa run` watch the file and apply changes to the
-running plugins, which is useful where restarting OPA is disruptive — a sidecar,
-for example, where a restart takes down the whole pod.
+running OPA, which is useful where restarting the process is disruptive — a
+sidecar, for example, where a restart takes down the whole pod.
 
 ```bash
 opa run -s -c opa-config.yaml -w
@@ -1114,26 +1114,25 @@ A few things do not change without a restart:
 - **Options read only at start-up.** `default_decision`,
   `default_authorization_decision`, `discovery`, `distributed_tracing`,
   `metrics_export`, `persistence_directory`, `server` and `storage` are used to
-  build the store, the exporters and the server before any plugin runs. If a
-  reload changes one of them it is rejected and logged, and the running
+  build the store, the exporters and the server before anything else starts. If
+  a reload changes one of them it is rejected and logged, and the running
   configuration is left untouched — so a restart is needed, but nothing is
   applied in part.
-- **Turning a plugin off.** Plugins can be added and reconfigured, but not
-  removed: OPA cannot unregister a running plugin, so a reload that would leave
-  `decision_logs`, `status` or an entry under `plugins` without a plugin to run
-  is rejected rather than leaving one running with settings the configuration no
-  longer mentions. That covers dropping the section and emptying it, since an
-  empty `decision_logs` enables nothing either. `bundles` is the exception:
-  emptying it (`bundles: {}`) is applied, because the bundle plugin reads that
-  as "no bundles" and stops downloading and deactivates them. Dropping the
-  section outright is still rejected.
+- **Turning something off.** Sections can be added and changed, but not removed:
+  OPA cannot stop what a section started, so a reload that would leave
+  `decision_logs`, `status` or an entry under `plugins` with nothing left to run
+  is rejected rather than carrying on with settings the configuration no longer
+  mentions. That covers dropping the section and emptying it, since an empty
+  `decision_logs` enables nothing either. `bundles` is the exception: emptying it
+  (`bundles: {}`) is applied, read as "no bundles", and OPA stops downloading and
+  deactivates them. Dropping the section outright is still rejected.
 - **Changing or removing a label.** Labels can be added, but the labels present
   at start-up always win, so changing or removing one is rejected the same way
   as the start-up-only options above.
 
 Entries removed from `services` and `keys` are neither applied nor rejected:
 they stay registered for the rest of the process, and OPA logs a warning saying
-so. Changing an entry is applied normally — a plugin already using a service
+so. Changing an entry is applied normally — anything already using that service
 picks the new client up, so credentials and URLs can be rotated without a
 restart.
 
@@ -1145,8 +1144,8 @@ reverting the file undoes it, as each reload is applied on top of the last one
 that succeeded.
 
 The configuration file is not watched when [discovery](#discovery) is enabled,
-since the discovered configuration — not the file on disk — is what the plugins
-are configured with. OPA logs a warning at start-up in that case.
+since the discovered configuration — not the file on disk — is what OPA is
+configured with. OPA logs a warning at start-up in that case.
 
 ## Using Environment Variables in Configuration
 
