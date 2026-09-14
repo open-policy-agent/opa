@@ -146,13 +146,11 @@ func TestCheckInference(t *testing.T) {
 		{"empty-composites", `
 				obj = {};
 				arr = [];
-				set = set();
-				set[v3]
+				set = set()
 				`, map[Var]types.Type{
 			Var("obj"): types.NewObject(nil, nil),
 			Var("arr"): types.NewArray(nil, nil),
-			Var("set"): types.NewSet(types.A),
-			Var("v3"):  types.A,
+			Var("set"): types.NewSet(nil),
 		}},
 		{"dynamic-composite-property", `
 			k = "foo";
@@ -1290,7 +1288,24 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			query: `arr = []; arr[0]`,
 			ref:   `arr[0]`,
 			pos:   1,
-			want:  types.N,
+		},
+		{
+			note:  "out of range index of empty array, var operand",
+			query: `arr = []; arr[i]`,
+			ref:   `arr[i]`,
+			pos:   1,
+		},
+		{
+			note:  "member of empty set",
+			query: `s = set(); s.foo`,
+			ref:   `s.foo`,
+			pos:   1,
+		},
+		{
+			note:  "member of empty set, var operand",
+			query: `s = set(); s[x]`,
+			ref:   `s[x]`,
+			pos:   1,
 		},
 	}
 
@@ -2811,6 +2826,61 @@ p if {
 	arr[0]
 }`,
 			expectedError: "policy.rego:5: rego_type_error: undefined ref: arr[0]",
+		},
+		{
+			name: "member of empty set literal",
+			policy: `package p
+
+p if {
+	s := set()
+	s.foo
+}`,
+			expectedError: "policy.rego:5: rego_type_error: undefined ref: s.foo",
+		},
+		{
+			name: "member of non-empty set literal",
+			policy: `package p
+
+p if {
+	s := {"foo"}
+	s.foo
+}`,
+		},
+		{
+			name: "empty set literal passed to a builtin expecting a set",
+			policy: `package p
+
+p if {
+	s := set()
+	count(s | {1}) == 1
+}`,
+		},
+		{
+			name: "iterating an empty object literal",
+			policy: `package p
+
+p contains v if {
+	some v in {}
+}`,
+			expectedError: "policy.rego:4: rego_type_error: undefined ref: {}[__local2__]",
+		},
+		{
+			name: "iterating an empty array literal",
+			policy: `package p
+
+p contains v if {
+	some v in []
+}`,
+			expectedError: "policy.rego:4: rego_type_error: undefined ref: [][__local2__]",
+		},
+		{
+			name: "iterating an empty set literal",
+			policy: `package p
+
+p contains v if {
+	some v in set()
+}`,
+			expectedError: "policy.rego:4: rego_type_error: undefined ref: set()[__local2__]",
 		},
 		{
 			name: "key of object literal with dynamic properties",

@@ -56,6 +56,10 @@ func sprintElided(t types.Type, depth int) string {
 		// A name is not a level of nesting, so depth is passed through.
 		return t.Name + ": " + sprintElided(t.Type, depth)
 	case *types.Set:
+		if t.Of() == nil {
+			// The empty set has no element type to elide.
+			return t.String()
+		}
 		if depth == 0 {
 			return "set[" + typeElision + "]"
 		}
@@ -174,7 +178,7 @@ func diffTypes(a, b types.Type, depth int) (string, string) {
 
 	switch a := a.(type) {
 	case *types.Set:
-		if b, ok := b.(*types.Set); ok {
+		if b, ok := b.(*types.Set); ok && a.Of() != nil && b.Of() != nil {
 			left, right := diffTypes(a.Of(), b.Of(), depth+1)
 			return "set[" + left + "]", "set[" + right + "]"
 		}

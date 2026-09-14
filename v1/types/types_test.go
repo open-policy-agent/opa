@@ -87,6 +87,14 @@ func TestStrings(t *testing.T) {
 	if ftpe.String() != expected {
 		t.Fatal("expected", expected, "but got:", ftpe)
 	}
+
+	// A set with no element type is the empty set, not a set of unknowns.
+	stpe := NewSet(nil)
+	expected = "set"
+
+	if stpe.String() != expected {
+		t.Fatal("expected", expected, "but got:", stpe)
+	}
 }
 
 func TestCompare(t *testing.T) {

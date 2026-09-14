@@ -95,9 +95,6 @@ func (env *TypeEnv) GetByValue(v Value) types.Type {
 		x.Foreach(func(elem *Term) {
 			tpe = types.Or(tpe, env.GetByValue(elem.Value))
 		})
-		if tpe == nil {
-			tpe = types.A
-		}
 		return types.NewSet(tpe)
 
 	// Comprehensions.
