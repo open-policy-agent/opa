@@ -78,7 +78,7 @@ func NewSignatureHasher(alg HashingAlgorithm) (SignatureHasher, error) {
 // HashFile hashes the file content, JSON or binary, both in golang native format.
 func (h *hasher) HashFile(v any) ([]byte, error) {
 	hf := h.h()
-	walk(v, hf)
+	walk(v, hf, newPrimitiveEncoder())
 	return hf.Sum(nil), nil
 }
 
@@ -91,7 +91,7 @@ func (h *hasher) HashFile(v any) ([]byte, error) {
 // object: Hash {, then each key (in alphabetical order) and digest of the value, then comma (between items) and finally }.
 //
 // array: Hash [, then digest of the value, then comma (between items) and finally ].
-func walk(v any, h io.Writer) {
+func walk(v any, h io.Writer, pe *primitiveEncoder) {
 
 	switch x := v.(type) {
 	case map[string]any:
@@ -102,9 +102,9 @@ func walk(v any, h io.Writer) {
 				_, _ = h.Write([]byte(","))
 			}
 
-			_, _ = h.Write(encodePrimitive(key))
+			_, _ = h.Write(pe.encode(key))
 			_, _ = h.Write([]byte(":"))
-			walk(x[key], h)
+			walk(x[key], h, pe)
 		}
 
 		_, _ = h.Write([]byte("}"))
@@ -115,21 +115,38 @@ func walk(v any, h io.Writer) {
 			if i > 0 {
 				_, _ = h.Write([]byte(","))
 			}
-			walk(e, h)
+			walk(e, h, pe)
 		}
 
 		_, _ = h.Write([]byte("]"))
 	case []byte:
 		_, _ = h.Write(x)
 	default:
-		_, _ = h.Write(encodePrimitive(x))
+		_, _ = h.Write(pe.encode(x))
 	}
 }
 
+// primitiveEncoder reuses its buffer across encode calls.
+type primitiveEncoder struct {
+	buf *bytes.Buffer
+	enc *json.Encoder
+}
+
+func newPrimitiveEncoder() *primitiveEncoder {
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	return &primitiveEncoder{buf: buf, enc: enc}
+}
+
+// encode's return value aliases the encoder's buffer and is only valid
+// until the next call.
+func (pe *primitiveEncoder) encode(v any) []byte {
+	pe.buf.Reset()
+	_ = pe.enc.Encode(v)
+	return bytes.Trim(pe.buf.Bytes(), "\n")
+}
+
 func encodePrimitive(v any) []byte {
-	var buf bytes.Buffer
-	encoder := json.NewEncoder(&buf)
-	encoder.SetEscapeHTML(false)
-	_ = encoder.Encode(v)
-	return bytes.Trim(buf.Bytes(), "\n")
+	return newPrimitiveEncoder().encode(v)
 }
