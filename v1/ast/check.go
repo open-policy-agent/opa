@@ -1019,6 +1019,13 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 
 	head := ref[idx]
 
+	if isEmptyCollectionType(tpe) {
+		// The collection has no members at all, so nothing can be selected from
+		// it. Report that like any other missing key rather than as a value that
+		// can't be dereferenced at all.
+		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+	}
+
 	keys := types.Keys(tpe)
 	if keys == nil {
 		return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), idx-1, tpe)
@@ -1056,6 +1063,27 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	}
 
 	return rc.checkRefLeaf(types.Values(tpe), ref, idx+1)
+}
+
+// isEmptyCollectionType returns true if tpe is the type of a collection that
+// can hold nothing: an object with neither static nor dynamic properties, an
+// array with no items, or a set with no element type.
+func isEmptyCollectionType(tpe types.Type) bool {
+	if named, ok := tpe.(*types.NamedType); ok {
+		tpe = named.Type
+	}
+	if rec, ok := tpe.(*types.Recursive); ok {
+		tpe = rec.Unwrap()
+	}
+	switch tpe := tpe.(type) {
+	case *types.Object:
+		return len(tpe.StaticProperties()) == 0 && tpe.DynamicProperties() == nil
+	case *types.Array:
+		return tpe.Len() == 0 && tpe.Dynamic() == nil
+	case *types.Set:
+		return tpe.Of() == nil
+	}
+	return false
 }
 
 // unifies checks whether two types are compatible with each other.
@@ -1120,6 +1148,11 @@ func unifies(a, b types.Type) bool {
 		b, ok := b.(*types.Set)
 		if !ok {
 			return false
+		}
+		// A set type without an element type is the empty set, which is a
+		// member of every set type.
+		if a.Of() == nil || b.Of() == nil {
+			return true
 		}
 		return unifies(types.Values(a), types.Values(b))
 	case *types.Function:
@@ -1341,6 +1374,10 @@ func (r *RefErrInvalidDetail) Lines() []string {
 	}
 	if len(r.OneOf) > 0 {
 		lines = append(lines, fmt.Sprintf("%swant (one of): %v", pad, r.OneOf))
+	} else if r.Want == nil {
+		// Neither candidate keys nor a key type: the referenced value has no
+		// selectable keys at all (e.g. an empty object).
+		lines = append(lines, pad+"want (one of): []")
 	} else {
 		lines = append(lines, fmt.Sprintf("%swant (type): %v", pad, r.Want))
 	}
