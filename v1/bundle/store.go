@@ -992,60 +992,6 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	return iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
 }
 
-func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
-	m.Timer(metrics.RegoModuleCompile).Start()
-	defer m.Timer(metrics.RegoModuleCompile).Stop()
-
-	// Apply external sources before compilation
-	if externalSources != nil {
-		externalSources.Iter(func(ref ast.Ref, source ast.ExternalRuleSource) bool {
-			compiler = compiler.WithExternalSource(ref, source)
-			return false
-		})
-	}
-
-	modules := map[string]*ast.Module{}
-
-	// preserve any modules already on the compiler
-	maps.Copy(modules, compiler.Modules)
-
-	// preserve any modules passed in from the store
-	maps.Copy(modules, extraModules)
-
-	// include all the new bundle modules
-	for bundleName, b := range bundles {
-		if legacy {
-			for _, mf := range b.Modules {
-				modules[mf.Path] = mf.Parsed
-			}
-		} else {
-			maps.Copy(modules, b.ParsedModules(bundleName))
-		}
-	}
-
-	if compiler.Compile(modules); compiler.Failed() {
-		return compiler.Errors
-	}
-	for bundleName, b := range bundles {
-		for _, mf := range b.Modules {
-			var path string
-
-			// For backwards compatibility, in legacy mode, upsert policies to
-			// the unprefixed path.
-			if legacy {
-				path = mf.Path
-			} else {
-				path = modulePathWithPrefix(bundleName, mf.Path)
-			}
-
-			if err := store.UpsertPolicy(ctx, txn, path, mf.Raw); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func lookup(path storage.Path, data map[string]any) (any, bool) {
 	if len(path) == 0 {
 		return data, true
