@@ -189,13 +189,15 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
 
-The --watch flag also applies to the file given by --config-file: when it changes, the new configuration is applied
-without restarting OPA. Bundles, decision logging, status reporting, services and labels can be added or changed this
-way. Changes OPA cannot apply are rejected and leave the running configuration untouched: options only read at start-up
-("default_decision", "default_authorization_decision", "discovery", "distributed_tracing", "metrics_export",
-"persistence_directory", "server" and "storage"), changing or removing a label, and removing a configuration section
-that OPA is already acting on. The configuration file is not watched when discovery is enabled, as the discovered
-configuration is then what OPA is configured with.
+The --watch flag also applies to the file given by --config-file: when it changes, OPA restarts its server and
+everything the configuration drives, under the new settings, without the process exiting. Almost any option can be
+changed this way; "server.metrics" and "server.logger_plugin" still need the process restarted. The file is checked
+before anything is torn down, so a configuration OPA cannot run with is reported and leaves the running configuration
+serving.
+
+A restart re-binds the listeners and starts the configured features from scratch, so in-flight requests are drained
+and bundles are downloaded again unless "persistence_directory" is set. The configuration file is not watched when
+discovery is enabled, as the discovered configuration is then what OPA is configured with.
 
 OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will

@@ -267,6 +267,35 @@ func TestPluginManagerInitIdempotence(t *testing.T) {
 	}
 }
 
+func TestPluginManagerStopIdempotence(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// The second pass used to block forever on goroutines the first one had
+	// already shut down, wedging any caller that stops a manager on more than
+	// one path -- as a restart falling back to the previous configuration does.
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		m.Stop(ctx)
+		m.Stop(ctx)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		t.Fatal("second Stop blocked")
+	}
+}
+
 func TestManagerWithCachingConfig(t *testing.T) {
 	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}, "inter_query_builtin_value_cache": {"max_num_entries": 100}}}`), "test", inmem.New())
 	if err != nil {

@@ -1095,13 +1095,27 @@ applied.
 > Only supported with the OPA runtime (`opa run`).
 
 By default the configuration file is read once, at start-up. Running with the
-`-w`/`--watch` flag makes `opa run` watch the file and apply changes to the
-running OPA, which is useful where restarting the process is disruptive — a
-sidecar, for example, where a restart takes down the whole pod.
+`-w`/`--watch` flag makes `opa run` watch the file and bring OPA back up under
+the new configuration when it changes, without the process exiting. This is
+useful where restarting the process is disruptive — a sidecar, for example,
+where a restart takes down the whole pod.
 
 ```bash
 opa run -s -c opa-config.yaml -w
 ```
+
+Almost any option can be changed this way. OPA does not reconfigure itself in
+place: it stops the server and everything the configuration drives, rebuilds
+them from the new file, and starts them again. Only the store survives, so a
+decision is never served under a half-applied configuration.
+
+Two options still need the process restarted, because they are wired into
+things older than the serve routine:
+
+- `server.metrics`, whose collectors are registered on a Prometheus registry the
+  store also writes to.
+- `server.logger_plugin`, which is resolved once, when the start-up log buffer
+  is flushed.
 
 `--set` and `--set-file` overrides are re-applied on top of the file on each
 reload, so a value overridden on the command line stays overridden. The files
@@ -1109,43 +1123,46 @@ named by `--set-file` are re-read every time, so an edit to one of them is
 picked up too — but they are not watched, so it takes a change to the
 configuration file to trigger the reload that reads them.
 
-A few things do not change without a restart:
+### What a restart costs
 
-- **Options read only at start-up.** `default_decision`,
-  `default_authorization_decision`, `discovery`, `distributed_tracing`,
-  `metrics_export`, `persistence_directory`, `server` and `storage` are used to
-  build the store, the exporters and the server before anything else starts. If
-  a reload changes one of them it is rejected and logged, and the running
-  configuration is left untouched — so a restart is needed, but nothing is
-  applied in part.
-- **Turning something off.** Sections can be added and changed, but not removed:
-  OPA cannot stop what a section started, so a reload that would leave
-  `decision_logs`, `status` or an entry under `plugins` with nothing left to run
-  is rejected rather than carrying on with settings the configuration no longer
-  mentions. That covers dropping the section and emptying it, since an empty
-  `decision_logs` enables nothing either. `bundles` is the exception: emptying it
-  (`bundles: {}`) is applied, read as "no bundles", and OPA stops downloading and
-  deactivates them. Dropping the section outright is still rejected.
-- **Changing or removing a label.** Labels can be added, but the labels present
-  at start-up always win, so changing or removing one is rejected the same way
-  as the start-up-only options above.
+Everything the configuration drives starts from scratch, so a change is not
+free:
 
-Entries removed from `services` and `keys` are neither applied nor rejected:
-they stay registered for the rest of the process, and OPA logs a warning saying
-so. Changing an entry is applied normally — anything already using that service
-picks the new client up, so credentials and URLs can be rotated without a
-restart.
+- **Listeners are re-bound.** Requests already being served are drained first,
+  but there is a brief window where the port is not accepting connections.
+- **Bundles are downloaded again**, unless [`persistence_directory`](#bundles)
+  is set, in which case the persisted copy is activated first. Until the first
+  activation, `/health?bundles` reports not-ready.
+- **Buffered decisions are flushed** where the decision log plugin can flush
+  them — that is, when a `service` is configured. Decisions buffered for a
+  console or plugin sink are lost.
 
-If a reload fails for any other reason — a syntax error, or a `bundles` entry
-naming a service that doesn't exist — it is logged and the change is not
-completed. Validating those sections requires the new `services` to be
-registered first, so part of the configuration may already be in effect;
-reverting the file undoes it, as each reload is applied on top of the last one
-that succeeded.
+This is the trade for being able to change any option: a reload is reliably
+more expensive than reconfiguring in place would be, and reliably complete.
+
+### When a reload is refused
+
+The new file is checked before anything is torn down, so a configuration OPA
+could not start under costs nothing — the error is logged and the running
+configuration keeps serving. That covers what can be known by reading the file:
+it must parse, satisfy the configuration schema, pass any [config hooks](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/hooks), and every
+section must be valid for the feature it configures — including references, so
+a `bundles` entry naming a service that does not exist is caught here.
+
+What cannot be known by reading the file is only found once the restart runs: a
+port that no longer binds, a directory that cannot be written. If OPA cannot
+come up under the new configuration it falls back to the previous one and logs
+the failure.
+
+Note that a _misspelled_ option is not an error. Unrecognized keys are reported
+as warnings and otherwise ignored, exactly as they are at start-up, so a typo in
+a key name silently does nothing rather than failing the reload.
 
 The configuration file is not watched when [discovery](#discovery) is enabled,
 since the discovered configuration — not the file on disk — is what OPA is
-configured with. OPA logs a warning at start-up in that case.
+configured with. OPA logs a warning at start-up in that case. It is also not
+watched when OPA is embedded and the caller supplied its own HTTP router, since
+a restart needs to register OPA's routes afresh.
 
 ## Using Environment Variables in Configuration
 
