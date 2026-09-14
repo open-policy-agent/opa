@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -60,6 +61,107 @@ func TestRoundTrip(t *testing.T) {
 				t.Errorf("unexpected type %T", x)
 			}
 		})
+	}
+}
+
+func TestRoundTripFastMatchesRoundTrip(t *testing.T) {
+	type tagged struct {
+		Foo string `json:"baz"`
+	}
+
+	cases := []any{
+		nil,
+		1,
+		1.1,
+		false,
+		"string",
+		json.Number("42"),
+		[]int{1},
+		[]bool{true},
+		[]string{"foo"},
+		map[string]string{"foo": "bar"},
+		map[string][]int{
+			"ones": {1, 1, 1},
+		},
+		tagged{Foo: "bar"},
+		map[string]any(nil),
+		[]any(nil),
+		map[string]any{},
+		[]any{},
+		map[string]any{
+			"str":  "hello",
+			"bool": true,
+			"num":  json.Number("123"),
+			"nil":  nil,
+			"arr":  []any{"a", json.Number("1"), map[string]any{"nested": "b"}},
+			"obj": map[string]any{
+				"deep":                map[string]any{"deeper": []any{json.Number("1"), json.Number("2")}},
+				"nil_map":             map[string]any(nil),
+				"nil_arr":             []any(nil),
+				"raw_ints":            []any{1, 2, 3},
+				"tagged_struct":       tagged{Foo: "bar"},
+				"tagged_struct_slice": []any{tagged{Foo: "bar"}},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("input %v", tc), func(t *testing.T) {
+			want := tc
+			if err := util.RoundTrip(&want); err != nil {
+				t.Fatalf("RoundTrip: unexpected error: %s", err)
+			}
+
+			got := tc
+			if err := util.RoundTripFast(&got); err != nil {
+				t.Fatalf("RoundTripFast: unexpected error: %s", err)
+			}
+
+			if !reflect.DeepEqual(want, got) {
+				t.Errorf("RoundTripFast diverged from RoundTrip:\nRoundTrip:     %#v\nRoundTripFast: %#v", want, got)
+			}
+		})
+	}
+}
+
+func TestRoundTripFastCyclicMap(t *testing.T) {
+	m := map[string]any{}
+	m["self"] = m
+	v := any(m)
+
+	err := util.RoundTripFast(&v)
+	if err == nil {
+		t.Fatal("expected an error for a self-referential map, got nil")
+	}
+
+	var want any = m
+	wantErr := util.RoundTrip(&want)
+	if wantErr == nil {
+		t.Fatal("expected RoundTrip to also error on a self-referential map")
+	}
+}
+
+func TestRoundTripFastCyclicSlice(t *testing.T) {
+	s := make([]any, 1)
+	s[0] = s
+	v := any(s)
+
+	err := util.RoundTripFast(&v)
+	if err == nil {
+		t.Fatal("expected an error for a self-referential slice, got nil")
+	}
+}
+
+// Deeper than startDetectingCyclesAfter, but not cyclic: must not false-positive.
+func TestRoundTripFastDeepNonCyclicTree(t *testing.T) {
+	const depth = 2000
+
+	var v any = "leaf"
+	for range depth {
+		v = map[string]any{"child": v}
+	}
+
+	if err := util.RoundTripFast(&v); err != nil {
+		t.Fatalf("unexpected error on a deep non-cyclic tree: %s", err)
 	}
 }
 
@@ -210,4 +312,107 @@ func BenchmarkRoundTrip(b *testing.B) {
 			b.Fatalf("expected %v, got %v", exp, cpy)
 		}
 	})
+}
+
+// BenchmarkRoundTripFast mirrors BenchmarkRoundTrip's scenarios, plus an
+// already-native-tree case.
+//
+// RoundTrip on an already-native tree:
+// leaves=10-16       5192 ns/op      4776 B/op       93 allocs/op
+// leaves=100-16     41931 ns/op     39318 B/op      826 allocs/op
+// leaves=1000-16   433611 ns/op    453315 B/op     8047 allocs/op
+// leaves=10000-16 4506942 ns/op   4955688 B/op    80121 allocs/op
+//
+// RoundTripFast on the same tree:
+// leaves=10-16       705.9 ns/op    2456 B/op       16 allocs/op
+// leaves=100-16      5778 ns/op    20448 B/op      108 allocs/op
+// leaves=1000-16    59980 ns/op   217601 B/op     1008 allocs/op
+// leaves=10000-16  659289 ns/op  2090347 B/op    10022 allocs/op
+func BenchmarkRoundTripFast(b *testing.B) {
+	b.Run("zero-allocs", func(b *testing.B) {
+		act := []any{nil, false, true, "string", json.Number("1")}
+		exp := slices.Clone(act)
+
+		var cpy []any
+
+		for b.Loop() {
+			cpy = slices.Clone(act)
+			for i := range cpy {
+				if err := util.RoundTripFast(&cpy[i]); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		}
+
+		if !slices.Equal(exp, cpy) {
+			b.Fatal("expected inputs to be unchanged")
+		}
+	})
+
+	b.Run("less-allocs to json.Number", func(b *testing.B) {
+		act := []any{1.1, 1000, -22}
+		exp := []any{json.Number("1.1"), json.Number("1000"), json.Number("-22")}
+
+		var cpy []any
+
+		for b.Loop() {
+			cpy = slices.Clone(act)
+			for i := range cpy {
+				if err := util.RoundTripFast(&cpy[i]); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		}
+
+		if !slices.Equal(exp, cpy) {
+			b.Fatalf("unexpected: %v", cpy)
+		}
+	})
+
+	b.Run("full-allocs collections", func(b *testing.B) {
+		exp := []any{[]any{json.Number("1"), json.Number("2"), json.Number("3")}, map[string]any{"foo": "bar"}}
+		act := []any{[]int{1, 2, 3}, map[string]string{"foo": "bar"}}
+
+		var cpy []any
+
+		for b.Loop() {
+			cpy = slices.Clone(act)
+			for i := range act {
+				if err := util.RoundTripFast(&cpy[i]); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		}
+
+		if !reflect.DeepEqual(exp, cpy) {
+			b.Fatalf("expected %v, got %v", exp, cpy)
+		}
+	})
+
+	for _, n := range []int{10, 100, 1000, 10000} {
+		tree := benchNativeTree(n)
+
+		b.Run(fmt.Sprintf("already-native tree/leaves=%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				v := any(tree)
+				if err := util.RoundTripFast(&v); err != nil {
+					b.Fatalf("expected error=nil, got %s", err.Error())
+				}
+			}
+		})
+	}
+}
+
+func benchNativeTree(n int) map[string]any {
+	arr := make([]any, 0, n/2)
+	obj := make(map[string]any, n/2)
+	for i := range n {
+		if i%2 == 0 {
+			arr = append(arr, map[string]any{"i": json.Number(strconv.Itoa(i)), "s": "value"})
+		} else {
+			obj[fmt.Sprintf("key%d", i)] = json.Number(strconv.Itoa(i))
+		}
+	}
+	return map[string]any{"arr": arr, "obj": obj}
 }
