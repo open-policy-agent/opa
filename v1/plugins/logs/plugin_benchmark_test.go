@@ -134,6 +134,25 @@ const largeEvent = `{
 	"timestamp": "2019-06-04T19:02:35.692Z"
   }`
 
+// BenchmarkEventAST exercises EventV1.AST().
+//
+// With util.RoundTrip:      29402 ns/op   36476 B/op   637 allocs/op
+// With util.RoundTripFast:  12226 ns/op   25416 B/op   407 allocs/op
+func BenchmarkEventAST(b *testing.B) {
+	var event EventV1
+	if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		event.inputAST = nil // force AST() to redo the input conversion each iteration
+		if _, err := event.AST(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkMaskingNop(b *testing.B) {
 
 	ctx := b.Context()
