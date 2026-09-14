@@ -138,6 +138,10 @@ cases:
         row: 5
         col: 14
         message: 'undefined ref: data.test.str[data.test.str]'
+        detail: |-
+          data.test.str[data.test.str]
+          ^^^^^^^^^^^^^
+          have: string
     want_stages:
       RewriteDynamicTerms:
         - module: |
@@ -168,10 +172,18 @@ cases:
         row: 5
         col: 19
         message: 'undefined ref: data.test.str[data.test.str[data.test.str]]'
+        detail: |-
+          data.test.str[data.test.str[data.test.str]]
+          ^^^^^^^^^^^^^
+          have: string
       - code: rego_type_error
         row: 5
         col: 19
         message: 'undefined ref: data.test.str[data.test.str]'
+        detail: |-
+          data.test.str[data.test.str]
+          ^^^^^^^^^^^^^
+          have: string
     want_stages:
       RewriteDynamicTerms:
         - module: |
@@ -397,6 +409,9 @@ cases:
         row: 5
         col: 14
         message: match error
+        detail: |-
+          left  : array<string>
+          right : array<number>
     want_stages:
       RewriteDynamicTerms:
         - module: |

@@ -147,3 +147,32 @@ func TestUnmarshalRejectsUnknownFields(t *testing.T) {
 		})
 	}
 }
+
+// TestErrorDetailIsOptional pins that a case may leave detail out and still match, the
+// way it may leave out col. The field is recorded so a consumer can assert it, not to
+// oblige one to.
+func TestErrorDetailIsOptional(t *testing.T) {
+	got := []Error{{Code: "rego_type_error", Row: 7, Col: 2, Message: "match error",
+		Detail: "left  : string\nright : number"}}
+
+	tests := []struct {
+		note string
+		want Error
+		ok   bool
+	}{
+		{"detail omitted", Error{Code: "rego_type_error", Row: 7, Message: "match error"}, true},
+		{"detail matching", Error{Code: "rego_type_error", Row: 7, Message: "match error",
+			Detail: "left  : string\nright : number"}, true},
+		{"detail differing", Error{Code: "rego_type_error", Row: 7, Message: "match error",
+			Detail: "left  : number\nright : string"}, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			missing, _ := MatchErrors([]Error{tc.want}, got, false)
+			if ok := len(missing) == 0; ok != tc.ok {
+				t.Errorf("expected match=%v, got %v", tc.ok, ok)
+			}
+		})
+	}
+}

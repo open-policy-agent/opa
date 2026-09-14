@@ -53,7 +53,7 @@ line. The loader names the offending line rather than stripping it.
 | `strict` | `enabled`, `disabled`, or absent — see [Strict mode](#strict-mode) |
 | `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
-| `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
+| `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message`/`detail` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
 | `want` | what compiling produces, one entry per module — see [Transformations](#transformations) |
 | `schemas` | JSON Schemas the modules refer to from their metadata annotations — see [Schemas](#schemas) |
@@ -321,6 +321,28 @@ expected one must pair with a distinct reported one on module, code, row and mes
 
 `col` is asserted only when present. Deleting it relaxes a case to the row, worth
 doing where the column is an artifact of OPA's desugaring.
+
+`detail` is what OPA prints under the message — the operand types of a match error, the
+candidate keys of an undefined ref — and is asserted only when present, on the same
+footing as `col`:
+
+```yaml
+      - code: rego_type_error
+        row: 7
+        col: 2
+        message: match error
+        detail: |-
+          left  : string
+          right : number
+```
+
+It is recorded so that a consumer *can* assert it, not because one must: nothing obliges
+an implementation to word or lay out its diagnostics the way OPA does. Delete the field
+to relax the case, exactly as with `col`. Leaving it out of the corpus altogether would
+deny the choice to everyone, OPA included — `match error` on its own says very little.
+
+Generated, not authored: the generator refreshes `detail` on every run while leaving the
+message, code and position a reviewer wrote alone.
 
 `exhaustive: true` additionally requires that nothing else was reported. Leave it off
 where the number of diagnostics is not itself the contract —

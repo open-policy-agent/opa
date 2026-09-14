@@ -96,13 +96,18 @@ func generateFile(path string, mode fs.FileMode) error {
 
 		default:
 			// Fill in the diagnostics only where the case has none. A message
-			// that changes has to fail the runner, not be quietly rewritten
-			// underneath it, so an existing want_errors is never touched.
+			// that changes has to fail the runner.
 			if !tc.Failure() {
 				tc.WantErrors = reported
 				corpusgen.SetMapValue(caseNodes.Content[i], "want_errors",
 					corpusgen.ErrorsNode(reported), "exhaustive", "want_stages")
+				break
 			}
+
+			// detail is generated rather than authored.
+			withDetails(tc, reported)
+			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors",
+				corpusgen.ErrorsNode(tc.WantErrors), "exhaustive", "want_stages")
 		}
 
 		if err := fillStages(tc, caseNodes.Content[i]); err != nil {
@@ -124,6 +129,36 @@ func generateFile(path string, mode fs.FileMode) error {
 	}
 
 	return os.WriteFile(path, out, mode)
+}
+
+// withDetails copies the detail onto each committed diagnostic that names a reported
+// one. A committed entry with no counterpart keeps none, so a message that has drifted
+// still fails the runner rather than being papered over here.
+func withDetails(tc *compilecases.TestCase, reported []conformance.Error) {
+	used := make([]bool, len(reported))
+
+	for i := range tc.WantErrors {
+		want := &tc.WantErrors[i]
+		want.Detail = ""
+
+		for j, got := range reported {
+			if used[j] || !sameDiagnostic(*want, got) {
+				continue
+			}
+			want.Detail, used[j] = got.Detail, true
+			break
+		}
+	}
+}
+
+// sameDiagnostic reports whether a committed entry names a reported one, ignoring the
+// detail it is about to be given.
+func sameDiagnostic(want, got conformance.Error) bool {
+	return want.ModuleOrDefault() == got.ModuleOrDefault() &&
+		want.Code == got.Code &&
+		want.Row == got.Row &&
+		(want.Col == 0 || want.Col == got.Col) &&
+		want.Message == got.Message
 }
 
 // fillTransform writes what the case's modules compile to, as Rego where OPA's

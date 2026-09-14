@@ -93,6 +93,11 @@ func ErrorsNode(errs []conformance.Error) *yaml.Node {
 			SetMapValue(m, "col", Scalar("!!int", strconv.Itoa(e.Col)))
 		}
 		SetMapValue(m, "message", Scalar("!!str", e.Message))
+		if e.Detail != "" {
+			// No trailing newline: the emitter then writes `|-`, so the value loads back
+			// exactly as the compiler rendered it and compares equal.
+			SetMapValue(m, "detail", Literal(strings.TrimRight(e.Detail, "\n")))
+		}
 		seq.Content = append(seq.Content, m)
 	}
 

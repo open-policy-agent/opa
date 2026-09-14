@@ -1,0 +1,378 @@
+---
+# Generated externalized tests from TestCheckRefErrInvalid
+cases:
+  - note: types/bad non-leaf var
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	x = 1; data.test[x]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 9
+        message: 'undefined ref: data.test[x]'
+        detail: |-
+          data.test[x]
+                    ^
+                    have (type): number
+                    want (one of): ["a" "p" "q"]
+  - note: types/bad non-leaf ref
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	arr = [1]; data.test[arr[0]]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 13
+        message: 'undefined ref: data.test[arr[0]]'
+        detail: |-
+          data.test[arr[0]]
+                    ^
+                    have (type): number
+                    want (one of): ["a" "p" "q"]
+  - note: types/bad leaf ref
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	arr = [1]; data.test.q[arr[0]]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 13
+        message: 'undefined ref: data.test.q[arr[0]]'
+        detail: |-
+          data.test.q[arr[0]]
+                      ^
+                      have (type): number
+                      want (one of): ["bar" "foo"]
+  - note: types/bad ref hitting last term
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	x = true; data.test.a.b.c[x][_]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 12
+        message: 'undefined ref: data.test.a.b.c[x][_]'
+        detail: |-
+          data.test.a.b.c[x][_]
+                          ^
+                          have (type): boolean
+                          want (one of): [3]
+  - note: types/bad ref hitting dynamic part
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	s = true; data.test.a.b.c[3].x[s][_] = _
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 12
+        message: 'undefined ref: data.test.a.b.c[3].x[s][_]'
+        detail: |-
+          data.test.a.b.c[3].x[s][_]
+                               ^
+                               have (type): boolean
+                               want (one of): ["y"]
+  - note: types/bad leaf var
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	x = 1; data.test.q[x]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 9
+        message: 'undefined ref: data.test.q[x]'
+        detail: |-
+          data.test.q[x]
+                      ^
+                      have (type): number
+                      want (one of): ["bar" "foo"]
+  - note: types/bad array index value
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	arr = [[1,2],[3],[4]]; arr[0].dead.beef = x
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 25
+        message: 'undefined ref: arr[0].dead.beef'
+        detail: |-
+          arr[0].dead.beef
+                 ^
+                 have: "dead"
+                 want (type): number
+  - note: types/bad set element value
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	s = {{1,2},{3,4}}; x = {1,2}; s[x].deadbeef
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 32
+        message: 'undefined ref: s[x].deadbeef'
+        detail: |-
+          s[x].deadbeef
+               ^
+               have: "deadbeef"
+               want (type): number
+  - note: types/bad object key value
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	arr = [{"a": 1, "c": 3}, {"b": 2}]; arr[0].b
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 38
+        message: 'undefined ref: arr[0].b'
+        detail: |-
+          arr[0].b
+                 ^
+                 have: "b"
+                 want (one of): ["a" "c"]
+  - note: types/bad non-leaf value
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	data.test[1]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 2
+        message: 'undefined ref: data.test[1]'
+        detail: |-
+          data.test[1]
+                    ^
+                    have (type): number
+                    want (one of): ["a" "p" "q"]
+  - note: types/bad non-leaf value (package)
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	data[1]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 2
+        message: 'undefined ref: data[1]'
+        detail: |-
+          data[1]
+               ^
+               have (type): number
+               want (one of): ["test"]
+  - note: types/composite ref operand
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	data.test.q[[1, 2]]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 2
+        message: 'undefined ref: data.test.q[[1, 2]]'
+        detail: |-
+          data.test.q[[1, 2]]
+                      ^
+                      have (type): array<number, number>
+                      want (type): string
+  - note: types/composite ref type error 1
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	a = {[1], [2], [3]}; a[["foo"]]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 23
+        message: 'undefined ref: a[["foo"]]'
+        detail: |-
+          a[["foo"]]
+            ^
+            have (type): array<string>
+            want (type): array<number>
+  - note: types/composite ref type error 2
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	a = {{"a": 2}}; a[{"a": "foo"}]
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 18
+        message: 'undefined ref: a[{"a": "foo"}]'
+        detail: |-
+          a[{"a": "foo"}]
+            ^
+            have (type): object<a: string>
+            want (type): object<a: number>
+  - note: types/composite ref type error 3 - array
+    modules:
+      - |
+        package test
+
+        p if { true }
+        q = {"foo": 1, "bar": 2} if { true }
+        a.b.c[3] = x if { x = {"x": {"y": 2}} }
+      - |
+        package probe
+
+        wrapped if {
+        	a = [1,2,3]; a[{}] = b
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 15
+        message: 'undefined ref: a[{}]'
+        detail: |-
+          a[{}]
+            ^
+            have (type): object[any: any]
+            want (type): number

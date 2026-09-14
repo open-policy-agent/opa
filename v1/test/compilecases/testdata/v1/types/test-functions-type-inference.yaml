@@ -1,0 +1,540 @@
+---
+# Generated externalized tests from TestFunctionsTypeInference
+cases:
+  - note: 'types/fn(_) = y if { data.base.foo(["hello", 5], y) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(_) = y if { data.base.foo(["hello", 5], y) }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 16
+        message: 'data.base.foo: invalid argument(s)'
+        detail: |-
+          have: (array<string, number>, ???)
+          want: (array<string, string>, array[string])
+  - note: 'types/fn(_) = y if { data.base.foo(["hello", "ll"], y) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(_) = y if { data.base.foo(["hello", "ll"], y) }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	data.base.foo(["hello", "ll"], y)
+          }
+  - note: 'types/fn(_) = y if { data.base.baz(["hello", "ll"], y) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(_) = y if { data.base.baz(["hello", "ll"], y) }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	data.base.baz(["hello", "ll"], y)
+          }
+  - note: 'types/fn(_) = y if { data.base.baz([5, ["foo", "bar", true]], y) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(_) = y if { data.base.baz([5, ["foo", "bar", true]], y) }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	data.base.baz([5, ["foo", "bar", true]], y)
+          }
+  - note: 'types/fn(_) = y if { data.base.baz(["hello", {"a": "b", "c": 3}], y) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(_) = y if { data.base.baz(["hello", {"a": "b", "c": 3}], y) }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	data.base.baz(["hello", {"a": "b", "c": 3}], y)
+          }
+  - note: 'types/fn(_) = y if { data.base.corge("this is not json", y) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(_) = y if { data.base.corge("this is not json", y) }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	data.base.corge("this is not json", y)
+          }
+  - note: 'types/fn(x) = y if { data.non_existent(x, a); y = a[0] }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(x) = y if { data.non_existent(x, a); y = a[0] }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 16
+        message: undefined function data.non_existent
+  - note: 'types/fn(x) = y if { y = [x] }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(x) = y if { y = [x] }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	y = [__local8__]
+          }
+  - note: 'types/f(x) = y if { [x] = y }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        f(x) = y if { [x] = y }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          f(__local8__) = y if {
+          	[__local8__] = y
+          }
+  - note: 'types/fn(x) = y if { y = {"k": x} }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        fn(x) = y if { y = {"k": x} }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          fn(__local8__) = y if {
+          	y = {"k": __local8__}
+          }
+  - note: 'types/f(x) = y if { {"k": x} = y }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        f(x) = y if { {"k": x} = y }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+
+          bar(__local2__) = y if {
+          	count(__local2__, y)
+          }
+
+          baz([__local3__, __local4__]) = z if {
+          	sprintf("%s%s", [__local3__, __local4__], z)
+          }
+
+          qux({"bar": __local5__, "foo": __local6__}) = {a: b} if {
+          	upper(__local6__, a)
+          	json.unmarshal(__local5__, b)
+          }
+
+          corge(__local7__) = y if {
+          	data.base.qux({"bar": __local7__, "foo": __local7__}, a)
+          	__local9__ = a["{5: true}"]
+          	data.base.baz([__local9__, "BUZ"], y)
+          }
+      - module: |
+          package test
+
+          f(__local8__) = y if {
+          	{"k": __local8__} = y
+          }
+  - note: 'types/p if { [data.base.foo] }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        p if { [data.base.foo] }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 9
+        message: function data.base.foo used as reference, not called
+        detail: |-
+          data.base.foo
+          ^^^^^^^^^^^^^
+          have: (array<string, string>) => array[string]
+  - note: 'types/p if { x = data.base.foo }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        p if { x = data.base.foo }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 12
+        message: function data.base.foo used as reference, not called
+        detail: |-
+          data.base.foo
+          ^^^^^^^^^^^^^
+          have: (array<string, string>) => array[string]
+  - note: 'types/p if { data.base.foo(data.base.bar) }'
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+        bar(x) = y if { count(x, y) }
+        baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }
+        qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }
+        corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }
+      - |
+        package test
+
+        p if { data.base.foo(data.base.bar) }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 8
+        message: 'data.base.foo: invalid argument(s)'
+        detail: |-
+          have: ((any<string, array[any], object[any: any], set[any]>) => number)
+          want: (array<string, string>, array[string])
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 22
+        message: function data.base.bar used as reference, not called
+        detail: |-
+          data.base.bar
+          ^^^^^^^^^^^^^
+          have: (any<string, array[any], object[any: any], set[any]>) => number

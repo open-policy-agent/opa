@@ -284,6 +284,10 @@ cases:
         row: 6
         col: 2
         message: function data.x.f used as reference, not called
+        detail: |-
+          data.x.f
+          ^^^^^^^^
+          have: (number) => boolean
   - note: functions/must apply-2
     rego_version: v0
     modules:
@@ -297,6 +301,10 @@ cases:
         row: 4
         col: 5
         message: function data.x.f.x used as reference, not called
+        detail: |-
+          data.x.f.x
+          ^^^^^^^^
+          have: (number) => boolean
   - note: functions/call argument ref output vars
     rego_version: v0
     strict: disabled

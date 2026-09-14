@@ -31,6 +31,9 @@ func caseError(e *Error) conformance.Error {
 		out.Row = e.Location.Row
 		out.Col = e.Location.Col
 	}
+	if e.Details != nil {
+		out.Detail = strings.Join(e.Details.Lines(), "\n")
+	}
 	return out
 }
 

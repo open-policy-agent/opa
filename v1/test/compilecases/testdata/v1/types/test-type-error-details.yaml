@@ -1,0 +1,68 @@
+---
+# Diagnostics whose substance is in the detail rather than the message. Hand-authored:
+# the Go tests these come from are not table-driven, and each asserts something about
+# the shape of a type error that `message` alone does not carry.
+cases:
+  - note: types/only the outermost ref error is reported
+    # A ref into a number is one error, not one per component. `exhaustive` is the
+    # assertion: a checker that reported the enclosing expression too would fail here.
+    modules:
+      - |
+        package test
+
+        p if {
+        	arr = [1, 2, 3]
+        	arr[0].deadbeef = 1
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 2
+        message: 'undefined ref: arr[0].deadbeef'
+        detail: |-
+          arr[0].deadbeef
+          ^^^^^^
+          have: number
+    exhaustive: true
+  - note: types/only the innermost argument error is reported
+    # The arity error is reported for the call, not again for the comprehension that
+    # contains it.
+    modules:
+      - |
+        package test
+
+        p if {
+        	_ = [true | count(1)]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 14
+        message: 'count: invalid argument(s)'
+        detail: |-
+          have: (number)
+          want: (collection: any<...>, n: number)
+    exhaustive: true
+  - note: types/a diagnostic names the source variables, not the compiler's locals
+    # The compiler rewrites `foo` and `bar` to __local0__ and __local1__ before type
+    # checking, and maps them back before reporting.
+    modules:
+      - |
+        package test
+
+        p if {
+        	foo = [[1]]
+        	bar = "bar"
+        	foo[0][bar]
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 6
+        col: 2
+        message: 'undefined ref: foo[0][bar]'
+        detail: |-
+          foo[0][bar]
+                 ^
+                 have (type): string
+                 want (type): number
+    exhaustive: true

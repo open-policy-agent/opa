@@ -12,6 +12,11 @@ cases:
         row: 3
         col: 6
         message: 'undefined ref: opa.runtime()[0].foo'
+        detail: |-
+          opa.runtime()[0].foo
+                        ^
+                        have: 0
+                        want (type): string
   - note: types/rego.metadata.chain() call as ref subject
     modules:
       - |
@@ -23,6 +28,11 @@ cases:
         row: 3
         col: 6
         message: 'undefined ref: rego.metadata.chain()[0].annotations'
+        detail: |-
+          rego.metadata.chain()[0].annotations
+                                   ^
+                                   have: "annotations"
+                                   want (one of): ["path"]
   - note: types/function call as ref subject
     modules:
       - |
@@ -36,6 +46,11 @@ cases:
         row: 5
         col: 6
         message: 'undefined ref: data.test.f(1)[0]'
+        detail: |-
+          data.test.f(1)[0]
+                         ^
+                         have: 0
+                         want (one of): ["a"]
   - note: types/call in ref index position
     modules:
       - |
@@ -47,3 +62,8 @@ cases:
         row: 3
         col: 6
         message: 'undefined ref: {"a": 1}[count([1, 2])]'
+        detail: |-
+          {"a": 1}[count([1, 2])]
+                   ^
+                   have (type): number
+                   want (one of): ["a"]

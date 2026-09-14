@@ -38,6 +38,12 @@ type Error struct {
 	Row     int    `json:"row"               yaml:"row"`
 	Col     int    `json:"col,omitempty"     yaml:"col,omitempty"` // asserted when non-zero
 	Message string `json:"message"           yaml:"message"`
+
+	// Detail is what OPA prints under the message: the operand types of a match
+	// error, the candidate keys of an undefined ref. Recorded so a consumer can
+	// assert it; asserted only when present, like Col, because nothing requires an
+	// implementation to word its diagnostics the same way.
+	Detail string `json:"detail,omitempty"  yaml:"detail,omitempty"`
 }
 
 func (e Error) String() string {
@@ -91,6 +97,7 @@ func errorMatches(want, got Error) bool {
 		want.Code == got.Code &&
 		want.Row == got.Row &&
 		(want.Col == 0 || want.Col == got.Col) &&
+		(want.Detail == "" || want.Detail == got.Detail) &&
 		want.Message == got.Message
 }
 

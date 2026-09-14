@@ -268,6 +268,9 @@ cases:
         row: 4
         col: 13
         message: 'http.send: arity mismatch'
+        detail: |-
+          have: (any, any)
+          want: (request: object[string: any])
   - note: 'with/invalid ref: arity mismatch (in call)'
     modules:
       - |
@@ -280,6 +283,9 @@ cases:
         row: 4
         col: 22
         message: 'http.send: arity mismatch'
+        detail: |-
+          have: (any, any)
+          want: (request: object[string: any])
   - note: 'with/invalid ref: value another built-in with different type'
     modules:
       - |
@@ -291,6 +297,9 @@ cases:
         row: 3
         col: 13
         message: 'http.send: arity mismatch'
+        detail: |-
+          have: (string)
+          want: (request: object[string: any])
   - note: 'with/ref: value another built-in with compatible type'
     modules:
       - |
@@ -676,6 +685,9 @@ cases:
         row: 5
         col: 22
         message: 'data.test.original: arity mismatch'
+        detail: |-
+          have: (any, any)
+          want: (any)
   - note: with/non-built-in function replaced by built-in, arity mismatch
     modules:
       - |
@@ -688,3 +700,6 @@ cases:
         row: 4
         col: 22
         message: 'data.test.original: arity mismatch'
+        detail: |-
+          have: (string, any<array[string], set[string]>)
+          want: (any)

@@ -1,0 +1,1310 @@
+---
+# Generated externalized tests from TestCheckExpectedErrors
+cases:
+  - note: types/value with multiple assignments
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        default f := ""
+
+        f := 1
+        r := f()
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 6
+        col: 6
+        message: undefined function data.p.f
+  - note: types/value with one assignments
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        f := 1
+        r := f()
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 6
+        message: undefined function data.p.f
+  - note: types/value with no assignments
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        r := f()
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 6
+        message: undefined function f
+  - note: types/function used as reference
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package play
+
+        import rego.v1
+
+        f(x) := x
+
+        allow if {
+            some x in f
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 8
+        col: 15
+        message: function data.play.f used as reference, not called
+        detail: |-
+          data.play.f[__local3__]
+          ^^^^^^^^^^^
+          have: (any) => any
+  - note: types/function used as reference-2
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package play
+
+        p if { [data.base.foo] }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 9
+        message: function data.base.foo used as reference, not called
+        detail: |-
+          data.base.foo
+          ^^^^^^^^^^^^^
+          have: (array<string, string>) => array[string]
+  - note: types/wrong type used directly
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        s := sum([1, "foo"])
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 3
+        col: 6
+        message: 'sum: invalid argument(s)'
+        detail: |-
+          have: (array<number, string>, ???)
+          want: (collection: any<array[number], set[number]>, n: number)
+  - note: types/wrong type as reference
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        a := "foo"
+        s := sum([1, a])
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 4
+        col: 6
+        message: 'sum: invalid argument(s)'
+        detail: |-
+          have: (array<number, string>, ???)
+          want: (collection: any<array[number], set[number]>, n: number)
+  - note: types/wrong type as reference within rule
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        allow := s if {
+            a := "foo"
+            s := sum([1, a])
+        }
+    want_errors:
+      - module: test-1.rego
+        code: rego_type_error
+        row: 5
+        col: 10
+        message: 'sum: invalid argument(s)'
+        detail: |-
+          have: (array<number, string>, ???)
+          want: (collection: any<array[number], set[number]>, n: number)
+  - note: types/compare partial object
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        obj["a"] := input.a
+
+        obj["b"] := input.b
+
+        test_obj2 if {
+        	{"a":"1"} == obj with input as {"a": "1"}
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      # ast rather than module: comparing the compiled module against its own
+      # printed form panics in Head.Compare, which dereferences a nil rule-head
+      # key.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "p"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "a"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  "name": "obj",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj"
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local2__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "b"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "b"
+                  },
+                  "name": "obj",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj"
+                    },
+                    {
+                      "type": "string",
+                      "value": "b"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local3__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "value": [
+                          [
+                            {
+                              "type": "string",
+                              "value": "a"
+                            },
+                            {
+                              "type": "string",
+                              "value": "1"
+                            }
+                          ]
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "data"
+                          },
+                          {
+                            "type": "string",
+                            "value": "p"
+                          },
+                          {
+                            "type": "string",
+                            "value": "obj"
+                          }
+                        ]
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "object",
+                          "value": [
+                            [
+                              {
+                                "type": "string",
+                                "value": "a"
+                              },
+                              {
+                                "type": "string",
+                                "value": "1"
+                              }
+                            ]
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "test_obj2",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "test_obj2"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/compare two partial objects
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        obj1["a"] := input.a
+        obj1["b"] := input.b
+
+        obj2["x"] := input.x
+        obj2["y"] := input.y
+
+        test if {
+        	obj1 == obj2
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      # ast rather than module: comparing the compiled module against its own
+      # printed form panics in Head.Compare, which dereferences a nil rule-head
+      # key.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "p"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local2__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "a"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  "name": "obj1",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj1"
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local2__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local3__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "b"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "b"
+                  },
+                  "name": "obj1",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj1"
+                    },
+                    {
+                      "type": "string",
+                      "value": "b"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local3__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local4__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "x"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "x"
+                  },
+                  "name": "obj2",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj2"
+                    },
+                    {
+                      "type": "string",
+                      "value": "x"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local4__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local5__"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "y"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "y"
+                  },
+                  "name": "obj2",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj2"
+                    },
+                    {
+                      "type": "string",
+                      "value": "y"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local5__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "data"
+                          },
+                          {
+                            "type": "string",
+                            "value": "p"
+                          },
+                          {
+                            "type": "string",
+                            "value": "obj1"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "data"
+                          },
+                          {
+                            "type": "string",
+                            "value": "p"
+                          },
+                          {
+                            "type": "string",
+                            "value": "obj2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "test",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "test"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/compare two partial objects 2
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package test
+
+        obj["a"] := true
+
+        obj["b"] := "foo" if {
+            input.foo == "bar"
+        }
+
+        test_obj if {
+            obj == {
+                "a": true
+            } with input as {"foo": "baz"}
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      # ast rather than module: comparing the compiled module against its own
+      # printed form panics in Head.Compare, which dereferences a nil rule-head
+      # key.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "key": {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  "name": "obj",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj"
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "foo"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "name": "obj",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "obj"
+                    },
+                    {
+                      "type": "string",
+                      "value": "b"
+                    }
+                  ],
+                  "value": {
+                    "type": "string",
+                    "value": "foo"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "data"
+                          },
+                          {
+                            "type": "string",
+                            "value": "test"
+                          },
+                          {
+                            "type": "string",
+                            "value": "obj"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "value": [
+                          [
+                            {
+                              "type": "string",
+                              "value": "a"
+                            },
+                            {
+                              "type": "boolean",
+                              "value": true
+                            }
+                          ]
+                        ]
+                      }
+                    ],
+                    "with": [
+                      {
+                        "target": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "object",
+                          "value": [
+                            [
+                              {
+                                "type": "string",
+                                "value": "foo"
+                              },
+                              {
+                                "type": "string",
+                                "value": "baz"
+                              }
+                            ]
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "name": "test_obj",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "test_obj"
+                    }
+                  ],
+                  "value": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              }
+            ]
+          }
+  - note: types/sum with valid number args
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        a := 1
+        s := sum([1, a])
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package p
+
+          a := 1 if {
+          	true
+          }
+
+          s := __local2__ if {
+          	__local3__ = data.p.a
+          	sum([1, __local3__], __local2__)
+          }
+  - note: types/sum with untyped var from input
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        allow := s if {
+            s := sum([1, input.a])
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package p
+
+          allow := __local2__ if {
+          	__local4__ = input.a
+          	sum([1, __local4__], __local3__)
+          	__local2__ = __local3__
+          }
+  - note: types/object literal with set keys
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package bin
+
+        a := {1, 2, 3, 4}
+
+        b := {3, 4, 5}
+
+        c := {4, 5, 6}
+
+        d := {
+        	a: b,
+        	[1, 2]: c,
+        }
+
+        # this results in a compile error due to type mismatch
+        output if {
+        	d == {
+        		[1, 2]: {4, 5, 6},
+        		{1, 2, 3, 4}: {3, 4, 5}
+        	}
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package bin
+
+          a := {1, 2, 3, 4} if {
+          	true
+          }
+
+          b := {3, 4, 5} if {
+          	true
+          }
+
+          c := {4, 5, 6} if {
+          	true
+          }
+
+          d := __local2__ if {
+          	__local3__ = data.bin.a
+          	__local4__ = data.bin.b
+          	__local5__ = data.bin.c
+          	__local2__ = {__local3__: __local4__, [1, 2]: __local5__}
+          }
+
+          output = true if {
+          	data.bin.d = {[1, 2]: {4, 5, 6}, {1, 2, 3, 4}: {3, 4, 5}}
+          }
+  - note: types/check referencing generated map with numeric keys
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        import rego.v1
+
+        nums[x] contains x if some x in [1, 2, 3]
+
+        bug if {
+            nums[x]
+            x == 1
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package p
+
+          nums[__local4__] contains __local4__ if {
+          	__local5__ = [1, 2, 3]
+          	__local4__ = __local5__[__local3__]
+          }
+
+          bug = true if {
+          	data.p.nums[x]
+          	x = 1
+          }
+  - note: types/check referencing generated map with numeric keys with some...in
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        import rego.v1
+
+        ns := [1, 2, 3]
+
+        nums[x] contains ns if some x in ns
+
+        bug if {
+        	some n1 in ns
+        	some n2 in nums[n1]
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [rego.v1]
+        module: |
+          package p
+
+          ns := [1, 2, 3] if {
+          	true
+          }
+
+          nums[__local4__] contains __local11__ if {
+          	__local4__ = data.p.ns[__local3__]
+          	__local11__ = data.p.ns
+          }
+
+          bug = true if {
+          	__local7__ = data.p.ns[__local6__]
+          	__local10__ = data.p.nums[__local7__][__local9__]
+          }
+  - note: types/undetermined function args should be any
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        flatten(k, v) = vs if {
+          is_array(v)
+          vs = {[k, u] | u = v[_]}
+        } {
+          is_string(v)
+          vs = {[k, v]}
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package p
+
+          flatten(__local2__, __local3__) = vs if {
+          	is_array(__local3__)
+          	vs = {[__local2__, u] | u = __local3__[_]}
+          }
+
+          flatten(__local4__, __local5__) = vs if {
+          	is_string(__local5__)
+          	vs = {[__local4__, __local5__]}
+          }
+  - note: types/undetermined function args
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        f(x) := y if y := { x | true }
+
+        p := f(2)
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package p
+
+          f(__local2__) := __local3__ if {
+          	__local3__ = {__local2__ | true}
+          }
+
+          p := __local4__ if {
+          	data.p.f(2, __local4__)
+          }
+  - note: types/undetermined function args, reversed operands
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package p
+
+        flatten(k, v) = vs if {
+          is_array(v)
+          {[k, u] | u = v[_]} = vs
+        } {
+          is_string(v)
+          {[k, v]} = vs
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package p
+
+          flatten(__local2__, __local3__) = vs if {
+          	is_array(__local3__)
+          	{[__local2__, u] | u = __local3__[_]} = vs
+          }
+
+          flatten(__local4__, __local5__) = vs if {
+          	is_string(__local5__)
+          	{[__local4__, __local5__]} = vs
+          }
+  - note: types/comparing objects with array keys
+    modules:
+      - |
+        package base
+
+        foo([a, b]) = y if { split(a, b, y) }
+      - |
+        package testcase
+
+        rule1 if {
+            object1 == { [0]: "foo" }
+        }
+
+        object1[key] = value if {
+            some i
+            value := input[i]
+            key := [i]
+        }
+    want:
+      - module: |
+          package base
+
+          foo([__local0__, __local1__]) = y if {
+          	split(__local0__, __local1__, y)
+          }
+      - module: |
+          package testcase
+
+          rule1 = true if {
+          	data.testcase.object1 = {[0]: "foo"}
+          }
+
+          object1[__local4__] = __local3__ if {
+          	__local3__ = input[__local2__]
+          	__local4__ = [__local2__]
+          }

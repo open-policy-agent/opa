@@ -1,0 +1,242 @@
+---
+# Generated externalized tests from TestCheckWithModifiers
+cases:
+  - note: types/rule depending on replaced package
+    modules:
+      - |
+        package root.a
+
+        import data.root
+        rule_a := x if { x = {"b": root.b} }
+      - |
+        package root.b
+
+        rule_b if { true }
+      - |
+        package root.a
+
+        test_rule_a if { rule_a == {"b": "1"} with data.root.b as "1" }
+    want:
+      - module: |
+          package root.a
+
+          rule_a := x if {
+          	__local0__ = data.root.b
+          	x = {"b": __local0__}
+          }
+      - module: |
+          package root.b
+
+          rule_b = true if {
+          	true
+          }
+      - module: |
+          package root.a
+
+          test_rule_a = true if {
+          	data.root.a.rule_a = {"b": "1"} with data.root.b as "1"
+          }
+  - note: types/replaced document referred to directly
+    modules:
+      - |
+        package p
+
+        b := true
+        q if { data.p.b == "foo" with data.p.b as "foo" }
+    want:
+      - module: |
+          package p
+
+          b := true if {
+          	true
+          }
+
+          q = true if {
+          	data.p.b = "foo" with data.p.b as "foo"
+          }
+  - note: types/rule depending on replaced document passed to built-in function
+    modules:
+      - |
+        package p
+
+        b := true
+        a := x if { x = data.p.b }
+        q if { lower(data.p.a) == "foo" with data.p.b as "foo" }
+    want:
+      - module: |
+          package p
+
+          b := true if {
+          	true
+          }
+
+          a := x if {
+          	x = data.p.b
+          }
+
+          q = true if {
+          	__local1__ = data.p.a with data.p.b as "foo"
+          	lower(__local1__, __local0__) with data.p.b as "foo"
+          	__local0__ = "foo" with data.p.b as "foo"
+          }
+  - note: types/rule depending transitively on replaced document
+    modules:
+      - |
+        package p
+
+        b := true
+        a := data.p.b
+        c := data.p.a
+        q if { lower(data.p.c) == "foo" with data.p.b as "foo" }
+    want:
+      - module: |
+          package p
+
+          b := true if {
+          	true
+          }
+
+          a := __local1__ if {
+          	__local1__ = data.p.b
+          }
+
+          c := __local2__ if {
+          	__local2__ = data.p.a
+          }
+
+          q = true if {
+          	__local3__ = data.p.c with data.p.b as "foo"
+          	lower(__local3__, __local0__) with data.p.b as "foo"
+          	__local0__ = "foo" with data.p.b as "foo"
+          }
+  - note: types/rule depending on replaced document inside comprehension
+    modules:
+      - |
+        package p
+
+        b := true
+        a := x if { x = data.p.b }
+        q if { [y | y := lower(data.p.a)] == ["foo"] with data.p.b as "foo" }
+    want:
+      - module: |
+          package p
+
+          b := true if {
+          	true
+          }
+
+          a := x if {
+          	x = data.p.b
+          }
+
+          q = true if {
+          	[__local0__ | __local2__ = data.p.a; lower(__local2__, __local1__); __local0__ = __local1__] = ["foo"] with data.p.b as "foo"
+          }
+  - note: types/rule depending on replaced function
+    modules:
+      - |
+        package p
+
+        f(_) := true
+        a := f(1)
+        q if { lower(data.p.a) == "foo" with data.p.f as "foo" }
+    want:
+      - module: |
+          package p
+
+          f(__local0__) := true if {
+          	true
+          }
+
+          a := __local1__ if {
+          	data.p.f(1, __local1__)
+          }
+
+          q = true if {
+          	__local3__ = data.p.a with data.p.f as "foo"
+          	lower(__local3__, __local2__) with data.p.f as "foo"
+          	__local2__ = "foo" with data.p.f as "foo"
+          }
+  - note: types/function replacement arity is still checked
+    modules:
+      - |
+        package p
+
+        f(_) := true
+        mock(_, _) := "foo"
+        q if { f(1) with data.p.f as mock }
+    want_errors:
+      - code: rego_type_error
+        row: 5
+        col: 13
+        message: 'data.p.f: arity mismatch'
+        detail: |-
+          have: (any, any)
+          want: (any)
+  - note: types/variable assigned the replacement value
+    modules:
+      - |
+        package p
+
+        b := true
+        q if { x := data.p.b with data.p.b as "foo"; lower(x) == "foo" }
+    want:
+      - module: |
+          package p
+
+          b := true if {
+          	true
+          }
+
+          q = true if {
+          	__local0__ = data.p.b with data.p.b as "foo"
+          	lower(__local0__, __local1__)
+          	__local1__ = "foo"
+          }
+  - note: types/variable assigned neither the replaced nor the replacement type
+    modules:
+      - |
+        package p
+
+        b := true
+        q if { x := data.p.b with data.p.b as 1; lower(x) == "foo" }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 42
+        message: 'lower: invalid argument(s)'
+        detail: |-
+          have: (any<boolean, number>, ???)
+          want: (x: string, y: string)
+  - note: types/rule not depending on replaced document is still checked
+    modules:
+      - |
+        package p
+
+        b := true
+        a := x if { x = data.p.b }
+        other := 1
+        q if { lower(data.p.a) == "foo" with data.p.other as "foo" }
+    want_errors:
+      - code: rego_type_error
+        row: 6
+        col: 8
+        message: 'lower: invalid argument(s)'
+        detail: |-
+          have: (boolean, ???)
+          want: (x: string, y: string)
+  - note: types/expression unrelated to replaced document is still checked
+    modules:
+      - |
+        package p
+
+        b := true
+        q if { x := "foo"; sum([1, x]) == 1 with data.p.b as "foo" }
+    want_errors:
+      - code: rego_type_error
+        row: 4
+        col: 20
+        message: 'sum: invalid argument(s)'
+        detail: |-
+          have: (array<number, string>, ???)
+          want: (collection: any<array[number], set[number]>, n: number)

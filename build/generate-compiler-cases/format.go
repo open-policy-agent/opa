@@ -31,11 +31,32 @@ func formatModule(mod *ast.Module, popts ast.ParserOptions) (string, error) {
 		return "", notPrintableError{reason: reason, text: text, keyword: keyword}
 	}
 
-	if !mod.Equal(reparsed) {
+	equal, panicked := equalModules(mod, reparsed)
+	if panicked {
+		return "", notPrintableError{
+			reason: "comparing the compiled module against its own printed form panics in " +
+				"Head.Compare, which dereferences a nil rule-head key",
+			text: text,
+		}
+	}
+	if !equal {
 		return "", notPrintableError{reason: divergenceReason(mod, reparsed), text: text}
 	}
 
 	return text, nil
+}
+
+// equalModules is mod.Equal(other), guarded.
+//
+// FIXME: TermValueCompare() can panic on nil head.Key
+func equalModules(mod, other *ast.Module) (equal, panicked bool) {
+	defer func() {
+		if recover() != nil {
+			equal, panicked = false, true
+		}
+	}()
+
+	return mod.Equal(other), false
 }
 
 // notPrintableError says a compiled module has no Rego spelling that parses back to

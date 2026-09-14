@@ -1068,6 +1068,11 @@ cases:
         row: 16
         col: 15
         message: 'undefined ref: input.user'
+        detail: |-
+          input.user
+                ^
+                have: "user"
+                want (one of): ["operation"]
   - note: annotations/missing schema
     rego_version: v0
     schemas:
@@ -1432,6 +1437,11 @@ cases:
         row: 17
         col: 3
         message: 'undefined ref: input.apple.banana'
+        detail: |-
+          input.apple.banana
+                      ^
+                      have: "banana"
+                      want (one of): ["orange"]
   - note: annotations/overriding ref with length greater than one and existing prefix
     rego_version: v0
     strict: disabled
@@ -2195,6 +2205,11 @@ cases:
         row: 17
         col: 3
         message: 'undefined ref: input.apple.orange.banana.fruit'
+        detail: |-
+          input.apple.orange.banana.fruit
+                                    ^
+                                    have: "fruit"
+                                    want (one of): ["alice" "bob"]
   - note: annotations/overriding ref with length greater than one and existing ref
     rego_version: v0
     strict: disabled
@@ -2380,6 +2395,11 @@ cases:
         row: 18
         col: 3
         message: 'undefined ref: input.apple.orange.user'
+        detail: |-
+          input.apple.orange.user
+                             ^
+                             have: "user"
+                             want (one of): ["alice" "bob"]
   - note: annotations/overriding ref of size one
     rego_version: v0
     strict: disabled
@@ -2561,6 +2581,11 @@ cases:
         row: 14
         col: 21
         message: 'undefined ref: input.user'
+        detail: |-
+          input.user
+                ^
+                have: "user"
+                want (one of): ["alice" "bob"]
   - note: annotations/overriding annotation written with brackets
     rego_version: v0
     strict: disabled
@@ -2743,6 +2768,11 @@ cases:
         row: 15
         col: 3
         message: 'undefined ref: input.apple.orange.fruit'
+        detail: |-
+          input.apple.orange.fruit
+                             ^
+                             have: "fruit"
+                             want (one of): ["operation" "user"]
   - note: annotations/data annotation but no input schema
     rego_version: v0
     strict: disabled
@@ -3355,6 +3385,11 @@ cases:
         row: 17
         col: 3
         message: 'undefined ref: data.acl.foo.blah'
+        detail: |-
+          data.acl.foo.blah
+                       ^
+                       have: "blah"
+                       want (one of): ["operation" "user"]
   - note: annotations/data annotation type error
     rego_version: v0
     strict: disabled
@@ -3538,6 +3573,11 @@ cases:
         row: 16
         col: 3
         message: 'undefined ref: data.acl.foo'
+        detail: |-
+          data.acl.foo
+                   ^
+                   have: "foo"
+                   want (one of): ["alice" "bob"]
   - note: annotations/more than one rule with metadata
     rego_version: v0
     schemas:
@@ -4365,10 +4405,19 @@ cases:
         row: 17
         col: 3
         message: 'undefined ref: data.acl.foo'
+        detail: |-
+          data.acl.foo
+                   ^
+                   have: "foo"
+                   want (one of): ["alice" "bob"]
       - code: rego_type_error
         row: 27
         col: 16
         message: 'undefined ref: input.operation.foo'
+        detail: |-
+          input.operation.foo
+          ^^^^^^^^^^^^^^^
+          have: string
   - note: annotations/document scope
     rego_version: v0
     schemas:
@@ -4543,6 +4592,9 @@ cases:
         row: 9
         col: 5
         message: match error
+        detail: |-
+          left  : number
+          right : array[any]
   - note: annotations/rule scope overrides document scope
     rego_version: v0
     schemas:
@@ -5154,6 +5206,9 @@ cases:
         row: 15
         col: 2
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: annotations/document scope conflict
     rego_version: v0
     schemas:
@@ -5729,6 +5784,9 @@ cases:
         row: 3
         col: 5
         message: match error
+        detail: |-
+          left  : string
+          right : number
   - note: annotations/package scope conflict
     rego_version: v0
     schemas:
@@ -6080,6 +6138,9 @@ cases:
         row: 7
         col: 5
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: annotations/document scope overrides subpackages scope
     rego_version: v0
     schemas:
@@ -6564,6 +6625,9 @@ cases:
         row: 11
         col: 5
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: annotations/package scope
     rego_version: v0
     schemas:
@@ -6736,6 +6800,9 @@ cases:
         row: 7
         col: 5
         message: match error
+        detail: |-
+          left  : string
+          right : number
   - note: annotations/rule scope overrides package scope
     rego_version: v0
     schemas:
@@ -7216,6 +7283,9 @@ cases:
         row: 7
         col: 5
         message: match error
+        detail: |-
+          left  : string
+          right : number
   - note: annotations/document scope is unordered
     rego_version: v0
     schemas:
@@ -7390,3 +7460,6 @@ cases:
         row: 3
         col: 5
         message: match error
+        detail: |-
+          left  : string
+          right : number

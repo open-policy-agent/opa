@@ -37,6 +37,9 @@ cases:
         row: 7
         col: 2
         message: match error
+        detail: |-
+          left  : string
+          right : number
   - note: types/declared var in array of numbers used as string
     schemas:
       schema.input: |
@@ -74,6 +77,9 @@ cases:
         row: 8
         col: 2
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: types/string index of array of numbers
     schemas:
       schema.input: |
@@ -111,6 +117,9 @@ cases:
         row: 8
         col: 2
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: types/number in object of strings
     schemas:
       schema.input: |
@@ -147,6 +156,9 @@ cases:
         row: 7
         col: 2
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: types/number key of object of strings
     schemas:
       schema.input: |
@@ -184,6 +196,9 @@ cases:
         row: 8
         col: 2
         message: match error
+        detail: |-
+          left  : string
+          right : number
   - note: types/number key of object of strings, literal
     schemas:
       schema.input: |
@@ -220,6 +235,9 @@ cases:
         row: 7
         col: 2
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: types/number value of object of strings, literal
     schemas:
       schema.input: |
@@ -256,6 +274,9 @@ cases:
         row: 7
         col: 2
         message: match error
+        detail: |-
+          left  : number
+          right : string
   - note: types/string index of array of numbers, literal
     schemas:
       schema.input: |
@@ -292,6 +313,9 @@ cases:
         row: 7
         col: 2
         message: match error
+        detail: |-
+          left  : string
+          right : number
   - note: types/number in array of numbers
     schemas:
       schema.input: |

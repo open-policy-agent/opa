@@ -259,7 +259,7 @@ func roundTrips(tc compilecases.TestCase, print func(*ast.Module) string) (bool,
 		if perr != nil {
 			return false, nil
 		}
-		if !compiled.Equal(reparsed) {
+		if equal, panicked := equalModules(compiled, reparsed); panicked || !equal {
 			return false, nil
 		}
 	}
