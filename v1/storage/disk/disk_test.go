@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -385,6 +386,268 @@ func TestTruncateMultipleTxn(t *testing.T) {
 	if !reflect.DeepEqual(jsn, actual) {
 		t.Fatalf("Expected reader's read to be %v but got: %v", jsn, actual)
 	}
+}
+
+func TestTruncateSingleLargeDataFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	t.Parallel()
+
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{
+		Dir:        t.TempDir(),
+		Partitions: []storage.Path{storage.MustParsePath("/users/*")},
+		Badger:     "memtablesize=4000;valuethreshold=600",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+
+	const users = 20
+
+	data := map[string]any{}
+	for i := range users {
+		data[fmt.Sprintf("user%d", i)] = map[string]string{
+			"blob": strings.Repeat("a", 1<<20), // 1 MB
+		}
+	}
+
+	bs, err := json.Marshal(map[string]any{"users": data})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := bundle.NewReader(archive.MustWriteTarGz([][2]string{
+		{"/data.json", string(bs)},
+	})).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+	if err := s.Truncate(ctx, txn, params, bundle.NewIterator(b.Raw)); err != nil {
+		t.Fatalf("Unexpected truncate error: %v", err)
+	}
+
+	if err := s.Commit(ctx, txn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, s)
+	defer s.Abort(ctx, txn)
+
+	for i := range users {
+		path := storage.MustParsePath(fmt.Sprintf("/users/user%d/blob", i))
+		act, err := s.Read(ctx, txn, path)
+		if err != nil {
+			t.Fatalf("read %v: %v", path, err)
+		}
+		if exp := strings.Repeat("a", 1<<20); act != exp {
+			t.Fatalf("read %v: expected %d bytes, got %v", path, len(exp), act)
+		}
+	}
+}
+
+func TestTruncateManyPoliciesMultipleTxn(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	t.Parallel()
+
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{
+		Dir:    t.TempDir(),
+		Badger: "memtablesize=4000;valuethreshold=600",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+
+	const policies = 20
+
+	files := make([][2]string, 0, policies)
+	for i := range policies {
+		files = append(files, [2]string{
+			fmt.Sprintf("/p%d.rego", i),
+			fmt.Sprintf("package p%d\n\n# %s\np := %d\n", i, strings.Repeat("x", 1<<20), i),
+		})
+	}
+
+	b, err := bundle.NewReader(archive.MustWriteTarGz(files)).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+	if err := s.Truncate(ctx, txn, params, bundle.NewIterator(b.Raw)); err != nil {
+		t.Fatalf("Unexpected truncate error: %v", err)
+	}
+
+	if err := s.Commit(ctx, txn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, s)
+	defer s.Abort(ctx, txn)
+
+	ids, err := s.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, act := policies, len(ids); exp != act {
+		t.Fatalf("expected %d policies, got %d", exp, act)
+	}
+}
+
+func TestTruncateFailureLeavesUsableTransaction(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+
+	expErr := "read failed"
+
+	txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+	err = s.Truncate(ctx, txn, params, erroringIterator{err: errors.New(expErr)})
+	if err == nil || !strings.Contains(err.Error(), expErr) {
+		t.Fatalf("expected error containing %q, got %v", expErr, err)
+	}
+
+	s.Abort(ctx, txn) // used to panic
+
+	if err := storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo"), "bar"); err != nil {
+		t.Fatal(err)
+	}
+
+	act, err := storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := "bar"; act != exp {
+		t.Fatalf("expected %v, got %v", exp, act)
+	}
+}
+
+type erroringIterator struct {
+	err error
+}
+
+func (it erroringIterator) Next() (*storage.Update, error) { return nil, it.err }
+
+func TestTruncateNonObjectInPartition(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		note, data, exp string
+	}{
+		{
+			note: "array",
+			data: `{"users": {"bob": [1, 2, 3]}}`,
+			exp:  "value at /users/bob cannot be partitioned: expected object, found array",
+		},
+		{
+			// A nil map unmarshals without error, so this used to drop bob.
+			note: "null",
+			data: `{"users": {"bob": null}}`,
+			exp:  "value at /users/bob cannot be partitioned: expected object, found null",
+		},
+		{
+			note: "scalar",
+			data: `{"users": {"bob": 7}}`,
+			exp:  "value at /users/bob cannot be partitioned: expected object, found number",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{
+				Dir:        t.TempDir(),
+				Partitions: []storage.Path{storage.MustParsePath("/users/*")},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close(ctx)
+
+			// /users/* splits one level below the partition.
+			b, err := bundle.NewReader(archive.MustWriteTarGz([][2]string{
+				{"/data.json", tc.data},
+			})).WithLazyLoadingMode(true).Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+			params := storage.WriteParams
+			params.BasePaths = []string{""}
+			err = s.Truncate(ctx, txn, params, bundle.NewIterator(b.Raw))
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tc.exp) {
+				t.Fatalf("expected error to contain %q, got %v", tc.exp, err)
+			}
+
+			s.Abort(ctx, txn)
+		})
+	}
+}
+
+func TestTruncateSingleValueTooLarge(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{
+		Dir:    t.TempDir(),
+		Badger: "memtablesize=4000;valuethreshold=600",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+
+	// Just under valuethreshold, so badger counts the whole value against the
+	// 600 byte max batch size.
+	b, err := bundle.NewReader(archive.MustWriteTarGz([][2]string{
+		{"/data.json", fmt.Sprintf(`{"big": %q}`, strings.Repeat("a", 590))},
+	})).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+	err = s.Truncate(ctx, txn, params, bundle.NewIterator(b.Raw))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if exp := "value at /big is too large to store"; !strings.Contains(err.Error(), exp) {
+		t.Fatalf("expected error to contain %q, got %v", exp, err)
+	}
+
+	s.Abort(ctx, txn)
 }
 
 func TestDataPartitioningValidation(t *testing.T) {
