@@ -2128,6 +2128,100 @@ func TestObjectFail(t *testing.T) {
 	assertParseError(t, "trailing double comma", "{a:1,,}")
 }
 
+func TestObjectFailPointsAtOffendingToken(t *testing.T) {
+	tests := []struct {
+		note    string
+		input   string
+		message string
+		col     int
+	}{
+		{
+			note:    "keyword value, first entry",
+			input:   `{"a": as, "b": bt}`,
+			message: "unexpected as keyword",
+			col:     7,
+		},
+		{
+			note:    "keyword value, later entry",
+			input:   `{"b": bt, "a": as}`,
+			message: "unexpected as keyword",
+			col:     16,
+		},
+		{
+			note:    "keyword key, later entry",
+			input:   `{"b": bt, as: 1}`,
+			message: "unexpected as keyword",
+			col:     11,
+		},
+		{
+			note:    "object comprehension, keyword value in first entry",
+			input:   `{{"a": as, "b": bt} | as := [1,2,3][_]; bt := ["a","b","c"][_]}`,
+			message: "unexpected as keyword",
+			col:     8,
+		},
+		{
+			note:    "object comprehension, keyword value in later entry",
+			input:   `{{"b": bt, "a": as} | as := [1,2,3][_]; bt := ["a","b","c"][_]}`,
+			message: "unexpected as keyword",
+			col:     17,
+		},
+		{
+			note:    "array of object comprehension, keyword value in later entry",
+			input:   `[{"b": bt, "a": as} | as := [1,2,3][_]; bt := ["a","b","c"][_]]`,
+			message: "unexpected as keyword",
+			col:     17,
+		},
+		{
+			note:    "object comprehension, keyword key in later entry",
+			input:   `{{"b": bt, every: 1} | x}`,
+			message: "unexpected every keyword",
+			col:     12,
+		},
+		{
+			note:    "nested object, keyword value in later entry",
+			input:   `{"x": {"b": bt, "a": as}}`,
+			message: "unexpected as keyword",
+			col:     22,
+		},
+		{
+			note:    "missing value in later entry",
+			input:   `{"a": 1, "b": }`,
+			message: "unexpected } token",
+			col:     15,
+		},
+		{
+			note:    "unterminated after later entry",
+			input:   `{foo: bar, baz: [], qux: corge`,
+			message: `unexpected eof token: expected "," or "}"`,
+			col:     30,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, _, err := ParseStatements("", tc.input)
+			if err == nil {
+				t.Fatal("expected parse error, got none")
+			}
+
+			errs, ok := errors.AsType[Errors](err)
+			if !ok {
+				t.Fatalf("expected %T, got %T: %v", errs, err, err)
+			}
+			if len(errs) != 1 {
+				t.Fatalf("expected exactly one error, got %d: %v", len(errs), errs)
+			}
+
+			if errs[0].Message != tc.message {
+				t.Errorf("expected message %q, got %q", tc.message, errs[0].Message)
+			}
+			if loc := errs[0].Location; loc.Row != 1 || loc.Col != tc.col {
+				t.Errorf("expected error at 1:%d, got %d:%d", tc.col, loc.Row, loc.Col)
+			}
+		})
+	}
+}
+
 func TestArrayWithScalars(t *testing.T) {
 	assertParseOneTerm(t, "number", "[1,2,3,4.5]", ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), FloatNumberTerm(4.5)))
 	assertParseOneTerm(t, "bool", "[true, false, true]", ArrayTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
