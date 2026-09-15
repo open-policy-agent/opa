@@ -987,11 +987,12 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		var tmp any = b
+		var tmp any = b.Data
 		err = util.RoundTrip(&tmp)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
+		b.Data = tmp.(map[string]any)
 
 		if !actual.Equal(*b) {
 			t.Fatalf("Loaded bundle doesn't match expected.\n\nExpected: %+v\n\nActual: %+v\n\n", b, actual)
