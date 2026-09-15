@@ -3086,6 +3086,44 @@ func TestTimeSeedingOptions(t *testing.T) {
 
 }
 
+// EvalDisableInlining is threaded through the same EvalContext defaults that
+// disableInlining set on the Rego object populates; verify the per-call
+// option actually takes effect instead of being overwritten by the default.
+func TestEvalDisableInliningOption(t *testing.T) {
+	ctx := t.Context()
+	module := `
+package test
+
+p if { q; r }
+q if { s[input] }
+q if { t[input] }
+r if { s[input] }
+s contains 1
+s contains 2
+t contains 3
+`
+	pq, err := New(
+		Query("data.test.p = true"),
+		Module("test.rego", module),
+		Unknowns([]string{"input"}),
+	).PrepareForPartial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pqs, err := pq.Partial(ctx, EvalDisableInlining([]ast.Ref{ast.MustParseRef("data.test.q")}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, q := range pqs.Queries {
+		if strings.Contains(q.String(), "data.partial.test.q") {
+			return
+		}
+	}
+	t.Fatalf("expected EvalDisableInlining to prevent inlining of data.test.q, got queries %v", pqs.Queries)
+}
+
 func int64ToJSONNumber(i int64) json.Number {
 	return json.Number(strconv.FormatInt(i, 10))
 }
