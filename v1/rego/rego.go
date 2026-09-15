@@ -480,6 +480,11 @@ func (pq preparedQuery) Modules() map[string]*ast.Module {
 // once the evaluation is complete to close any transactions that might have
 // been opened.
 func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption) (*EvalContext, func(context.Context), error) {
+	disableInlining, err := parseStringsToRefs(pq.r.disableInlining)
+	if err != nil {
+		return nil, func(context.Context) {}, err
+	}
+
 	ectx := &EvalContext{
 		hasInput:                 false,
 		rawInput:                 nil,
@@ -492,6 +497,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		queryTracers:             nil,
 		unknowns:                 pq.r.unknowns,
 		parsedUnknowns:           pq.r.parsedUnknowns,
+		disableInlining:          disableInlining,
 		nondeterministicBuiltins: pq.r.nondeterministicBuiltins,
 		compiledQuery:            compiledQuery{},
 		indexing:                 true,
@@ -516,12 +522,6 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 
 	// Default to an empty "finish" function
 	finishFunc := func(context.Context) {}
-
-	var err error
-	ectx.disableInlining, err = parseStringsToRefs(pq.r.disableInlining)
-	if err != nil {
-		return nil, finishFunc, err
-	}
 
 	if ectx.txn == nil {
 		ectx.txn, err = pq.r.store.NewTransaction(ctx)
