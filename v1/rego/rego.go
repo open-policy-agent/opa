@@ -1609,8 +1609,10 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		EvalTransaction(r.txn),
 		EvalMetrics(r.metrics),
 		EvalInstrument(r.instrument),
+		EvalTime(r.time),
 		EvalInterQueryBuiltinCache(r.interQueryBuiltinCache),
 		EvalInterQueryBuiltinValueCache(r.interQueryBuiltinValueCache),
+		EvalSeed(r.seed),
 	}
 
 	if r.ndBuiltinCache != nil {
