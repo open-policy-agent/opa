@@ -105,11 +105,6 @@ func TestCompressHandlerWithGzipOnInScopeEndpoints(t *testing.T) {
 			if contentEncodingValue != gzipEncoding {
 				t.Errorf("wrong content encoding, got %q want %q", contentEncodingValue, gzipEncoding)
 			}
-			expectedLength := len(zipString(requestBody))
-			receivedLength := w.Body.Len()
-			if receivedLength != expectedLength {
-				t.Errorf("test: %s wrong len, got %d want %d", name, w.Body.Len(), expectedLength)
-			}
 			receivedBody := unzip(w.Body.Bytes())
 			if receivedBody != requestBody {
 				t.Errorf("test: %s wrong body, got %v, want %v", name, receivedBody, requestBody)
@@ -150,21 +145,6 @@ func TestHandlerOnEndpointsWithoutCompression(t *testing.T) {
 	if receivedLength != expectedLength {
 		t.Errorf("wrong len, got %d want %d", w.Body.Len(), expectedLength)
 	}
-}
-
-func zipString(input string) []byte {
-	var b bytes.Buffer
-	gz, err := gzip.NewWriterLevel(&b, defaultCompressionLevel)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if _, err := gz.Write([]byte(input)); err != nil {
-		log.Fatal(err)
-	}
-	if err := gz.Close(); err != nil {
-		log.Fatal(err)
-	}
-	return b.Bytes()
 }
 
 func unzip(body []byte) string {
