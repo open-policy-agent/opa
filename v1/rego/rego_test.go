@@ -3084,6 +3084,30 @@ func TestTimeSeedingOptions(t *testing.T) {
 		t.Fatal("expected old wall clock value")
 	}
 
+	// Check that Partial() also gets the configured time, like Eval() does.
+	// time.now_ns is nondeterministic and stays unresolved through partial
+	// eval, so use a custom builtin to observe the wall clock directly.
+	var captured *ast.Term
+	fn := Function1(
+		&Function{
+			Name: "test.capturetime",
+			Decl: types.NewFunction(types.Args(types.N), types.N),
+		},
+		func(bctx BuiltinContext, _ *ast.Term) (*ast.Term, error) {
+			captured = bctx.Time
+			return ast.NumberTerm("1"), nil
+		},
+	)
+
+	_, err = New(Query("test.capturetime(1, x)"), fn, Time(clock), Unknowns([]string{"input.x"})).Partial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantNS := ast.Number(int64ToJSONNumber(clock.UnixNano()))
+	if !reflect.DeepEqual(captured.Value, wantNS) {
+		t.Fatalf("expected Partial() to use configured time, got %v want %v", captured, wantNS)
+	}
+
 }
 
 // EvalDisableInlining is threaded through the same EvalContext defaults that
