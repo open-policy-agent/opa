@@ -497,6 +497,9 @@ func (t *ociTarget) Fetch(ctx context.Context, target ocispec.Descriptor) (io.Re
 	return resp.Body, nil
 }
 
+// Exists is required by oraslib.ReadOnlyTarget, through content.ReadOnlyStorage,
+// but nothing calls it: oraslib.Copy only probes the destination, and
+// cas.Proxy.Exists, the one path that would reach a source, is unused in oras-go.
 func (t *ociTarget) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
 	rc, err := t.Fetch(ctx, target)
 	if err != nil {
