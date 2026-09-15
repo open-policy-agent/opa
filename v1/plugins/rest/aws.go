@@ -153,9 +153,9 @@ func (cs *awsSSOCredentialsService) ssoCachePath() (string, error) {
 		return "", fmt.Errorf("user home directory not found: %w", err)
 	}
 
-	cs.Path = filepath.Join(homeDir, ".aws", "sso", "cache")
+	cs.SSOCachePath = filepath.Join(homeDir, ".aws", "sso", "cache")
 
-	return cs.Path, nil
+	return cs.SSOCachePath, nil
 }
 
 func (cs *awsSSOCredentialsService) cacheKeyFileName() string {
