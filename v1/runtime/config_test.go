@@ -5,24 +5,22 @@
 package runtime
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 
+	"github.com/open-policy-agent/opa/v1/logging"
 	testLog "github.com/open-policy-agent/opa/v1/logging/test"
-	"github.com/open-policy-agent/opa/v1/plugins/bundle"
-	"github.com/open-policy-agent/opa/v1/plugins/logs"
-	"github.com/open-policy-agent/opa/v1/plugins/status"
-	sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
-	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func newConfigReloadRuntime(t *testing.T, config string) (*Runtime, string) {
@@ -60,6 +58,17 @@ func writeConfig(t *testing.T, path, config string) {
 	}
 }
 
+// restartRequested reports whether a restart is pending, consuming it so a
+// later check sees only what happened since.
+func restartRequested(rt *Runtime) bool {
+	select {
+	case <-rt.restartc:
+		return true
+	default:
+		return false
+	}
+}
+
 func TestReloadConfigNoChange(t *testing.T) {
 	rt, configFile := newConfigReloadRuntime(t, `labels:
   region: west
@@ -77,115 +86,106 @@ func TestReloadConfigNoChange(t *testing.T) {
 	if changed {
 		t.Error("expected no change to be reported")
 	}
-}
-
-func TestReloadConfigStartsAndReconfiguresPlugins(t *testing.T) {
-	rt, configFile := newConfigReloadRuntime(t, `labels:
-  region: west
-`)
-
-	if p := logs.Lookup(rt.Manager); p != nil {
-		t.Fatal("expected no decision log plugin before reload")
-	}
-
-	writeConfig(t, configFile, `labels:
-  region: west
-  team: infra
-decision_logs:
-  console: true
-`)
-
-	changed, err := rt.reloadConfig(t.Context())
-	if err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-	if !changed {
-		t.Fatal("expected change to be reported")
-	}
-
-	if p := logs.Lookup(rt.Manager); p == nil {
-		t.Error("expected decision log plugin to be started")
-	}
-	if labels := rt.Manager.GetConfig().Labels; labels["team"] != "infra" {
-		t.Errorf("expected label team=infra, got %v", labels)
-	}
-
-	// Already running: reconfigured, not started again.
-	writeConfig(t, configFile, `labels:
-  region: west
-  team: infra
-decision_logs:
-  console: true
-  mask_decision: /system/log/mask
-`)
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	p := logs.Lookup(rt.Manager)
-	if p == nil {
-		t.Fatal("expected decision log plugin to still be registered")
-	}
-	if got := p.Config().MaskDecision; got == nil || *got != "/system/log/mask" {
-		t.Errorf("expected mask decision to be reconfigured, got %v", got)
+	if restartRequested(rt) {
+		t.Error("expected no restart to be requested")
 	}
 }
 
-func TestReloadConfigRejectsNonReloadableChanges(t *testing.T) {
+// TestReloadConfigRequestsRestart covers the options that used to be refused
+// outright. Each is now applied by restarting, so the reload only has to accept
+// them and ask for one.
+func TestReloadConfigRequestsRestart(t *testing.T) {
 	for _, tc := range []struct {
 		note   string
 		config string
-		key    string
 	}{
 		{
-			note: "server",
+			note: "a start-up only option",
 			config: `labels:
   region: west
 server:
   decoding:
     max_length: 42
 `,
-			key: "server",
 		},
 		{
 			note: "storage",
 			config: `labels:
   region: west
-storage:
-  disk:
-    directory: /tmp/opa
+persistence_directory: /tmp/opa-reload
 `,
-			key: "storage",
 		},
 		{
-			note: "persistence_directory",
+			note: "a changed label",
 			config: `labels:
-  region: west
-persistence_directory: /var/opa
+  region: east
 `,
-			key: "persistence_directory",
 		},
 		{
-			note: "default_decision",
-			config: `labels:
-  region: west
-default_decision: /example/allow
+			note: "a removed label",
+			config: `labels: {}
 `,
-			key: "default_decision",
 		},
 		{
-			note: "several at once",
+			note:   "a dropped section",
+			config: "{}\n",
+		},
+		{
+			note: "a new plugin",
 			config: `labels:
   region: west
-server:
-  decoding:
-    max_length: 42
-storage:
-  disk:
-    directory: /tmp/opa
+decision_logs:
+  console: true
 `,
-			key: "server, storage",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			rt, configFile := newConfigReloadRuntime(t, `labels:
+  region: west
+status:
+  console: true
+`)
+
+			writeConfig(t, configFile, tc.config)
+
+			changed, err := rt.reloadConfig(t.Context())
+			if err != nil {
+				t.Fatalf("reload config: %v", err)
+			}
+			if !changed {
+				t.Error("expected the on-disk change to be reported")
+			}
+			if !restartRequested(rt) {
+				t.Error("expected a restart to be requested")
+			}
+		})
+	}
+}
+
+// TestReloadConfigRejectsInvalid covers what can be known without tearing
+// anything down. A configuration OPA could not come up under must not cost the
+// one that is serving.
+func TestReloadConfigRejectsInvalid(t *testing.T) {
+	for _, tc := range []struct {
+		note   string
+		config string
+		expErr string
+	}{
+		{
+			note: "a plugin option of the wrong type",
+			config: `decision_logs:
+  reporting:
+    max_delay_seconds: "soon"
+`,
+			expErr: "max_delay_seconds",
+		},
+		{
+			note: "a reference to a service that does not exist",
+			config: `bundles:
+  b:
+    service: nowhere
+`,
+			expErr: "nowhere",
 		},
 	} {
 		t.Run(tc.note, func(t *testing.T) {
@@ -202,8 +202,11 @@ storage:
 			if !changed {
 				t.Error("expected the on-disk change to be reported")
 			}
-			if exp := fmt.Sprintf("changes to %s require a restart", tc.key); err.Error() != exp {
-				t.Errorf("expected error %q, got %q", exp, err.Error())
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Errorf("expected error mentioning %q, got %q", tc.expErr, err.Error())
+			}
+			if restartRequested(rt) {
+				t.Error("expected no restart to be requested for a configuration OPA cannot run")
 			}
 
 			// Reported once, not on every event that follows.
@@ -226,483 +229,44 @@ storage:
 	}
 }
 
-func TestReloadConfigRevertAfterFailedApply(t *testing.T) {
-	const good = `labels:
-  region: west
-`
-
-	rt, configFile := newConfigReloadRuntime(t, good)
-
-	if rt.Manager.GetConfig().NDBuiltinCacheEnabled() {
-		t.Fatal("expected the ND builtin cache to start out disabled")
-	}
-
-	// nd_builtin_cache applies before status is validated, and the service named
-	// here doesn't exist.
-	writeConfig(t, configFile, `labels:
-  region: west
-nd_builtin_cache: true
-status:
-  service: nonexistent
-`)
-
-	if _, err := rt.reloadConfig(t.Context()); err == nil {
-		t.Fatal("expected error")
-	}
-	if !rt.Manager.GetConfig().NDBuiltinCacheEnabled() {
-		t.Error("expected the ND builtin cache to have been applied before the failure")
-	}
-
-	writeConfig(t, configFile, good)
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-	if rt.Manager.GetConfig().NDBuiltinCacheEnabled() {
-		t.Error("expected the revert to undo the partially applied configuration")
-	}
-}
-
-func TestReloadConfigLabels(t *testing.T) {
+// TestReloadConfigUnreadable covers a file that cannot be read at all, which
+// fails before OPA has anything to compare against and so keeps being reported.
+func TestReloadConfigUnreadable(t *testing.T) {
 	rt, configFile := newConfigReloadRuntime(t, `labels:
   region: west
 `)
 
-	writeConfig(t, configFile, `labels:
-  region: west
-  team: infra
-`)
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("expected an added label to be accepted, got %v", err)
-	}
-	if got := rt.Manager.GetConfig().Labels["team"]; got != "infra" {
-		t.Errorf("expected label team=infra, got %q", got)
-	}
-
-	writeConfig(t, configFile, `labels:
-  region: east
-  team: infra
-`)
-	_, err := rt.reloadConfig(t.Context())
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if exp := "changing or removing labels (region) requires a restart"; err.Error() != exp {
-		t.Errorf("expected error %q, got %q", exp, err.Error())
-	}
-	if got := rt.Manager.GetConfig().Labels["region"]; got != "west" {
-		t.Errorf("expected label region to stay west, got %q", got)
-	}
-}
-
-func TestReloadConfigRejectsPluginRemoval(t *testing.T) {
-	rt, configFile := newConfigReloadRuntime(t, `decision_logs:
-  console: true
-`)
-
-	if logs.Lookup(rt.Manager) == nil {
-		t.Fatal("expected decision log plugin at boot")
-	}
-
-	writeConfig(t, configFile, `labels:
-  region: west
-`)
-
-	_, err := rt.reloadConfig(t.Context())
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if exp := "removing decision_logs requires a restart"; err.Error() != exp {
-		t.Errorf("expected error %q, got %q", exp, err.Error())
-	}
-
-	// The plugin keeps running either way, so the reported configuration has to
-	// keep saying so.
-	if logs.Lookup(rt.Manager) == nil {
-		t.Error("expected decision log plugin to still be registered")
-	}
-	if rt.Manager.GetConfig().DecisionLogs == nil {
-		t.Error("expected decision_logs to remain in the reported configuration")
-	}
-}
-
-func TestReloadConfigRejectsCustomPluginRemoval(t *testing.T) {
-	RegisterPlugin("reload_test", Factory{})
-
-	rt, configFile := newConfigReloadRuntime(t, `plugins:
-  reload_test: {}
-`)
-
-	if rt.Manager.Plugin("reload_test") == nil {
-		t.Fatal("expected custom plugin at boot")
-	}
-
-	writeConfig(t, configFile, `labels:
-  region: west
-`)
-
-	_, err := rt.reloadConfig(t.Context())
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if exp := "removing plugins.reload_test requires a restart"; err.Error() != exp {
-		t.Errorf("expected error %q, got %q", exp, err.Error())
-	}
-}
-
-// A section that is still there but no longer enables its plugin is the same
-// removal as dropping it, and has to be rejected the same way.
-func TestReloadConfigRejectsDisablingPlugins(t *testing.T) {
-	for _, tc := range []struct {
-		note    string
-		start   string
-		next    string
-		message string
-	}{
-		{
-			note:    "decision_logs emptied",
-			start:   "decision_logs:\n  console: true\n",
-			next:    "decision_logs: {}\n",
-			message: "disabling decision_logs requires a restart",
-		},
-		{
-			note:    "decision_logs nulled",
-			start:   "decision_logs:\n  console: true\n",
-			next:    "decision_logs:\n",
-			message: "disabling decision_logs requires a restart",
-		},
-		{
-			note:    "decision_logs console turned off",
-			start:   "decision_logs:\n  console: true\n",
-			next:    "decision_logs:\n  console: false\n",
-			message: "disabling decision_logs requires a restart",
-		},
-		{
-			note:    "status emptied",
-			start:   "status:\n  console: true\n",
-			next:    "status: {}\n",
-			message: "disabling status requires a restart",
-		},
-	} {
-		t.Run(tc.note, func(t *testing.T) {
-			rt, configFile := newConfigReloadRuntime(t, tc.start)
-
-			writeConfig(t, configFile, tc.next)
-
-			_, err := rt.reloadConfig(t.Context())
-			if err == nil {
-				t.Fatal("expected error")
-			}
-			if err.Error() != tc.message {
-				t.Errorf("expected error %q, got %q", tc.message, err.Error())
-			}
-			if logs.Lookup(rt.Manager) == nil && status.Lookup(rt.Manager) == nil {
-				t.Error("expected the plugin to still be registered")
-			}
-		})
-	}
-}
-
-// A rejected reload must not leave a plugin registered but never started: the
-// next reload would reconfigure it, and a plugin that isn't running never reads
-// from its reconfigure channel.
-func TestReloadConfigRejectedReloadStartsNothing(t *testing.T) {
-	rt, configFile := newConfigReloadRuntime(t, `decision_logs:
-  console: true
-`)
-
-	// Adds status, and disables decision_logs in the same write.
-	writeConfig(t, configFile, `decision_logs: {}
-status:
-  console: true
-`)
+	writeConfig(t, configFile, "labels: [\n")
 
 	if _, err := rt.reloadConfig(t.Context()); err == nil {
 		t.Fatal("expected error")
 	}
-	if status.Lookup(rt.Manager) != nil {
-		t.Fatal("expected the status plugin not to have been registered by a rejected reload")
-	}
-
-	// Reverting leaves both plugins usable.
-	writeConfig(t, configFile, `decision_logs:
-  console: true
-status:
-  console: true
-`)
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-	if status.Lookup(rt.Manager) == nil {
-		t.Error("expected the status plugin to be started")
-	}
-}
-
-// An empty section still enables the plugin where it names the only configured
-// service, exactly as it would at start-up.
-func TestReloadConfigEmptyDecisionLogsPicksUpTheOnlyService(t *testing.T) {
-	server := sdktest.MustNewServer()
-	defer server.Stop()
-
-	rt, configFile := newConfigReloadRuntime(t, fmt.Sprintf(`services:
-  acme:
-    url: %q
-decision_logs:
-  console: true
-`, server.URL()))
-
-	writeConfig(t, configFile, fmt.Sprintf(`services:
-  acme:
-    url: %q
-decision_logs: {}
-`, server.URL()))
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	p := logs.Lookup(rt.Manager)
-	if p == nil {
-		t.Fatal("expected decision log plugin to still be registered")
-	}
-	if got := p.Config().Service; got != "acme" {
-		t.Errorf("expected the plugin to default to service acme, got %q", got)
-	}
-}
-
-// The bundle plugin takes an empty "bundles" as "no bundles", so unlike the
-// other plugins it can be emptied without a restart.
-func TestReloadConfigEmptyBundlesDropsBundles(t *testing.T) {
-	server := sdktest.MustNewServer(
-		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
-			"data.json": `{"reload": {"which": "b"}}`,
-		}),
-	)
-	defer server.Stop()
-
-	rt, configFile := newConfigReloadRuntime(t, fmt.Sprintf(`services:
-  acme:
-    url: %q
-bundles:
-  b:
-    resource: /bundles/b.tar.gz
-`, server.URL()))
-
-	writeConfig(t, configFile, fmt.Sprintf(`services:
-  acme:
-    url: %q
-bundles: {}
-`, server.URL()))
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	p := bundle.Lookup(rt.Manager)
-	if p == nil {
-		t.Fatal("expected bundle plugin to still be registered")
-	}
-	if got := len(p.Config().Bundles); got != 0 {
-		t.Errorf("expected no bundles to be left configured, got %d", got)
-	}
-}
-
-func TestReloadConfigAppliesBundleChanges(t *testing.T) {
-	server := sdktest.MustNewServer(
-		sdktest.MockBundle("/bundles/first.tar.gz", map[string]string{
-			"data.json": `{"reload": {"which": "first"}}`,
-		}),
-		sdktest.MockBundle("/bundles/second.tar.gz", map[string]string{
-			"data.json": `{"reload": {"which": "second"}}`,
-		}),
-	)
-	defer server.Stop()
-
-	config := func(resource string) string {
-		return fmt.Sprintf(`services:
-  acme:
-    url: %q
-bundles:
-  b:
-    resource: %s
-`, server.URL(), resource)
-	}
-
-	rt, configFile := newConfigReloadRuntime(t, config("/bundles/first.tar.gz"))
-
-	waitForBundle(t, rt, "first")
-
-	writeConfig(t, configFile, config("/bundles/second.tar.gz"))
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	if got := bundle.Lookup(rt.Manager).Config().Bundles["b"].Resource; got != "/bundles/second.tar.gz" {
-		t.Fatalf("expected the bundle plugin to be reconfigured, got resource %q", got)
-	}
-
-	waitForBundle(t, rt, "second")
-}
-
-// A service moving under a bundle whose own configuration is untouched still
-// has to reach the running downloader.
-func TestReloadConfigAppliesServiceChanges(t *testing.T) {
-	first := sdktest.MustNewServer(
-		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
-			"data.json": `{"reload": {"which": "first"}}`,
-		}),
-	)
-	defer first.Stop()
-
-	second := sdktest.MustNewServer(
-		sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
-			"data.json": `{"reload": {"which": "second"}}`,
-		}),
-	)
-	defer second.Stop()
-
-	config := func(url string) string {
-		return fmt.Sprintf(`services:
-  acme:
-    url: %q
-bundles:
-  b:
-    resource: /bundles/b.tar.gz
-`, url)
-	}
-
-	rt, configFile := newConfigReloadRuntime(t, config(first.URL()))
-
-	waitForBundle(t, rt, "first")
-
-	// Only the service URL changes; the bundles section is byte-identical.
-	writeConfig(t, configFile, config(second.URL()))
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	waitForBundle(t, rt, "second")
-}
-
-// waitForBundle blocks until data.reload.which has the expected value, which is
-// how far the bundle has got through downloading and activating.
-func waitForBundle(t *testing.T, rt *Runtime, exp string) {
-	t.Helper()
-
-	ctx := t.Context()
-	deadline := time.Now().Add(10 * time.Second)
-
-	for {
-		value, err := storage.ReadOne(ctx, rt.Store, storage.MustParsePath("/reload/which"))
-		if err == nil && value == exp {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for data.reload.which to become %q (last: %v, err: %v)", exp, value, err)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-}
-
-func TestReloadConfigWarnsOnDroppedService(t *testing.T) {
-	server := sdktest.MustNewServer()
-	defer server.Stop()
-
-	logger := testLog.New()
-	configFile := filepath.Join(t.TempDir(), "config.yaml")
-	writeConfig(t, configFile, fmt.Sprintf(`services:
-  acme:
-    url: %q
-  other:
-    url: %q
-`, server.URL(), server.URL()))
-
-	params := NewParams()
-	params.ConfigFile = configFile
-	params.Output = io.Discard
-	params.Logger = logger
-
-	rt, err := NewRuntime(t.Context(), params)
-	if err != nil {
-		t.Fatalf("new runtime: %v", err)
-	}
-
-	writeConfig(t, configFile, fmt.Sprintf(`services:
-  acme:
-    url: %q
-`, server.URL()))
-
-	if _, err := rt.reloadConfig(t.Context()); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	found := slices.ContainsFunc(logger.Entries(), func(e testLog.LogEntry) bool {
-		return strings.Contains(e.Message, "Entries removed from services")
-	})
-	if !found {
-		t.Errorf("expected a warning about the dropped service, got %v", logger.Entries())
-	}
-
-	// Still there, which is what the warning is about.
-	if !slices.Contains(rt.Manager.Services(), "other") {
-		t.Error("expected the dropped service to stay registered")
+	if restartRequested(rt) {
+		t.Error("expected no restart to be requested")
 	}
 }
 
 func TestReloadConfigReappliesCLIOverrides(t *testing.T) {
-	configFile := filepath.Join(t.TempDir(), "config.yaml")
-	writeConfig(t, configFile, `labels:
-  region: west
-`)
-
-	params := NewParams()
-	params.ConfigFile = configFile
-	params.ConfigOverrides = []string{"default_decision=/example/allow"}
-	params.Output = io.Discard
-	params.Logger = testLog.New()
-
-	ctx := t.Context()
-	rt, err := NewRuntime(ctx, params)
-	if err != nil {
-		t.Fatalf("new runtime: %v", err)
-	}
-
-	writeConfig(t, configFile, `labels:
-  region: west
-  team: infra
-`)
-
-	if _, err := rt.reloadConfig(ctx); err != nil {
-		t.Fatalf("reload config: %v", err)
-	}
-
-	if got := *rt.Manager.GetConfig().DefaultDecision; got != "/example/allow" {
-		t.Errorf("expected --set override to survive the reload, got %q", got)
-	}
-}
-
-func TestReloadConfigInvalid(t *testing.T) {
 	rt, configFile := newConfigReloadRuntime(t, `labels:
   region: west
 `)
+	rt.Params.ConfigOverrides = []string{"labels.team=infra"}
 
-	writeConfig(t, configFile, `status:
-  service: nonexistent
+	writeConfig(t, configFile, `labels:
+  region: west
+  extra: yes
 `)
 
-	if _, err := rt.reloadConfig(t.Context()); err == nil {
-		t.Fatal("expected error")
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
 	}
 
-	if p := status.Lookup(rt.Manager); p != nil {
-		t.Error("expected no status plugin to be registered for an invalid config")
+	if !strings.Contains(string(rt.appliedConfig), "infra") {
+		t.Errorf("expected the CLI override to be re-applied, got %s", rt.appliedConfig)
 	}
 }
 
-func TestConfigWatcherAppliesChanges(t *testing.T) {
+func TestConfigWatcherRequestsRestartOnChange(t *testing.T) {
 	rt, configFile := newConfigReloadRuntime(t, `labels:
   region: west
 `)
@@ -729,11 +293,11 @@ decision_logs:
 			t.Fatalf("reload config: %v", err)
 		}
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for the config file change to be applied")
+		t.Fatal("timed out waiting for the config file change to be picked up")
 	}
 
-	if p := logs.Lookup(rt.Manager); p == nil {
-		t.Error("expected decision log plugin to be started")
+	if !restartRequested(rt) {
+		t.Error("expected a restart to be requested")
 	}
 
 	select {
@@ -743,114 +307,71 @@ decision_logs:
 	}
 }
 
+// TestConfigWatcherCoalescesTruncateAndWrite guards against reading a file a
+// writer has emptied but not yet filled in.
 func TestConfigWatcherCoalescesTruncateAndWrite(t *testing.T) {
 	rt, configFile := newConfigReloadRuntime(t, `nd_builtin_cache: true
 labels:
   region: west
 `)
 
-	if !rt.Manager.GetConfig().NDBuiltinCacheEnabled() {
-		t.Fatal("expected the ND builtin cache to start out enabled")
+	reloads := make(chan []byte, 4)
+	if err := rt.startConfigWatcher(t.Context(), func(time.Duration, error) {
+		rt.configMtx.Lock()
+		defer rt.configMtx.Unlock()
+		reloads <- rt.appliedConfig
+	}); err != nil {
+		t.Fatalf("start config watcher: %v", err)
 	}
 
-	// A read of the empty file would show the ND cache turned off.
-	type reload struct {
-		ndCache bool
-		err     error
-	}
-	reloads := make(chan reload, 8)
-
-	// Stands in for inotify's truncate-then-write on Linux; macOS reports the
-	// truncate as a Chmod, which the watcher ignores.
-	events := make(chan fsnotify.Event)
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go rt.watchConfigEvents(ctx, events, nil, func(_ time.Duration, err error) {
-		reloads <- reload{ndCache: rt.Manager.GetConfig().NDBuiltinCacheEnabled(), err: err}
-	})
-
-	evt := fsnotify.Event{Name: configFile, Op: fsnotify.Write}
-
-	f, err := os.Create(configFile) // truncates in place
+	f, err := os.OpenFile(configFile, os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		t.Fatalf("truncate config: %v", err)
 	}
-	events <- evt
-
-	// Inside configCoalesceWindow, but long enough for a watcher that doesn't wait.
-	time.Sleep(25 * time.Millisecond)
-
-	if _, err := f.WriteString(`nd_builtin_cache: true
-labels:
-  region: west
-  team: infra
-`); err != nil {
+	time.Sleep(50 * time.Millisecond)
+	if _, err := f.WriteString("nd_builtin_cache: true\nlabels:\n  region: east\n"); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-	if err := f.Close(); err != nil {
-		t.Fatalf("close config: %v", err)
-	}
-	events <- evt
+	f.Close()
 
 	select {
-	case r := <-reloads:
-		if r.err != nil {
-			t.Fatalf("reload config: %v", r.err)
-		}
-		if !r.ndCache {
-			t.Error("expected the ND builtin cache to stay enabled; the empty file was read")
+	case applied := <-reloads:
+		if !strings.Contains(string(applied), "nd_builtin_cache") {
+			t.Errorf("expected the settled file to be read, got %s", applied)
 		}
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for the config file change to be applied")
+		t.Fatal("timed out waiting for the config file change to be picked up")
 	}
 
-	if labels := rt.Manager.GetConfig().Labels; labels["team"] != "infra" {
-		t.Errorf("expected label team=infra, got %v", labels)
-	}
-
-	// One logical change, so one reload.
 	select {
-	case r := <-reloads:
-		t.Errorf("unexpected second reload (nd_builtin_cache: %v, err: %v)", r.ndCache, r.err)
-	case <-time.After(500 * time.Millisecond):
+	case applied := <-reloads:
+		t.Errorf("unexpected second reload: %s", applied)
+	default:
 	}
 }
 
 func TestConfigWatcherIgnoresOtherFiles(t *testing.T) {
-	rt, configFile := newConfigReloadRuntime(t, `nd_builtin_cache: true
-labels:
+	rt, configFile := newConfigReloadRuntime(t, `labels:
   region: west
 `)
 
-	reloads := make(chan error, 4)
 	events := make(chan fsnotify.Event)
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go rt.watchConfigEvents(ctx, events, nil, func(_ time.Duration, err error) {
-		reloads <- err
-	})
+	errs := make(chan error)
+	done := make(chan struct{})
 
-	// Truncated, as a writer that hasn't finished would leave it.
-	f, err := os.Create(configFile)
-	if err != nil {
-		t.Fatalf("truncate config: %v", err)
-	}
-	defer f.Close()
+	rt.configWatcherStop = make(chan struct{})
+	go func() {
+		defer close(done)
+		rt.watchConfigEvents(t.Context(), events, errs, func(time.Duration, error) {
+			t.Error("unexpected reload")
+		})
+	}()
 
-	events <- fsnotify.Event{
-		Name: filepath.Join(filepath.Dir(configFile), "unrelated.txt"),
-		Op:   fsnotify.Create,
-	}
+	events <- fsnotify.Event{Name: filepath.Join(filepath.Dir(configFile), "other.yaml"), Op: fsnotify.Write}
 
-	select {
-	case err := <-reloads:
-		t.Errorf("unexpected reload for an unrelated file (err: %v)", err)
-	case <-time.After(configCoalesceWindow + 500*time.Millisecond):
-	}
-
-	if !rt.Manager.GetConfig().NDBuiltinCacheEnabled() {
-		t.Error("expected the ND builtin cache to stay enabled; the truncated file was read")
-	}
+	time.Sleep(2 * configCoalesceWindow)
+	close(rt.configWatcherStop)
+	<-done
 }
 
 func TestConfigWatcherNotStartedWithoutConfigFile(t *testing.T) {
@@ -863,30 +384,23 @@ func TestConfigWatcherNotStartedWithoutConfigFile(t *testing.T) {
 		t.Fatalf("new runtime: %v", err)
 	}
 
-	if err := rt.startConfigWatcher(t.Context(), func(time.Duration, error) {
-		t.Error("unexpected reload")
-	}); err != nil {
+	if err := rt.startConfigWatcher(t.Context(), func(time.Duration, error) {}); err != nil {
 		t.Fatalf("start config watcher: %v", err)
+	}
+	if rt.configWatcherStop != nil {
+		t.Error("expected no watcher to be started without a configuration file")
 	}
 }
 
 func TestConfigWatcherNotStartedWithDiscovery(t *testing.T) {
-	server := sdktest.MustNewServer(
-		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
-			"main.rego": "package config\n",
-		}),
-	)
-	defer server.Stop()
-
 	logger := testLog.New()
 	configFile := filepath.Join(t.TempDir(), "config.yaml")
-	writeConfig(t, configFile, fmt.Sprintf(`services:
-  test:
-    url: %q
+	writeConfig(t, configFile, `services:
+  acme:
+    url: https://example.com
 discovery:
-  decision: config
   resource: /bundles/discovery.tar.gz
-`, server.URL()))
+`)
 
 	params := NewParams()
 	params.ConfigFile = configFile
@@ -898,286 +412,348 @@ discovery:
 		t.Fatalf("new runtime: %v", err)
 	}
 
-	if err := rt.startConfigWatcher(t.Context(), func(time.Duration, error) {
-		t.Error("unexpected reload")
-	}); err != nil {
+	if err := rt.startConfigWatcher(t.Context(), func(time.Duration, error) {}); err != nil {
 		t.Fatalf("start config watcher: %v", err)
 	}
+	if rt.configWatcherStop != nil {
+		t.Error("expected no watcher to be started when discovery is enabled")
+	}
 
-	found := slices.ContainsFunc(logger.Entries(), func(e testLog.LogEntry) bool {
-		return strings.Contains(e.Message, "discovery is enabled")
-	})
-	if !found {
-		t.Errorf("expected a warning about discovery, got %v", logger.Entries())
+	var warned bool
+	for _, e := range logger.Entries() {
+		if strings.Contains(e.Message, "discovery is enabled") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Error("expected a warning that the configuration file is not watched")
 	}
 }
 
-func TestChangedConfigKeys(t *testing.T) {
-	tests := []struct {
-		note     string
-		old, new string
-		exp      []string
-	}{
-		{
-			note: "no change",
-			old:  "server:\n  decoding:\n    max_length: 42\n",
-			new:  "server:\n  decoding:\n    max_length: 42\n",
-		},
-		{
-			note: "change in a watched key",
-			old:  "server:\n  decoding:\n    max_length: 42\n",
-			new:  "server:\n  decoding:\n    max_length: 43\n",
-			exp:  []string{"server"},
-		},
-		{
-			note: "watched key added",
-			old:  "labels:\n  region: west\n",
-			new:  "labels:\n  region: west\nstorage:\n  disk:\n    directory: /tmp/opa\n",
-			exp:  []string{"storage"},
-		},
-		{
-			note: "watched key removed",
-			old:  "storage:\n  disk:\n    directory: /tmp/opa\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"storage"},
-		},
-		{
-			note: "change outside the watched keys",
-			old:  "labels:\n  region: west\n",
-			new:  "labels:\n  region: east\ndecision_logs:\n  console: true\n",
-		},
-		{
-			note: "key order is not a change",
-			old:  "server:\n  encoding:\n    gzip:\n      min_length: 1\n  decoding:\n    max_length: 42\n",
-			new:  "server:\n  decoding:\n    max_length: 42\n  encoding:\n    gzip:\n      min_length: 1\n",
-		},
+// TestReloadConfigAcceptsNewServiceAndDependants covers the most common reload
+// there is: a service arriving in the same change as what uses it. Validation
+// runs before the service is registered, so it has to read the names from the
+// configuration rather than from the running manager.
+func TestReloadConfigAcceptsNewServiceAndDependants(t *testing.T) {
+	rt, configFile := newConfigReloadRuntime(t, `labels:
+  region: west
+`)
+
+	writeConfig(t, configFile, `services:
+  acme:
+    url: https://example.com
+bundles:
+  b1:
+    service: acme
+decision_logs:
+  service: acme
+status:
+  service: acme
+`)
+
+	if _, err := rt.reloadConfig(t.Context()); err != nil {
+		t.Fatalf("reload config: %v", err)
 	}
-
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			oldConf, err := rawConfigMap([]byte(tc.old))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			newConf, err := rawConfigMap([]byte(tc.new))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			changed := changedKeys(oldConf, newConf, nonReloadableConfigKeys)
-			if !slices.Equal(changed, tc.exp) {
-				t.Errorf("expected %v, got %v", tc.exp, changed)
-			}
-		})
+	if !restartRequested(rt) {
+		t.Error("expected a restart to be requested")
 	}
 }
 
-func TestRemovedPlugins(t *testing.T) {
-	tests := []struct {
-		note    string
-		running []string
-		custom  []string
-		new     string
-		exp     []string
-	}{
-		{
-			note: "nothing running",
-			new:  "labels:\n  region: east\n",
-		},
-		{
-			note:    "retained",
-			running: []string{logs.Name},
-			new:     "decision_logs:\n  console: false\n",
-		},
-		{
-			note:    "removed",
-			running: []string{logs.Name},
-			new:     "labels:\n  region: west\n",
-			exp:     []string{"decision_logs"},
-		},
-		{
-			note:    "an empty section is still a section",
-			running: []string{logs.Name},
-			new:     "decision_logs:\n",
-			// pluginset reports this one, once the section has been parsed.
-		},
-		{
-			note: "a section that was never running is not a removal",
-			new:  "labels:\n  region: west\n",
-		},
-		{
-			note:    "several, reported in a stable order",
-			running: []string{bundle.Name, logs.Name, status.Name},
-			new:     "labels:\n  region: west\n",
-			exp:     []string{"bundles", "decision_logs", "status"},
-		},
-		{
-			note:    "the deprecated bundle key keeps the bundle plugin",
-			running: []string{bundle.Name},
-			new:     "bundle:\n  name: b\n  service: s\n",
-		},
-		{
-			note:    "the whole bundle group removed",
-			running: []string{bundle.Name},
-			new:     "labels:\n  region: west\n",
-			exp:     []string{"bundles"},
-		},
-		{
-			note:    "custom plugin removed",
-			running: []string{"foo", "bar"},
-			custom:  []string{"foo", "bar"},
-			new:     "plugins:\n  foo: {}\n",
-			exp:     []string{"plugins.bar"},
-		},
-		{
-			note:    "all custom plugins removed",
-			running: []string{"foo"},
-			custom:  []string{"foo"},
-			new:     "labels:\n  region: west\n",
-			exp:     []string{"plugins.foo"},
-		},
-		{
-			note:   "a registered custom plugin that never ran is not a removal",
-			custom: []string{"foo"},
-			new:    "labels:\n  region: west\n",
-		},
+// TestRouterSharedBetweenManagerAndServer guards the mux OPA registers its
+// routes on. The manager hands it to plugins and the server registers the API on
+// it, so the two must be the same one -- and a restart must give both a new one,
+// since registering a pattern twice panics.
+func TestRouterSharedBetweenManagerAndServer(t *testing.T) {
+	rt, _ := newConfigReloadRuntime(t, `labels:
+  region: west
+`)
+	rt.Params.Addrs = &[]string{"localhost:0"}
+	rt.Params.DiagnosticAddrs = &[]string{}
+
+	if _, err := rt.buildServer(t.Context()); err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+	if rt.Manager.GetRouter() != rt.Params.Router {
+		t.Errorf("manager router %p is not the one served %p", rt.Manager.GetRouter(), rt.Params.Router)
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			newConf, err := rawConfigMap([]byte(tc.new))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			running := func(name string) bool { return slices.Contains(tc.running, name) }
-			if removed := removedPlugins(running, tc.custom, newConf); !slices.Equal(removed, tc.exp) {
-				t.Errorf("expected %v, got %v", tc.exp, removed)
-			}
-		})
+	// A restart builds both afresh, and they still have to match.
+	before := rt.Params.Router
+	if err := rt.configure(t.Context(), rt.appliedConfig, rt.metrics); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if rt.Params.Router == before {
+		t.Error("expected a restart to get a fresh router")
+	}
+	if _, err := rt.buildServer(t.Context()); err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+	if rt.Manager.GetRouter() != rt.Params.Router {
+		t.Errorf("after a restart, manager router %p is not the one served %p", rt.Manager.GetRouter(), rt.Params.Router)
 	}
 }
 
-func TestDroppedKeys(t *testing.T) {
-	tests := []struct {
-		note     string
-		old, new string
-		exp      []string
-	}{
-		{
-			note: "nothing to drop",
-			old:  "labels:\n  region: west\n",
-			new:  "labels:\n  region: east\n",
-		},
-		{
-			note: "service retained",
-			old:  "services:\n  s:\n    url: http://localhost\n",
-			new:  "services:\n  s:\n    url: http://elsewhere\n",
-		},
-		{
-			note: "service dropped",
-			old:  "services:\n  s:\n    url: http://localhost\n  t:\n    url: http://localhost\n",
-			new:  "services:\n  s:\n    url: http://localhost\n",
-			exp:  []string{"services"},
-		},
-		{
-			note: "all services dropped",
-			old:  "services:\n  s:\n    url: http://localhost\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"services"},
-		},
-		{
-			note: "both",
-			old:  "services:\n  s:\n    url: http://localhost\nkeys:\n  k:\n    key: secret\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"services", "keys"},
-		},
+func TestWatchDoesNotImplyWatchConfig(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 64
+`)
+
+	params := NewParams()
+	params.ConfigFile = configFile
+	params.Output = io.Discard
+	params.Logger = testLog.New()
+	params.Addrs = &[]string{"localhost:0"}
+	params.Watch = true
+	params.GracefulShutdownPeriod = 1
+
+	ctx := t.Context()
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			oldConf, err := rawConfigMap([]byte(tc.old))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			newConf, err := rawConfigMap([]byte(tc.new))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+	go func() { _ = rt.Serve(ctx) }()
+	if !test.Eventually(t, 10*time.Second, func() bool {
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+	}) {
+		t.Fatal("timed out waiting for the server to start")
+	}
 
-			if dropped := droppedKeys(oldConf, newConf, "services", "keys"); !slices.Equal(dropped, tc.exp) {
-				t.Errorf("expected %v, got %v", tc.exp, dropped)
-			}
-		})
+	before := rt.Addrs()[0]
+
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 4096
+`)
+
+	// Nothing should come of it. Long enough for the coalesce window and a
+	// restart to have run had one been asked for.
+	time.Sleep(20 * configCoalesceWindow)
+
+	if restartRequested(rt) {
+		t.Error("expected no restart to be requested when only --watch is set")
+	}
+	if after := rt.Addrs(); len(after) != 1 || after[0] != before {
+		t.Errorf("expected the listener to be left alone, was %s now %v", before, after)
 	}
 }
 
-func TestChangedLabels(t *testing.T) {
-	tests := []struct {
-		note     string
-		old, new string
-		exp      []string
-	}{
-		{
-			note: "no labels at all",
-			old:  "decision_logs:\n  console: true\n",
-			new:  "decision_logs:\n  console: false\n",
-		},
-		{
-			note: "unchanged",
-			old:  "labels:\n  region: west\n",
-			new:  "labels:\n  region: west\n",
-		},
-		{
-			note: "addition is allowed",
-			old:  "labels:\n  region: west\n",
-			new:  "labels:\n  region: west\n  team: infra\n",
-		},
-		{
-			note: "labels added where there were none",
-			old:  "decision_logs:\n  console: true\n",
-			new:  "labels:\n  region: west\n",
-		},
-		{
-			note: "changed value",
-			old:  "labels:\n  region: west\n",
-			new:  "labels:\n  region: east\n",
-			exp:  []string{"region"},
-		},
-		{
-			note: "removed label",
-			old:  "labels:\n  region: west\n  team: infra\n",
-			new:  "labels:\n  region: west\n",
-			exp:  []string{"team"},
-		},
-		{
-			note: "whole section removed",
-			old:  "labels:\n  region: west\n",
-			new:  "decision_logs:\n  console: true\n",
-			exp:  []string{"region"},
-		},
-		{
-			note: "reported in a stable order",
-			old:  "labels:\n  region: west\n  team: infra\n  zone: a\n",
-			new:  "labels:\n  region: east\n  team: platform\n  zone: b\n",
-			exp:  []string{"region", "team", "zone"},
-		},
+func TestStartConfigWatcherReconcilesOnStart(t *testing.T) {
+	rt, configFile := newConfigReloadRuntime(t, `labels:
+  region: west
+`)
+	rt.Params.WatchConfig = true
+
+	writeConfig(t, configFile, `labels:
+  region: east
+`)
+
+	if err := rt.startConfigWatcher(t.Context(), func(time.Duration, error) {}); err != nil {
+		t.Fatalf("start config watcher: %v", err)
 	}
+	t.Cleanup(rt.stopConfigWatcher)
 
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			oldConf, err := rawConfigMap([]byte(tc.old))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			newConf, err := rawConfigMap([]byte(tc.new))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if changed := changedLabels(oldConf, newConf); !slices.Equal(changed, tc.exp) {
-				t.Errorf("expected %v, got %v", tc.exp, changed)
-			}
-		})
+	if !restartRequested(rt) {
+		t.Error("expected the change written before the watch was added to be picked up")
 	}
 }
+
+func TestServeRestartsWhenShutdownOverruns(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 64
+`)
+
+	logger := testLog.New()
+	logger.SetLevel(logging.Debug)
+
+	params := NewParams()
+	params.ConfigFile = configFile
+	params.Output = io.Discard
+	params.Logger = logger
+	params.Addrs = &[]string{"localhost:0"}
+	params.WatchConfig = true
+	params.GracefulShutdownPeriod = 1
+
+	ctx := t.Context()
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	served := make(chan error, 1)
+	go func() { served <- rt.Serve(ctx) }()
+	if !test.Eventually(t, 10*time.Second, func() bool {
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+	}) {
+		t.Fatal("timed out waiting for the server to start")
+	}
+
+	before := rt.Addrs()[0]
+
+	// A request whose body never arrives holds the connection open, so it is
+	// never idle and the graceful shutdown runs out of time on it.
+	stalled, err := net.Dial("tcp", before)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer stalled.Close()
+	if _, err := io.WriteString(stalled, "POST /v1/data HTTP/1.1\r\nHost: opa\r\nContent-Type: application/json\r\nContent-Length: 32\r\n\r\n{"); err != nil {
+		t.Fatalf("write stalled request: %v", err)
+	}
+
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 4096
+`)
+
+	body := fmt.Sprintf(`{"input": {"pad": %q}}`, strings.Repeat("a", 128))
+	var lastCode int
+	var lastErr error
+	if !test.Eventually(t, 30*time.Second, func() bool {
+		addrs := rt.Addrs()
+		if len(addrs) == 0 {
+			lastCode, lastErr = 0, errors.New("no listener")
+			return false
+		}
+		resp, err := http.Post("http://"+addrs[0]+"/v1/data", "application/json", strings.NewReader(body))
+		if err != nil {
+			lastCode, lastErr = 0, err
+			return false
+		}
+		resp.Body.Close()
+		lastCode, lastErr = resp.StatusCode, nil
+		return resp.StatusCode == http.StatusOK
+	}) {
+		reportServeState(t, rt, served, before, lastCode, lastErr)
+		t.Fatal("the overrunning shutdown cost the configuration that asked for the restart")
+	}
+}
+
+// TestServeRestartsOnConfigChange is the end-to-end proof: a change to
+// server.decoding, which cannot be applied to a running handler chain, takes
+// effect because the serve routine comes back up under it.
+func TestServeRestartsOnConfigChange(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 64
+`)
+
+	// Debug level, and reported on failure below: every way this test can time
+	// out looks the same from the outside -- the reload was rejected, the
+	// restart fell back to the previous configuration, or the file event never
+	// arrived -- and only the runtime's own log tells them apart.
+	logger := testLog.New()
+	logger.SetLevel(logging.Debug)
+
+	params := NewParams()
+	params.ConfigFile = configFile
+	params.Output = io.Discard
+	params.Logger = logger
+	params.Addrs = &[]string{"localhost:0"}
+	params.WatchConfig = true
+	params.GracefulShutdownPeriod = 1
+
+	ctx := t.Context()
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	served := make(chan error, 1)
+	go func() { served <- rt.Serve(ctx) }()
+	if !test.Eventually(t, 10*time.Second, func() bool {
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+	}) {
+		t.Fatal("timed out waiting for the server to start")
+	}
+
+	body := fmt.Sprintf(`{"input": {"pad": %q}}`, strings.Repeat("a", 128))
+	post := func() (int, error) {
+		addrs := rt.Addrs()
+		if len(addrs) == 0 {
+			return 0, errors.New("no listener")
+		}
+		resp, err := http.Post("http://"+addrs[0]+"/v1/data", "application/json", strings.NewReader(body))
+		if err != nil {
+			return 0, err
+		}
+		resp.Body.Close()
+		return resp.StatusCode, nil
+	}
+
+	code, err := post()
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	if code != http.StatusBadRequest {
+		t.Fatalf("expected the body to exceed server.decoding.max_length, got %d", code)
+	}
+
+	before := rt.Addrs()[0]
+
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 4096
+`)
+
+	// The listener is rebound, so both the address and the limit change.
+	var lastCode int
+	var lastErr error
+	if !test.Eventually(t, 30*time.Second, func() bool {
+		lastCode, lastErr = post()
+		return lastErr == nil && lastCode == http.StatusOK
+	}) {
+		reportServeState(t, rt, served, before, lastCode, lastErr)
+		t.Fatal("timed out waiting for the new decoding limit to take effect")
+	}
+
+	if after := rt.Addrs()[0]; after == before {
+		t.Errorf("expected the listener to be rebound, still on %s", after)
+	}
+}
+
+// reportServeState describes what the serve routine ended up doing, so a
+// timeout in TestServeRestartsOnConfigChange says which step did not happen
+// rather than only that none of them did. An address unchanged from before
+// means no restart ran at all; a new one means a restart ran and came up under
+// the wrong configuration.
+func reportServeState(t *testing.T, rt *Runtime, served <-chan error, before string, code int, err error) {
+	t.Helper()
+
+	t.Logf("last response: code=%d err=%v", code, err)
+	t.Logf("addresses: before=%s now=%v status=%d", before, rt.Addrs(), rt.ServerStatus())
+
+	select {
+	case err := <-served:
+		t.Logf("serve returned: %v", err)
+	default:
+		t.Log("serve still running")
+	}
+
+	// Everything worth seeing -- the file event, the reload, the restart -- is
+	// logged in the first moments after the write, and the rest of the wait is
+	// the handler logging one rejected request per poll. Drop those and keep
+	// the head.
+	var entries []testLog.LogEntry
+	for _, e := range rt.Params.Logger.(*testLog.Logger).Entries() {
+		if _, request := e.Fields["req_id"]; request {
+			continue
+		}
+		entries = append(entries, e)
+		if len(entries) == maxReportedLogEntries {
+			break
+		}
+	}
+	for _, e := range entries {
+		t.Logf("[%v] %s %v", e.Level, e.Message, e.Fields)
+	}
+}
+
+// Enough to cover the reload and the restart, without pasting a whole run into
+// the failure output.
+const maxReportedLogEntries = 200

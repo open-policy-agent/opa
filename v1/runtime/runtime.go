@@ -192,6 +192,13 @@ type Params struct {
 	// interactive development.
 	Watch bool
 
+	// WatchConfig flag controls whether OPA will watch ConfigFile for changes
+	// and restart the serve routine under the new configuration when it does.
+	// Separate from Watch because the two are not comparable: Watch reloads the
+	// store in place, whereas this rebinds the listeners and starts every
+	// configured feature again.
+	WatchConfig bool
+
 	// ErrorLimit is the number of errors the compiler will allow to occur before
 	// exiting early.
 	ErrorLimit int
@@ -367,6 +374,7 @@ type Runtime struct {
 	Manager *plugins.Manager
 
 	logger            logging.Logger
+	consoleLogger     logging.Logger
 	server            *server.Server
 	metrics           *prometheus.Provider
 	versionChecker    versioncheck.Checker
@@ -379,16 +387,39 @@ type Runtime struct {
 	// by http.send during evaluation.
 	serverTracingOpts tracing.Options
 
+	// The tracing options the caller supplied, kept because configure overwrites
+	// Params.DistributedTracingOpts whenever the configuration asks for a tracer.
+	// Without this a reload that removes "distributed_tracing" would inherit the
+	// tracer built by the configuration before it.
+	callerTracingOpts tracing.Options
+
+	// Guards the fields a restart replaces. Manager is exported and so cannot be
+	// made safe for callers outside this package, but everything in here reads it
+	// through rt.manager().
+	stateMtx sync.RWMutex
+
+	// Whether the caller gave us a router. OPA registers its routes on a
+	// ServeMux, which panics on a second registration of the same pattern, so a
+	// restart needs a fresh one -- which we cannot do to a router we do not own.
+	ownRouter bool
+
 	serverStatus  ServerStatus
 	serverInitMtx sync.RWMutex
 	done          chan struct{}
 	repl          *repl.REPL
 
-	// appliedConfig is the configuration in effect, lastConfig the one most
-	// recently read from disk. They differ while a reload is failing.
-	appliedConfig []byte
-	lastConfig    []byte
-	configMtx     sync.Mutex
+	// Closed to ask the serve loop to restart. Buffered by one: a second change
+	// arriving while a restart is already pending needs no second restart.
+	restartc chan struct{}
+
+	// appliedConfig is the configuration in effect and lastConfig the one most
+	// recently read from disk; they differ while a reload is failing.
+	// previousConfig is what to fall back to when a restart cannot come up under
+	// appliedConfig.
+	appliedConfig  []byte
+	previousConfig []byte
+	lastConfig     []byte
+	configMtx      sync.Mutex
 
 	// Non-nil once the configuration file watcher is running.
 	configWatcherStop chan struct{}
@@ -481,13 +512,6 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
 
-	isAuthorizationEnabled := params.Authorization != server.AuthorizationOff
-
-	runtimeInfo, err := info.NewWithOptions(info.Options{Config: config, IsAuthorizationEnabled: isAuthorizationEnabled, SkipKnownSchemaCheck: params.SkipKnownSchemaCheck})
-	if err != nil {
-		return nil, err
-	}
-
 	consoleLogger := params.ConsoleLogger
 	if consoleLogger == nil {
 		l := logging.New()
@@ -495,13 +519,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		consoleLogger = l
 	}
 
+	ownRouter := params.Router == nil
 	params.Router = util.Or(params.Router, http.NewServeMux)
 
-	metricsConfig, parseConfigErr := extractMetricsConfig(ctx, config, params)
-	if parseConfigErr != nil {
-		return nil, parseConfigErr
+	metrics, err := buildMetricsProvider(ctx, config, params, logger)
+	if err != nil {
+		return nil, err
 	}
-	metrics := prometheus.New(metrics.New(), errorLogger(logger), metricsConfig.Prom.HTTPRequestDurationSeconds.Buckets)
 
 	var store storage.Store
 	if params.DiskStorage == nil {
@@ -534,15 +558,68 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
+	rt := &Runtime{
+		Store:             store,
+		Params:            params,
+		logger:            logger,
+		consoleLogger:     consoleLogger,
+		metrics:           metrics,
+		versionChecker:    versionChecker,
+		serverStatus:      ServerNotStarted,
+		loadedPathsResult: loaded,
+		callerTracingOpts: params.DistributedTracingOpts,
+		ownRouter:         ownRouter,
+		restartc:          make(chan struct{}, 1),
+		appliedConfig:     config,
+		previousConfig:    config,
+		lastConfig:        config,
+	}
+
+	if err := rt.configure(ctx, config, metrics); err != nil {
+		return nil, err
+	}
+
+	return rt, nil
+}
+
+// configure builds everything the configuration file determines: the exporters,
+// the plugin manager, and the discovery plugin that starts every other plugin
+// from the same configuration. Called once from NewRuntime and again for each
+// reload, so it must leave alone anything that outlives a restart -- the store,
+// the loaded paths, and the version checker.
+//
+// The metrics provider is passed in rather than built here because the store is
+// created with it, and the store is older than any of this.
+func (rt *Runtime) configure(ctx context.Context, config []byte, metrics *prometheus.Provider) error {
+	params := &rt.Params
+
+	// OPA's routes are registered on this from two places -- plugins, via the
+	// manager, and the server -- so both have to be given the same one, and a
+	// restart needs a new one: registering a pattern twice on a ServeMux panics.
+	if rt.ownRouter {
+		params.Router = http.NewServeMux()
+	}
+
+	isAuthorizationEnabled := params.Authorization != server.AuthorizationOff
+
+	runtimeInfo, err := info.NewWithOptions(info.Options{Config: config, IsAuthorizationEnabled: isAuthorizationEnabled, SkipKnownSchemaCheck: params.SkipKnownSchemaCheck})
+	if err != nil {
+		return err
+	}
+
 	traceExporter, tracerProvider, _, serverTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
+		return fmt.Errorf("config error: %w", err)
 	}
 
 	meterProvider, err := internal_metrics.Init(ctx, config, params.ID, metrics.Gatherer())
 	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
+		return fmt.Errorf("config error: %w", err)
 	}
+
+	// Rebuilt from what the caller gave us, so that a reload dropping
+	// "distributed_tracing" does not inherit the previous configuration's tracer.
+	params.DistributedTracingOpts = rt.callerTracingOpts
 	if tracerProvider != nil {
 		params.DistributedTracingOpts = tracing.NewOptions(
 			otelhttp.WithTracerProvider(tracerProvider),
@@ -552,16 +629,16 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	manager, err := plugins.New(config,
 		params.ID,
-		store,
+		rt.Store,
 		plugins.Info(runtimeInfo),
-		plugins.InitBundles(loaded.Bundles),
-		plugins.InitFiles(loaded.Files),
+		plugins.InitBundles(rt.loadedPathsResult.Bundles),
+		plugins.InitFiles(rt.loadedPathsResult.Files),
 		plugins.MaxErrors(params.ErrorLimit),
 		plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod),
-		plugins.ConsoleLogger(consoleLogger),
-		plugins.Logger(logger),
-		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
-		plugins.PrintHook(loggingPrintHook{logger: logger}),
+		plugins.ConsoleLogger(rt.consoleLogger),
+		plugins.Logger(rt.logger),
+		plugins.EnablePrintStatements(rt.logger.GetLevel() >= logging.Info),
+		plugins.PrintHook(loggingPrintHook{logger: rt.logger}),
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
@@ -572,30 +649,32 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithHooks(params.Hooks),
 		plugins.WithMinTLSVersion(params.MinTLSVersion),
 		plugins.WithCipherSuites(params.CipherSuites),
+		// The runtime owns the store: it outlives every manager built here, and
+		// is closed once the serve loop is done with it.
+		plugins.WithStoreCloseOnStop(false),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
+		return fmt.Errorf("config error: %w", err)
 	}
 
 	// Surface non-fatal config warnings (e.g. unrecognized options).
 	for _, w := range manager.Config.Warnings {
-		logger.Warn("%s", w)
+		rt.logger.Warn("%s", w)
 	}
 
 	if err := manager.Init(ctx); err != nil {
-		return nil, fmt.Errorf("initialization error: %w", err)
+		return fmt.Errorf("initialization error: %w", err)
 	}
 
 	if isAuthorizationEnabled && !params.SkipKnownSchemaCheck {
 		if err := verifyAuthorizationPolicySchema(manager); err != nil {
-			return nil, fmt.Errorf("initialization error: %w", err)
+			return fmt.Errorf("initialization error: %w", err)
 		}
 	}
 
 	var bootConfig map[string]any
-	err = util.Unmarshal(config, &bootConfig)
-	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
+	if err := util.Unmarshal(config, &bootConfig); err != nil {
+		return fmt.Errorf("config error: %w", err)
 	}
 
 	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+4)
@@ -608,28 +687,55 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	opts = append(opts, params.ExtraDiscoveryOpts...)
 	disco, err := discovery.New(manager, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
+		return fmt.Errorf("config error: %w", err)
 	}
 
 	manager.Register(discovery.Name, disco)
 
-	rt := &Runtime{
-		Store:             manager.Store,
-		Params:            params,
-		Manager:           manager,
-		logger:            logger,
-		metrics:           metrics,
-		versionChecker:    versionChecker,
-		serverStatus:      ServerNotStarted,
-		traceExporter:     traceExporter,
-		meterProvider:     meterProvider,
-		loadedPathsResult: loaded,
-		serverTracingOpts: serverTracingOpts,
-		appliedConfig:     config,
-		lastConfig:        config,
+	rt.stateMtx.Lock()
+	rt.Manager = manager
+	rt.metrics = metrics
+	rt.traceExporter = traceExporter
+	rt.meterProvider = meterProvider
+	rt.serverTracingOpts = serverTracingOpts
+	rt.stateMtx.Unlock()
+
+	return nil
+}
+
+// manager returns the plugin manager currently in effect. A restart replaces it,
+// so anything reading it off the serve goroutine -- the file watchers, the
+// decision logger -- has to come through here.
+func (rt *Runtime) manager() *plugins.Manager {
+	rt.stateMtx.RLock()
+	defer rt.stateMtx.RUnlock()
+
+	return rt.Manager
+}
+
+// metricsProvider returns the Prometheus provider currently in effect.
+func (rt *Runtime) metricsProvider() *prometheus.Provider {
+	rt.stateMtx.RLock()
+	defer rt.stateMtx.RUnlock()
+
+	return rt.metrics
+}
+
+// buildMetricsProvider builds the Prometheus provider from the "server.metrics"
+// section.
+//
+// Called once, at start-up. Each call makes its own registry, and the store
+// registers its collectors on whichever provider it was created with, so
+// building a second one on a reload would drop the storage metrics from
+// /metrics for good. That makes "server.metrics" the one section a restart does
+// not pick up.
+func buildMetricsProvider(ctx context.Context, config []byte, params Params, logger logging.Logger) (*prometheus.Provider, error) {
+	metricsConfig, err := extractMetricsConfig(ctx, config, params)
+	if err != nil {
+		return nil, err
 	}
 
-	return rt, nil
+	return prometheus.New(metrics.New(), errorLogger(logger), metricsConfig.Prom.HTTPRequestDurationSeconds.Buckets), nil
 }
 
 // extractMetricsConfig returns the configuration for server metrics and parsing errors if any
@@ -677,7 +783,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // Serve will start a new REST API server and listen for requests. This
 // will block until either: an error occurs, the context is canceled, or
 // a SIGTERM or SIGKILL signal is sent.
-func (rt *Runtime) Serve(ctx context.Context) (err error) {
+func (rt *Runtime) Serve(ctx context.Context) error {
 	if rt.Params.Addrs == nil {
 		return errors.New("at least one address must be configured in runtime parameters")
 	}
@@ -702,28 +808,238 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 
 	checkUserPrivileges(rt.logger)
 
-	if err := rt.Manager.Start(ctx); err != nil {
-		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Buffer one element as os/signal uses non-blocking channel sends.
+	// This prevents potentially dropping the first element and failing to shut
+	// down gracefully. A buffer of 1 is sufficient as we're just looking for a
+	// one-time shutdown signal.
+	signalc := make(chan os.Signal, 1)
+	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
+
+	// The store is older than any manager built from the configuration, so the
+	// serve loop closes it rather than Manager.Stop.
+	defer rt.closeStore(ctx)
+	defer rt.setServerStatus(ServerStopped)
+
+	errc, err := rt.startServing(ctx)
+	if err != nil {
 		return err
 	}
 
-	defer rt.Manager.Stop(ctx)
-
-	// Resolve the buffered logger: flush to logger plugin if configured,
-	// otherwise fall back to the standard logger.
-	stdLogger := logging.New()
-	stdLogger.SetLevel(rt.logger.GetLevel())
-	stdLogger.SetFormatter(internal_logging.GetFormatter(rt.Params.Logging.Format, rt.Params.Logging.TimestampFormat))
-	rt.logger = rt.Manager.ResolveBufferedLogger(stdLogger)
-
-	if rt.traceExporter != nil {
-		if err := rt.traceExporter.Start(ctx); err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
+	// Started once the first serve is up, and left running across restarts: the
+	// configuration watcher is what asks for a restart, so a restart cannot be
+	// what tears it down. It also reads the logger that the first serve resolved.
+	if rt.Params.Watch {
+		if err := rt.startWatcher(ctx, rt.Params.Paths, rt.onReloadLogger); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open watch.")
 			return err
 		}
 	}
 
-	rt.server = server.New().
+	if rt.Params.WatchConfig {
+		if err := rt.startConfigWatcher(ctx, rt.onConfigReloadLogger); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open config watch.")
+			return err
+		}
+		defer rt.stopConfigWatcher()
+	}
+
+	// Only now: the watches above have to be in place before anything waiting on
+	// the server acts on it.
+	rt.announceServing()
+
+	if rt.Params.EnableVersionCheck {
+		rt.done = make(chan struct{})
+		go rt.checkOPAUpdateLoop(ctx, rt.done)
+		defer func() { rt.done <- struct{}{} }()
+	}
+
+	for {
+		select {
+		case <-rt.restartc:
+			rt.logger.Info("Restarting to apply the new configuration.")
+			if errc, err = rt.restart(ctx); err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return rt.stopServing(ctx, true)
+		case <-signalc:
+			return rt.stopServing(ctx, true)
+		case err := <-errc:
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Listener failed.")
+			os.Exit(1)
+		}
+	}
+}
+
+// restart brings the serve routine back up under the configuration last read
+// from disk. Everything checkable was checked before the restart was asked for,
+// so a failure here is environmental -- an address that no longer binds, a
+// directory that cannot be written. Rather than leave OPA down, the previous
+// configuration is put back; only if that fails too is there nothing left to
+// fall back to.
+func (rt *Runtime) restart(ctx context.Context) (chan error, error) {
+	rt.configMtx.Lock()
+	next, previous := rt.appliedConfig, rt.previousConfig
+	rt.configMtx.Unlock()
+
+	errc, err := rt.restartWith(ctx, next)
+	if err == nil {
+		return errc, nil
+	}
+
+	rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to come up under the new configuration, falling back to the previous one.")
+
+	rt.configMtx.Lock()
+	rt.appliedConfig = previous
+	rt.configMtx.Unlock()
+
+	return rt.restartWith(ctx, previous)
+}
+
+// restartWith stops what is running and brings it back up under config. Whatever
+// was started before the failure is stopped again, so the caller can try another
+// configuration on top of a clean slate.
+func (rt *Runtime) restartWith(ctx context.Context, config []byte) (chan error, error) {
+	// Only the configuration coming up can be a reason to fall back to another
+	// one. A shutdown that outlives the graceful period says nothing about it:
+	// the listeners are closed either way, what is left is a connection that
+	// overstayed, and it is already reported where it happened.
+	_ = rt.stopServing(ctx, false)
+
+	// Re-read from disk: the manager is built with these, and whatever is on
+	// disk now is what the new configuration should come up over -- the
+	// boot-time snapshot would undo any edit made since.
+	loaded, err := initload.LoadPathsForRegoVersion(rt.Params.parserOptions(), rt.Params.Paths, rt.Params.Filter,
+		rt.Params.BundleMode, rt.Params.BundleVerificationConfig, rt.Params.SkipBundleVerification,
+		rt.Params.BundleLazyLoadingMode, false, nil)
+	if err != nil {
+		return nil, fmt.Errorf("load error: %w", err)
+	}
+	rt.stateMtx.Lock()
+	rt.loadedPathsResult = loaded
+	rt.stateMtx.Unlock()
+
+	if err := rt.configure(ctx, config, rt.metricsProvider()); err != nil {
+		return nil, err
+	}
+
+	errc, err := rt.startServing(ctx)
+	if err != nil {
+		// startServing may have got as far as starting the plugins.
+		_ = rt.stopServing(ctx, false)
+		return nil, err
+	}
+	rt.announceServing()
+
+	return errc, nil
+}
+
+// startServing starts the plugins and brings up the listeners for the
+// configuration currently in effect. The returned channel carries the first
+// error from any listener. Paired with stopServing, and called again after it
+// for every configuration reload.
+func (rt *Runtime) startServing(ctx context.Context) (chan error, error) {
+	if err := rt.Manager.Start(ctx); err != nil {
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
+		return nil, err
+	}
+
+	// Resolve the buffered logger: flush to logger plugin if configured,
+	// otherwise fall back to the standard logger. Only the first start has one to
+	// resolve; every manager built after that is given the resolved logger, and
+	// rewriting it here would race with the watchers reading it.
+	if _, buffered := rt.logger.(*logging.BufferedLogger); buffered {
+		stdLogger := logging.New()
+		stdLogger.SetLevel(rt.logger.GetLevel())
+		stdLogger.SetFormatter(internal_logging.GetFormatter(rt.Params.Logging.Format, rt.Params.Logging.TimestampFormat))
+		rt.logger = rt.Manager.ResolveBufferedLogger(stdLogger)
+	}
+
+	if rt.traceExporter != nil {
+		if err := rt.traceExporter.Start(ctx); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
+			return nil, err
+		}
+	}
+
+	srv, err := rt.buildServer(ctx)
+	if err != nil {
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to initialize server.")
+		return nil, err
+	}
+
+	srv.Handler = NewLoggingHandler(rt.logger, srv.Handler)
+	srv.DiagnosticHandler = NewDiagnosticLoggingHandler(rt.logger, srv.DiagnosticHandler)
+
+	rt.serverInitMtx.Lock()
+	rt.server = srv
+	rt.serverStatus = ServerWaitingForPlugins
+	rt.serverInitMtx.Unlock()
+
+	if err := rt.waitPluginsReady(
+		100*time.Millisecond,
+		time.Second*time.Duration(rt.Params.ReadyTimeout)); err != nil {
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to wait for plugins activation.")
+		return nil, err
+	}
+
+	loops, err := srv.Listeners()
+	if err != nil {
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to create listeners.")
+		return nil, err
+	}
+
+	errc := make(chan error, len(loops))
+	for _, loop := range loops {
+		go func(serverLoop func() error) {
+			errc <- serverLoop()
+		}(loop)
+	}
+
+	return errc, nil
+}
+
+// announceServing reports the server as ready. Separate from startServing so the
+// first serve can get its watches up first: a caller that waits for
+// ServerInitialized and then edits a watched file has to be sure the edit is
+// seen, and a watch registered afterwards would miss it.
+func (rt *Runtime) announceServing() {
+	// Note that there is a small chance the socket of the server listener is still
+	// closed by the time this block is executed, due to the server loops above
+	// executing in goroutines.
+	rt.setServerStatus(ServerInitialized)
+	rt.manager().ServerInitialized()
+
+	rt.logger.Debug("Server initialized.")
+}
+
+// stopServing shuts the listeners down and stops the plugins, leaving the store
+// open for whatever comes next.
+func (rt *Runtime) stopServing(ctx context.Context, exiting bool) error {
+	rt.serverInitMtx.Lock()
+	srv := rt.server
+	rt.server = nil
+	rt.serverStatus = ServerStopped
+	rt.serverInitMtx.Unlock()
+
+	// Unconditionally: leaving plugins running would have them writing to a store
+	// that is about to be closed.
+	defer rt.manager().Stop(ctx)
+
+	if srv == nil {
+		return nil
+	}
+
+	return rt.gracefulServerShutdown(ctx, srv, exiting)
+}
+
+// buildServer assembles the server for the configuration currently in effect,
+// on the router configure set up for this round.
+func (rt *Runtime) buildServer(ctx context.Context) (*server.Server, error) {
+	srv := server.New().
 		WithRouter(rt.Params.Router).
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
@@ -748,118 +1064,50 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
-		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.GetConfig().NDBuiltinCacheEnabled())
+		srv = srv.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.GetConfig().NDBuiltinCacheEnabled())
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {
-		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
+		srv = srv.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
 	}
 
 	if rt.Params.UnixSocketPerm != nil {
-		rt.server = rt.server.WithUnixSocketPermission(rt.Params.UnixSocketPerm)
+		srv = srv.WithUnixSocketPermission(rt.Params.UnixSocketPerm)
 	}
 
 	// If a refresh period is set, then we will periodically reload the certificate and ca pool. Otherwise, we will only
 	// reload cert, key and ca pool files when they change on disk.
 	if rt.Params.CertificateRefresh > 0 {
-		rt.server = rt.server.WithCertRefresh(rt.Params.CertificateRefresh)
+		srv = srv.WithCertRefresh(rt.Params.CertificateRefresh)
 	}
 
 	// if either the cert or the ca pool file is set then these fields will be set on the server and reloaded when they
 	// change on disk.
 	if rt.Params.CertificateFile != "" || rt.Params.CertPoolFile != "" {
-		rt.server = rt.server.WithTLSConfig(&server.TLSConfig{
+		srv = srv.WithTLSConfig(&server.TLSConfig{
 			CertFile:     rt.Params.CertificateFile,
 			KeyFile:      rt.Params.CertificateKeyFile,
 			CertPoolFile: rt.Params.CertPoolFile,
 		})
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	rt.server, err = rt.server.Init(ctx)
-	if err != nil {
-		rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to initialize server.")
-		return err
+	return srv.Init(ctx)
+}
+
+// closeStore closes the store if the backend holds resources. The plugin
+// managers built from the configuration do not, so that they can be replaced
+// without taking the store with them.
+func (rt *Runtime) closeStore(ctx context.Context) {
+	closer, ok := rt.Store.(storage.Closer)
+	if !ok {
+		return
 	}
 
-	if rt.Params.Watch {
-		if err := rt.startWatcher(ctx, rt.Params.Paths, rt.onReloadLogger); err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open watch.")
-			return err
-		}
-		if err := rt.startConfigWatcher(ctx, rt.onConfigReloadLogger); err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open config watch.")
-			return err
-		}
-		// Registered after the deferred Manager.Stop so it runs before it.
-		defer rt.stopConfigWatcher()
+	if err := closer.Close(ctx); err != nil {
+		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to close storage gracefully.")
+		return
 	}
-
-	if rt.Params.EnableVersionCheck {
-		rt.done = make(chan struct{})
-		go rt.checkOPAUpdateLoop(ctx, rt.done)
-	}
-
-	defer func() {
-		if rt.done != nil {
-			rt.done <- struct{}{}
-		}
-	}()
-
-	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
-	rt.server.DiagnosticHandler = NewDiagnosticLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
-
-	rt.setServerStatus(ServerWaitingForPlugins)
-
-	if err := rt.waitPluginsReady(
-		100*time.Millisecond,
-		time.Second*time.Duration(rt.Params.ReadyTimeout)); err != nil {
-		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to wait for plugins activation.")
-		return err
-	}
-
-	loops, err := rt.server.Listeners()
-	if err != nil {
-		rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to create listeners.")
-		return err
-	}
-
-	errc := make(chan error)
-	for _, loop := range loops {
-		go func(serverLoop func() error) {
-			errc <- serverLoop()
-		}(loop)
-	}
-
-	// Buffer one element as os/signal uses non-blocking channel sends.
-	// This prevents potentially dropping the first element and failing to shut
-	// down gracefully. A buffer of 1 is sufficient as we're just looking for a
-	// one-time shutdown signal.
-	signalc := make(chan os.Signal, 1)
-	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
-
-	// Note that there is a small chance the socket of the server listener is still
-	// closed by the time this block is executed, due to the serverLoop above
-	// executing in a goroutine.
-	rt.setServerStatus(ServerInitialized)
-	rt.Manager.ServerInitialized()
-
-	rt.logger.Debug("Server initialized.")
-
-	defer rt.setServerStatus(ServerStopped)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return rt.gracefulServerShutdown(rt.server)
-		case <-signalc:
-			return rt.gracefulServerShutdown(rt.server)
-		case err := <-errc:
-			rt.logger.WithFields(map[string]any{"err": err}).Error("Listener failed.")
-			os.Exit(1)
-		}
-	}
+	rt.logger.Debug("Storage closed.")
 }
 
 // Addrs returns a list of addresses that the runtime is listening on (when
@@ -868,7 +1116,7 @@ func (rt *Runtime) Addrs() []string {
 	rt.serverInitMtx.RLock()
 	defer rt.serverInitMtx.RUnlock()
 
-	if rt.serverStatus < ServerInitialized {
+	if rt.serverStatus < ServerInitialized || rt.server == nil {
 		return nil
 	}
 
@@ -882,7 +1130,7 @@ func (rt *Runtime) DiagnosticAddrs() []string {
 	rt.serverInitMtx.RLock()
 	defer rt.serverInitMtx.RUnlock()
 
-	if rt.serverStatus < ServerInitialized {
+	if rt.serverStatus < ServerInitialized || rt.server == nil {
 		return nil
 	}
 
@@ -896,6 +1144,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 		return err
 	}
 
+	// Deferred first so it runs last: the store outlives the manager.
+	defer rt.closeStore(ctx)
 	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
@@ -911,6 +1161,9 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
 			return err
 		}
+	}
+
+	if rt.Params.WatchConfig {
 		if err := rt.startConfigWatcher(ctx, onConfigReloadPrinter(rt.Params.Output)); err != nil {
 			fmt.Fprintln(rt.Params.Output, "error opening config watch:", err)
 			return err
@@ -989,14 +1242,14 @@ func (rt *Runtime) decisionIDFactory() string {
 	if rt.Params.DecisionIDFactory != nil {
 		return rt.Params.DecisionIDFactory()
 	}
-	if logs.Lookup(rt.Manager) != nil {
+	if logs.Lookup(rt.manager()) != nil {
 		return generateDecisionID()
 	}
 	return ""
 }
 
 func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
-	plugin := logs.Lookup(rt.Manager)
+	plugin := logs.Lookup(rt.manager())
 	if plugin == nil {
 		return nil
 	}
@@ -1040,14 +1293,14 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 }
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
-	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions(), paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.manager().ParserOptions(), paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:         rt.Store,
 			Txn:           txn,
 			Files:         loaded.Files,
 			Bundles:       loaded.Bundles,
 			MaxErrors:     -1,
-			ParserOptions: rt.Manager.ParserOptions(),
+			ParserOptions: rt.manager().ParserOptions(),
 		})
 
 		return err
@@ -1063,14 +1316,17 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
-	if rt.Params.ShutdownWaitPeriod > 0 {
+func (rt *Runtime) gracefulServerShutdown(parent context.Context, s *server.Server, exiting bool) error {
+	// Only on the way out: the wait gives load balancers time to take this
+	// instance out of rotation before the process goes away, which a restart that
+	// re-binds the same addresses does not need.
+	if exiting && rt.Params.ShutdownWaitPeriod > 0 {
 		rt.logger.Info("Waiting %vs before initiating shutdown...", rt.Params.ShutdownWaitPeriod)
 		time.Sleep(time.Duration(rt.Params.ShutdownWaitPeriod) * time.Second)
 	}
 
 	rt.logger.Info("Shutting down...")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
 	defer cancel()
 	err := s.Shutdown(ctx)
 	if err != nil {
@@ -1092,15 +1348,6 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 		}
 	}
 
-	// Close storage if it implements the storage.Closer interface
-	if closer, ok := rt.Store.(storage.Closer); ok {
-		if err := closer.Close(ctx); err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to close storage gracefully.")
-			return err
-		}
-		rt.logger.Debug("Storage closed.")
-	}
-
 	return nil
 }
 
@@ -1111,7 +1358,7 @@ func (rt *Runtime) waitPluginsReady(checkInterval, timeout time.Duration) error 
 
 	// check readiness of all plugins
 	pluginsReady := func() bool {
-		for _, status := range rt.Manager.PluginStatus() {
+		for _, status := range rt.manager().PluginStatus() {
 			if status != nil && status.State != plugins.StateOK {
 				return false
 			}
