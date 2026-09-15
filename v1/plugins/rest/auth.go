@@ -415,7 +415,6 @@ func (ap *oauth2ClientCredentialsAuthPlugin) SignWithKeyVault(ctx context.Contex
 	input := encodedHdr + "." + encodedPayload
 	digest, err := messageDigest([]byte(input), ap.AzureSigningPlugin.keyVaultSignPlugin.config.Alg)
 	if err != nil {
-		fmt.Println("unsupported algorithm", ap.AzureSigningPlugin.keyVaultSignPlugin.config.Alg)
 		return nil, err
 	}
 
