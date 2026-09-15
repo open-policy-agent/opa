@@ -260,6 +260,8 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	d.client = d.client.WithHeader("Prefer", preferValue)
 
 	m.Timer(metrics.BundleRequest).Start()
+	defer m.Timer(metrics.BundleRequest).Stop()
+
 	desc, err := d.pull(ctx, d.path)
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("failed to pull %s: %w", d.path, err)
@@ -325,8 +327,6 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)
 	}
-
-	m.Timer(metrics.BundleRequest).Stop()
 
 	return &downloaderResponse{
 		b:        &bundleInfo,
