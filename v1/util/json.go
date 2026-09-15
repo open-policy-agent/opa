@@ -141,7 +141,16 @@ func RoundTrip(x *any) error {
 	if err != nil {
 		return err
 	}
-	return UnmarshalJSON(bs, x)
+
+	// Decode into a fresh value instead of reusing *x: if *x holds a non-nil
+	// pointer, json.Unmarshal decodes into the pointed-to value in place
+	// rather than replacing it.
+	var y any
+	if err := UnmarshalJSON(bs, &y); err != nil {
+		return err
+	}
+	*x = y
+	return nil
 }
 
 // NeedsRoundTrip returns true if the value won't change as a result of

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -61,6 +62,53 @@ func TestRoundTrip(t *testing.T) {
 				t.Errorf("unexpected type %T", x)
 			}
 		})
+	}
+}
+
+// Regression test for a bug where RoundTrip's fallback path reused an
+// existing pointer as its own decode target: opa-envoy-plugin stores a
+// shared *ast.object (e.g. request metadata) directly as a value inside an
+// otherwise-native map[string]any before handing it to RoundTripFast. Since
+// ast.Object.MarshalJSON encodes as a [key,value] array rather than a plain
+// JSON object, decoding back into the same ast.object failed with "cannot
+// unmarshal array into Go value of type ast.object" -- and, had it not
+// errored, would have corrupted the shared value in place.
+func TestRoundTripEmbeddedASTValue(t *testing.T) {
+	shared := ast.NewObject(
+		[2]*ast.Term{ast.StringTerm("ext_authz"), ast.StringTerm("v3")},
+		[2]*ast.Term{ast.StringTerm("encoding"), ast.StringTerm("protojson")},
+	)
+	before := shared.String()
+
+	input := map[string]any{
+		"method":  "GET",
+		"version": ast.Value(shared),
+	}
+
+	var v any = input
+	if err := util.RoundTripFast(&v); err != nil {
+		t.Fatalf("RoundTripFast: unexpected error: %s", err)
+	}
+
+	if shared.String() != before {
+		t.Fatalf("shared ast.Object was mutated by RoundTripFast: got %s, want %s", shared.String(), before)
+	}
+
+	out, ok := v.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", v)
+	}
+	if _, ok := out["version"].(ast.Value); ok {
+		t.Errorf("expected version to no longer be the original ast.Value pointer, got %T", out["version"])
+	}
+	if _, err := ast.InterfaceToValue(out); err != nil {
+		t.Errorf("result does not convert back to an ast.Value: %s", err)
+	}
+
+	// A bare ast.Value at the top level must round-trip too.
+	var top any = shared
+	if err := util.RoundTrip(&top); err != nil {
+		t.Fatalf("RoundTrip: unexpected error: %s", err)
 	}
 }
 
