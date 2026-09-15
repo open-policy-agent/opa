@@ -421,7 +421,7 @@ func (i *refindices) updateAffix(rule *Rule, expr *Expr, constants map[Var]Value
 		return
 	}
 
-	i.insert(rule, &refindex{Ref: ref, Value: base, Affix: a})
+	i.insert(rule, &refindex{ref: i.table.intern(ref), Value: base, Affix: a})
 }
 
 // updateAnyPrefixMatch indexes `strings.any_prefix_match(x, base)`, which is
@@ -448,7 +448,7 @@ func (i *refindices) updateAnyAffixMatch(rule *Rule, expr *Expr, constants map[V
 	}
 
 	if s, ok := base.(String); ok {
-		i.insert(rule, &refindex{Ref: ref, Value: s, Affix: a})
+		i.insert(rule, &refindex{ref: i.table.intern(ref), Value: s, Affix: a})
 		return
 	}
 
@@ -470,7 +470,8 @@ func (i *refindices) updateAnyAffixMatch(rule *Rule, expr *Expr, constants map[V
 // here instead. insertMembers is the same for `in`; the two dedup on different
 // key types.
 func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) {
-	i.countN(ref, len(bases))
+	id := i.table.intern(ref)
+	i.countN(id, len(bases))
 
 	// concrete counts the values this rule already reaches ref by that survive
 	// insertPath's var-stripping, so that the alternatives the base adds can be
@@ -478,7 +479,7 @@ func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) 
 	concrete := 0
 	seen := make(map[String]struct{}, len(bases))
 	for _, other := range i.rules[rule] {
-		if !other.Ref.Equal(ref) {
+		if other.ref != id {
 			continue
 		}
 		if !other.isVar() {
@@ -507,13 +508,13 @@ func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) 
 		seen[key] = struct{}{}
 		concrete++
 
-		*indices[pos] = refindex{Ref: ref, Value: base, Affix: a}
+		*indices[pos] = refindex{ref: id, Value: base, Affix: a}
 		pos++
 	}
 	i.rules[rule] = indices[:pos]
 
 	if concrete > 1 {
-		i.alternate(ref, alternationTerminal)
+		i.alternate(id, alternationTerminal)
 	}
 }
 

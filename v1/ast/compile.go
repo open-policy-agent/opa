@@ -1138,6 +1138,14 @@ func (c *Compiler) counterAdd(name string, n uint64) {
 	c.metrics.Counter(name).Add(n)
 }
 
+// sortedKeys returns a tree node's children in a stable order, the map they are
+// held in having none.
+func sortedKeys(children map[Value]*TreeNode) []Value {
+	keys := util.Keys(children)
+	slices.SortFunc(keys, Value.Compare)
+	return keys
+}
+
 func (c *Compiler) buildRuleIndices() {
 
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
@@ -1165,12 +1173,13 @@ func (c *Compiler) buildRuleIndices() {
 			// b.c[x].e := 1 { x := input.x }
 			// b.c.d := 2
 			// b.c.d2.e[x] := 3 { x := input.x }
-			for _, child := range node.Children {
-				child.DepthFirst(func(c *TreeNode) bool {
-					rules = append(rules, c.Values...)
-					return false
-				})
-			}
+			// Cleared rather than truncated: rules aliases node.Values, which the
+			// walk hands back along with everything below it.
+			rules = nil
+			node.DepthFirst(func(c *TreeNode) bool {
+				rules = append(rules, c.Values...)
+				return false
+			})
 		}
 
 		index := newBaseDocEqIndex(c.isVirtual)
@@ -4596,12 +4605,21 @@ func (n *TreeNode) find(ref Ref) (*TreeNode, Ref) {
 
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
 // f returns true, traversal will not continue to the children of n.
+// DepthFirst calls f on n and then, in key order, on everything below it. The
+// order is the map's own otherwise, and callers building an index from what they
+// walk hand the order on to their results.
 func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
 	if f(n) {
 		return
 	}
-	for _, node := range n.Children {
-		node.DepthFirst(f)
+	if len(n.Children) < 2 {
+		for _, node := range n.Children { // no order to choose, and no slice to build
+			node.DepthFirst(f)
+		}
+		return
+	}
+	for _, key := range sortedKeys(n.Children) {
+		n.Children[key].DepthFirst(f)
 	}
 }
 

@@ -6,6 +6,7 @@ package ast
 
 import (
 	"errors"
+	"math/bits"
 	"slices"
 	"strconv"
 	"testing"
@@ -1593,7 +1594,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatal("Expected index build to succeed")
 			}
 
-			t.Log(index.root.mermaid())
+			t.Log(index.mermaid())
 			var unknownRefs Set
 
 			if len(tc.unknowns) > 0 {
@@ -1727,12 +1728,11 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 }
 
 func TestRefIndicesInsert(t *testing.T) {
-	ref := MustParseRef("input.x")
-
 	// values as they reach insert(): a var stands for "any value" (see anyValue
-	// and the "naked ref" case in Update), anything else for that value.
-	anyIndex := func() *refindex { return &refindex{Ref: ref, Value: Var("x")} }
-	valIndex := func(v int) *refindex { return &refindex{Ref: ref, Value: Number(strconv.Itoa(v))} }
+	// and the "naked ref" case in Update), anything else for that value. They
+	// all constrain the one reference, which every table numbers 0.
+	anyIndex := func() *refindex { return &refindex{Value: Var("x")} }
+	valIndex := func(v int) *refindex { return &refindex{Value: Number(strconv.Itoa(v))} }
 
 	tests := []struct {
 		note   string
@@ -1763,8 +1763,12 @@ func TestRefIndicesInsert(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ri := newrefindices(func(Ref) bool { return false })
+			ri := newrefindices(func(Ref) bool { return false }, newRefTable())
 			rule := MustParseRule(`p if input.x = 1`)
+
+			if id := ri.table.intern(MustParseRef("input.x")); id != 0 {
+				t.Fatalf("expected the first ref interned to be 0, got %d", id)
+			}
 
 			for _, index := range tc.insert {
 				ri.insert(rule, index)
@@ -1783,7 +1787,7 @@ func TestRefIndicesInsert(t *testing.T) {
 }
 
 func TestRefIndicesSorted(t *testing.T) {
-	ri := newrefindices(func(Ref) bool { return false })
+	ri := newrefindices(func(Ref) bool { return false }, newRefTable())
 
 	// Insert refs with distinct frequencies in an order that doesn't match
 	// the expected (frequency-descending) output, so that a sort which
@@ -1799,10 +1803,9 @@ func TestRefIndicesSorted(t *testing.T) {
 	}
 
 	for ref, n := range freqs {
-		r := MustParseRef(ref)
+		id := ri.table.intern(MustParseRef(ref))
 		for range n {
-			count, _ := ri.frequency.Get(r)
-			ri.frequency.Put(r, count+1)
+			ri.count(id)
 		}
 	}
 
@@ -1813,13 +1816,26 @@ func TestRefIndicesSorted(t *testing.T) {
 	}
 
 	prevCount := -1
-	for _, ref := range sorted {
-		count := freqs[ref.String()]
+	for _, id := range sorted {
+		count := freqs[ri.table.ref(id).String()]
 		if prevCount != -1 && count > prevCount {
 			t.Fatalf("expected refs sorted by descending frequency, but got %v with count %d after count %d", sorted, count, prevCount)
 		}
 		prevCount = count
 	}
+}
+
+// collected returns the rule ids a traversal reached, in the order gather reads
+// them back.
+func collected(tr *trieTraversalResult) []int32 {
+	var ids []int32
+	slices.Sort(tr.touched)
+	for _, w := range tr.touched {
+		for word := tr.hits[w]; word != 0; word &= word - 1 {
+			ids = append(ids, w<<6|int32(bits.TrailingZeros64(word)))
+		}
+	}
+	return ids
 }
 
 func TestSplitStringEscaped(t *testing.T) {
