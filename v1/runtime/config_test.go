@@ -493,11 +493,58 @@ func TestRouterSharedBetweenManagerAndServer(t *testing.T) {
 	}
 }
 
+func TestWatchDoesNotImplyWatchConfig(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 64
+`)
+
+	params := NewParams()
+	params.ConfigFile = configFile
+	params.Output = io.Discard
+	params.Logger = testLog.New()
+	params.Addrs = &[]string{"localhost:0"}
+	params.Watch = true
+	params.GracefulShutdownPeriod = 1
+
+	ctx := t.Context()
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	go func() { _ = rt.Serve(ctx) }()
+	if !test.Eventually(t, 10*time.Second, func() bool {
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+	}) {
+		t.Fatal("timed out waiting for the server to start")
+	}
+
+	before := rt.Addrs()[0]
+
+	writeConfig(t, configFile, `server:
+  decoding:
+    max_length: 4096
+`)
+
+	// Nothing should come of it. Long enough for the coalesce window and a
+	// restart to have run had one been asked for.
+	time.Sleep(20 * configCoalesceWindow)
+
+	if restartRequested(rt) {
+		t.Error("expected no restart to be requested when only --watch is set")
+	}
+	if after := rt.Addrs(); len(after) != 1 || after[0] != before {
+		t.Errorf("expected the listener to be left alone, was %s now %v", before, after)
+	}
+}
+
 func TestStartConfigWatcherReconcilesOnStart(t *testing.T) {
 	rt, configFile := newConfigReloadRuntime(t, `labels:
   region: west
 `)
-	rt.Params.Watch = true
+	rt.Params.WatchConfig = true
 
 	writeConfig(t, configFile, `labels:
   region: east
@@ -528,7 +575,7 @@ func TestServeRestartsWhenShutdownOverruns(t *testing.T) {
 	params.Output = io.Discard
 	params.Logger = logger
 	params.Addrs = &[]string{"localhost:0"}
-	params.Watch = true
+	params.WatchConfig = true
 	params.GracefulShutdownPeriod = 1
 
 	ctx := t.Context()
@@ -608,7 +655,7 @@ func TestServeRestartsOnConfigChange(t *testing.T) {
 	params.Output = io.Discard
 	params.Logger = logger
 	params.Addrs = &[]string{"localhost:0"}
-	params.Watch = true
+	params.WatchConfig = true
 	params.GracefulShutdownPeriod = 1
 
 	ctx := t.Context()

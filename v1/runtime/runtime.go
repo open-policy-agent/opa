@@ -192,6 +192,13 @@ type Params struct {
 	// interactive development.
 	Watch bool
 
+	// WatchConfig flag controls whether OPA will watch ConfigFile for changes
+	// and restart the serve routine under the new configuration when it does.
+	// Separate from Watch because the two are not comparable: Watch reloads the
+	// store in place, whereas this rebinds the listeners and starts every
+	// configured feature again.
+	WatchConfig bool
+
 	// ErrorLimit is the number of errors the compiler will allow to occur before
 	// exiting early.
 	ErrorLimit int
@@ -829,6 +836,9 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open watch.")
 			return err
 		}
+	}
+
+	if rt.Params.WatchConfig {
 		if err := rt.startConfigWatcher(ctx, rt.onConfigReloadLogger); err != nil {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Unable to open config watch.")
 			return err
@@ -899,9 +909,9 @@ func (rt *Runtime) restartWith(ctx context.Context, config []byte) (chan error, 
 	// overstayed, and it is already reported where it happened.
 	_ = rt.stopServing(ctx, false)
 
-	// Re-read from disk: the manager is built with these, and --watch (which
-	// config watching requires) may have applied edits since start-up that the
-	// boot-time snapshot would undo.
+	// Re-read from disk: the manager is built with these, and whatever is on
+	// disk now is what the new configuration should come up over -- the
+	// boot-time snapshot would undo any edit made since.
 	loaded, err := initload.LoadPathsForRegoVersion(rt.Params.parserOptions(), rt.Params.Paths, rt.Params.Filter,
 		rt.Params.BundleMode, rt.Params.BundleVerificationConfig, rt.Params.SkipBundleVerification,
 		rt.Params.BundleLazyLoadingMode, false, nil)
@@ -1151,6 +1161,9 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
 			return err
 		}
+	}
+
+	if rt.Params.WatchConfig {
 		if err := rt.startConfigWatcher(ctx, onConfigReloadPrinter(rt.Params.Output)); err != nil {
 			fmt.Fprintln(rt.Params.Output, "error opening config watch:", err)
 			return err

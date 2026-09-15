@@ -189,15 +189,19 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
 
-The --watch flag also applies to the file given by --config-file: when it changes, OPA restarts its server and
-everything the configuration drives, under the new settings, without the process exiting. Almost any option can be
-changed this way; "server.metrics" and "server.logger_plugin" still need the process restarted. The file is checked
-before anything is torn down, so a configuration OPA cannot run with is reported and leaves the running configuration
-serving.
+The --watch-config flag watches the file given by --config-file. A change there cannot be applied to a running server,
+so OPA restarts the server and everything the configuration drives under the new settings, without the process exiting.
+That is a far bigger disruption than reloading policy and data, which is why it is opt-in and separate from --watch.
+What it buys is that OPA applies the change itself, which is worth having where nothing else can arrange a restart --
+an unorchestrated host, or a sidecar whose restart would take the application down with it.
+Almost any option can be changed this way; "server.metrics" and "server.logger_plugin" still need the process restarted.
+The file is checked before anything is torn down, so a configuration OPA cannot run with is reported and leaves the
+running configuration serving.
 
 A restart re-binds the listeners and starts the configured features from scratch, so in-flight requests are drained
-and bundles are downloaded again unless "persistence_directory" is set. The configuration file is not watched when
-discovery is enabled, as the discovered configuration is then what OPA is configured with.
+and bundles are downloaded again unless "persistence_directory" is set. Under an orchestrator that can roll pods out
+for you, replacing them on a configuration change is usually the better option. The configuration file is not watched
+when discovery is enabled, as the discovered configuration is then what OPA is configured with.
 
 OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
@@ -246,7 +250,8 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	cmdParams.rt.UnixSocketPerm = runCommand.Flags().String("unix-socket-perm", "755", "specify the permissions for the Unix domain socket if used to listen for incoming connections")
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
-	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files and the configuration file for changes")
+	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
+	runCommand.Flags().BoolVar(&cmdParams.rt.WatchConfig, "watch-config", false, "watch the configuration file for changes and restart to apply them")
 	addV0CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible, false)
 	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible, false)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)

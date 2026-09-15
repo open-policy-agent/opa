@@ -1095,14 +1095,33 @@ applied.
 > Only supported with the OPA runtime (`opa run`).
 
 By default the configuration file is read once, at start-up. Running with the
-`-w`/`--watch` flag makes `opa run` watch the file and bring OPA back up under
-the new configuration when it changes, without the process exiting. This is
-useful where restarting the process is disruptive — a sidecar, for example,
-where a restart takes down the whole pod.
+`--watch-config` flag makes `opa run` watch the file and bring OPA back up under
+the new configuration when it changes, without the process exiting.
 
 ```bash
-opa run -s -c opa-config.yaml -w
+opa run -s -c opa-config.yaml --watch-config
 ```
+
+It is opt-in, and separate from `-w`/`--watch`, because the two are not
+comparable: `--watch` reloads policy and data into the store in place, whereas
+this restarts the server and everything the configuration drives.
+
+### When to use it
+
+Where something else can replace the process for you, let it. Under an
+orchestrator, a configuration change is a change to the desired state: update
+the ConfigMap and roll the pods out, and you get the restart with health
+gating, surge control and a record of what happened. OPA restarting itself is
+none of those things — from the outside it is an unexplained blip.
+
+`--watch-config` is for where that is not on offer:
+
+- OPA embedded in a host that is not orchestrated at all — a monolith, an
+  appliance, a vehicle.
+- A sidecar where restarting OPA means restarting the pod, taking the
+  application down with it.
+- Development and testing, where iterating on the configuration beats waiting
+  for a restart.
 
 Almost any option can be changed this way. OPA does not reconfigure itself in
 place: it stops the server and everything the configuration drives, rebuilds
