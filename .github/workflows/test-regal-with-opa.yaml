@@ -46,13 +46,18 @@ jobs:
         working-directory: regal
         run: go build -tags=regal_standalone
 
+      # Regal's build tasks are written in Rego and run by rq, which `go tool`
+      # builds from Regal's module graph, i.e. against the OPA under test.
+      # Running the tests through build/do.rq makes the nightly parse and
+      # evaluate that script too, which is where the bug fixed in #9140
+      # surfaced.
       - name: Test
         working-directory: regal
-        run: go test ./...
+        run: build/do.rq test
 
       - name: e2e tests
         working-directory: regal
-        run: go test -tags e2e ./e2e -count=1
+        run: build/do.rq e2e
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
