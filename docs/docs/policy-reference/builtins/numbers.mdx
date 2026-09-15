@@ -3,3 +3,19 @@ title: Number Built-ins
 sidebar_label: Numbers
 ---
 <BuiltinTable category={"numbers"}/>
+
+## Examples
+
+### `abs`
+
+`abs` returns the absolute value of a number. Use it when a signed delta should
+be compared by magnitude only.
+
+<PlaygroundExample dir={require.context('../_examples/numbers/abs/normalize-delta')} />
+
+### `ceil`, `floor`, and `round`
+
+These functions convert fractional numbers to whole numbers. Capacity and
+quota policies often need a stable integer before comparing against a limit.
+
+<PlaygroundExample dir={require.context('../_examples/numbers/round/quota-units')} />
