@@ -154,17 +154,14 @@ func (d *Downloader) SetCache(etag string) {
 // Trigger can be used to control when the downloader attempts to download
 // a new bundle in manual triggering mode.
 func (d *Downloader) Trigger(ctx context.Context) error {
-	done := make(chan error)
+	done := make(chan error, 1)
 
 	go func() {
 		err := d.oneShot(ctx)
 		if err != nil {
 			d.logger.Error("Bundle download failed: %v.", err)
-			if ctx.Err() == nil {
-				done <- err
-			}
 		}
-		close(done)
+		done <- err
 	}()
 
 	select {

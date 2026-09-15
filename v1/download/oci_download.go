@@ -120,7 +120,7 @@ func (d *OCIDownloader) Trigger(ctx context.Context) error {
 	d.triggerWG.Add(1)
 	d.stateMtx.Unlock()
 
-	done := make(chan error)
+	done := make(chan error, 1)
 
 	go func() {
 		defer d.triggerWG.Done()
@@ -128,11 +128,8 @@ func (d *OCIDownloader) Trigger(ctx context.Context) error {
 		err := d.oneShot(ctx)
 		if err != nil {
 			d.logger.Error("OCI - Bundle download failed: %v.", err)
-			if ctx.Err() == nil {
-				done <- err
-			}
 		}
-		close(done)
+		done <- err
 	}()
 
 	select {
