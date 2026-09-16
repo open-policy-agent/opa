@@ -961,7 +961,6 @@ type azureSigningAuthPlugin struct {
 	MIAuthPlugin       *azureManagedIdentitiesAuthPlugin `json:"azure_managed_identity,omitempty"`
 	keyVaultSignPlugin *azureKeyVaultSignPlugin
 	keyVaultConfig     *azureKeyVaultConfig
-	host               string
 	Service            string `json:"service"`
 	logger             logging.Logger
 }
@@ -971,13 +970,6 @@ func (ap *azureSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	tknURL, err := url.Parse(c.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	ap.host = tknURL.Host
 
 	if ap.logger == nil {
 		ap.logger = c.logger

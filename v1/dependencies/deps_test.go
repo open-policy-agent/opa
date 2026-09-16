@@ -338,6 +338,54 @@ func TestDependencies(t *testing.T) {
 
 			min: []string{"a.x"},
 		},
+		{
+			// The bodies of the else clauses are part of the rule, so their
+			// dependencies are dependencies of the rule.
+			ast: `package a.b.c
+			 import data.a.x
+
+			 f if {
+				 false
+			 } else = y if {
+				 y = x.z
+			 } else = w if {
+				 w = data.q.r
+			 }`,
+
+			min: []string{"a.x.z", "q.r"},
+		},
+		{
+			// A ref that is only bound to a var that isn't used anywhere else
+			// is still a dependency, as the rule can't be satisfied unless the
+			// document it refers to is defined.
+			ast: `package q
+
+			 f if {
+				 data.a[i] = x
+				 i = 2
+			 }`,
+
+			min: []string{"a[i]"},
+		},
+		{
+			ast: `package q
+
+			 f contains i if {
+				 data.a[i] = _
+			 }`,
+
+			min: []string{"a[i]"},
+		},
+		{
+			ast: `package a.b.c
+			 import data.a.x
+
+			 f if {
+				 y = x.z
+			 }`,
+
+			min: []string{"a.x.z"},
+		},
 	}
 
 	for n, test := range tests {
@@ -436,6 +484,46 @@ func TestBaseAndVirtual(t *testing.T) {
 			t.Fatalf("Expected base refs %v, got %v", expVirtual, virtual)
 		}
 	}
+}
+
+func TestBaseAndVirtualElse(t *testing.T) {
+	mods := map[string]*ast.Module{
+		"test": ast.MustParseModule(`package test
+		import rego.v1
+
+		p if {
+			input.a
+		} else if {
+			q
+		}
+
+		q if {
+			data.b.c
+		}`),
+	}
+
+	compiler := ast.NewCompiler()
+	if compiler.Compile(mods); compiler.Failed() {
+		t.Fatalf("Compilation failed: %v", compiler.Errors)
+	}
+
+	body := ast.MustParseBody("data.test.p")
+
+	base, err := Base(compiler, body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expBase := []ast.Ref{ast.MustParseRef("data.b.c"), ast.MustParseRef("input.a")}
+	assertRefSliceEq(t, expBase, base)
+
+	virtual, err := Virtual(compiler, body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expVirtual := []ast.Ref{ast.MustParseRef("data.test.p"), ast.MustParseRef("data.test.q")}
+	assertRefSliceEq(t, expVirtual, virtual)
 }
 
 func TestBase(t *testing.T) {

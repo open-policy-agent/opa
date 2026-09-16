@@ -1,19 +1,10 @@
 package handlers
 
 import (
-	"compress/gzip"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"sync"
-)
 
-const (
-	acceptEncodingHeader  = "Accept-Encoding"
-	contentEncodingHeader = "Content-Encoding"
-	contentLengthHeader   = "Content-Length"
-	gzipEncodingValue     = "gzip"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 // This handler applies only for data and compile endpoints, for selected HTTP methods
@@ -26,171 +17,26 @@ const (
 // The threshold and the gzip compression level can be modified from server's configuration
 
 func CompressHandler(handler http.Handler, gzipMinLength int, gzipCompressionLevel int) http.Handler {
-	initGzipPool(gzipCompressionLevel)
-
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		enabledForEndpoint := isDataEndpoint(request) || isCompileEndpoint(request)
-		if !enabledForEndpoint {
-			handler.ServeHTTP(responseWriter, request)
-			return
-		}
-
-		responseWriter.Header().Add("Vary", acceptEncodingHeader)
-
-		if !gzipHeaderDetected(request.Header) {
-			handler.ServeHTTP(responseWriter, request)
-			return
-		}
-
-		crw := &compressResponseWriter{
-			ResponseWriter: responseWriter,
-			headerWritten:  false,
-			minlength:      gzipMinLength,
-		}
-		defer crw.Close()
-		handler.ServeHTTP(crw, request)
-	})
-}
-
-type compressResponseWriter struct {
-	gzipWriter *gzip.Writer
-	http.ResponseWriter
-	buffer        []byte
-	statusCode    int
-	headerWritten bool
-	minlength     int
-}
-
-var (
-	gzipPool                 *sync.Pool
-	gzipPoolMutex            sync.RWMutex
-	gzipPoolCompressionLevel int
-)
-
-// initGzipPool initializes the gzip pool with the specified compression level.
-// Note that this is not called when OPA's configuration is reloaded, only at startup.
-func initGzipPool(compressionLevel int) {
-	gzipPoolMutex.RLock()
-	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
-		gzipPoolMutex.RUnlock()
-		return
-	}
-	gzipPoolMutex.RUnlock()
-
-	gzipPoolMutex.Lock()
-	defer gzipPoolMutex.Unlock()
-
-	if gzipPool != nil && gzipPoolCompressionLevel == compressionLevel {
-		return
-	}
-
-	gzipPool = &sync.Pool{
-		New: func() any {
-			writer, _ := gzip.NewWriterLevel(io.Discard, compressionLevel)
-			return writer
-		},
-	}
-
-	gzipPoolCompressionLevel = compressionLevel
-}
-
-func (w *compressResponseWriter) WriteHeader(statusCode int) {
-	// save the status code for later use
-	w.statusCode = statusCode
-}
-
-func (w *compressResponseWriter) Write(bytes []byte) (int, error) {
-	if w.isGzipInitialized() {
-		return w.gzipWriter.Write(bytes)
-	}
-
-	// accumulate the buffer
-	w.buffer = append(w.buffer, bytes...)
-
-	// if the buffer is above threshold, use compression
-	if len(w.buffer) >= w.minlength {
-		err := w.doCompressedResponse()
-		if err != nil {
-			return 0, err
-		}
-		return len(bytes), nil
-	}
-
-	// wait for more data
-	return len(bytes), nil
-}
-
-func (w *compressResponseWriter) Flush() {
-	if w.isGzipInitialized() {
-		w.gzipWriter.Flush()
-		flusher, canFlush := w.ResponseWriter.(http.Flusher)
-		if canFlush {
-			flusher.Flush()
-		}
-	}
-}
-
-func (w *compressResponseWriter) Close() error {
-	if !w.isGzipInitialized() {
-		// gzip didn't handle the response, send it plain
-		err := w.doUncompressedResponse()
-		if err != nil {
-			err = fmt.Errorf("error writing uncompressed data: %v", err.Error())
-		}
-		return err
-	}
-
-	err := w.gzipWriter.Close()
+	wrap, err := gzhttp.NewWrapper(
+		gzhttp.MinSize(gzipMinLength),
+		gzhttp.CompressionLevel(gzipCompressionLevel),
+		gzhttp.ContentTypeFilter(gzhttp.CompressAllContentTypeFilter),
+		gzhttp.EnableZstd(false),
+	)
 	if err != nil {
-		return err
+		// Only returned for an invalid compression level; the encoding config
+		// policy already restricts this to values gzhttp accepts.
+		panic(err)
 	}
+	gzipHandler := wrap(handler)
 
-	gzipPoolMutex.RLock()
-	gzipPool.Put(w.gzipWriter)
-	gzipPoolMutex.RUnlock()
-
-	w.gzipWriter = nil
-
-	return err
-}
-
-func (w *compressResponseWriter) doCompressedResponse() error {
-	w.ResponseWriter.Header().Set(contentEncodingHeader, gzipEncodingValue)
-	w.Header().Del(contentLengthHeader)
-	w.writeHeader()
-	// there's nothing to write
-	if len(w.buffer) == 0 {
-		return nil
-	}
-	gzipPoolMutex.RLock()
-	gzipWriter := gzipPool.Get().(*gzip.Writer)
-	gzipPoolMutex.RUnlock()
-	gzipWriter.Reset(w.ResponseWriter)
-	w.gzipWriter = gzipWriter
-	_, err := w.gzipWriter.Write(w.buffer)
-	return err
-}
-
-func (w *compressResponseWriter) doUncompressedResponse() error {
-	w.writeHeader()
-	// there's nothing to write
-	if w.buffer == nil {
-		return nil
-	}
-	_, err := w.ResponseWriter.Write(w.buffer)
-	w.buffer = nil
-	return err
-}
-
-func (w *compressResponseWriter) isGzipInitialized() bool {
-	return w.gzipWriter != nil
-}
-
-func (w *compressResponseWriter) writeHeader() {
-	if !w.headerWritten && w.statusCode != 0 {
-		w.ResponseWriter.WriteHeader(w.statusCode)
-		w.headerWritten = true
-	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isDataEndpoint(r) || isCompileEndpoint(r) {
+			gzipHandler(w, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func isDataEndpoint(req *http.Request) bool {
@@ -209,14 +55,4 @@ func isPostMethod(req *http.Request) bool {
 
 func isGetMethod(req *http.Request) bool {
 	return req.Method == "GET"
-}
-
-func gzipHeaderDetected(header http.Header) bool {
-	for part := range strings.SplitSeq(header.Get("Accept-Encoding"), ",") {
-		part = strings.TrimSpace(part)
-		if part == gzipEncodingValue || strings.HasPrefix(part, gzipEncodingValue+";") {
-			return true
-		}
-	}
-	return false
 }

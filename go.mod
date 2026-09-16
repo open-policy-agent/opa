@@ -15,6 +15,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/huandu/go-sqlbuilder v1.43.0
+	github.com/klauspost/compress v1.19.1
 	github.com/lestrrat-go/jwx/v3 v3.2.0
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/opencontainers/go-digest v1.0.0
@@ -78,7 +79,6 @@ require (
 	github.com/huandu/go-clone v1.7.3 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect

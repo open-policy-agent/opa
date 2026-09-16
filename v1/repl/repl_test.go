@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/reeflective/readline"
+	"github.com/reeflective/readline/inputrc"
 
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -281,16 +282,7 @@ func TestREPLBracketedPasteTabNotCompleted(t *testing.T) {
 			return repl.complete(l, c)
 		}
 
-		// The line-reader renders terminal escapes to os.Stdout; redirect it to
-		// keep test output clean. Safe because these tests do not run in parallel.
-		devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-		if err != nil {
-			t.Fatalf("open devnull: %v", err)
-		}
-		defer devnull.Close()
-		origStdout := os.Stdout
-		os.Stdout = devnull
-		defer func() { os.Stdout = origStdout }()
+		silenceStdout(t)
 
 		shell.Keys.Feed(false, []rune(seq)...)
 		got, err := shell.Readline()
@@ -316,6 +308,206 @@ func TestREPLBracketedPasteTabNotCompleted(t *testing.T) {
 	// itself from silently passing due to a mis-wired completer.
 	if _, calls := feed(payload + "\r"); calls == 0 {
 		t.Fatal("expected a raw tab to invoke the completer; test setup is not exercising completion")
+	}
+}
+
+func TestREPLAcceptLine(t *testing.T) {
+	repl := newRepl(newTestStore(), &bytes.Buffer{})
+
+	cases := []struct {
+		note   string
+		input  string
+		accept bool
+	}{
+		{note: "complete query", input: "1 + 1", accept: true},
+		{note: "complete assignment", input: "x := 1", accept: true},
+		{note: "unterminated rule body", input: "p if {", accept: false},
+		{note: "partial rule body", input: "p if {\n\tx := 1", accept: false},
+		{note: "closed rule body", input: "p if {\n\tx := 1\n}", accept: true},
+		{note: "unterminated collection", input: "x := [1,", accept: false},
+		// A blank line ends input that will never parse, so the error is reported.
+		{note: "blank line flushes", input: "p if {\n", accept: true},
+		{note: "whitespace line flushes", input: "p if {\n  ", accept: true},
+		{note: "empty line", input: "", accept: true},
+		{note: "command", input: "unset x", accept: true},
+		{note: "exit command", input: "exit", accept: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			if got := repl.acceptLine([]rune(tc.input)); got != tc.accept {
+				t.Fatalf("acceptLine(%q) = %v, want %v", tc.input, got, tc.accept)
+			}
+		})
+	}
+
+	t.Run("multi-line buffering disabled", func(t *testing.T) {
+		repl := newRepl(newTestStore(), &bytes.Buffer{}).DisableMultiLineBuffering(true)
+		if !repl.acceptLine([]rune("p if {")) {
+			t.Fatal("expected incomplete input to be accepted when multi-line buffering is disabled")
+		}
+	})
+}
+
+// silenceStdout redirects the terminal escapes readline renders to os.Stdout.
+// Safe because these tests do not run in parallel.
+func silenceStdout(t *testing.T) {
+	t.Helper()
+
+	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatalf("open devnull: %v", err)
+	}
+
+	orig := os.Stdout
+	os.Stdout = devnull
+
+	t.Cleanup(func() {
+		os.Stdout = orig
+		devnull.Close()
+	})
+}
+
+func TestREPLMultilineHistoryBlock(t *testing.T) {
+	silenceStdout(t)
+
+	historyPath := filepath.Join(t.TempDir(), "history")
+	var buf bytes.Buffer
+	repl := New(newTestStore(), historyPath, &buf, "", 0, "").WithStderrWriter(&buf)
+	shell := repl.newShell()
+
+	// Neither of the first two lines parses on its own.
+	shell.Keys.Feed(false, []rune("p if {\rx := 1\r}\r")...)
+
+	got, err := shell.Readline()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	const want = "p if {\nx := 1\n}"
+	if got != want {
+		t.Fatalf("expected the whole block to be returned as one input, got %q (want %q)", got, want)
+	}
+
+	if repl.history.Len() != 1 {
+		t.Fatalf("expected 1 history entry for the block, got %d: %v", repl.history.Len(), repl.history.Dump())
+	}
+	if entry := lineAt(t, repl.history, 0); entry != want {
+		t.Fatalf("history entry = %q, want %q", entry, want)
+	}
+
+	reloaded, err := newREPLHistory(historyPath)
+	if err != nil {
+		t.Fatalf("unexpected error reloading history: %v", err)
+	}
+	if reloaded.Len() != 1 || lineAt(t, reloaded, 0) != want {
+		t.Fatalf("expected the block to be persisted intact, got %v", reloaded.Dump())
+	}
+
+	if err := repl.oneShot(t.Context(), got, true); err != nil {
+		t.Fatalf("unexpected error evaluating block: %v", err)
+	}
+	if !strings.Contains(buf.String(), "Rule 'p' defined") {
+		t.Fatalf("expected the rule to be defined, got output: %q", buf.String())
+	}
+	if len(repl.buffer) != 0 {
+		t.Fatalf("expected no buffered input after evaluating a block, got %v", repl.buffer)
+	}
+}
+
+func TestREPLMultilineContinuationPrompt(t *testing.T) {
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+
+	var rendered bytes.Buffer
+	copied := make(chan struct{})
+	go func() {
+		io.Copy(&rendered, read)
+		close(copied)
+	}()
+
+	orig := os.Stdout
+	os.Stdout = write
+
+	repl := New(newTestStore(), "", &bytes.Buffer{}, "", 0, "")
+	shell := repl.newShell()
+	shell.Keys.Feed(false, []rune("p if {\rx := 1\r}\r")...)
+	_, readErr := shell.Readline()
+
+	os.Stdout = orig
+	write.Close()
+	<-copied
+
+	if readErr != nil {
+		t.Fatalf("unexpected error: %v", readErr)
+	}
+
+	// The line being typed carries the REPL's continuation prompt, the ones
+	// above it the editor's column.
+	if out := rendered.String(); !strings.Contains(out, repl.bufferPrompt) || !strings.Contains(out, "│") {
+		t.Fatalf("expected the block's continuation lines to be marked, rendered: %q", out)
+	}
+}
+
+func TestREPLMultilineBlockParseError(t *testing.T) {
+	var buf bytes.Buffer
+	repl := newRepl(newTestStore(), &buf)
+
+	err := repl.oneShot(t.Context(), "p if {\n", true)
+	if err == nil {
+		t.Fatal("expected a parse error for an unterminated block")
+	}
+	if len(repl.buffer) != 0 {
+		t.Fatalf("expected the block to be flushed, got buffered input %v", repl.buffer)
+	}
+}
+
+func TestREPLBlockNavigation(t *testing.T) {
+	silenceStdout(t)
+
+	historyPath := filepath.Join(t.TempDir(), "history")
+	if err := os.WriteFile(historyPath, []byte("a := 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	repl := New(newTestStore(), historyPath, &buf, "", 0, "").WithStderrWriter(&buf)
+	shell := repl.newShell()
+
+	// Type two lines of a block, move back up to the second one, and comment it
+	// out. With the default bindings the up arrow would have discarded the block
+	// in favour of the "a := 1" history entry.
+	const upArrow = "\x1b[A"
+	shell.Keys.Feed(false, []rune("p if {\rx := 1\r"+upArrow+"# \r")...)
+
+	got, err := shell.Readline()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	const want = "p if {\n# x := 1\n"
+	if got != want {
+		t.Fatalf("expected the up arrow to move within the block: got %q, want %q", got, want)
+	}
+}
+
+func TestREPLBlockNavigationRespectsUserBinds(t *testing.T) {
+	var buf bytes.Buffer
+	repl := newRepl(newTestStore(), &buf)
+	shell := repl.newShell()
+
+	const upArrow = `\M-[A`
+	key := inputrc.Unescape(upArrow)
+	if err := shell.Config.Bind("emacs", key, "beginning-of-line", false); err != nil {
+		t.Fatal(err)
+	}
+
+	repl.bindBlockNavigation(shell)
+
+	if got := shell.Config.Binds["emacs"][key].Action; got != "beginning-of-line" {
+		t.Fatalf("user binding overwritten: up arrow is bound to %q", got)
 	}
 }
 

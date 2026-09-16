@@ -223,6 +223,11 @@ const (
 	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
 	// wants built-in function errors to be treated as fatal.
 	ParamStrictBuiltinErrors = v1.ParamStrictBuiltinErrors
+
+	// ParamRuleLabelsV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants to receive the metadata labels of the rules evaluated to
+	// produce the result, in addition to the result.
+	ParamRuleLabelsV1 = v1.ParamRuleLabelsV1
 )
 
 // BadRequestErr represents an error condition raised if the caller passes

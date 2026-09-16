@@ -5,6 +5,28 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Data and Query APIs can return rule labels in the response
+
+`# METADATA` `labels` for evaluated rules were only available in decision log
+events. The Data API (`GET`/`POST /v1/data`) and Query API (`GET`/`POST
+/v1/query`) now accept a `rule_labels` query parameter to include the same
+merged labels in the response payload, under a `rule_labels` key.
+
+Authored by @srenatus
+
+### Behavior change: response gzip compression now bounds its buffer to `min_length`
+
+The server's gzip response compression (`server.encoding.gzip`) buffered an entire
+incoming `Write` call before deciding whether to compress, so a single large write could
+grow the buffer well past `min_length` before that decision was made. The handler is now
+built on [`klauspost/compress/gzhttp`](https://github.com/klauspost/compress/tree/master/gzhttp)
+instead of a hand-rolled buffer and `gzip.Writer` pool, which caps what it buffers to
+`min_length` (floored at 512 bytes) before streaming the remainder through the chosen
+path. `min_length` and `compression_level` behave the same as before; only gzip is
+negotiated, not zstd.
+
+Authored by @srenatus
+
 ### YAML is now parsed against the 1.2 core schema ([#5754](https://github.com/open-policy-agent/opa/issues/5754))
 
 OPA parsed YAML with a library pinned to go-yaml v2, which implements YAML 1.1. Under
