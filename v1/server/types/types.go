@@ -264,12 +264,13 @@ func (r DataRequestV1) MarshalJSON() ([]byte, error) {
 
 // DataResponseV1 models the response message for Data API read operations.
 type DataResponseV1 struct {
-	DecisionID  string        `json:"decision_id,omitempty"`
-	Provenance  *ProvenanceV1 `json:"provenance,omitempty"`
-	Explanation TraceV1       `json:"explanation,omitempty"`
-	Metrics     MetricsV1     `json:"metrics,omitempty"`
-	Result      *any          `json:"result,omitempty"`
-	Warning     *Warning      `json:"warning,omitempty"`
+	DecisionID  string           `json:"decision_id,omitempty"`
+	Provenance  *ProvenanceV1    `json:"provenance,omitempty"`
+	Explanation TraceV1          `json:"explanation,omitempty"`
+	Metrics     MetricsV1        `json:"metrics,omitempty"`
+	Result      *any             `json:"result,omitempty"`
+	RuleLabels  []map[string]any `json:"rule_labels,omitempty"`
+	Warning     *Warning         `json:"warning,omitempty"`
 
 	// Metadata holds any additional top-level fields not defined in this struct.
 	// These fields are preserved during JSON marshaling/unmarshaling, allowing
@@ -317,6 +318,7 @@ type QueryResponseV1 struct {
 	Explanation TraceV1               `json:"explanation,omitempty"`
 	Metrics     MetricsV1             `json:"metrics,omitempty"`
 	Result      AdhocQueryResultSetV1 `json:"result,omitempty"`
+	RuleLabels  []map[string]any      `json:"rule_labels,omitempty"`
 }
 
 // AdhocQueryResultSetV1 models the result of a Query API query.
@@ -608,6 +610,11 @@ const (
 	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
 	// wants built-in function errors to be treated as fatal.
 	ParamStrictBuiltinErrors = "strict-builtin-errors"
+
+	// ParamRuleLabelsV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants to receive the metadata labels of the rules evaluated to
+	// produce the result, in addition to the result.
+	ParamRuleLabelsV1 = "rule_labels"
 )
 
 // BadRequestErr represents an error condition raised if the caller passes

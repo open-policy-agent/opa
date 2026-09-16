@@ -5,6 +5,15 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Data and Query APIs can return rule labels in the response
+
+`# METADATA` `labels` for evaluated rules were only available in decision log
+events. The Data API (`GET`/`POST /v1/data`) and Query API (`GET`/`POST
+/v1/query`) now accept a `rule_labels` query parameter to include the same
+merged labels in the response payload, under a `rule_labels` key.
+
+Authored by @srenatus
+
 ### Behavior change: response gzip compression now bounds its buffer to `min_length`
 
 The server's gzip response compression (`server.encoding.gzip`) buffered an entire

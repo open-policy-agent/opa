@@ -212,6 +212,7 @@ func TestDataResponseV1_ReservedFieldsNotOverridden(t *testing.T) {
 		"explanation",
 		"metrics",
 		"result",
+		"rule_labels",
 		"warning",
 	}
 
