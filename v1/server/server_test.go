@@ -3569,6 +3569,104 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}
 }
 
+const ruleLabelsTestModule = `package test
+
+import rego.v1
+
+# METADATA
+# labels:
+#   id: allow-admin
+allow if input.role == "admin"
+`
+
+func TestDataPostRuleLabels(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, plugins.WithParserOptions(ast.ParserOptions{ProcessAnnotation: true}))
+
+	if err := f.v1(http.MethodPut, "/policies/test", ruleLabelsTestModule, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedLabels := []map[string]any{{"id": "allow-admin"}}
+
+	tests := []struct {
+		note string
+		path string
+		exp  []map[string]any
+	}{
+		{note: "no param", path: "/data/test/allow", exp: nil},
+		{note: "rule_labels", path: "/data/test/allow?rule_labels", exp: expectedLabels},
+		{note: "rule_labels=true", path: "/data/test/allow?rule_labels=true", exp: expectedLabels},
+		{note: "rule_labels=false", path: "/data/test/allow?rule_labels=false", exp: nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			req := newReqV1(http.MethodPost, tc.path, `{"input": {"role": "admin"}}`)
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+
+			var result types.DataResponseV1
+			if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+				t.Fatalf("Unexpected JSON decode error: %v", err)
+			}
+
+			if diff := cmp.Diff(tc.exp, result.RuleLabels); diff != "" {
+				t.Errorf("Unexpected rule labels (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDataGetRuleLabels(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, plugins.WithParserOptions(ast.ParserOptions{ProcessAnnotation: true}))
+
+	if err := f.v1(http.MethodPut, "/policies/test", ruleLabelsTestModule, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	req := newReqV1(http.MethodGet, `/data/test/allow?rule_labels&input={"role":"admin"}`, "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	expectedLabels := []map[string]any{{"id": "allow-admin"}}
+	if diff := cmp.Diff(expectedLabels, result.RuleLabels); diff != "" {
+		t.Errorf("Unexpected rule labels (-want, +got):\n%s", diff)
+	}
+}
+
+func TestQueryPostRuleLabels(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t, plugins.WithParserOptions(ast.ParserOptions{ProcessAnnotation: true}))
+
+	if err := f.v1(http.MethodPut, "/policies/test", ruleLabelsTestModule, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	req := newReqV1(http.MethodPost, "/query?rule_labels", `{"query": "data.test.allow", "input": {"role": "admin"}}`)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.QueryResponseV1
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	expectedLabels := []map[string]any{{"id": "allow-admin"}}
+	if diff := cmp.Diff(expectedLabels, result.RuleLabels); diff != "" {
+		t.Errorf("Unexpected rule labels (-want, +got):\n%s", diff)
+	}
+}
+
 func TestDataMetricsEval(t *testing.T) {
 	t.Parallel()
 

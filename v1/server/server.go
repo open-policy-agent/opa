@@ -967,7 +967,7 @@ func (s *Server) methodNotAllowedHandler() http.Handler {
 	return s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)
 }
 
-func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *any, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *any, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, includeRuleLabels, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
 	ctx, logger := s.getDecisionLogger(ctx, br)
 
@@ -1029,7 +1029,11 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	}
 
 	var x any = results.Result
-	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleLabels(tracker), nil); err != nil {
+	ruleLabels := evaluatedRuleLabels(tracker)
+	if includeRuleLabels {
+		results.RuleLabels = ruleLabels
+	}
+	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, ruleLabels, nil); err != nil {
 		return nil, err
 	}
 	return &results, nil
@@ -1531,6 +1535,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1675,7 +1680,12 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleLabels(tracker), nil); err != nil {
+	ruleLabels := evaluatedRuleLabels(tracker)
+	if includeRuleLabels {
+		result.RuleLabels = ruleLabels
+	}
+
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, ruleLabels, nil); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1823,6 +1833,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
 
 	pqID := "v1DataPost::"
 	if strictBuiltinErrors {
@@ -1932,7 +1943,12 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleLabels(tracker), customLog()); err != nil {
+	ruleLabels := evaluatedRuleLabels(tracker)
+	if includeRuleLabels {
+		result.RuleLabels = ruleLabels
+	}
+
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, ruleLabels, customLog()); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -2356,6 +2372,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	explainMode := getExplain(r.URL, types.ExplainOffV1)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
 
 	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
 	txn, err := s.store.NewTransaction(ctx, params)
@@ -2372,7 +2389,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pretty := pretty(r)
-	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, nil, m, explainMode, includeMetrics(r), includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, nil, m, explainMode, includeMetrics(r), includeInstrumentation, includeRuleLabels, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2416,6 +2433,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	explainMode := getExplain(r.URL, types.ExplainOffV1)
 	includeMetrics := includeMetrics(r)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
 
 	var input ast.Value
 
@@ -2442,7 +2460,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, request.Input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, request.Input, m, explainMode, includeMetrics, includeInstrumentation, includeRuleLabels, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:

@@ -789,7 +789,7 @@ The path separator is used to access values inside object and array documents. T
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
-- **ids** - Include annotation `id` values of evaluated rules in the response. Rules must have `# METADATA` blocks with an `id` field.
+- **rule_labels** - If parameter is `true`, response will include the merged `# METADATA` `labels` of the rules evaluated to produce the result. See [Annotations](./policy-language/#annotations) for more detail.
 
 #### Status Codes
 
@@ -813,8 +813,8 @@ case, the response will not contain a `result` property.
   that uniquely identifies the decision. The identifier will be included in the
   decision log event for this decision. Callers can use the identifier for
   correlation purposes.
-- `ids` - If the `ids` query parameter is set, this field contains
-  an array of annotation `id` values for rules that were successfully evaluated.
+- `rule_labels` - If the `rule_labels` query parameter is set, this field contains
+  an array of merged `labels` maps for the rules that were successfully evaluated.
 
 #### Example Request
 
@@ -897,7 +897,7 @@ below.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
-- **ids** - Include annotation `id` values of evaluated rules in the response. Rules must have `# METADATA` blocks with an `id` field.
+- **rule_labels** - If parameter is `true`, response will include the merged `# METADATA` `labels` of the rules evaluated to produce the result. See [Annotations](./policy-language/#annotations) for more detail.
 
 #### Status Codes
 
@@ -1360,6 +1360,7 @@ GET /v1/query
 - **pretty** - If parameter is `true`, response will be formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **rule_labels** - If parameter is `true`, response will include the merged `# METADATA` `labels` of the rules evaluated to produce the result. See [Annotations](./policy-language/#annotations) for more detail.
 
 #### Status Codes
 
