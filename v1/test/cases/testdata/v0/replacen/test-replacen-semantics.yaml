@@ -1,0 +1,92 @@
+---
+cases:
+  - note: replacen/semantics/longer key sorted first wins
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"info": "X", "anotherinfo": "Y"}, "anotherinfo")
+    want_result:
+      - x: "Y"
+  - note: replacen/semantics/shorter key sorted first wins
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"a": "YY", "bba": "bX"}, "bbab")
+    want_result:
+      - x: "bXb"
+  - note: replacen/semantics/replaced output is not re-scanned
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"ab": "b", "b": "Y"}, "baaabbbba")
+    want_result:
+      - x: "YaabYYYa"
+  - note: replacen/semantics/no chained replacements
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"a": "b", "b": "a"}, "abba")
+    want_result:
+      - x: "baab"
+  - note: replacen/semantics/overlapping keys
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"a": "Xa", "ab": "X", "ba": "bYa", "aaa": "X"}, "aaaaab")
+    want_result:
+      - x: "XaXaXaXaXab"
+  - note: replacen/semantics/overlapping keys with empty values
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"aab": "Y", "a": "", "b": ""}, "bbaab")
+    want_result:
+      - x: ""
+  - note: replacen/semantics/empty key/empty string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"": "X"}, "")
+    want_result:
+      - x: "X"
+  - note: replacen/semantics/empty key/inserts at every position
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"": "X"}, "ab")
+    want_result:
+      - x: "XaXbX"
+  - note: replacen/semantics/empty key/with non-empty keys
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"": "X", "a": "Y"}, "ab")
+    want_result:
+      - x: "XYXbX"
+  - note: replacen/semantics/empty key/multi-byte key
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = strings.replace_n({"": "-", "é": "e"}, "aéb")
+    want_result:
+      - x: "-a-e-b-"
