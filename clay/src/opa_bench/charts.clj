@@ -79,6 +79,43 @@
 (defn- commit-index [labelled]
   (into {} (map (fn [{:keys [x commit]}] [x (commit-detail commit)])) labelled))
 
+(def ^:private max-gap-ticks
+  "How many intermediate commits get an axis tick for a single gap between two
+   samples. One tick per commit in a busy gap would blow up the axis width far
+   more than it clarifies; a handful spread evenly through the gap is enough
+   to show a gap exists without diluting the density of the real points."
+  3)
+
+(defn- thin
+  "At most n elements from coll, evenly spaced, in order, always including
+   the first and last."
+  [n coll]
+  (let [v (vec coll) c (count v)]
+    (cond
+      (<= c n) v
+      (<= n 1) (subvec v 0 1)
+      :else (->> (range n)
+                 (map #(Math/round (double (* % (/ (dec c) (dec n))))))
+                 distinct
+                 (map v)
+                 vec))))
+
+(defn- benchlab-axis-commits
+  "Every commit backing an axis tick, in order: each sampled commit, plus up
+   to max-gap-ticks evenly spaced commits from the gap right after it --
+   enough to show where the gaps are without one tick per intervening commit
+   spreading the real points thin across the axis.
+
+   Kept as shas rather than labels: the tick-label click handler needs each
+   one's GitHub URL, which is derived from the sha, not the display text.
+
+   `intervals` is interval-commits' raw output (not the by-commit map built
+   from it for the hover panel)."
+  [labelled intervals]
+  (let [gap-after (into {} (map (fn [{:keys [after commits]}] [after commits])) intervals)
+        samples   (->> labelled distinct (sort-by :date) (map :commit))]
+    (vec (mapcat (fn [sha] (cons sha (thin max-gap-ticks (get gap-after sha)))) samples))))
+
 (defn- interval-commits
   "Runs of commits carrying no measurement for a benchmark, sitting strictly
    between two commits that do carry one. Runs before the first or after the
@@ -104,6 +141,13 @@
                  sha)
           (recur (rest shas) intervals (conj current-run sha) last-known))))))
 
+(defn- commit-title
+  "First line of a commit message: git's convention for the title/subject.
+   Interval lists can run to dozens of commits, so only the title is shown --
+   the full message belongs to the single-commit hover panel, not a list."
+  [message]
+  (first (str/split-lines message)))
+
 (defn- intervals-by-commit
   "Maps the sha of the sample ending an interval to
    {:after sha :commits [{:sha :message :url} ...]}, so the UI can look up
@@ -114,7 +158,7 @@
                [before {:after after
                         :commits (mapv (fn [sha]
                                          {:sha     sha
-                                          :message (:message (data/commit-info sha))
+                                          :message (commit-title (:message (data/commit-info sha)))
                                           :url     (commit-url sha)})
                                        commits)}]))
         intervals))
@@ -128,6 +172,7 @@
   var intervalsByCommit = %s;
   var traces = %s;
   var baseLayout = %s;
+  var tickUrlByLabel = %s;
 
   var s = getComputedStyle(document.documentElement);
   var cv = function(v) { return s.getPropertyValue(v).trim(); };
@@ -146,6 +191,16 @@
   }
 
   Plotly.newPlot(el, traces, layout, {responsive: true});
+
+  function linkTickLabels() {
+    el.querySelectorAll('.xaxislayer-above .xtick text').forEach(function(t) {
+      var url = tickUrlByLabel[t.textContent];
+      if (!url) return;
+      t.style.cursor = 'pointer';
+      t.onclick = function(ev) { ev.stopPropagation(); window.open(url, '_blank'); };
+    });
+  }
+  el.on('plotly_afterplot', linkTickLabels);
 
   function renderInterval(interval) {
     if (!intervalInfo) return;
@@ -178,7 +233,7 @@
   el.on('plotly_hover', function(d) {
     var x = d.points[0].x;
     var cd = commitByX[x];
-    if (cd) {
+    if (cd && info) {
       info.textContent = 'Commit: ' + cd.sha + '\\n' +
                          'Author: ' + cd.author + '\\n' +
                          'Date:   ' + cd.date + '\\n\\n' +
@@ -196,18 +251,20 @@
 ")
 
 (defn- chart-panel
-  "One Plotly chart with its own commit-details panel.
+  "One Plotly chart, optionally paired with a single-commit details panel.
 
    `id` must be unique within the page: a benchmark page carries two of these,
    and Plotly needs a distinct element per plot."
-  [{:keys [id heading caption traces layout commit-by-x intervals]}]
+  [{:keys [id heading caption traces layout commit-by-x intervals show-commit-info tick-urls]
+    :or   {show-commit-info true}}]
   [:div {:style "margin-bottom:26px"}
    [:h3 {:style "font-size:14px;margin:0 0 2px 0"} heading]
    [:p {:style "font-size:12px;margin:0 0 6px 0;opacity:0.75"} caption]
    [:div {:id id}]
-   [:pre {:id (str id "-commit") :class "commit-panel"
-          :style "margin-top:10px;padding:10px;min-height:64px;font-size:13px;white-space:pre-wrap"}
-    "Hover over a point to see commit details. Click to open on GitHub."]
+   (when show-commit-info
+     [:pre {:id (str id "-commit") :class "commit-panel"
+            :style "margin-top:10px;padding:10px;min-height:64px;font-size:13px;white-space:pre-wrap"}
+      "Hover over a point to see commit details. Click to open on GitHub."])
    (when intervals
      [:div {:id (str id "-interval") :class "interval-box" :style "display:none"}])
    [:script {:type "text/javascript"}
@@ -218,7 +275,8 @@
             (json/write-str commit-by-x)
             (json/write-str (or intervals {}))
             (json/write-str (vec traces))
-            (json/write-str layout))]])
+            (json/write-str layout)
+            (json/write-str (or tick-urls {})))]])
 
 (def ^:private base-layout
   {:hoverlabel {:bgcolor "#eaffff" :bordercolor "#888"
@@ -300,8 +358,12 @@
    measurement both flat and cramped. Percent difference on a linear scale is
    also easier to read here than ratios hugging 1 on a log scale."
   [series]
-  (let [points   (apply concat (vals series))
-        labelled (mapv #(select-keys % [:x :date :commit]) points)
+  (let [points         (apply concat (vals series))
+        labelled       (mapv #(select-keys % [:x :date :commit]) points)
+        night-shas     (into #{} (map :commit) points)
+        raw-intervals  (interval-commits data/commits-ordered night-shas)
+        intervals-map  (intervals-by-commit raw-intervals)
+        axis-commits   (benchlab-axis-commits labelled raw-intervals)
         traces (for [measure measure-order
                      :let [ps    (get series measure)
                            color (measure-colors measure)]
@@ -321,7 +383,11 @@
                                      (when-not (:significant p) " (within noise)")
                                      (when-let [c (:calibration p)]
                                        (format " | night drift %.2f%%"
-                                               (double (:median_abs_drift_pct c))))))
+                                               (double (:median_abs_drift_pct c))))
+                                     (when-let [n (some-> (get intervals-map (:commit p))
+                                                          :commits count)]
+                                       (format " | %d commit%s since previous night"
+                                               n (if (= n 1) "" "s")))))
                               ps)
                   :customdata (mapv #(commit-detail (:commit %)) ps)
                   :name (measure-labels measure measure)
@@ -335,15 +401,18 @@
      :caption (str "Percent difference from " data/latest-tag
                    ", with both measured side by side on one machine each night. "
                    "Error bars are benchstat's interval for the commit's own samples; "
-                   "\"within noise\" in the hover is its significance verdict.")
+                   "\"within noise\" in the hover is its significance verdict. Hover a "
+                   "point to see which commits landed since the previous night's run.")
      :traces traces
      :commit-by-x (commit-index labelled)
-     :intervals nil
+     :intervals intervals-map
+     :show-commit-info false
+     :tick-urls (into {} (map (fn [sha] [(x-label sha nil) (commit-url sha)])) axis-commits)
      :layout (merge base-layout
                     {:yaxis {:title (str "% vs " data/latest-tag) :zeroline true}
                      :xaxis {:title "" :tickangle -45
                              :categoryorder "array"
-                             :categoryarray (ordered-categories labelled)}
+                             :categoryarray (mapv #(x-label % nil) axis-commits)}
                      :height 360
                      :margin {:b 110}
                      :shapes [{:type "line" :xref "paper" :x0 0 :x1 1
