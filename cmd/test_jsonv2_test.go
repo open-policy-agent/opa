@@ -1658,8 +1658,8 @@ test_p if {
 func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, []byte) {
 
 	files := map[string]string{
-		"test.rego":        rego,
-		"demo_schema.json": schema,
+		"test.rego":                rego,
+		"schemas/demo_schema.json": schema,
 	}
 
 	var exitCode int
@@ -1669,7 +1669,7 @@ func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, []byte)
 
 		testParams := newTestCommandParams()
 		testParams.count = 1
-		testParams.schema.path = path
+		testParams.schema.path = filepath.Join(path, "schemas")
 		testParams.errOutput = &buf
 
 		exitCode = opaTest([]string{regoFilePath}, testParams)

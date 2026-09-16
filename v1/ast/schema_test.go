@@ -1642,17 +1642,16 @@ const anyOfSchemaParentVariation = `{
             "properties": {
                 "State":   { "type": "string" },
                 "ZipCode": { "type": "string" }
-            },
+            }
         },
         {
             "type": "object",
             "properties": {
                 "County":   { "type": "string" },
                 "PostCode": { "type": "string" }
-            },
+            }
         }
     ]
-	}
 }`
 
 const allOfInsideCoreSchema = `{

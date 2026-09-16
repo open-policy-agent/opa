@@ -97,6 +97,31 @@ func TestYAMLToJSON(t *testing.T) {
 			yaml: "1: a\n\"1\": b\n",
 			exp:  `{"1":"b"}`,
 		},
+		{
+			note:   "content the parser cannot reach is an error (issue 6854)",
+			yaml:   "\n  test:\ntest1: hello\n",
+			expErr: "did not find expected <document start>",
+		},
+		{
+			note:   "syntax error in a later document",
+			yaml:   "a: 1\n---\n\tb: 2\n",
+			expErr: "found character that cannot start any token",
+		},
+		{
+			note: "only the first of several documents is converted",
+			yaml: "a: 1\n---\nb: 2\n---\nc: 3\n",
+			exp:  `{"a":1}`,
+		},
+		{
+			note: "leading empty document",
+			yaml: "---\n---\na: 1\n",
+			exp:  `null`,
+		},
+		{
+			note: "explicit document end",
+			yaml: "a: 1\n...\n",
+			exp:  `{"a":1}`,
+		},
 	}
 
 	for _, tc := range tests {
