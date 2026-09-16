@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BraceLedOperandKeepsAbandonedErrorsOut
 cases:
-  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/some ... in on its own line
+  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/some ... in on its own line (module)
     module: |
       package test
 
@@ -92,7 +92,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/every on its own line
+  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/some ... in on its own line (body)
+    body: |
+      {
+      y |
+      	some y in xs
+      }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "setcomprehension",
+            "value": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": {
+                    "symbols": [
+                      {
+                        "type": "call",
+                        "value": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "internal"
+                              },
+                              {
+                                "type": "string",
+                                "value": "member_2"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "y"
+                          },
+                          {
+                            "type": "var",
+                            "value": "xs"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ],
+              "term": {
+                "type": "var",
+                "value": "y"
+              }
+            }
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/every on its own line (module)
     module: |
       package test
 
@@ -188,3 +244,64 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/every on its own line (body)
+    body: |
+      {
+      y |
+      	every v in xs { v == 1 }
+      }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "setcomprehension",
+            "value": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "equal"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "v"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    ],
+                    "domain": {
+                      "type": "var",
+                      "value": "xs"
+                    },
+                    "key": null,
+                    "value": {
+                      "type": "var",
+                      "value": "v"
+                    }
+                  }
+                }
+              ],
+              "term": {
+                "type": "var",
+                "value": "y"
+              }
+            }
+          }
+        }
+      ]

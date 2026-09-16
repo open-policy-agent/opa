@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestSetWithScalars
 cases:
-  - note: terms/set-with-scalars/number
+  - note: terms/set-with-scalars/number (module)
     module: |
       package test
 
@@ -65,7 +65,37 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/bool
+  - note: terms/set-with-scalars/number (body)
+    body: |
+      {1,2,3,4.5}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              },
+              {
+                "type": "number",
+                "value": 2
+              },
+              {
+                "type": "number",
+                "value": 3
+              },
+              {
+                "type": "number",
+                "value": 4.5
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/bool (module)
     module: |
       package test
 
@@ -121,7 +151,29 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/string
+  - note: terms/set-with-scalars/bool (body)
+    body: |
+      {true, false, true}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "boolean",
+                "value": false
+              },
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/string (module)
     module: |
       package test
 
@@ -177,7 +229,29 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/mixed
+  - note: terms/set-with-scalars/string (body)
+    body: |
+      {"foo", "bar"}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "string",
+                "value": "bar"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/mixed (module)
     module: |
       package test
 
@@ -237,7 +311,33 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/trailing comma
+  - note: terms/set-with-scalars/mixed (body)
+    body: |
+      {null, true, 42}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              },
+              {
+                "type": "boolean",
+                "value": true
+              },
+              {
+                "type": "number",
+                "value": 42
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/trailing comma (module)
     module: |
       package test
 
@@ -293,7 +393,29 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/leading comma
+  - note: terms/set-with-scalars/trailing comma (body)
+    body: |
+      {null, true,}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              },
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/leading comma (module)
     module: |
       package test
 
@@ -349,7 +471,29 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/leading comma not comprehension
+  - note: terms/set-with-scalars/leading comma (body)
+    body: |
+      {, null, true}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              },
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/leading comma not comprehension (module)
     module: |
       package test
 
@@ -419,7 +563,43 @@ cases:
           }
         ]
       }
-  - note: terms/set-with-scalars/ambiguous or
+  - note: terms/set-with-scalars/leading comma not comprehension (body)
+    body: |
+      {, 1 | 1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/set-with-scalars/ambiguous or (module)
     module: |
       package test
 
@@ -507,3 +687,57 @@ cases:
           }
         ]
       }
+  - note: terms/set-with-scalars/ambiguous or (body)
+    body: |
+      { 1 + 2 | 3}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]

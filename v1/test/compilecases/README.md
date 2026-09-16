@@ -8,7 +8,8 @@ Go counterpart, and a new compiler test can land as YAML only.
 
 1. **[`v1/test/parsercases`](../parsercases/README.md) first.** A compiler case says
    nothing about how Rego parses; run against a disagreeing parser it reports parse
-   failures as compiler failures.
+   failures as compiler failures. Its `(body)` cases are the baseline a case
+   carrying a `query` stands on, since a query is a body rather than a module.
 2. **This corpus.** Diagnostics are observable in any pipeline, whether or not the
    implementation has a separable compiler stage.
 

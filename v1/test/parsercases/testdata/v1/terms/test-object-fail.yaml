@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestObjectFail
 cases:
-  - note: terms/object-fail/non-terminated 1
+  - note: terms/object-fail/non-terminated 1 (module)
     module: |
       package test
 
@@ -11,7 +11,15 @@ cases:
         row: 3
         col: 12
         message: 'unexpected identifier token: non-terminated object'
-  - note: terms/object-fail/non-terminated 2
+  - note: terms/object-fail/non-terminated 1 (body)
+    body: |
+      {foo: bar, baz: [], qux: corge
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'unexpected identifier token: non-terminated object'
+  - note: terms/object-fail/non-terminated 2 (module)
     module: |
       package test
 
@@ -21,7 +29,15 @@ cases:
         row: 3
         col: 12
         message: 'unexpected identifier token: non-terminated object'
-  - note: terms/object-fail/non-terminated 3
+  - note: terms/object-fail/non-terminated 2 (body)
+    body: |
+      {foo: bar, baz: [], qux:
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'unexpected identifier token: non-terminated object'
+  - note: terms/object-fail/non-terminated 3 (module)
     module: |
       package test
 
@@ -31,7 +47,15 @@ cases:
         row: 3
         col: 12
         message: 'unexpected identifier token: non-terminated object'
-  - note: terms/object-fail/non-terminated 4
+  - note: terms/object-fail/non-terminated 3 (body)
+    body: |
+      {foo: bar, baz: [], qux
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'unexpected identifier token: non-terminated object'
+  - note: terms/object-fail/non-terminated 4 (module)
     module: |
       package test
 
@@ -41,7 +65,15 @@ cases:
         row: 3
         col: 12
         message: 'unexpected identifier token: non-terminated object'
-  - note: terms/object-fail/missing separator
+  - note: terms/object-fail/non-terminated 4 (body)
+    body: |
+      {foo: bar, baz: [],
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'unexpected identifier token: non-terminated object'
+  - note: terms/object-fail/missing separator (module)
     module: |
       package test
 
@@ -51,7 +83,15 @@ cases:
         row: 3
         col: 16
         message: 'unexpected identifier token: non-terminated object'
-  - note: terms/object-fail/missing start
+  - note: terms/object-fail/missing separator (body)
+    body: |
+      {foo: bar baz: []}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 11
+        message: 'unexpected identifier token: non-terminated object'
+  - note: terms/object-fail/missing start (module)
     module: |
       package test
 
@@ -61,7 +101,15 @@ cases:
         row: 3
         col: 9
         message: 'unexpected : token'
-  - note: terms/object-fail/double comma
+  - note: terms/object-fail/missing start (body)
+    body: |
+      foo: bar, baz: [], qux: corge}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected : token'
+  - note: terms/object-fail/double comma (module)
     module: |
       package test
 
@@ -71,7 +119,15 @@ cases:
         row: 3
         col: 9
         message: 'unexpected number token: non-terminated object'
-  - note: terms/object-fail/leading double comma
+  - note: terms/object-fail/double comma (body)
+    body: |
+      {a:1,,b:2}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected number token: non-terminated object'
+  - note: terms/object-fail/leading double comma (module)
     module: |
       package test
 
@@ -81,7 +137,15 @@ cases:
         row: 3
         col: 8
         message: unexpected , token
-  - note: terms/object-fail/trailing double comma
+  - note: terms/object-fail/leading double comma (body)
+    body: |
+      {,,a:1}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: unexpected , token
+  - note: terms/object-fail/trailing double comma (module)
     module: |
       package test
 
@@ -90,4 +154,12 @@ cases:
       - code: rego_parse_error
         row: 3
         col: 9
+        message: 'unexpected number token: non-terminated object'
+  - note: terms/object-fail/trailing double comma (body)
+    body: |
+      {a:1,,}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
         message: 'unexpected number token: non-terminated object'

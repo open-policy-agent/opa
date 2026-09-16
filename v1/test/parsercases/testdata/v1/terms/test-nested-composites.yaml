@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestNestedComposites
 cases:
-  - note: terms/nested-composites/nested composites
+  - note: terms/nested-composites/nested composites (module)
     module: |
       package test
 
@@ -78,3 +78,46 @@ cases:
           }
         ]
       }
+  - note: terms/nested-composites/nested composites (body)
+    body: |
+      [{foo: ["bar", {baz}]}]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "var",
+                      "value": "foo"
+                    },
+                    {
+                      "type": "array",
+                      "value": [
+                        {
+                          "type": "string",
+                          "value": "bar"
+                        },
+                        {
+                          "type": "set",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "baz"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ]

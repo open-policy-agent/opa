@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestEmptyComposites
 cases:
-  - note: terms/empty-composites/empty object
+  - note: terms/empty-composites/empty object (module)
     module: |
       package test
 
@@ -48,7 +48,20 @@ cases:
           }
         ]
       }
-  - note: terms/empty-composites/empty array
+  - note: terms/empty-composites/empty object (body)
+    body: |
+      {}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": []
+          }
+        }
+      ]
+  - note: terms/empty-composites/empty array (module)
     module: |
       package test
 
@@ -95,7 +108,20 @@ cases:
           }
         ]
       }
-  - note: terms/empty-composites/empty set
+  - note: terms/empty-composites/empty array (body)
+    body: |
+      []
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": []
+          }
+        }
+      ]
+  - note: terms/empty-composites/empty set (module)
     module: |
       package test
 
@@ -142,3 +168,16 @@ cases:
           }
         ]
       }
+  - note: terms/empty-composites/empty set (body)
+    body: |
+      set()
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": []
+          }
+        }
+      ]

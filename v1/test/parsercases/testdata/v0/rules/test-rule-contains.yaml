@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleContains
 cases:
-  - note: rules/rule-contains/simple
+  - note: rules/rule-contains/simple (module)
     rego_version: v0
     module: |
       package test
@@ -71,7 +71,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-contains/ref head
+  - note: rules/rule-contains/ref head (module)
     rego_version: v0
     module: |
       package test
@@ -144,7 +144,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-contains/set with var element
+  - note: rules/rule-contains/set with var element (module)
     rego_version: v0
     module: |
       package test
@@ -229,7 +229,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-contains/set with object elem
+  - note: rules/rule-contains/set with object elem (module)
     rego_version: v0
     module: |
       package test

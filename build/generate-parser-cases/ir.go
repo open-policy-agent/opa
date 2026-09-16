@@ -34,10 +34,16 @@ func generateIR(sets []ParserSet) error {
 				continue
 			}
 
-			module, err := parseModule(tc.TestCase, tc.Module)
+			if tc.BodyCase() {
+				tc.IRError = "no plan for a body case: there is no module to compile"
+				continue
+			}
+
+			node, err := parseCase(tc.TestCase)
 			if err != nil {
 				return fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 			}
+			module := node.(*ast.Module)
 
 			entrypoints, policy, err := plan(tc, module)
 			if err != nil {

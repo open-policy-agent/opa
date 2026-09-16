@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BraceLedOperandHintExtent
 cases:
-  - note: exprs/parse-logical-brace-led-operand-hint-extent/and, lhs
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/and, lhs (module)
     module: |
       package test
 
@@ -15,7 +15,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand-hint-extent/and, rhs
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/and, lhs (body)
+    body: |
+      {1, 2} & input.s == set() and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/and, rhs (module)
     module: |
       package test
 
@@ -29,7 +39,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand-hint-extent/or, lhs
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/and, rhs (body)
+    body: |
+      z and {1, 2} & input.s == set()
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/or, lhs (module)
     module: |
       package test
 
@@ -43,7 +63,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand-hint-extent/or, rhs
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/or, lhs (body)
+    body: |
+      {1, 2} & input.s == set() or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/or, rhs (module)
     module: |
       package test
 
@@ -57,7 +87,17 @@ cases:
         row: 6
         col: 7
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} + 1 == 2) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand-hint-extent/not
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/or, rhs (body)
+    body: |
+      z or {1, 2} + 1 == 2
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} + 1 == 2) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/not (module)
     module: |
       package test
 
@@ -71,7 +111,17 @@ cases:
         row: 6
         col: 6
         message: '`{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2} & input.s == set())` to negate the value, or `not {{1, 2} & input.s == set()}` for a body holding it)'
-  - note: exprs/parse-logical-brace-led-operand-hint-extent/not, ref into object
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/not (body)
+    body: |
+      not {1, 2} & input.s == set()
+    imports:
+      - future.keywords.not
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: '`{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2} & input.s == set())` to negate the value, or `not {{1, 2} & input.s == set()}` for a body holding it)'
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/not, ref into object (module)
     module: |
       package test
 
@@ -84,4 +134,14 @@ cases:
       - code: rego_parse_error
         row: 6
         col: 6
+        message: '`{...}` in an operand position must contain expression(s), got: ref (hint: write `not ({"a": 1}["a"])` to negate the value, or `not {{"a": 1}["a"]}` for a body holding it)'
+  - note: exprs/parse-logical-brace-led-operand-hint-extent/not, ref into object (body)
+    body: |
+      not {"a": 1}["a"]
+    imports:
+      - future.keywords.not
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
         message: '`{...}` in an operand position must contain expression(s), got: ref (hint: write `not ({"a": 1}["a"])` to negate the value, or `not {{"a": 1}["a"]}` for a body holding it)'

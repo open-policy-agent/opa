@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleContainsFail
 cases:
-  - note: rules/rule-contains-fail/contains used with a 1+ argument function
+  - note: rules/rule-contains-fail/contains used with a 1+ argument function (module)
     module: |
       package test
 
@@ -11,7 +11,7 @@ cases:
         row: 3
         col: 6
         message: 'unexpected contains keyword: the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })'
-  - note: rules/rule-contains-fail/contains used with a 0 argument function
+  - note: rules/rule-contains-fail/contains used with a 0 argument function (module)
     module: |
       package test
 

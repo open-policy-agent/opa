@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestMembershipExprHint
 cases:
-  - note: exprs/membership-expr-hint/unrelated comma error gets no hint
+  - note: exprs/membership-expr-hint/unrelated comma error gets no hint (module)
     module: |
       package test
 

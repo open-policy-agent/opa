@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestFutureImports
 cases:
-  - note: imports/future-imports/future
+  - note: imports/future-imports/future (module)
     module: |
       package test
 
@@ -11,7 +11,7 @@ cases:
         row: 3
         col: 8
         message: invalid import, must be `future.keywords`
-  - note: imports/future-imports/future.a
+  - note: imports/future-imports/future.a (module)
     module: |
       package test
 
@@ -21,7 +21,7 @@ cases:
         row: 3
         col: 8
         message: invalid import, must be `future.keywords`
-  - note: imports/future-imports/unknown keyword
+  - note: imports/future-imports/unknown keyword (module)
     module: |
       package test
 
@@ -31,7 +31,7 @@ cases:
         row: 3
         col: 8
         message: unexpected keyword, must be one of [and contains every if in not or]
-  - note: imports/future-imports/all keyword import + alias
+  - note: imports/future-imports/all keyword import + alias (module)
     module: |
       package test
 
@@ -41,7 +41,7 @@ cases:
         row: 3
         col: 8
         message: '`future` imports cannot be aliased'
-  - note: imports/future-imports/keyword import + alias
+  - note: imports/future-imports/keyword import + alias (module)
     module: |
       package test
 
@@ -51,7 +51,7 @@ cases:
         row: 3
         col: 8
         message: '`future` imports cannot be aliased'
-  - note: imports/future-imports/import kw with kw in options
+  - note: imports/future-imports/import kw with kw in options (module)
     module: |
       package test
 
@@ -92,7 +92,7 @@ cases:
           ]
         }
       }
-  - note: imports/future-imports/import kw with all kw in options
+  - note: imports/future-imports/import kw with all kw in options (module)
     module: |
       package test
 

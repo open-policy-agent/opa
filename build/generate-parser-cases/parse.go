@@ -18,39 +18,58 @@ func capabilities(tc parsercases.TestCase) *ast.Capabilities {
 }
 
 func parserOptions(tc parsercases.TestCase) (ast.ParserOptions, error) {
-	v, err := corpusgen.RegoVersion(tc.RegoVersion)
+	opts, err := tc.ParseOptions()
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}
+
+	v, err := corpusgen.RegoVersion(opts.RegoVersion)
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+
 	return ast.ParserOptions{
 		RegoVersion:       v,
 		Capabilities:      capabilities(tc),
 		ProcessAnnotation: tc.Annotations,
-		FutureKeywords:    tc.FutureKeywords,
-		AllFutureKeywords: tc.AllFutureKeywords,
+		FutureKeywords:    opts.FutureKeywords,
+		AllFutureKeywords: opts.AllFutureKeywords,
+
+		// As rego.New does for a query: without it a body that reads as a rule fails
+		// with "expected body but got *ast.Rule", a Go type name with no position,
+		// where the parser has a positioned rego_parse_error to report.
+		SkipRules: tc.BodyCase(),
 	}, nil
 }
 
-func parseModule(tc parsercases.TestCase, module string) (*ast.Module, error) {
+// parseCase reads the case's Rego through the entry point it is written for: a
+// *ast.Module for a module case, an ast.Body for a body case.
+func parseCase(tc parsercases.TestCase) (any, error) {
 	popts, err := parserOptions(tc)
 	if err != nil {
 		return nil, err
 	}
-	return ast.ParseModuleWithOpts(parsercases.DefaultModuleName, module, popts)
+	if tc.BodyCase() {
+		return ast.ParseBodyWithOpts(tc.Body, popts)
+	}
+	return ast.ParseModuleWithOpts(parsercases.DefaultModuleName, tc.Module, popts)
 }
 
-// MarshalAST renders the AST of m as a want_ast fixture, under whichever
-// marshalling options are currently in effect.
+// MarshalAST renders the AST of node as a want_ast fixture, under whichever
+// marshalling options are currently in effect. A module marshals as an object, a
+// body as an array of expressions.
 //
 // Comments are dropped, for the reason locations are off by default: the module
 // is right there in the fixture, so recording them again asserts nothing a reader
 // cannot see, while requiring an implementation to retain them in a particular
 // shape. OPA's own is not one to hold anyone to — Comment marshals its text as
 // base64 and its position unconditionally, ignoring the toggle that exists for it.
-func MarshalAST(m *ast.Module) (string, error) {
-	m.Comments = nil
+func MarshalAST(node any) (string, error) {
+	if m, ok := node.(*ast.Module); ok {
+		m.Comments = nil
+	}
 
-	bs, err := json.Marshal(m)
+	bs, err := json.Marshal(node)
 	if err != nil {
 		return "", err
 	}

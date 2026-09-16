@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCompositesWithRefs
 cases:
-  - note: terms/composites-with-refs/ref keys
+  - note: terms/composites-with-refs/ref keys (module)
     module: |
       package test
 
@@ -108,7 +108,80 @@ cases:
           }
         ]
       }
-  - note: terms/composites-with-refs/ref values
+  - note: terms/composites-with-refs/ref keys (body)
+    body: |
+      [{a[i].b: 8, c[0]["d"].e[j]: f}]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "i"
+                        },
+                        {
+                          "type": "string",
+                          "value": "b"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 8
+                    }
+                  ],
+                  [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "c"
+                        },
+                        {
+                          "type": "number",
+                          "value": 0
+                        },
+                        {
+                          "type": "string",
+                          "value": "d"
+                        },
+                        {
+                          "type": "string",
+                          "value": "e"
+                        },
+                        {
+                          "type": "var",
+                          "value": "j"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "f"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/composites-with-refs/ref values (module)
     module: |
       package test
 
@@ -215,7 +288,80 @@ cases:
           }
         ]
       }
-  - note: terms/composites-with-refs/ref values (sets)
+  - note: terms/composites-with-refs/ref values (body)
+    body: |
+      [{8: a[i].b, f: c[0]["d"].e[j]}]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "number",
+                      "value": 8
+                    },
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "i"
+                        },
+                        {
+                          "type": "string",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "var",
+                      "value": "f"
+                    },
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "c"
+                        },
+                        {
+                          "type": "number",
+                          "value": 0
+                        },
+                        {
+                          "type": "string",
+                          "value": "d"
+                        },
+                        {
+                          "type": "string",
+                          "value": "e"
+                        },
+                        {
+                          "type": "var",
+                          "value": "j"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/composites-with-refs/ref values (sets) (module)
     module: |
       package test
 
@@ -310,3 +456,64 @@ cases:
           }
         ]
       }
+  - note: terms/composites-with-refs/ref values (sets) (body)
+    body: |
+      {a[i].b, {c[0]["d"].e[j]}}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "i"
+                  },
+                  {
+                    "type": "string",
+                    "value": "b"
+                  }
+                ]
+              },
+              {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "c"
+                      },
+                      {
+                        "type": "number",
+                        "value": 0
+                      },
+                      {
+                        "type": "string",
+                        "value": "d"
+                      },
+                      {
+                        "type": "string",
+                        "value": "e"
+                      },
+                      {
+                        "type": "var",
+                        "value": "j"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]

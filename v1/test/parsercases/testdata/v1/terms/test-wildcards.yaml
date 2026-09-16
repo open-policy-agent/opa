@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestWildcards
 cases:
-  - note: terms/wildcards/ref
+  - note: terms/wildcards/ref (module)
     module: |
       package test
 
@@ -69,7 +69,41 @@ cases:
           }
         ]
       }
-  - note: terms/wildcards/nested
+  - note: terms/wildcards/ref (body)
+    body: |
+      a.b[_].c[_]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "a"
+              },
+              {
+                "type": "string",
+                "value": "b"
+              },
+              {
+                "type": "var",
+                "value": "$0"
+              },
+              {
+                "type": "string",
+                "value": "c"
+              },
+              {
+                "type": "var",
+                "value": "$1"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/wildcards/nested (module)
     module: |
       package test
 
@@ -160,3 +194,60 @@ cases:
           }
         ]
       }
+  - note: terms/wildcards/nested (body)
+    body: |
+      [{"a": a[_]}, _, {"b": _}]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "a"
+                    },
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "$0"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              },
+              {
+                "type": "var",
+                "value": "$1"
+              },
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "b"
+                    },
+                    {
+                      "type": "var",
+                      "value": "$2"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ]

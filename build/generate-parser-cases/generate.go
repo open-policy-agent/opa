@@ -77,14 +77,14 @@ func generateFile(path string, mode fs.FileMode) error {
 		*tc = tc.WithFilename(path)
 
 		astJSON.SetOptions(conformance.MarshalOptions(tc.Locations, false))
-		module, perr := parseModule(*tc, tc.Module)
+		node, perr := parseCase(*tc)
 
 		switch {
 		case perr != nil && tc.WantAST != "":
-			return fmt.Errorf("%s: %s: the case asserts 'want_ast', but the module no longer parses: %w", path, tc.Note, perr)
+			return fmt.Errorf("%s: %s: the case asserts 'want_ast', but the policy no longer parses: %w", path, tc.Note, perr)
 
 		case perr == nil && tc.Failure():
-			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the module parses", path, tc.Note)
+			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the policy parses", path, tc.Note)
 
 		case perr != nil && !tc.Failure():
 			// Fill in the diagnostic only where the case has none. A message
@@ -95,7 +95,7 @@ func generateFile(path string, mode fs.FileMode) error {
 
 		case perr == nil:
 			var err error
-			if tc.WantAST, err = MarshalAST(module); err != nil {
+			if tc.WantAST, err = MarshalAST(node); err != nil {
 				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
 			}
 			corpusgen.SetMapValue(caseNodes.Content[i], "want_ast", corpusgen.Literal(tc.WantAST), "want_equivalent")

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRule
 cases:
-  - note: rules/rule/constant
+  - note: rules/rule/constant (module)
     rego_version: v0
     module: |
       package test
@@ -48,7 +48,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/set
+  - note: rules/rule/set (module)
     rego_version: v0
     module: |
       package test
@@ -110,7 +110,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/object
+  - note: rules/rule/object (module)
     rego_version: v0
     module: |
       package test
@@ -202,7 +202,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/constant composite
+  - note: rules/rule/constant composite (module)
     rego_version: v0
     module: |
       package test
@@ -282,7 +282,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/true
+  - note: rules/rule/true (module)
     rego_version: v0
     module: |
       package test
@@ -329,7 +329,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/composites in head
+  - note: rules/rule/composites in head (module)
     rego_version: v0
     module: |
       package test
@@ -438,7 +438,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/refs in head
+  - note: rules/rule/refs in head (module)
     rego_version: v0
     module: |
       package test
@@ -513,7 +513,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/refs in head (2)
+  - note: rules/rule/refs in head (2) (module)
     rego_version: v0
     module: |
       package test
@@ -573,7 +573,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/refs in head (3)
+  - note: rules/rule/refs in head (3) (module)
     rego_version: v0
     module: |
       package test
@@ -667,7 +667,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/data
+  - note: rules/rule/data (module)
     rego_version: v0
     module: |
       package test
@@ -714,7 +714,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/input
+  - note: rules/rule/input (module)
     rego_version: v0
     module: |
       package test
@@ -761,7 +761,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/one line with braces
+  - note: rules/rule/one line with braces (module)
     rego_version: v0
     module: |
       package test
@@ -858,7 +858,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/multiple lines with braces
+  - note: rules/rule/multiple lines with braces (module)
     rego_version: v0
     module: |
       package test
@@ -1029,7 +1029,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/identity
+  - note: rules/rule/identity (module)
     rego_version: v0
     module: |
       package test
@@ -1097,7 +1097,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/composite arg
+  - note: rules/rule/composite arg (module)
     rego_version: v0
     module: |
       package test
@@ -1178,7 +1178,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/composite result
+  - note: rules/rule/composite result (module)
     rego_version: v0
     module: |
       package test
@@ -1259,7 +1259,7 @@ cases:
           }
         ]
       }
-  - note: 'rules/rule/expr terms: key'
+  - note: 'rules/rule/expr terms: key (module)'
     rego_version: v0
     module: |
       package test
@@ -1352,7 +1352,7 @@ cases:
           }
         ]
       }
-  - note: 'rules/rule/expr terms: value'
+  - note: 'rules/rule/expr terms: value (module)'
     rego_version: v0
     module: |
       package test
@@ -1445,7 +1445,7 @@ cases:
           }
         ]
       }
-  - note: 'rules/rule/expr terms: args'
+  - note: 'rules/rule/expr terms: args (module)'
     rego_version: v0
     module: |
       package test
@@ -1544,7 +1544,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/assignment operator
+  - note: rules/rule/assignment operator (module)
     rego_version: v0
     module: |
       package test
@@ -1592,7 +1592,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/assignment with unary minus on reference
+  - note: rules/rule/assignment with unary minus on reference (module)
     rego_version: v0
     module: |
       package test
@@ -1667,7 +1667,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/else assignment
+  - note: rules/rule/else assignment (module)
     rego_version: v0
     module: |
       package test
@@ -1740,7 +1740,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/partial assignment
+  - note: rules/rule/partial assignment (module)
     rego_version: v0
     module: |
       package test
@@ -1796,7 +1796,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/function assignment
+  - note: rules/rule/function assignment (module)
     rego_version: v0
     module: |
       package test
@@ -1850,7 +1850,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/empty arguments
+  - note: rules/rule/empty arguments (module)
     rego_version: v0
     module: |
       package test
@@ -1912,7 +1912,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/wildcard name
+  - note: rules/rule/wildcard name (module)
     rego_version: v0
     module: |
       package test
@@ -1974,7 +1974,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/partial object array key
+  - note: rules/rule/partial object array key (module)
     rego_version: v0
     module: |
       package test
@@ -2092,7 +2092,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/wildcard in else args
+  - note: rules/rule/wildcard in else args (module)
     rego_version: v0
     module: |
       package test

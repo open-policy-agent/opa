@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestMembershipExprHint
 cases:
-  - note: exprs/membership-expr-hint/bare membership expr
+  - note: exprs/membership-expr-hint/bare membership expr (module)
     rego_version: v0
     module: |
       package test
@@ -14,7 +14,7 @@ cases:
         row: 4
         col: 26
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
-  - note: exprs/membership-expr-hint/negated
+  - note: exprs/membership-expr-hint/negated (module)
     rego_version: v0
     module: |
       package test
@@ -27,7 +27,7 @@ cases:
         row: 4
         col: 8
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
-  - note: exprs/membership-expr-hint/semicolon separated
+  - note: exprs/membership-expr-hint/semicolon separated (module)
     rego_version: v0
     module: |
       package test
@@ -40,7 +40,7 @@ cases:
         row: 4
         col: 4
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
-  - note: exprs/membership-expr-hint/comprehension body
+  - note: exprs/membership-expr-hint/comprehension body (module)
     rego_version: v0
     module: |
       package test
@@ -53,7 +53,7 @@ cases:
         row: 4
         col: 15
         message: 'unexpected identifier token: expected \n or ; or ] (hint: `import future.keywords.in` for `x in xs` expressions)'
-  - note: exprs/membership-expr-hint/assigned
+  - note: exprs/membership-expr-hint/assigned (module)
     rego_version: v0
     module: |
       package test
@@ -66,7 +66,7 @@ cases:
         row: 4
         col: 9
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
-  - note: exprs/membership-expr-hint/unified
+  - note: exprs/membership-expr-hint/unified (module)
     rego_version: v0
     module: |
       package test
@@ -79,7 +79,7 @@ cases:
         row: 4
         col: 8
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
-  - note: exprs/membership-expr-hint/key/value membership
+  - note: exprs/membership-expr-hint/key/value membership (module)
     rego_version: v0
     module: |
       package test

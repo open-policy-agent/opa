@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleHeadsContainingKeywords
 cases:
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (module)
     module: |
       package test
 
@@ -50,7 +50,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (module)
     module: |
       package test
 
@@ -99,7 +99,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (module)
     module: |
       package test
 
@@ -148,7 +148,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (module)
     module: |
       package test
 
@@ -201,7 +201,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (module)
     module: |
       package test
 
@@ -254,7 +254,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (module)
     module: |
       package test
 
@@ -314,7 +314,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (module)
     module: |
       package test
 
@@ -374,7 +374,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (module)
     module: |
       package test
 
@@ -434,7 +434,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (module)
     module: |
       package test
 
@@ -497,7 +497,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (module)
     module: |
       package test
 
@@ -560,7 +560,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (module)
     module: |
       package test
 
@@ -609,7 +609,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (module)
     module: |
       package test
 
@@ -658,7 +658,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (module)
     module: |
       package test
 
@@ -707,7 +707,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (module)
     module: |
       package test
 
@@ -760,7 +760,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (module)
     module: |
       package test
 
@@ -813,7 +813,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (module)
     module: |
       package test
 
@@ -864,7 +864,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (module)
     module: |
       package test
 
@@ -915,7 +915,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (module)
     module: |
       package test
 
@@ -966,7 +966,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (module)
     module: |
       package test
 
@@ -1021,7 +1021,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (module)
     module: |
       package test
 
@@ -1076,7 +1076,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (module)
     module: |
       package test
 
@@ -1137,7 +1137,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (module)
     module: |
       package test
 
@@ -1198,7 +1198,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (module)
     module: |
       package test
 
@@ -1259,7 +1259,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (module)
     module: |
       package test
 
@@ -1324,7 +1324,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (module)
     module: |
       package test
 
@@ -1389,7 +1389,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (2)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (2) (module)
     module: |
       package test
 
@@ -1438,7 +1438,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (2)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (2) (module)
     module: |
       package test
 
@@ -1487,7 +1487,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (2) (module)
     module: |
       package test
 
@@ -1536,7 +1536,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (2)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (2) (module)
     module: |
       package test
 
@@ -1589,7 +1589,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (2) (module)
     module: |
       package test
 
@@ -1642,7 +1642,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (2)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (2) (module)
     module: |
       package test
 
@@ -1702,7 +1702,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (2)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (2) (module)
     module: |
       package test
 
@@ -1762,7 +1762,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (2) (module)
     module: |
       package test
 
@@ -1822,7 +1822,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (2)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (2) (module)
     module: |
       package test
 
@@ -1885,7 +1885,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (2) (module)
     module: |
       package test
 
@@ -1948,7 +1948,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (2)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (2) (module)
     module: |
       package test
 
@@ -1997,7 +1997,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (2)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (2) (module)
     module: |
       package test
 
@@ -2046,7 +2046,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (2) (module)
     module: |
       package test
 
@@ -2095,7 +2095,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (2)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (2) (module)
     module: |
       package test
 
@@ -2148,7 +2148,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (2) (module)
     module: |
       package test
 
@@ -2201,7 +2201,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (2)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (2) (module)
     module: |
       package test
 
@@ -2252,7 +2252,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (2)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (2) (module)
     module: |
       package test
 
@@ -2303,7 +2303,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (2) (module)
     module: |
       package test
 
@@ -2354,7 +2354,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (2)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (2) (module)
     module: |
       package test
 
@@ -2409,7 +2409,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (2) (module)
     module: |
       package test
 
@@ -2464,7 +2464,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (2)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (2) (module)
     module: |
       package test
 
@@ -2525,7 +2525,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (2)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (2) (module)
     module: |
       package test
 
@@ -2586,7 +2586,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (2) (module)
     module: |
       package test
 
@@ -2647,7 +2647,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (2)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (2) (module)
     module: |
       package test
 
@@ -2712,7 +2712,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (2)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (2) (module)
     module: |
       package test
 
@@ -2777,7 +2777,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (3)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (3) (module)
     module: |
       package test
 
@@ -2826,7 +2826,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (3)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (3) (module)
     module: |
       package test
 
@@ -2875,7 +2875,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (3) (module)
     module: |
       package test
 
@@ -2924,7 +2924,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (3)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (3) (module)
     module: |
       package test
 
@@ -2977,7 +2977,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3030,7 +3030,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (3)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (3) (module)
     module: |
       package test
 
@@ -3090,7 +3090,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (3)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (3) (module)
     module: |
       package test
 
@@ -3150,7 +3150,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3210,7 +3210,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (3)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (3) (module)
     module: |
       package test
 
@@ -3273,7 +3273,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3336,7 +3336,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (3)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (3) (module)
     module: |
       package test
 
@@ -3385,7 +3385,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (3)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (3) (module)
     module: |
       package test
 
@@ -3434,7 +3434,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3483,7 +3483,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (3)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (3) (module)
     module: |
       package test
 
@@ -3536,7 +3536,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3589,7 +3589,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (3)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (3) (module)
     module: |
       package test
 
@@ -3640,7 +3640,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (3)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (3) (module)
     module: |
       package test
 
@@ -3691,7 +3691,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3742,7 +3742,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (3)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (3) (module)
     module: |
       package test
 
@@ -3797,7 +3797,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (3) (module)
     module: |
       package test
 
@@ -3852,7 +3852,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (3)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (3) (module)
     module: |
       package test
 
@@ -3913,7 +3913,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (3)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (3) (module)
     module: |
       package test
 
@@ -3974,7 +3974,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (3) (module)
     module: |
       package test
 
@@ -4035,7 +4035,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (3)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (3) (module)
     module: |
       package test
 
@@ -4100,7 +4100,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (3)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (3) (module)
     module: |
       package test
 
@@ -4165,7 +4165,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (4)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (4) (module)
     module: |
       package test
 
@@ -4214,7 +4214,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (4)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (4) (module)
     module: |
       package test
 
@@ -4263,7 +4263,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (4) (module)
     module: |
       package test
 
@@ -4312,7 +4312,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (4)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (4) (module)
     module: |
       package test
 
@@ -4365,7 +4365,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (4) (module)
     module: |
       package test
 
@@ -4418,7 +4418,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (4)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (4) (module)
     module: |
       package test
 
@@ -4478,7 +4478,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (4)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (4) (module)
     module: |
       package test
 
@@ -4538,7 +4538,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (4) (module)
     module: |
       package test
 
@@ -4598,7 +4598,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (4)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (4) (module)
     module: |
       package test
 
@@ -4661,7 +4661,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (4) (module)
     module: |
       package test
 
@@ -4724,7 +4724,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (4)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (4) (module)
     module: |
       package test
 
@@ -4773,7 +4773,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (4)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (4) (module)
     module: |
       package test
 
@@ -4822,7 +4822,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (4) (module)
     module: |
       package test
 
@@ -4871,7 +4871,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (4)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (4) (module)
     module: |
       package test
 
@@ -4924,7 +4924,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (4) (module)
     module: |
       package test
 
@@ -4977,7 +4977,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (4)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (4) (module)
     module: |
       package test
 
@@ -5028,7 +5028,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (4)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (4) (module)
     module: |
       package test
 
@@ -5079,7 +5079,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (4) (module)
     module: |
       package test
 
@@ -5130,7 +5130,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (4)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (4) (module)
     module: |
       package test
 
@@ -5185,7 +5185,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (4) (module)
     module: |
       package test
 
@@ -5240,7 +5240,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (4)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (4) (module)
     module: |
       package test
 
@@ -5301,7 +5301,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (4)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (4) (module)
     module: |
       package test
 
@@ -5362,7 +5362,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (4) (module)
     module: |
       package test
 
@@ -5423,7 +5423,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (4)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (4) (module)
     module: |
       package test
 
@@ -5488,7 +5488,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (4)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (4) (module)
     module: |
       package test
 
@@ -5553,7 +5553,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (5)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (5) (module)
     module: |
       package test
 
@@ -5602,7 +5602,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (5)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (5) (module)
     module: |
       package test
 
@@ -5651,7 +5651,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (5) (module)
     module: |
       package test
 
@@ -5700,7 +5700,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (5)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (5) (module)
     module: |
       package test
 
@@ -5753,7 +5753,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (5) (module)
     module: |
       package test
 
@@ -5806,7 +5806,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (5)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (5) (module)
     module: |
       package test
 
@@ -5866,7 +5866,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (5)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (5) (module)
     module: |
       package test
 
@@ -5926,7 +5926,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (5) (module)
     module: |
       package test
 
@@ -5986,7 +5986,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (5)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (5) (module)
     module: |
       package test
 
@@ -6049,7 +6049,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6112,7 +6112,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (5)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (5) (module)
     module: |
       package test
 
@@ -6161,7 +6161,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (5)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (5) (module)
     module: |
       package test
 
@@ -6210,7 +6210,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6259,7 +6259,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (5)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (5) (module)
     module: |
       package test
 
@@ -6312,7 +6312,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6365,7 +6365,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (5)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (5) (module)
     module: |
       package test
 
@@ -6416,7 +6416,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (5)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (5) (module)
     module: |
       package test
 
@@ -6467,7 +6467,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6518,7 +6518,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (5)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (5) (module)
     module: |
       package test
 
@@ -6573,7 +6573,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6628,7 +6628,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (5)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (5) (module)
     module: |
       package test
 
@@ -6689,7 +6689,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (5)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (5) (module)
     module: |
       package test
 
@@ -6750,7 +6750,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6811,7 +6811,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (5)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (5) (module)
     module: |
       package test
 
@@ -6876,7 +6876,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (5)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (5) (module)
     module: |
       package test
 
@@ -6941,7 +6941,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (6)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (6) (module)
     module: |
       package test
 
@@ -6990,7 +6990,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (6)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (6) (module)
     module: |
       package test
 
@@ -7039,7 +7039,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7088,7 +7088,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (6)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (6) (module)
     module: |
       package test
 
@@ -7141,7 +7141,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7194,7 +7194,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (6)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (6) (module)
     module: |
       package test
 
@@ -7254,7 +7254,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (6)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (6) (module)
     module: |
       package test
 
@@ -7314,7 +7314,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7374,7 +7374,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (6)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (6) (module)
     module: |
       package test
 
@@ -7437,7 +7437,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7500,7 +7500,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (6)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (6) (module)
     module: |
       package test
 
@@ -7549,7 +7549,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (6)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (6) (module)
     module: |
       package test
 
@@ -7598,7 +7598,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7647,7 +7647,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (6)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (6) (module)
     module: |
       package test
 
@@ -7700,7 +7700,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7753,7 +7753,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (6)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (6) (module)
     module: |
       package test
 
@@ -7804,7 +7804,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (6)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (6) (module)
     module: |
       package test
 
@@ -7855,7 +7855,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (6) (module)
     module: |
       package test
 
@@ -7906,7 +7906,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (6)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (6) (module)
     module: |
       package test
 
@@ -7961,7 +7961,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (6) (module)
     module: |
       package test
 
@@ -8016,7 +8016,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (6)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (6) (module)
     module: |
       package test
 
@@ -8077,7 +8077,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (6)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (6) (module)
     module: |
       package test
 
@@ -8138,7 +8138,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (6) (module)
     module: |
       package test
 
@@ -8199,7 +8199,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (6)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (6) (module)
     module: |
       package test
 
@@ -8264,7 +8264,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (6)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (6) (module)
     module: |
       package test
 
@@ -8329,7 +8329,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (7)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (7) (module)
     module: |
       package test
 
@@ -8378,7 +8378,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (7)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (7) (module)
     module: |
       package test
 
@@ -8427,7 +8427,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (7) (module)
     module: |
       package test
 
@@ -8476,7 +8476,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (7)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (7) (module)
     module: |
       package test
 
@@ -8529,7 +8529,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (7) (module)
     module: |
       package test
 
@@ -8582,7 +8582,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (7)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (7) (module)
     module: |
       package test
 
@@ -8642,7 +8642,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (7)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (7) (module)
     module: |
       package test
 
@@ -8702,7 +8702,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (7) (module)
     module: |
       package test
 
@@ -8762,7 +8762,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (7)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (7) (module)
     module: |
       package test
 
@@ -8825,7 +8825,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (7) (module)
     module: |
       package test
 
@@ -8888,7 +8888,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (7)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (7) (module)
     module: |
       package test
 
@@ -8937,7 +8937,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (7)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (7) (module)
     module: |
       package test
 
@@ -8986,7 +8986,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (7) (module)
     module: |
       package test
 
@@ -9035,7 +9035,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (7)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (7) (module)
     module: |
       package test
 
@@ -9088,7 +9088,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (7) (module)
     module: |
       package test
 
@@ -9141,7 +9141,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (7)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (7) (module)
     module: |
       package test
 
@@ -9192,7 +9192,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (7)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (7) (module)
     module: |
       package test
 
@@ -9243,7 +9243,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (7) (module)
     module: |
       package test
 
@@ -9294,7 +9294,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (7)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (7) (module)
     module: |
       package test
 
@@ -9349,7 +9349,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (7) (module)
     module: |
       package test
 
@@ -9404,7 +9404,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (7)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (7) (module)
     module: |
       package test
 
@@ -9465,7 +9465,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (7)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (7) (module)
     module: |
       package test
 
@@ -9526,7 +9526,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (7) (module)
     module: |
       package test
 
@@ -9587,7 +9587,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (7)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (7) (module)
     module: |
       package test
 
@@ -9652,7 +9652,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (7)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (7) (module)
     module: |
       package test
 
@@ -9717,7 +9717,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (8)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (8) (module)
     module: |
       package test
 
@@ -9766,7 +9766,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (8)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (8) (module)
     module: |
       package test
 
@@ -9815,7 +9815,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (8) (module)
     module: |
       package test
 
@@ -9864,7 +9864,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (8)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (8) (module)
     module: |
       package test
 
@@ -9917,7 +9917,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (8) (module)
     module: |
       package test
 
@@ -9970,7 +9970,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (8)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (8) (module)
     module: |
       package test
 
@@ -10030,7 +10030,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (8)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (8) (module)
     module: |
       package test
 
@@ -10090,7 +10090,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10150,7 +10150,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (8)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (8) (module)
     module: |
       package test
 
@@ -10213,7 +10213,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10276,7 +10276,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (8)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (8) (module)
     module: |
       package test
 
@@ -10325,7 +10325,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (8)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (8) (module)
     module: |
       package test
 
@@ -10374,7 +10374,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10423,7 +10423,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (8)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (8) (module)
     module: |
       package test
 
@@ -10476,7 +10476,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10529,7 +10529,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (8)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (8) (module)
     module: |
       package test
 
@@ -10580,7 +10580,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (8)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (8) (module)
     module: |
       package test
 
@@ -10631,7 +10631,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10682,7 +10682,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (8)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (8) (module)
     module: |
       package test
 
@@ -10737,7 +10737,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10792,7 +10792,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (8)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (8) (module)
     module: |
       package test
 
@@ -10853,7 +10853,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (8)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (8) (module)
     module: |
       package test
 
@@ -10914,7 +10914,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (8) (module)
     module: |
       package test
 
@@ -10975,7 +10975,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (8)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (8) (module)
     module: |
       package test
 
@@ -11040,7 +11040,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (8)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (8) (module)
     module: |
       package test
 
@@ -11105,7 +11105,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (9)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (9) (module)
     module: |
       package test
 
@@ -11154,7 +11154,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (9)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (9) (module)
     module: |
       package test
 
@@ -11203,7 +11203,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (9) (module)
     module: |
       package test
 
@@ -11252,7 +11252,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (9)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (9) (module)
     module: |
       package test
 
@@ -11305,7 +11305,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (9) (module)
     module: |
       package test
 
@@ -11358,7 +11358,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (9)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (9) (module)
     module: |
       package test
 
@@ -11418,7 +11418,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (9)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (9) (module)
     module: |
       package test
 
@@ -11478,7 +11478,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (9) (module)
     module: |
       package test
 
@@ -11538,7 +11538,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (9)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (9) (module)
     module: |
       package test
 
@@ -11601,7 +11601,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (9) (module)
     module: |
       package test
 
@@ -11664,7 +11664,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (9)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (9) (module)
     module: |
       package test
 
@@ -11713,7 +11713,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (9)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (9) (module)
     module: |
       package test
 
@@ -11762,7 +11762,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (9) (module)
     module: |
       package test
 
@@ -11811,7 +11811,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (9)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (9) (module)
     module: |
       package test
 
@@ -11864,7 +11864,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (9) (module)
     module: |
       package test
 
@@ -11917,7 +11917,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (9)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (9) (module)
     module: |
       package test
 
@@ -11968,7 +11968,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (9)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (9) (module)
     module: |
       package test
 
@@ -12019,7 +12019,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (9) (module)
     module: |
       package test
 
@@ -12070,7 +12070,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (9)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (9) (module)
     module: |
       package test
 
@@ -12125,7 +12125,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (9) (module)
     module: |
       package test
 
@@ -12180,7 +12180,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (9)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (9) (module)
     module: |
       package test
 
@@ -12241,7 +12241,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (9)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (9) (module)
     module: |
       package test
 
@@ -12302,7 +12302,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (9) (module)
     module: |
       package test
 
@@ -12363,7 +12363,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (9)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (9) (module)
     module: |
       package test
 
@@ -12428,7 +12428,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (9)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (9) (module)
     module: |
       package test
 
@@ -12493,7 +12493,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (10)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (10) (module)
     module: |
       package test
 
@@ -12542,7 +12542,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (10)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (10) (module)
     module: |
       package test
 
@@ -12591,7 +12591,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (10) (module)
     module: |
       package test
 
@@ -12640,7 +12640,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (10)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (10) (module)
     module: |
       package test
 
@@ -12693,7 +12693,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (10) (module)
     module: |
       package test
 
@@ -12746,7 +12746,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (10)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (10) (module)
     module: |
       package test
 
@@ -12806,7 +12806,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (10)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (10) (module)
     module: |
       package test
 
@@ -12866,7 +12866,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (10) (module)
     module: |
       package test
 
@@ -12926,7 +12926,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (10)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (10) (module)
     module: |
       package test
 
@@ -12989,7 +12989,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13052,7 +13052,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (10)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (10) (module)
     module: |
       package test
 
@@ -13101,7 +13101,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (10)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (10) (module)
     module: |
       package test
 
@@ -13150,7 +13150,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13199,7 +13199,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (10)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (10) (module)
     module: |
       package test
 
@@ -13252,7 +13252,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13305,7 +13305,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (10)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (10) (module)
     module: |
       package test
 
@@ -13356,7 +13356,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (10)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (10) (module)
     module: |
       package test
 
@@ -13407,7 +13407,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13458,7 +13458,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (10)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (10) (module)
     module: |
       package test
 
@@ -13513,7 +13513,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13568,7 +13568,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (10)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (10) (module)
     module: |
       package test
 
@@ -13629,7 +13629,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (10)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (10) (module)
     module: |
       package test
 
@@ -13690,7 +13690,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13751,7 +13751,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (10)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (10) (module)
     module: |
       package test
 
@@ -13816,7 +13816,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (10)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (10) (module)
     module: |
       package test
 
@@ -13881,7 +13881,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (11)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (11) (module)
     module: |
       package test
 
@@ -13930,7 +13930,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (11)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (11) (module)
     module: |
       package test
 
@@ -13979,7 +13979,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14028,7 +14028,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (11)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (11) (module)
     module: |
       package test
 
@@ -14081,7 +14081,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14134,7 +14134,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (11)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (11) (module)
     module: |
       package test
 
@@ -14194,7 +14194,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (11)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (11) (module)
     module: |
       package test
 
@@ -14254,7 +14254,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14314,7 +14314,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (11)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (11) (module)
     module: |
       package test
 
@@ -14377,7 +14377,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14440,7 +14440,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (11)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (11) (module)
     module: |
       package test
 
@@ -14489,7 +14489,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (11)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (11) (module)
     module: |
       package test
 
@@ -14538,7 +14538,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14587,7 +14587,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (11)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (11) (module)
     module: |
       package test
 
@@ -14640,7 +14640,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14693,7 +14693,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (11)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (11) (module)
     module: |
       package test
 
@@ -14744,7 +14744,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (11)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (11) (module)
     module: |
       package test
 
@@ -14795,7 +14795,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14846,7 +14846,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (11)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (11) (module)
     module: |
       package test
 
@@ -14901,7 +14901,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (11) (module)
     module: |
       package test
 
@@ -14956,7 +14956,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (11)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (11) (module)
     module: |
       package test
 
@@ -15017,7 +15017,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (11)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (11) (module)
     module: |
       package test
 
@@ -15078,7 +15078,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (11) (module)
     module: |
       package test
 
@@ -15139,7 +15139,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (11)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (11) (module)
     module: |
       package test
 
@@ -15204,7 +15204,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (11)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (11) (module)
     module: |
       package test
 
@@ -15269,7 +15269,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (12)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (12) (module)
     module: |
       package test
 
@@ -15318,7 +15318,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (12)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (12) (module)
     module: |
       package test
 
@@ -15367,7 +15367,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (12) (module)
     module: |
       package test
 
@@ -15416,7 +15416,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (12)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (12) (module)
     module: |
       package test
 
@@ -15469,7 +15469,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (12) (module)
     module: |
       package test
 
@@ -15522,7 +15522,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (12)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (12) (module)
     module: |
       package test
 
@@ -15582,7 +15582,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (12)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (12) (module)
     module: |
       package test
 
@@ -15642,7 +15642,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (12) (module)
     module: |
       package test
 
@@ -15702,7 +15702,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (12)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (12) (module)
     module: |
       package test
 
@@ -15765,7 +15765,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (12) (module)
     module: |
       package test
 
@@ -15828,7 +15828,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (12)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (12) (module)
     module: |
       package test
 
@@ -15877,7 +15877,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (12)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (12) (module)
     module: |
       package test
 
@@ -15926,7 +15926,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (12) (module)
     module: |
       package test
 
@@ -15975,7 +15975,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (12)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (12) (module)
     module: |
       package test
 
@@ -16028,7 +16028,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (12) (module)
     module: |
       package test
 
@@ -16081,7 +16081,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (12)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (12) (module)
     module: |
       package test
 
@@ -16132,7 +16132,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (12)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (12) (module)
     module: |
       package test
 
@@ -16183,7 +16183,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (12) (module)
     module: |
       package test
 
@@ -16234,7 +16234,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (12)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (12) (module)
     module: |
       package test
 
@@ -16289,7 +16289,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (12) (module)
     module: |
       package test
 
@@ -16344,7 +16344,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (12)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (12) (module)
     module: |
       package test
 
@@ -16405,7 +16405,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (12)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (12) (module)
     module: |
       package test
 
@@ -16466,7 +16466,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (12) (module)
     module: |
       package test
 
@@ -16527,7 +16527,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (12)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (12) (module)
     module: |
       package test
 
@@ -16592,7 +16592,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (12)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (12) (module)
     module: |
       package test
 
@@ -16657,7 +16657,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (13)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (13) (module)
     module: |
       package test
 
@@ -16706,7 +16706,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (13)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (13) (module)
     module: |
       package test
 
@@ -16755,7 +16755,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (13) (module)
     module: |
       package test
 
@@ -16804,7 +16804,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (13)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (13) (module)
     module: |
       package test
 
@@ -16857,7 +16857,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (13) (module)
     module: |
       package test
 
@@ -16910,7 +16910,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (13)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (13) (module)
     module: |
       package test
 
@@ -16970,7 +16970,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (13)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (13) (module)
     module: |
       package test
 
@@ -17030,7 +17030,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17090,7 +17090,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (13)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (13) (module)
     module: |
       package test
 
@@ -17153,7 +17153,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17216,7 +17216,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (13)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (13) (module)
     module: |
       package test
 
@@ -17265,7 +17265,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (13)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (13) (module)
     module: |
       package test
 
@@ -17314,7 +17314,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17363,7 +17363,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (13)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (13) (module)
     module: |
       package test
 
@@ -17416,7 +17416,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17469,7 +17469,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (13)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (13) (module)
     module: |
       package test
 
@@ -17520,7 +17520,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (13)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (13) (module)
     module: |
       package test
 
@@ -17571,7 +17571,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17622,7 +17622,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (13)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (13) (module)
     module: |
       package test
 
@@ -17677,7 +17677,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17732,7 +17732,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (13)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (13) (module)
     module: |
       package test
 
@@ -17793,7 +17793,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (13)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (13) (module)
     module: |
       package test
 
@@ -17854,7 +17854,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (13) (module)
     module: |
       package test
 
@@ -17915,7 +17915,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (13)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (13) (module)
     module: |
       package test
 
@@ -17980,7 +17980,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (13)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (13) (module)
     module: |
       package test
 
@@ -18045,7 +18045,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (14)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (14) (module)
     module: |
       package test
 
@@ -18094,7 +18094,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (14)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (14) (module)
     module: |
       package test
 
@@ -18143,7 +18143,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (14) (module)
     module: |
       package test
 
@@ -18192,7 +18192,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (14)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (14) (module)
     module: |
       package test
 
@@ -18245,7 +18245,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (14) (module)
     module: |
       package test
 
@@ -18298,7 +18298,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (14)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (14) (module)
     module: |
       package test
 
@@ -18358,7 +18358,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (14)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (14) (module)
     module: |
       package test
 
@@ -18418,7 +18418,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (14) (module)
     module: |
       package test
 
@@ -18478,7 +18478,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (14)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (14) (module)
     module: |
       package test
 
@@ -18541,7 +18541,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (14) (module)
     module: |
       package test
 
@@ -18604,7 +18604,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (14)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (14) (module)
     module: |
       package test
 
@@ -18653,7 +18653,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (14)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (14) (module)
     module: |
       package test
 
@@ -18702,7 +18702,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (14) (module)
     module: |
       package test
 
@@ -18751,7 +18751,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (14)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (14) (module)
     module: |
       package test
 
@@ -18804,7 +18804,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (14) (module)
     module: |
       package test
 
@@ -18857,7 +18857,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (14)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (14) (module)
     module: |
       package test
 
@@ -18908,7 +18908,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (14)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (14) (module)
     module: |
       package test
 
@@ -18959,7 +18959,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (14) (module)
     module: |
       package test
 
@@ -19010,7 +19010,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (14)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (14) (module)
     module: |
       package test
 
@@ -19065,7 +19065,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (14) (module)
     module: |
       package test
 
@@ -19120,7 +19120,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (14)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (14) (module)
     module: |
       package test
 
@@ -19181,7 +19181,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (14)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (14) (module)
     module: |
       package test
 
@@ -19242,7 +19242,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (14) (module)
     module: |
       package test
 
@@ -19303,7 +19303,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (14)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (14) (module)
     module: |
       package test
 
@@ -19368,7 +19368,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (14)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (14) (module)
     module: |
       package test
 
@@ -19433,7 +19433,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (15)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw in first term (15) (module)
     module: |
       package test
 
@@ -19482,7 +19482,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (15)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (15) (module)
     module: |
       package test
 
@@ -19531,7 +19531,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw last term (bracketed) (15) (module)
     module: |
       package test
 
@@ -19580,7 +19580,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (15)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (15) (module)
     module: |
       package test
 
@@ -19633,7 +19633,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/complete rule with ref in head, kw middle term (bracketed) (15) (module)
     module: |
       package test
 
@@ -19686,7 +19686,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (15)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw in first term (15) (module)
     module: |
       package test
 
@@ -19746,7 +19746,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (15)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (15) (module)
     module: |
       package test
 
@@ -19806,7 +19806,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw last term (bracketed) (15) (module)
     module: |
       package test
 
@@ -19866,7 +19866,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (15)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (15) (module)
     module: |
       package test
 
@@ -19929,7 +19929,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/function with ref in head, kw middle term (bracketed) (15) (module)
     module: |
       package test
 
@@ -19992,7 +19992,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (15)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw in first term (15) (module)
     module: |
       package test
 
@@ -20041,7 +20041,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (15)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (15) (module)
     module: |
       package test
 
@@ -20090,7 +20090,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw last term (bracketed) (15) (module)
     module: |
       package test
 
@@ -20139,7 +20139,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (15)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (15) (module)
     module: |
       package test
 
@@ -20192,7 +20192,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/partial set rule with ref in head, kw middle term (bracketed) (15) (module)
     module: |
       package test
 
@@ -20245,7 +20245,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (15)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw in first term (15) (module)
     module: |
       package test
 
@@ -20296,7 +20296,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (15)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (15) (module)
     module: |
       package test
 
@@ -20347,7 +20347,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw last term (bracketed) (15) (module)
     module: |
       package test
 
@@ -20398,7 +20398,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (15)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (15) (module)
     module: |
       package test
 
@@ -20453,7 +20453,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/default rule with ref in head, kw middle term (bracketed) (15) (module)
     module: |
       package test
 
@@ -20508,7 +20508,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (15)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw in first term (15) (module)
     module: |
       package test
 
@@ -20569,7 +20569,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (15)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (15) (module)
     module: |
       package test
 
@@ -20630,7 +20630,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw last term (bracketed) (15) (module)
     module: |
       package test
 
@@ -20691,7 +20691,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (15)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (15) (module)
     module: |
       package test
 
@@ -20756,7 +20756,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (15)
+  - note: rules/rule-heads-containing-keywords/default function with ref in head, kw middle term (bracketed) (15) (module)
     module: |
       package test
 

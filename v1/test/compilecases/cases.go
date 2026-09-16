@@ -358,11 +358,7 @@ func (tc TestCase) validateWant(field string, want []Want) error {
 
 // WantOptions is how a Want entry's Module has to be parsed. Stated without
 // reference to v1/ast, so a consumer can map it onto its own parser.
-type WantOptions struct {
-	RegoVersion       string
-	FutureKeywords    []string
-	AllFutureKeywords bool
-}
+type WantOptions = conformance.ParseOptions
 
 // WantParserOptions interprets the imports on the i-th Want entry. An import it does
 // not recognise is an error rather than a no-op.
@@ -394,7 +390,7 @@ func (tc TestCase) QueryParserOptions() (WantOptions, error) {
 
 	for _, imp := range tc.Query.Imports {
 		// A non-directive is a ref in scope, which is not this function's business.
-		if _, err := directiveOption("query.imports", imp, &out); err != nil {
+		if _, err := conformance.DirectiveOption("query.imports", imp, &out); err != nil {
 			return WantOptions{}, err
 		}
 	}
@@ -406,44 +402,16 @@ func (tc TestCase) wantOptions(at string, w Want) (WantOptions, error) {
 	out := WantOptions{RegoVersion: tc.RegoVersion}
 
 	for _, imp := range w.Imports {
-		directive, err := directiveOption(at+".imports", imp, &out)
+		directive, err := conformance.DirectiveOption(at+".imports", imp, &out)
 		if err != nil {
 			return WantOptions{}, err
 		}
 		if !directive {
-			return WantOptions{}, fmt.Errorf("unrecognised '%s.imports' entry %q; "+
-				"expected rego.v1, future.keywords or future.keywords.<keyword>", at, imp)
+			return WantOptions{}, conformance.UnknownDirective(at+".imports", imp)
 		}
 	}
 
 	return out, nil
-}
-
-// directiveOption folds a directive import into parser options, reporting whether imp was
-// a directive at all. A query's imports hold the refs in scope for it too, and those are
-// not directives.
-func directiveOption(at, imp string, out *WantOptions) (bool, error) {
-	switch {
-	case imp == "rego.v1":
-		// Not v0-compat-v1: that mode requires the import the printed form no
-		// longer carries.
-		out.RegoVersion = "v1"
-
-	case imp == "future.keywords":
-		out.AllFutureKeywords = true
-
-	case strings.HasPrefix(imp, "future.keywords."):
-		kw := strings.TrimPrefix(imp, "future.keywords.")
-		if kw == "" || strings.Contains(kw, ".") {
-			return false, fmt.Errorf("unrecognised '%s' entry %q", at, imp)
-		}
-		out.FutureKeywords = append(out.FutureKeywords, kw)
-
-	default:
-		return false, nil
-	}
-
-	return true, nil
 }
 
 // ModuleNames returns the names the case's modules are compiled under.

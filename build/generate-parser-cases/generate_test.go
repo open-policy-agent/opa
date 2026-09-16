@@ -146,7 +146,7 @@ cases:
         row: 3
         message: nope
 `,
-			wantErr: "asserts 'want_errors', but the module parses",
+			wantErr: "asserts 'want_errors', but the policy parses",
 		},
 		{
 			note: "want_ast on a module that does not parse",
@@ -160,7 +160,7 @@ cases:
     want_ast: |
       {}
 `,
-			wantErr: "asserts 'want_ast', but the module no longer parses",
+			wantErr: "asserts 'want_ast', but the policy no longer parses",
 		},
 	}
 

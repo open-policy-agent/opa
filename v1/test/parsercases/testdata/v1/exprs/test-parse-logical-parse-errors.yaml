@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParseErrors
 cases:
-  - note: exprs/parse-logical-parse-errors/bare and prefix
+  - note: exprs/parse-logical-parse-errors/bare and prefix (module)
     module: |
       package test
 
@@ -15,7 +15,17 @@ cases:
         row: 6
         col: 2
         message: unexpected and keyword
-  - note: exprs/parse-logical-parse-errors/bare or prefix
+  - note: exprs/parse-logical-parse-errors/bare and prefix (body)
+    body: |
+      and y
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: unexpected and keyword
+  - note: exprs/parse-logical-parse-errors/bare or prefix (module)
     module: |
       package test
 
@@ -29,7 +39,17 @@ cases:
         row: 6
         col: 2
         message: unexpected or keyword
-  - note: exprs/parse-logical-parse-errors/double or operator
+  - note: exprs/parse-logical-parse-errors/bare or prefix (body)
+    body: |
+      or y
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: unexpected or keyword
+  - note: exprs/parse-logical-parse-errors/double or operator (module)
     module: |
       package test
 
@@ -43,7 +63,17 @@ cases:
         row: 6
         col: 7
         message: unexpected or keyword
-  - note: exprs/parse-logical-parse-errors/double and operator
+  - note: exprs/parse-logical-parse-errors/double or operator (body)
+    body: |
+      x or or y
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: unexpected or keyword
+  - note: exprs/parse-logical-parse-errors/double and operator (module)
     module: |
       package test
 
@@ -57,7 +87,17 @@ cases:
         row: 6
         col: 8
         message: unexpected and keyword
-  - note: exprs/parse-logical-parse-errors/extra or-and operator
+  - note: exprs/parse-logical-parse-errors/double and operator (body)
+    body: |
+      x and and y
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: unexpected and keyword
+  - note: exprs/parse-logical-parse-errors/extra or-and operator (module)
     module: |
       package test
 
@@ -72,7 +112,18 @@ cases:
         row: 7
         col: 7
         message: unexpected and keyword
-  - note: exprs/parse-logical-parse-errors/extra and-or operator
+  - note: exprs/parse-logical-parse-errors/extra or-and operator (body)
+    body: |
+      x or and y
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: unexpected and keyword
+  - note: exprs/parse-logical-parse-errors/extra and-or operator (module)
     module: |
       package test
 
@@ -87,7 +138,18 @@ cases:
         row: 7
         col: 8
         message: unexpected or keyword
-  - note: exprs/parse-logical-parse-errors/and, inside call
+  - note: exprs/parse-logical-parse-errors/extra and-or operator (body)
+    body: |
+      x and or y
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: unexpected or keyword
+  - note: exprs/parse-logical-parse-errors/and, inside call (module)
     module: |
       package test
 
@@ -101,7 +163,17 @@ cases:
         row: 6
         col: 6
         message: 'unexpected and keyword: expected "," or ")"'
-  - note: exprs/parse-logical-parse-errors/or, inside call
+  - note: exprs/parse-logical-parse-errors/and, inside call (body)
+    body: |
+      f(x and y)
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected and keyword: expected "," or ")"'
+  - note: exprs/parse-logical-parse-errors/or, inside call (module)
     module: |
       package test
 
@@ -115,7 +187,17 @@ cases:
         row: 6
         col: 6
         message: 'unexpected or keyword: expected "," or ")"'
-  - note: exprs/parse-logical-parse-errors/and, inside ref
+  - note: exprs/parse-logical-parse-errors/or, inside call (body)
+    body: |
+      f(x or y)
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected or keyword: expected "," or ")"'
+  - note: exprs/parse-logical-parse-errors/and, inside ref (module)
     module: |
       package test
 
@@ -129,7 +211,17 @@ cases:
         row: 6
         col: 6
         message: 'unexpected and keyword: expected ['
-  - note: exprs/parse-logical-parse-errors/or, inside ref
+  - note: exprs/parse-logical-parse-errors/and, inside ref (body)
+    body: |
+      a[x and y]
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected and keyword: expected ['
+  - note: exprs/parse-logical-parse-errors/or, inside ref (module)
     module: |
       package test
 
@@ -143,7 +235,17 @@ cases:
         row: 6
         col: 6
         message: 'unexpected or keyword: expected ['
-  - note: exprs/parse-logical-parse-errors/and, inside set comprehension head
+  - note: exprs/parse-logical-parse-errors/or, inside ref (body)
+    body: |
+      a[x or y]
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected or keyword: expected ['
+  - note: exprs/parse-logical-parse-errors/and, inside set comprehension head (module)
     module: |
       package test
 
@@ -157,7 +259,17 @@ cases:
         row: 6
         col: 5
         message: 'unexpected and keyword: non-terminated set'
-  - note: exprs/parse-logical-parse-errors/or, inside set comprehension head
+  - note: exprs/parse-logical-parse-errors/and, inside set comprehension head (body)
+    body: |
+      {x and y | x}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected and keyword: non-terminated set'
+  - note: exprs/parse-logical-parse-errors/or, inside set comprehension head (module)
     module: |
       package test
 
@@ -171,7 +283,17 @@ cases:
         row: 6
         col: 5
         message: 'unexpected or keyword: non-terminated set'
-  - note: exprs/parse-logical-parse-errors/and, inside array comprehension head
+  - note: exprs/parse-logical-parse-errors/or, inside set comprehension head (body)
+    body: |
+      {x or y | x}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected or keyword: non-terminated set'
+  - note: exprs/parse-logical-parse-errors/and, inside array comprehension head (module)
     module: |
       package test
 
@@ -185,7 +307,17 @@ cases:
         row: 6
         col: 5
         message: 'unexpected and keyword: expected "," or "]"'
-  - note: exprs/parse-logical-parse-errors/or, inside array comprehension head
+  - note: exprs/parse-logical-parse-errors/and, inside array comprehension head (body)
+    body: |
+      [x and y | x]
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected and keyword: expected "," or "]"'
+  - note: exprs/parse-logical-parse-errors/or, inside array comprehension head (module)
     module: |
       package test
 
@@ -199,7 +331,17 @@ cases:
         row: 6
         col: 5
         message: 'unexpected or keyword: expected "," or "]"'
-  - note: exprs/parse-logical-parse-errors/and, inside object comprehension head, key
+  - note: exprs/parse-logical-parse-errors/or, inside array comprehension head (body)
+    body: |
+      [x or y | x]
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected or keyword: expected "," or "]"'
+  - note: exprs/parse-logical-parse-errors/and, inside object comprehension head, key (module)
     module: |
       package test
 
@@ -213,7 +355,17 @@ cases:
         row: 6
         col: 5
         message: 'unexpected and keyword: non-terminated set'
-  - note: exprs/parse-logical-parse-errors/or, inside object comprehension head, key
+  - note: exprs/parse-logical-parse-errors/and, inside object comprehension head, key (body)
+    body: |
+      {x and y: z | x}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected and keyword: non-terminated set'
+  - note: exprs/parse-logical-parse-errors/or, inside object comprehension head, key (module)
     module: |
       package test
 
@@ -227,7 +379,17 @@ cases:
         row: 6
         col: 5
         message: 'unexpected or keyword: non-terminated set'
-  - note: exprs/parse-logical-parse-errors/and, inside object comprehension head, value
+  - note: exprs/parse-logical-parse-errors/or, inside object comprehension head, key (body)
+    body: |
+      {x or y: z | x}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: 'unexpected or keyword: non-terminated set'
+  - note: exprs/parse-logical-parse-errors/and, inside object comprehension head, value (module)
     module: |
       package test
 
@@ -241,7 +403,17 @@ cases:
         row: 6
         col: 8
         message: 'unexpected and keyword: non-terminated object'
-  - note: exprs/parse-logical-parse-errors/or, inside object comprehension head, value
+  - note: exprs/parse-logical-parse-errors/and, inside object comprehension head, value (body)
+    body: |
+      {x: y and z | x}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'unexpected and keyword: non-terminated object'
+  - note: exprs/parse-logical-parse-errors/or, inside object comprehension head, value (module)
     module: |
       package test
 
@@ -255,7 +427,17 @@ cases:
         row: 6
         col: 8
         message: 'unexpected or keyword: non-terminated object'
-  - note: exprs/parse-logical-parse-errors/and, inside every value
+  - note: exprs/parse-logical-parse-errors/or, inside object comprehension head, value (body)
+    body: |
+      {x: y or z | x}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'unexpected or keyword: non-terminated object'
+  - note: exprs/parse-logical-parse-errors/and, inside every value (module)
     module: |
       package test
 
@@ -269,7 +451,17 @@ cases:
         row: 6
         col: 10
         message: 'unexpected and keyword: expected `x[, y] in xs { ... }` expression'
-  - note: exprs/parse-logical-parse-errors/or, inside every value
+  - note: exprs/parse-logical-parse-errors/and, inside every value (body)
+    body: |
+      every x and y in z {x}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: 'unexpected and keyword: expected `x[, y] in xs { ... }` expression'
+  - note: exprs/parse-logical-parse-errors/or, inside every value (module)
     module: |
       package test
 
@@ -283,7 +475,17 @@ cases:
         row: 6
         col: 10
         message: 'unexpected or keyword: expected `x[, y] in xs { ... }` expression'
-  - note: exprs/parse-logical-parse-errors/and, inside every domain
+  - note: exprs/parse-logical-parse-errors/or, inside every value (body)
+    body: |
+      every x or y in z {x}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: 'unexpected or keyword: expected `x[, y] in xs { ... }` expression'
+  - note: exprs/parse-logical-parse-errors/and, inside every domain (module)
     module: |
       package test
 
@@ -297,7 +499,17 @@ cases:
         row: 6
         col: 15
         message: 'unexpected and keyword: missing body'
-  - note: exprs/parse-logical-parse-errors/or, inside every domain
+  - note: exprs/parse-logical-parse-errors/and, inside every domain (body)
+    body: |
+      every x in y and z {x}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 14
+        message: 'unexpected and keyword: missing body'
+  - note: exprs/parse-logical-parse-errors/or, inside every domain (module)
     module: |
       package test
 
@@ -311,7 +523,17 @@ cases:
         row: 6
         col: 15
         message: 'unexpected or keyword: missing body'
-  - note: exprs/parse-logical-parse-errors/some-in as an operand
+  - note: exprs/parse-logical-parse-errors/or, inside every domain (body)
+    body: |
+      every x in y or z {x}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 14
+        message: 'unexpected or keyword: missing body'
+  - note: exprs/parse-logical-parse-errors/some-in as an operand (module)
     module: |
       package test
 
@@ -325,7 +547,17 @@ cases:
         row: 6
         col: 15
         message: 'unexpected and keyword: expected \n or ; or }'
-  - note: exprs/parse-logical-parse-errors/some-in as a rhs operand
+  - note: exprs/parse-logical-parse-errors/some-in as an operand (body)
+    body: |
+      some x in xs and y
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 14
+        message: unexpected and keyword
+  - note: exprs/parse-logical-parse-errors/some-in as a rhs operand (module)
     module: |
       package test
 
@@ -339,7 +571,17 @@ cases:
         row: 6
         col: 8
         message: unexpected some keyword
-  - note: exprs/parse-logical-parse-errors/some-in as a rhs operand, or
+  - note: exprs/parse-logical-parse-errors/some-in as a rhs operand (body)
+    body: |
+      y and some x in xs
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: unexpected some keyword
+  - note: exprs/parse-logical-parse-errors/some-in as a rhs operand, or (module)
     module: |
       package test
 
@@ -353,7 +595,17 @@ cases:
         row: 6
         col: 7
         message: unexpected some keyword
-  - note: exprs/parse-logical-parse-errors/some decl as an operand
+  - note: exprs/parse-logical-parse-errors/some-in as a rhs operand, or (body)
+    body: |
+      y or some x in xs
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: unexpected some keyword
+  - note: exprs/parse-logical-parse-errors/some decl as an operand (module)
     module: |
       package test
 
@@ -367,7 +619,17 @@ cases:
         row: 6
         col: 9
         message: 'unexpected and keyword: expected \n or ; or }'
-  - note: exprs/parse-logical-parse-errors/every as an operand
+  - note: exprs/parse-logical-parse-errors/some decl as an operand (body)
+    body: |
+      some x and y
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 8
+        message: unexpected and keyword
+  - note: exprs/parse-logical-parse-errors/every as an operand (module)
     module: |
       package test
 
@@ -381,7 +643,17 @@ cases:
         row: 6
         col: 22
         message: 'unexpected and keyword: expected \n or ; or }'
-  - note: exprs/parse-logical-parse-errors/every as an operand, or
+  - note: exprs/parse-logical-parse-errors/every as an operand (body)
+    body: |
+      every x in xs { x } and y
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 21
+        message: unexpected and keyword
+  - note: exprs/parse-logical-parse-errors/every as an operand, or (module)
     module: |
       package test
 
@@ -395,7 +667,17 @@ cases:
         row: 6
         col: 22
         message: 'unexpected or keyword: expected \n or ; or }'
-  - note: exprs/parse-logical-parse-errors/every as a rhs operand
+  - note: exprs/parse-logical-parse-errors/every as an operand, or (body)
+    body: |
+      every x in xs { x } or y
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 21
+        message: unexpected or keyword
+  - note: exprs/parse-logical-parse-errors/every as a rhs operand (module)
     module: |
       package test
 
@@ -409,7 +691,17 @@ cases:
         row: 6
         col: 8
         message: unexpected every keyword
-  - note: exprs/parse-logical-parse-errors/every as a rhs operand, or
+  - note: exprs/parse-logical-parse-errors/every as a rhs operand (body)
+    body: |
+      y and every x in xs { x }
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: unexpected every keyword
+  - note: exprs/parse-logical-parse-errors/every as a rhs operand, or (module)
     module: |
       package test
 
@@ -423,7 +715,17 @@ cases:
         row: 6
         col: 7
         message: unexpected every keyword
-  - note: exprs/parse-logical-parse-errors/some decl as a rhs operand
+  - note: exprs/parse-logical-parse-errors/every as a rhs operand, or (body)
+    body: |
+      y or every x in xs { x }
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: unexpected every keyword
+  - note: exprs/parse-logical-parse-errors/some decl as a rhs operand (module)
     module: |
       package test
 
@@ -437,7 +739,17 @@ cases:
         row: 6
         col: 8
         message: unexpected some keyword
-  - note: exprs/parse-logical-parse-errors/some-in as a not body
+  - note: exprs/parse-logical-parse-errors/some decl as a rhs operand (body)
+    body: |
+      y and some x
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: unexpected some keyword
+  - note: exprs/parse-logical-parse-errors/some-in as a not body (module)
     module: |
       package test
 
@@ -449,7 +761,15 @@ cases:
         row: 4
         col: 6
         message: 'unexpected some keyword: illegal negation of ''some'''
-  - note: exprs/parse-logical-parse-errors/some decl as a not body
+  - note: exprs/parse-logical-parse-errors/some-in as a not body (body)
+    body: |
+      not some x in xs
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: exprs/parse-logical-parse-errors/some decl as a not body (module)
     module: |
       package test
 
@@ -461,7 +781,15 @@ cases:
         row: 4
         col: 6
         message: 'unexpected some keyword: illegal negation of ''some'''
-  - note: exprs/parse-logical-parse-errors/every as a not body
+  - note: exprs/parse-logical-parse-errors/some decl as a not body (body)
+    body: |
+      not some x
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: exprs/parse-logical-parse-errors/every as a not body (module)
     module: |
       package test
 
@@ -473,7 +801,15 @@ cases:
         row: 4
         col: 6
         message: 'unexpected every keyword: illegal negation of ''every'''
-  - note: exprs/parse-logical-parse-errors/some-in as a negated operand
+  - note: exprs/parse-logical-parse-errors/every as a not body (body)
+    body: |
+      not every x in xs { x }
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected every keyword: illegal negation of ''every'''
+  - note: exprs/parse-logical-parse-errors/some-in as a negated operand (module)
     module: |
       package test
 
@@ -487,7 +823,17 @@ cases:
         row: 6
         col: 11
         message: unexpected some keyword
-  - note: exprs/parse-logical-parse-errors/every as a negated operand
+  - note: exprs/parse-logical-parse-errors/some-in as a negated operand (body)
+    body: |
+      y or not some x in xs
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 10
+        message: unexpected some keyword
+  - note: exprs/parse-logical-parse-errors/every as a negated operand (module)
     module: |
       package test
 
@@ -500,6 +846,16 @@ cases:
       - code: rego_parse_error
         row: 6
         col: 11
+        message: unexpected every keyword
+  - note: exprs/parse-logical-parse-errors/every as a negated operand (body)
+    body: |
+      y or not every x in xs { x }
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 10
         message: unexpected every keyword
   - note: exprs/parse-logical-parse-errors/and, rule value
     module: |

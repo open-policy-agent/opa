@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestObjectComprehensions
 cases:
-  - note: terms/object-comprehensions/nested
+  - note: terms/object-comprehensions/nested (module)
     module: |
       package test
 
@@ -254,7 +254,226 @@ cases:
           }
         ]
       }
-  - note: terms/object-comprehensions/ambiguous or
+  - note: terms/object-comprehensions/nested (body)
+    body: |
+      [{"x": {a[i]: b[i] | xs = {"foo":{"a": ["baz", j]} | q[p]; p.a != "bar"; j = "foo"}; xs[j].a[k] = "foo"}}]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "x"
+                    },
+                    {
+                      "type": "objectcomprehension",
+                      "value": {
+                        "body": [
+                          {
+                            "index": 0,
+                            "terms": [
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "eq"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "var",
+                                "value": "xs"
+                              },
+                              {
+                                "type": "objectcomprehension",
+                                "value": {
+                                  "body": [
+                                    {
+                                      "index": 0,
+                                      "terms": {
+                                        "type": "ref",
+                                        "value": [
+                                          {
+                                            "type": "var",
+                                            "value": "q"
+                                          },
+                                          {
+                                            "type": "var",
+                                            "value": "p"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "index": 1,
+                                      "terms": [
+                                        {
+                                          "type": "ref",
+                                          "value": [
+                                            {
+                                              "type": "var",
+                                              "value": "neq"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "ref",
+                                          "value": [
+                                            {
+                                              "type": "var",
+                                              "value": "p"
+                                            },
+                                            {
+                                              "type": "string",
+                                              "value": "a"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "string",
+                                          "value": "bar"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "index": 2,
+                                      "terms": [
+                                        {
+                                          "type": "ref",
+                                          "value": [
+                                            {
+                                              "type": "var",
+                                              "value": "eq"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "var",
+                                          "value": "j"
+                                        },
+                                        {
+                                          "type": "string",
+                                          "value": "foo"
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "key": {
+                                    "type": "string",
+                                    "value": "foo"
+                                  },
+                                  "value": {
+                                    "type": "object",
+                                    "value": [
+                                      [
+                                        {
+                                          "type": "string",
+                                          "value": "a"
+                                        },
+                                        {
+                                          "type": "array",
+                                          "value": [
+                                            {
+                                              "type": "string",
+                                              "value": "baz"
+                                            },
+                                            {
+                                              "type": "var",
+                                              "value": "j"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "index": 1,
+                            "terms": [
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "eq"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "xs"
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "j"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "value": "a"
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "k"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "value": "foo"
+                              }
+                            ]
+                          }
+                        ],
+                        "key": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "a"
+                            },
+                            {
+                              "type": "var",
+                              "value": "i"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "b"
+                            },
+                            {
+                              "type": "var",
+                              "value": "i"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/object-comprehensions/ambiguous or (module)
     module: |
       package test
 
@@ -337,3 +556,52 @@ cases:
           }
         ]
       }
+  - note: terms/object-comprehensions/ambiguous or (body)
+    body: |
+      { 1+2: 3 | 4}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "objectcomprehension",
+            "value": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "number",
+                    "value": 4
+                  }
+                }
+              ],
+              "key": {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "plus"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              "value": {
+                "type": "number",
+                "value": 3
+              }
+            }
+          }
+        }
+      ]

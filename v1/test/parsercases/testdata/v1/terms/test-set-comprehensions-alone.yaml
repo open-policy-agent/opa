@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestSetComprehensionsAlone
 cases:
-  - note: terms/set-comprehensions-alone/alone
+  - note: terms/set-comprehensions-alone/alone (module)
     module: |
       package test
 
@@ -106,3 +106,74 @@ cases:
           }
         ]
       }
+  - note: terms/set-comprehensions-alone/alone (body)
+    body: |
+      {k | a = [1,2,3]; a[k]}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "setcomprehension",
+            "value": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "eq"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "a"
+                    },
+                    {
+                      "type": "array",
+                      "value": [
+                        {
+                          "type": "number",
+                          "value": 1
+                        },
+                        {
+                          "type": "number",
+                          "value": 2
+                        },
+                        {
+                          "type": "number",
+                          "value": 3
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "index": 1,
+                  "terms": {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "k"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "term": {
+                "type": "var",
+                "value": "k"
+              }
+            }
+          }
+        }
+      ]

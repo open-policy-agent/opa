@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestCalls
 cases:
-  - note: exprs/calls/ne
+  - note: exprs/calls/ne (module)
     module: |
       package test
 
@@ -64,7 +64,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/gt
+  - note: exprs/calls/ne (body)
+    body: |
+      100 != 200
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "neq"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 100
+            },
+            {
+              "type": "number",
+              "value": 200
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/gt (module)
     module: |
       package test
 
@@ -127,7 +155,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/lt
+  - note: exprs/calls/gt (body)
+    body: |
+      17.4 > "hello"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "gt"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 17.4
+            },
+            {
+              "type": "string",
+              "value": "hello"
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/lt (module)
     module: |
       package test
 
@@ -190,7 +246,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/gte
+  - note: exprs/calls/lt (body)
+    body: |
+      17.4 < "hello"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "lt"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 17.4
+            },
+            {
+              "type": "string",
+              "value": "hello"
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/gte (module)
     module: |
       package test
 
@@ -253,7 +337,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/lte
+  - note: exprs/calls/gte (body)
+    body: |
+      17.4 >= "hello"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "gte"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 17.4
+            },
+            {
+              "type": "string",
+              "value": "hello"
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/lte (module)
     module: |
       package test
 
@@ -316,7 +428,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/composites
+  - note: exprs/calls/lte (body)
+    body: |
+      17.4 <= "hello"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "lte"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 17.4
+            },
+            {
+              "type": "string",
+              "value": "hello"
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/composites (module)
     module: |
       package test
 
@@ -445,7 +585,101 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/plus
+  - note: exprs/calls/composites (body)
+    body: |
+      [{14.2: true, "a": null}] != {foo: {a.b[0]: [10]}}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "neq"
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "value": [
+                {
+                  "type": "object",
+                  "value": [
+                    [
+                      {
+                        "type": "number",
+                        "value": 14.2
+                      },
+                      {
+                        "type": "boolean",
+                        "value": true
+                      }
+                    ],
+                    [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "null",
+                        "value": {}
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "object",
+              "value": [
+                [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "a"
+                            },
+                            {
+                              "type": "string",
+                              "value": "b"
+                            },
+                            {
+                              "type": "number",
+                              "value": 0
+                            }
+                          ]
+                        },
+                        {
+                          "type": "array",
+                          "value": [
+                            {
+                              "type": "number",
+                              "value": 10
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/plus (module)
     module: |
       package test
 
@@ -508,7 +742,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/minus
+  - note: exprs/calls/plus (body)
+    body: |
+      1 + 2
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "plus"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/minus (module)
     module: |
       package test
 
@@ -571,7 +833,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/mul
+  - note: exprs/calls/minus (body)
+    body: |
+      1 - 2
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "minus"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/mul (module)
     module: |
       package test
 
@@ -634,7 +924,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/div
+  - note: exprs/calls/mul (body)
+    body: |
+      1 * 2
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "mul"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/div (module)
     module: |
       package test
 
@@ -697,7 +1015,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/rem
+  - note: exprs/calls/div (body)
+    body: |
+      1 / 2
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "div"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/rem (module)
     module: |
       package test
 
@@ -760,7 +1106,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/and
+  - note: exprs/calls/rem (body)
+    body: |
+      3 % 2
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "rem"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 3
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/and (module)
     module: |
       package test
 
@@ -849,7 +1223,61 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/call
+  - note: exprs/calls/and (body)
+    body: |
+      {1,2,3} & {2,3,4}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "and"
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 1
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 2
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                },
+                {
+                  "type": "number",
+                  "value": 4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/call (module)
     module: |
       package test
 
@@ -917,7 +1345,40 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/call-ref
+  - note: exprs/calls/call (body)
+    body: |
+      count([true, false])
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "count"
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "value": [
+                {
+                  "type": "boolean",
+                  "value": true
+                },
+                {
+                  "type": "boolean",
+                  "value": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/call-ref (module)
     module: |
       package test
 
@@ -980,7 +1441,35 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/call-void
+  - note: exprs/calls/call-ref (body)
+    body: |
+      foo.bar(1)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/call-void (module)
     module: |
       package test
 
@@ -1035,7 +1524,27 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/internal.member_2
+  - note: exprs/calls/call-void (body)
+    body: |
+      foo()
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/internal.member_2 (module)
     module: |
       package test
 
@@ -1102,7 +1611,39 @@ cases:
           }
         ]
       }
-  - note: exprs/calls/internal.member_3
+  - note: exprs/calls/internal.member_2 (body)
+    body: |
+      x in xs
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "internal"
+                },
+                {
+                  "type": "string",
+                  "value": "member_2"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "var",
+              "value": "xs"
+            }
+          ]
+        }
+      ]
+  - note: exprs/calls/internal.member_3 (module)
     module: |
       package test
 
@@ -1173,3 +1714,39 @@ cases:
           }
         ]
       }
+  - note: exprs/calls/internal.member_3 (body)
+    body: |
+      x, y in xs
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "internal"
+                },
+                {
+                  "type": "string",
+                  "value": "member_3"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "var",
+              "value": "y"
+            },
+            {
+              "type": "var",
+              "value": "xs"
+            }
+          ]
+        }
+      ]

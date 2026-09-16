@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParenWith
 cases:
-  - note: exprs/parse-logical-paren-with/with on standalone group, or
+  - note: exprs/parse-logical-paren-with/with on standalone group, or (module)
     module: |
       package test
 
@@ -106,7 +106,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on standalone group, and
+  - note: exprs/parse-logical-paren-with/with on standalone group, or (body)
+    body: |
+      (a or b) with input as x
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on standalone group, and (module)
     module: |
       package test
 
@@ -211,7 +260,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on group chain attaches to outer
+  - note: exprs/parse-logical-paren-with/with on standalone group, and (body)
+    body: |
+      (a and b) with input as x
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on group chain attaches to outer (module)
     module: |
       package test
 
@@ -353,7 +451,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on group chain attaches to inner
+  - note: exprs/parse-logical-paren-with/with on group chain attaches to outer (body)
+    body: |
+      (a or b) and c with input as x
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on group chain attaches to inner (module)
     module: |
       package test
 
@@ -495,7 +660,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on not group
+  - note: exprs/parse-logical-paren-with/with on group chain attaches to inner (body)
+    body: |
+      (a or b with input as x) and c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on not group (module)
     module: |
       package test
 
@@ -629,7 +861,66 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on lhs operand group
+  - note: exprs/parse-logical-paren-with/with on not group (body)
+    body: |
+      not (a or b) with input as x
+    imports:
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on lhs operand group (module)
     module: |
       package test
 
@@ -734,7 +1025,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on rhs operand group
+  - note: exprs/parse-logical-paren-with/with on lhs operand group (body)
+    body: |
+      (a with input as x) and b
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on rhs operand group (module)
     module: |
       package test
 
@@ -839,7 +1179,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with inside group binds to whole group
+  - note: exprs/parse-logical-paren-with/with on rhs operand group (body)
+    body: |
+      a and (b with input as x)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with inside group binds to whole group (module)
     module: |
       package test
 
@@ -944,7 +1333,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with after group binds to whole group
+  - note: exprs/parse-logical-paren-with/with inside group binds to whole group (body)
+    body: |
+      (a and b with input as x)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with after group binds to whole group (module)
     module: |
       package test
 
@@ -1049,7 +1487,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with without group (baseline)
+  - note: exprs/parse-logical-paren-with/with after group binds to whole group (body)
+    body: |
+      (a and b) with input as x
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with without group (baseline) (module)
     module: |
       package test
 
@@ -1154,7 +1641,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on each operand group
+  - note: exprs/parse-logical-paren-with/with without group (baseline) (body)
+    body: |
+      a and b with input as x
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "x"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on each operand group (module)
     module: |
       package test
 
@@ -1276,7 +1812,73 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on single-operand not group
+  - note: exprs/parse-logical-paren-with/with on each operand group (body)
+    body: |
+      (a with input as x) and (b with input as y)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on single-operand not group (module)
     module: |
       package test
 
@@ -1373,7 +1975,48 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with inside not group binds to group
+  - note: exprs/parse-logical-paren-with/with on single-operand not group (body)
+    body: |
+      not (a with input as x)
+    imports:
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with inside not group binds to group (module)
     module: |
       package test
 
@@ -1507,7 +2150,66 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on rhs group content
+  - note: exprs/parse-logical-paren-with/with inside not group binds to group (body)
+    body: |
+      not (a or b with input as x)
+    imports:
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on rhs group content (module)
     module: |
       package test
 
@@ -1649,7 +2351,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/with on mid-chain group
+  - note: exprs/parse-logical-paren-with/with on rhs group content (body)
+    body: |
+      a and (b or c with input as x)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/with on mid-chain group (module)
     module: |
       package test
 
@@ -1771,7 +2540,73 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-with/mid-group with before and
+  - note: exprs/parse-logical-paren-with/with on mid-chain group (body)
+    body: |
+      a and (b with input as v) and c
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "v"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-with/mid-group with before and (module)
     module: |
       package test
 
@@ -1785,7 +2620,17 @@ cases:
         row: 6
         col: 5
         message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
-  - note: exprs/parse-logical-paren-with/mid-group with before or
+  - note: exprs/parse-logical-paren-with/mid-group with before and (body)
+    body: |
+      (a with input as v and b)
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-paren-with/mid-group with before or (module)
     module: |
       package test
 
@@ -1799,7 +2644,17 @@ cases:
         row: 6
         col: 5
         message: '`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)'
-  - note: exprs/parse-logical-paren-with/mid-group with inside not group
+  - note: exprs/parse-logical-paren-with/mid-group with before or (body)
+    body: |
+      (a with input as v or b)
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: '`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-paren-with/mid-group with inside not group (module)
     module: |
       package test
 
@@ -1813,4 +2668,15 @@ cases:
       - code: rego_parse_error
         row: 7
         col: 9
+        message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-paren-with/mid-group with inside not group (body)
+    body: |
+      not (a with input as v and b)
+    imports:
+      - future.keywords.and
+      - future.keywords.not
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 8
         message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'

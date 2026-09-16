@@ -277,12 +277,12 @@ func regenerateAST(sets []ParserSet, cfg *config) error {
 				continue
 			}
 
-			module, err := parseModule(tc.TestCase, tc.Module)
+			node, err := parseCase(tc.TestCase)
 			if err != nil {
 				return fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 			}
 
-			want, err := MarshalAST(module)
+			want, err := MarshalAST(node)
 			if err != nil {
 				return fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 			}

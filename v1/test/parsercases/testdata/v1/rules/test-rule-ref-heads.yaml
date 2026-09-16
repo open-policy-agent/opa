@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleRefHeads
 cases:
-  - note: rules/rule-ref-heads/single-value rule
+  - note: rules/rule-ref-heads/single-value rule (module)
     module: |
       package test
 
@@ -54,7 +54,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/single-value with brackets, string key
+  - note: rules/rule-ref-heads/single-value with brackets, string key (module)
     module: |
       package test
 
@@ -107,7 +107,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/single-value with brackets, number key
+  - note: rules/rule-ref-heads/single-value with brackets, number key (module)
     module: |
       package test
 
@@ -160,7 +160,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/single-value with brackets, no value
+  - note: rules/rule-ref-heads/single-value with brackets, no value (module)
     module: |
       package test
 
@@ -213,7 +213,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/single-value with brackets, var key
+  - note: rules/rule-ref-heads/single-value with brackets, var key (module)
     module: |
       package test
 
@@ -281,7 +281,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/single-value with brackets, var key, no dot
+  - note: rules/rule-ref-heads/single-value with brackets, var key, no dot (module)
     module: |
       package test
 
@@ -350,7 +350,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/multi-value, simple
+  - note: rules/rule-ref-heads/multi-value, simple (module)
     module: |
       package test
 
@@ -418,7 +418,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/function, simple
+  - note: rules/rule-ref-heads/function, simple (module)
     module: |
       package test
 
@@ -477,7 +477,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/function, no value
+  - note: rules/rule-ref-heads/function, no value (module)
     module: |
       package test
 
@@ -536,7 +536,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-ref-heads/function, with value
+  - note: rules/rule-ref-heads/function, with value (module)
     module: |
       package test
 

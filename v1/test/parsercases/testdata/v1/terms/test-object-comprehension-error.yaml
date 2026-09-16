@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestObjectComprehensionError
 cases:
-  - note: terms/object-comprehension-error/bad body
+  - note: terms/object-comprehension-error/bad body (module)
     module: |
       package test
 
@@ -10,4 +10,12 @@ cases:
       - code: rego_parse_error
         row: 3
         col: 12
+        message: illegal ! character
+  - note: terms/object-comprehension-error/bad body (body)
+    body: |
+      {x: y|!!!}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
         message: illegal ! character

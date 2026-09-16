@@ -88,7 +88,7 @@ cases:
           }
         ]
       }
-  - note: modules/rule-else-ref-heads/multi-value ref head
+  - note: modules/rule-else-ref-heads/multi-value ref head (module)
     module: |
       package test
 
@@ -99,7 +99,7 @@ cases:
         row: 4
         col: 1
         message: else keyword cannot be used on multi-value rules
-  - note: modules/rule-else-ref-heads/single-value ref head with var
+  - note: modules/rule-else-ref-heads/single-value ref head with var (module)
     module: |
       package test
 
@@ -110,7 +110,7 @@ cases:
         row: 4
         col: 1
         message: else keyword cannot be used on rules with variables in head
-  - note: modules/rule-else-ref-heads/single-value general ref head with var
+  - note: modules/rule-else-ref-heads/single-value general ref head with var (module)
     module: |
       package test
 

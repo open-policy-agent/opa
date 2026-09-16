@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParenNot
 cases:
-  - note: exprs/parse-logical-paren-not/not group or
+  - note: exprs/parse-logical-paren-not/not group or (module)
     module: |
       package test
 
@@ -118,7 +118,49 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not group and
+  - note: exprs/parse-logical-paren-not/not group or (body)
+    body: |
+      not (a or b)
+    imports:
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not group and (module)
     module: |
       package test
 
@@ -235,7 +277,49 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not group as operand of and
+  - note: exprs/parse-logical-paren-not/not group and (body)
+    body: |
+      not (a and b)
+    imports:
+      - future.keywords.and
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not group as operand of and (module)
     module: |
       package test
 
@@ -389,7 +473,67 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not nested group
+  - note: exprs/parse-logical-paren-not/not group as operand of and (body)
+    body: |
+      x and not (a or b)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not nested group (module)
     module: |
       package test
 
@@ -543,7 +687,67 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing and
+  - note: exprs/parse-logical-paren-not/not nested group (body)
+    body: |
+      not ((a or b) and c)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing and (module)
     module: |
       package test
 
@@ -697,7 +901,67 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing or
+  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing and (body)
+    body: |
+      not (a or b) and c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing or (module)
     module: |
       package test
 
@@ -831,7 +1095,66 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not, parenthesized arithmetic
+  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing or (body)
+    body: |
+      not (a or b) or c
+    imports:
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not, parenthesized arithmetic (module)
     module: |
       package test
 
@@ -913,7 +1236,54 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-not/not, parenthesized comparison
+  - note: exprs/parse-logical-paren-not/not, parenthesized arithmetic (body)
+    body: |
+      not (1 + 2) > 3
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "gt"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "plus"
+                    }
+                  ]
+                },
+                {
+                  "type": "number",
+                  "value": 1
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 3
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-not/not, parenthesized comparison (module)
     module: |
       package test
 
@@ -977,3 +1347,32 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-paren-not/not, parenthesized comparison (body)
+    body: |
+      not (a) == b
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "equal"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "a"
+            },
+            {
+              "type": "var",
+              "value": "b"
+            }
+          ]
+        }
+      ]

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_RefsContainingAndOr
 cases:
-  - note: exprs/parse-logical-refs-containing-and-or/x.and dot access
+  - note: exprs/parse-logical-refs-containing-and-or/x.and dot access (module)
     module: |
       package test
 
@@ -58,7 +58,29 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-refs-containing-and-or/and.x dot access
+  - note: exprs/parse-logical-refs-containing-and-or/x.and dot access (body)
+    body: |
+      x.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "string",
+                "value": "and"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-refs-containing-and-or/and.x dot access (module)
     module: |
       package test
 
@@ -115,7 +137,29 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-refs-containing-and-or/x["and"] bracket access
+  - note: exprs/parse-logical-refs-containing-and-or/and.x dot access (body)
+    body: |
+      and.x
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "and"
+              },
+              {
+                "type": "string",
+                "value": "x"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-refs-containing-and-or/x["and"] bracket access (module)
     module: |
       package test
 
@@ -172,7 +216,29 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-refs-containing-and-or/x.or dot access
+  - note: exprs/parse-logical-refs-containing-and-or/x["and"] bracket access (body)
+    body: |
+      x["and"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "string",
+                "value": "and"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-refs-containing-and-or/x.or dot access (module)
     module: |
       package test
 
@@ -229,7 +295,29 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-refs-containing-and-or/or.x dot access
+  - note: exprs/parse-logical-refs-containing-and-or/x.or dot access (body)
+    body: |
+      x.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "string",
+                "value": "or"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-refs-containing-and-or/or.x dot access (module)
     module: |
       package test
 
@@ -286,7 +374,29 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-refs-containing-and-or/x["or"] bracket access
+  - note: exprs/parse-logical-refs-containing-and-or/or.x dot access (body)
+    body: |
+      or.x
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "or"
+              },
+              {
+                "type": "string",
+                "value": "x"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-refs-containing-and-or/x["or"] bracket access (module)
     module: |
       package test
 
@@ -343,3 +453,25 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-refs-containing-and-or/x["or"] bracket access (body)
+    body: |
+      x["or"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "string",
+                "value": "or"
+              }
+            ]
+          }
+        }
+      ]

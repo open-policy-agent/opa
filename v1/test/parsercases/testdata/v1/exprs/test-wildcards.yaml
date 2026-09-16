@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestWildcards
 cases:
-  - note: exprs/wildcards/expr
+  - note: exprs/wildcards/expr (module)
     module: |
       package test
 
@@ -78,7 +78,49 @@ cases:
           }
         ]
       }
-  - note: exprs/wildcards/comprehension
+  - note: exprs/wildcards/expr (body)
+    body: |
+      _ = [a[_]]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "$0"
+            },
+            {
+              "type": "array",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    },
+                    {
+                      "type": "var",
+                      "value": "$1"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/wildcards/comprehension (module)
     module: |
       package test
 
@@ -179,3 +221,69 @@ cases:
           }
         ]
       }
+  - note: exprs/wildcards/comprehension (body)
+    body: |
+      _ = [x | a = a[_]]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "$0"
+            },
+            {
+              "type": "arraycomprehension",
+              "value": {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "a"
+                          },
+                          {
+                            "type": "var",
+                            "value": "$1"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "term": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            }
+          ]
+        }
+      ]

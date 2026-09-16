@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParenBraceContext
 cases:
-  - note: exprs/parse-logical-paren-brace-context/operand brace is a body if future not kw imported
+  - note: exprs/parse-logical-paren-brace-context/operand brace is a body if future not kw imported (module)
     module: |
       package test
 
@@ -55,7 +55,26 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/not operand parens hold a value if future not kw imported
+  - note: exprs/parse-logical-paren-brace-context/operand brace is a body if future not kw imported (body)
+    body: |
+      not {true}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/not operand parens hold a value if future not kw imported (module)
     module: |
       package test
 
@@ -109,7 +128,26 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/not operand brace is not a body if future not kw unimported
+  - note: exprs/parse-logical-paren-brace-context/not operand parens hold a value if future not kw imported (body)
+    body: |
+      not ({true})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/not operand brace is not a body if future not kw unimported (module)
     module: |
       package test
 
@@ -163,7 +201,26 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/and operand braces are bodies
+  - note: exprs/parse-logical-paren-brace-context/not operand brace is not a body if future not kw unimported (body)
+    body: |
+      not ({true})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/and operand braces are bodies (module)
     module: |
       package test
 
@@ -253,7 +310,41 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/and operand parens hold values
+  - note: exprs/parse-logical-paren-brace-context/and operand braces are bodies (body)
+    body: |
+      {a} and {b}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/and operand parens hold values (module)
     module: |
       package test
 
@@ -351,7 +442,49 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/rhs operand parens hold a value
+  - note: exprs/parse-logical-paren-brace-context/and operand parens hold values (body)
+    body: |
+      ({a}) and ({b})
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "b"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/rhs operand parens hold a value (module)
     module: |
       package test
 
@@ -444,7 +577,44 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/empty parens hold an empty object
+  - note: exprs/parse-logical-paren-brace-context/rhs operand parens hold a value (body)
+    body: |
+      a and ({b})
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "b"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/empty parens hold an empty object (module)
     module: |
       package test
 
@@ -532,7 +702,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/empty object
+  - note: exprs/parse-logical-paren-brace-context/empty parens hold an empty object (body)
+    body: |
+      a or ({})
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": []
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/empty object (module)
     module: |
       package test
 
@@ -580,7 +782,20 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/set
+  - note: exprs/parse-logical-paren-brace-context/empty object (body)
+    body: |
+      ({})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": []
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/set (module)
     module: |
       package test
 
@@ -633,7 +848,25 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/object on rhs of assign
+  - note: exprs/parse-logical-paren-brace-context/set (body)
+    body: |
+      ({a})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "var",
+                "value": "a"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/object on rhs of assign (module)
     module: |
       package test
 
@@ -701,7 +934,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-brace-context/empty object as call arg
+  - note: exprs/parse-logical-paren-brace-context/object on rhs of assign (body)
+    body: |
+      a := ({b})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "a"
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-paren-brace-context/empty object as call arg (module)
     module: |
       package test
 
@@ -760,3 +1026,27 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-paren-brace-context/empty object as call arg (body)
+    body: |
+      g(({}))
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "g"
+                }
+              ]
+            },
+            {
+              "type": "object",
+              "value": []
+            }
+          ]
+        }
+      ]

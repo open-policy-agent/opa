@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRegoV1Import
 cases:
-  - note: imports/rego-v1-import/rego.v1 + alias
+  - note: imports/rego-v1-import/rego.v1 + alias (module)
     rego_version: v0
     module: |
       package test

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BuiltinCallFormBoundaries
 cases:
-  - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, no space
+  - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, no space (module)
     module: |
       package test
 
@@ -89,7 +89,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand, no space
+  - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, no space (body)
+    body: |
+      x and(b)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand, no space (module)
     module: |
       package test
 
@@ -177,7 +209,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, with space
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand, no space (body)
+    body: |
+      x or(b)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, with space (module)
     module: |
       package test
 
@@ -265,7 +329,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand after explicit body lhs
+  - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, with space (body)
+    body: |
+      x and (b)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand after explicit body lhs (module)
     module: |
       package test
 
@@ -354,7 +450,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-boundaries/or, multi-expression group operand
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand after explicit body lhs (body)
+    body: |
+      {a} or(b)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or, multi-expression group operand (module)
     module: |
       package test
 
@@ -459,7 +588,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, assigned
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or, multi-expression group operand (body)
+    body: |
+      x or(a or b)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, assigned (module)
     module: |
       package test
 
@@ -473,7 +651,17 @@ cases:
         row: 6
         col: 7
         message: unexpected or keyword
-  - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, assigned
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, assigned (body)
+    body: |
+      x := or
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: unexpected or keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, assigned (module)
     module: |
       package test
 
@@ -487,7 +675,17 @@ cases:
         row: 6
         col: 7
         message: unexpected and keyword
-  - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, call argument
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, assigned (body)
+    body: |
+      x := and
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: unexpected and keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, call argument (module)
     module: |
       package test
 
@@ -501,7 +699,17 @@ cases:
         row: 6
         col: 4
         message: unexpected or keyword
-  - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, comparison lhs
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, call argument (body)
+    body: |
+      f(or)
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: unexpected or keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, comparison lhs (module)
     module: |
       package test
 
@@ -515,7 +723,17 @@ cases:
         row: 6
         col: 2
         message: unexpected and keyword
-  - note: exprs/parse-logical-builtin-call-form-boundaries/or call, space before paren
+  - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, comparison lhs (body)
+    body: |
+      and == x
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: unexpected and keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or call, space before paren (module)
     module: |
       package test
 
@@ -529,7 +747,17 @@ cases:
         row: 6
         col: 2
         message: unexpected or keyword
-  - note: exprs/parse-logical-builtin-call-form-boundaries/and call, space before paren
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or call, space before paren (body)
+    body: |
+      or (a, b)
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: unexpected or keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/and call, space before paren (module)
     module: |
       package test
 
@@ -543,7 +771,17 @@ cases:
         row: 6
         col: 2
         message: unexpected and keyword
-  - note: exprs/parse-logical-builtin-call-form-boundaries/or call, operator position
+  - note: exprs/parse-logical-builtin-call-form-boundaries/and call, space before paren (body)
+    body: |
+      and (a, b)
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: unexpected and keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or call, operator position (module)
     module: |
       package test
 
@@ -556,4 +794,14 @@ cases:
       - code: rego_parse_error
         row: 6
         col: 7
+        message: unexpected or keyword
+  - note: exprs/parse-logical-builtin-call-form-boundaries/or call, operator position (body)
+    body: |
+      x or or y
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
         message: unexpected or keyword

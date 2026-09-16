@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParenRedundant
 cases:
-  - note: exprs/parse-logical-paren-redundant/double-wrapped and-chain
+  - note: exprs/parse-logical-paren-redundant/double-wrapped and-chain (module)
     module: |
       package test
 
@@ -89,7 +89,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-redundant/deeply nested redundant parens
+  - note: exprs/parse-logical-paren-redundant/double-wrapped and-chain (body)
+    body: |
+      ((a and b))
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-redundant/deeply nested redundant parens (module)
     module: |
       package test
 
@@ -214,3 +246,53 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-paren-redundant/deeply nested redundant parens (body)
+    body: |
+      (((((a or ((b)))) and c)))
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]

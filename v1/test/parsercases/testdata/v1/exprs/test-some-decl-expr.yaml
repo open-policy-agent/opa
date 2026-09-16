@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestSomeDeclExpr
 cases:
-  - note: exprs/some-decl-expr/one
+  - note: exprs/some-decl-expr/one (module)
     module: |
       package test
 
@@ -53,7 +53,24 @@ cases:
           }
         ]
       }
-  - note: exprs/some-decl-expr/internal.member_2
+  - note: exprs/some-decl-expr/one (body)
+    body: |
+      some x
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "var",
+                "value": "x"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/some-decl-expr/internal.member_2 (module)
     module: |
       package test
 
@@ -127,7 +144,46 @@ cases:
           }
         ]
       }
-  - note: exprs/some-decl-expr/internal.member_3
+  - note: exprs/some-decl-expr/internal.member_2 (body)
+    body: |
+      some x in xs
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_2"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "xs"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/some-decl-expr/internal.member_3 (module)
     module: |
       package test
 
@@ -205,7 +261,50 @@ cases:
           }
         ]
       }
-  - note: exprs/some-decl-expr/not some
+  - note: exprs/some-decl-expr/internal.member_3 (body)
+    body: |
+      some x, y in xs
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_3"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  {
+                    "type": "var",
+                    "value": "xs"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/some-decl-expr/not some (module)
     module: |
       package test
 
@@ -217,7 +316,15 @@ cases:
         row: 4
         col: 6
         message: 'unexpected some keyword: illegal negation of ''some'''
-  - note: exprs/some-decl-expr/some + function call
+  - note: exprs/some-decl-expr/not some (body)
+    body: |
+      not some x, y in xs
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: exprs/some-decl-expr/some + function call (module)
     module: |
       package test
 
@@ -229,7 +336,14 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: expected `x in xs` or `x, y in xs` expression'
-  - note: exprs/some-decl-expr/multiple
+  - note: exprs/some-decl-expr/some + function call (body)
+    body: |
+      some f(x)
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: expected `x in xs` or `x, y in xs` expression'
+  - note: exprs/some-decl-expr/multiple (module)
     module: |
       package test
 
@@ -285,7 +399,28 @@ cases:
           }
         ]
       }
-  - note: exprs/some-decl-expr/multiple split across lines
+  - note: exprs/some-decl-expr/multiple (body)
+    body: |
+      some x, y
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "var",
+                "value": "y"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/some-decl-expr/multiple split across lines (module)
     module: |
       package test
 
@@ -346,7 +481,33 @@ cases:
           }
         ]
       }
-  - note: exprs/some-decl-expr/with modifier on expr
+  - note: exprs/some-decl-expr/multiple split across lines (body)
+    body: |
+      some x, y,
+      z
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "var",
+                "value": "y"
+              },
+              {
+                "type": "var",
+                "value": "z"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/some-decl-expr/with modifier on expr (module)
     module: |
       package test
 
@@ -446,7 +607,72 @@ cases:
           }
         ]
       }
-  - note: exprs/some-decl-expr/invalid domain (internal.member_2)
+  - note: exprs/some-decl-expr/with modifier on expr (body)
+    body: |
+      some x, y in input with input as []
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_3"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "array",
+                "value": []
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/some-decl-expr/invalid domain (internal.member_2) (module)
     module: |
       package test
 
@@ -458,7 +684,14 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: illegal domain'
-  - note: exprs/some-decl-expr/invalid domain (internal.member_3)
+  - note: exprs/some-decl-expr/invalid domain (internal.member_2) (body)
+    body: |
+      some internal.member_2()
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: illegal domain'
+  - note: exprs/some-decl-expr/invalid domain (internal.member_3) (module)
     module: |
       package test
 
@@ -470,3 +703,10 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: illegal domain'
+  - note: exprs/some-decl-expr/invalid domain (internal.member_3) (body)
+    body: |
+      some internal.member_3()
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: illegal domain'

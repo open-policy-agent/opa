@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestEvery
 cases:
-  - note: exprs/every/simple
+  - note: exprs/every/simple (module)
     module: |
       package test
 
@@ -65,7 +65,36 @@ cases:
           }
         ]
       }
-  - note: exprs/every/with key
+  - note: exprs/every/simple (body)
+    body: |
+      every x in xs { true }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "domain": {
+              "type": "var",
+              "value": "xs"
+            },
+            "key": null,
+            "value": {
+              "type": "var",
+              "value": "x"
+            }
+          }
+        }
+      ]
+  - note: exprs/every/with key (module)
     module: |
       package test
 
@@ -141,7 +170,48 @@ cases:
           }
         ]
       }
-  - note: exprs/every/arbitrary term
+  - note: exprs/every/with key (body)
+    body: |
+      every k, v in [1,2] { true }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "domain": {
+              "type": "array",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 1
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ]
+            },
+            "key": {
+              "type": "var",
+              "value": "k"
+            },
+            "value": {
+              "type": "var",
+              "value": "v"
+            }
+          }
+        }
+      ]
+  - note: exprs/every/arbitrary term (module)
     module: |
       package test
 
@@ -153,7 +223,14 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: expected `x[, y] in xs { ... }` expression'
-  - note: exprs/every/non-var value
+  - note: exprs/every/arbitrary term (body)
+    body: |
+      every 10
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: expected `x[, y] in xs { ... }` expression'
+  - note: exprs/every/non-var value (module)
     module: |
       package test
 
@@ -165,7 +242,15 @@ cases:
         row: 4
         col: 17
         message: 'unexpected { token: expected value to be a variable'
-  - note: exprs/every/non-var key
+  - note: exprs/every/non-var value (body)
+    body: |
+      every 10 in xs { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 16
+        message: 'unexpected { token: expected value to be a variable'
+  - note: exprs/every/non-var key (module)
     module: |
       package test
 
@@ -177,7 +262,15 @@ cases:
         row: 4
         col: 20
         message: 'unexpected { token: expected key to be a variable'
-  - note: exprs/every/arbitrary call
+  - note: exprs/every/non-var key (body)
+    body: |
+      every 10, x in xs { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 19
+        message: 'unexpected { token: expected key to be a variable'
+  - note: exprs/every/arbitrary call (module)
     module: |
       package test
 
@@ -189,7 +282,14 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: expected `x[, y] in xs { ... }` expression'
-  - note: exprs/every/no body
+  - note: exprs/every/arbitrary call (body)
+    body: |
+      every f(10)
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: expected `x[, y] in xs { ... }` expression'
+  - note: exprs/every/no body (module)
     module: |
       package test
 
@@ -201,7 +301,14 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: missing body'
-  - note: exprs/every/invalid body
+  - note: exprs/every/no body (body)
+    body: |
+      every x in xs
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: missing body'
+  - note: exprs/every/invalid body (module)
     module: |
       package test
 
@@ -213,7 +320,15 @@ cases:
         row: 4
         col: 18
         message: unexpected plus token
-  - note: exprs/every/not every
+  - note: exprs/every/invalid body (body)
+    body: |
+      every x in xs { + }
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 17
+        message: unexpected plus token
+  - note: exprs/every/not every (module)
     module: |
       package test
 
@@ -225,7 +340,15 @@ cases:
         row: 4
         col: 6
         message: 'unexpected every keyword: illegal negation of ''every'''
-  - note: exprs/every/"every" kw implies "in" kw
+  - note: exprs/every/not every (body)
+    body: |
+      not every x in xs { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected every keyword: illegal negation of ''every'''
+  - note: exprs/every/"every" kw implies "in" kw (module)
     module: |
       package test
 
@@ -292,7 +415,39 @@ cases:
           }
         ]
       }
-  - note: exprs/every/with modifier on expr
+  - note: exprs/every/"every" kw implies "in" kw (body)
+    body: |
+      x in xs
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "internal"
+                },
+                {
+                  "type": "string",
+                  "value": "member_2"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "var",
+              "value": "xs"
+            }
+          ]
+        }
+      ]
+  - note: exprs/every/with modifier on expr (module)
     module: |
       package test
 
@@ -378,7 +533,58 @@ cases:
           }
         ]
       }
-  - note: exprs/every/invalid domain (internal.member_2)
+  - note: exprs/every/with modifier on expr (body)
+    body: |
+      every x in input { x } with input as []
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "domain": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                }
+              ]
+            },
+            "key": null,
+            "value": {
+              "type": "var",
+              "value": "x"
+            }
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "array",
+                "value": []
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/every/invalid domain (internal.member_2) (module)
     module: |
       package test
 
@@ -390,7 +596,14 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: illegal domain'
-  - note: exprs/every/invalid domain (internal.member_3)
+  - note: exprs/every/invalid domain (internal.member_2) (body)
+    body: |
+      every internal.member_2()
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: illegal domain'
+  - note: exprs/every/invalid domain (internal.member_3) (module)
     module: |
       package test
 
@@ -402,3 +615,10 @@ cases:
         row: 5
         col: 1
         message: 'unexpected } token: illegal domain'
+  - note: exprs/every/invalid domain (internal.member_3) (body)
+    body: |
+      every internal.member_3()
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: illegal domain'

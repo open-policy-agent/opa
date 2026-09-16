@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_EmptyBraceOperand
 cases:
-  - note: exprs/parse-logical-empty-brace-operand/lhs of and
+  - note: exprs/parse-logical-empty-brace-operand/lhs of and (module)
     module: |
       package test
 
@@ -15,7 +15,17 @@ cases:
         row: 6
         col: 2
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/rhs of and
+  - note: exprs/parse-logical-empty-brace-operand/lhs of and (body)
+    body: |
+      {} and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/rhs of and (module)
     module: |
       package test
 
@@ -29,7 +39,17 @@ cases:
         row: 6
         col: 9
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/lhs of or
+  - note: exprs/parse-logical-empty-brace-operand/rhs of and (body)
+    body: |
+      z and {}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 8
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/lhs of or (module)
     module: |
       package test
 
@@ -43,7 +63,17 @@ cases:
         row: 6
         col: 2
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/rhs of or
+  - note: exprs/parse-logical-empty-brace-operand/lhs of or (body)
+    body: |
+      {} or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/rhs of or (module)
     module: |
       package test
 
@@ -57,7 +87,17 @@ cases:
         row: 6
         col: 8
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/both operands
+  - note: exprs/parse-logical-empty-brace-operand/rhs of or (body)
+    body: |
+      z or {}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/both operands (module)
     module: |
       package test
 
@@ -71,7 +111,17 @@ cases:
         row: 6
         col: 2
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/whitespace only
+  - note: exprs/parse-logical-empty-brace-operand/both operands (body)
+    body: |
+      {} and {}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/whitespace only (module)
     module: |
       package test
 
@@ -85,7 +135,17 @@ cases:
         row: 6
         col: 2
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/after not
+  - note: exprs/parse-logical-empty-brace-operand/whitespace only (body)
+    body: |
+      { } and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/after not (module)
     module: |
       package test
 
@@ -99,7 +159,17 @@ cases:
         row: 6
         col: 7
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/after not, as an operand
+  - note: exprs/parse-logical-empty-brace-operand/after not (body)
+    body: |
+      not {}
+    imports:
+      - future.keywords.not
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/after not, as an operand (module)
     module: |
       package test
 
@@ -114,7 +184,18 @@ cases:
         row: 7
         col: 13
         message: found empty body
-  - note: exprs/parse-logical-empty-brace-operand/leading a comparison
+  - note: exprs/parse-logical-empty-brace-operand/after not, as an operand (body)
+    body: |
+      z and not {}
+    imports:
+      - future.keywords.and
+      - future.keywords.not
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 12
+        message: found empty body
+  - note: exprs/parse-logical-empty-brace-operand/leading a comparison (module)
     module: |
       package test
 
@@ -128,7 +209,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({} == x) and ...`)'
-  - note: exprs/parse-logical-empty-brace-operand/leading a ref
+  - note: exprs/parse-logical-empty-brace-operand/leading a comparison (body)
+    body: |
+      {} == x and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({} == x) and ...`)'
+  - note: exprs/parse-logical-empty-brace-operand/leading a ref (module)
     module: |
       package test
 
@@ -142,7 +233,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({}[_]) and ...`)'
-  - note: exprs/parse-logical-empty-brace-operand/parenthesized lhs is the empty object
+  - note: exprs/parse-logical-empty-brace-operand/leading a ref (body)
+    body: |
+      {}[_] and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({}[_]) and ...`)'
+  - note: exprs/parse-logical-empty-brace-operand/parenthesized lhs is the empty object (module)
     module: |
       package test
 
@@ -230,7 +331,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-empty-brace-operand/parenthesized rhs is the empty object
+  - note: exprs/parse-logical-empty-brace-operand/parenthesized lhs is the empty object (body)
+    body: |
+      ({}) and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": []
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-empty-brace-operand/parenthesized rhs is the empty object (module)
     module: |
       package test
 
@@ -318,3 +451,35 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-empty-brace-operand/parenthesized rhs is the empty object (body)
+    body: |
+      z and ({})
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": []
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]

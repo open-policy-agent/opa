@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRefTermsContainingKeywords
 cases:
-  - note: terms/ref-terms-containing-keywords/foo.not
+  - note: terms/ref-terms-containing-keywords/foo.not (module)
     rego_version: v0
     module: |
       package test
@@ -58,7 +58,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.not
+  - note: terms/ref-terms-containing-keywords/foo.not (body)
+    rego_version: v0
+    body: |
+      foo.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.not (module)
     rego_version: v0
     module: |
       package test
@@ -115,7 +138,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.not
+  - note: terms/ref-terms-containing-keywords/input.not (body)
+    rego_version: v0
+    body: |
+      input.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.not (module)
     rego_version: v0
     module: |
       package test
@@ -172,7 +218,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.not.foo
+  - note: terms/ref-terms-containing-keywords/data.not (body)
+    rego_version: v0
+    body: |
+      data.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.not.foo (module)
     rego_version: v0
     module: |
       package test
@@ -233,7 +302,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.not["foo"]
+  - note: terms/ref-terms-containing-keywords/data.not.foo (body)
+    rego_version: v0
+    body: |
+      data.not.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.not["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -294,7 +390,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.not
+  - note: terms/ref-terms-containing-keywords/data.not["foo"] (body)
+    rego_version: v0
+    body: |
+      data.not["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.not (module)
     rego_version: v0
     module: |
       package test
@@ -355,7 +478,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].not
+  - note: terms/ref-terms-containing-keywords/data.foo.not (body)
+    rego_version: v0
+    body: |
+      data.foo.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].not (module)
     rego_version: v0
     module: |
       package test
@@ -416,7 +566,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.package
+  - note: terms/ref-terms-containing-keywords/data["foo"].not (body)
+    rego_version: v0
+    body: |
+      data["foo"].not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "not"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.package (module)
     rego_version: v0
     module: |
       package test
@@ -473,7 +650,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.package
+  - note: terms/ref-terms-containing-keywords/foo.package (body)
+    rego_version: v0
+    body: |
+      foo.package
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.package (module)
     rego_version: v0
     module: |
       package test
@@ -530,7 +730,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.package
+  - note: terms/ref-terms-containing-keywords/input.package (body)
+    rego_version: v0
+    body: |
+      input.package
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.package (module)
     rego_version: v0
     module: |
       package test
@@ -587,7 +810,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.package.foo
+  - note: terms/ref-terms-containing-keywords/data.package (body)
+    rego_version: v0
+    body: |
+      data.package
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.package.foo (module)
     rego_version: v0
     module: |
       package test
@@ -648,7 +894,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.package["foo"]
+  - note: terms/ref-terms-containing-keywords/data.package.foo (body)
+    rego_version: v0
+    body: |
+      data.package.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.package["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -709,7 +982,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.package
+  - note: terms/ref-terms-containing-keywords/data.package["foo"] (body)
+    rego_version: v0
+    body: |
+      data.package["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.package (module)
     rego_version: v0
     module: |
       package test
@@ -770,7 +1070,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].package
+  - note: terms/ref-terms-containing-keywords/data.foo.package (body)
+    rego_version: v0
+    body: |
+      data.foo.package
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].package (module)
     rego_version: v0
     module: |
       package test
@@ -831,7 +1158,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.import
+  - note: terms/ref-terms-containing-keywords/data["foo"].package (body)
+    rego_version: v0
+    body: |
+      data["foo"].package
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "package"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.import (module)
     rego_version: v0
     module: |
       package test
@@ -888,7 +1242,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.import
+  - note: terms/ref-terms-containing-keywords/foo.import (body)
+    rego_version: v0
+    body: |
+      foo.import
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.import (module)
     rego_version: v0
     module: |
       package test
@@ -945,7 +1322,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.import
+  - note: terms/ref-terms-containing-keywords/input.import (body)
+    rego_version: v0
+    body: |
+      input.import
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.import (module)
     rego_version: v0
     module: |
       package test
@@ -1002,7 +1402,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.import.foo
+  - note: terms/ref-terms-containing-keywords/data.import (body)
+    rego_version: v0
+    body: |
+      data.import
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.import.foo (module)
     rego_version: v0
     module: |
       package test
@@ -1063,7 +1486,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.import["foo"]
+  - note: terms/ref-terms-containing-keywords/data.import.foo (body)
+    rego_version: v0
+    body: |
+      data.import.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.import["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -1124,7 +1574,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.import
+  - note: terms/ref-terms-containing-keywords/data.import["foo"] (body)
+    rego_version: v0
+    body: |
+      data.import["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.import (module)
     rego_version: v0
     module: |
       package test
@@ -1185,7 +1662,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].import
+  - note: terms/ref-terms-containing-keywords/data.foo.import (body)
+    rego_version: v0
+    body: |
+      data.foo.import
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].import (module)
     rego_version: v0
     module: |
       package test
@@ -1246,7 +1750,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.as
+  - note: terms/ref-terms-containing-keywords/data["foo"].import (body)
+    rego_version: v0
+    body: |
+      data["foo"].import
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "import"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.as (module)
     rego_version: v0
     module: |
       package test
@@ -1303,7 +1834,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.as
+  - note: terms/ref-terms-containing-keywords/foo.as (body)
+    rego_version: v0
+    body: |
+      foo.as
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.as (module)
     rego_version: v0
     module: |
       package test
@@ -1360,7 +1914,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.as
+  - note: terms/ref-terms-containing-keywords/input.as (body)
+    rego_version: v0
+    body: |
+      input.as
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.as (module)
     rego_version: v0
     module: |
       package test
@@ -1417,7 +1994,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.as.foo
+  - note: terms/ref-terms-containing-keywords/data.as (body)
+    rego_version: v0
+    body: |
+      data.as
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.as.foo (module)
     rego_version: v0
     module: |
       package test
@@ -1478,7 +2078,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.as["foo"]
+  - note: terms/ref-terms-containing-keywords/data.as.foo (body)
+    rego_version: v0
+    body: |
+      data.as.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.as["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -1539,7 +2166,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.as
+  - note: terms/ref-terms-containing-keywords/data.as["foo"] (body)
+    rego_version: v0
+    body: |
+      data.as["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.as (module)
     rego_version: v0
     module: |
       package test
@@ -1600,7 +2254,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].as
+  - note: terms/ref-terms-containing-keywords/data.foo.as (body)
+    rego_version: v0
+    body: |
+      data.foo.as
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].as (module)
     rego_version: v0
     module: |
       package test
@@ -1661,7 +2342,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.default
+  - note: terms/ref-terms-containing-keywords/data["foo"].as (body)
+    rego_version: v0
+    body: |
+      data["foo"].as
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "as"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.default (module)
     rego_version: v0
     module: |
       package test
@@ -1718,7 +2426,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.default
+  - note: terms/ref-terms-containing-keywords/foo.default (body)
+    rego_version: v0
+    body: |
+      foo.default
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.default (module)
     rego_version: v0
     module: |
       package test
@@ -1775,7 +2506,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.default
+  - note: terms/ref-terms-containing-keywords/input.default (body)
+    rego_version: v0
+    body: |
+      input.default
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.default (module)
     rego_version: v0
     module: |
       package test
@@ -1832,7 +2586,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.default.foo
+  - note: terms/ref-terms-containing-keywords/data.default (body)
+    rego_version: v0
+    body: |
+      data.default
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.default.foo (module)
     rego_version: v0
     module: |
       package test
@@ -1893,7 +2670,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.default["foo"]
+  - note: terms/ref-terms-containing-keywords/data.default.foo (body)
+    rego_version: v0
+    body: |
+      data.default.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.default["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -1954,7 +2758,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.default
+  - note: terms/ref-terms-containing-keywords/data.default["foo"] (body)
+    rego_version: v0
+    body: |
+      data.default["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.default (module)
     rego_version: v0
     module: |
       package test
@@ -2015,7 +2846,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].default
+  - note: terms/ref-terms-containing-keywords/data.foo.default (body)
+    rego_version: v0
+    body: |
+      data.foo.default
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].default (module)
     rego_version: v0
     module: |
       package test
@@ -2076,7 +2934,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.else
+  - note: terms/ref-terms-containing-keywords/data["foo"].default (body)
+    rego_version: v0
+    body: |
+      data["foo"].default
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "default"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.else (module)
     rego_version: v0
     module: |
       package test
@@ -2133,7 +3018,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.else
+  - note: terms/ref-terms-containing-keywords/foo.else (body)
+    rego_version: v0
+    body: |
+      foo.else
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.else (module)
     rego_version: v0
     module: |
       package test
@@ -2190,7 +3098,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.else
+  - note: terms/ref-terms-containing-keywords/input.else (body)
+    rego_version: v0
+    body: |
+      input.else
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.else (module)
     rego_version: v0
     module: |
       package test
@@ -2247,7 +3178,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.else.foo
+  - note: terms/ref-terms-containing-keywords/data.else (body)
+    rego_version: v0
+    body: |
+      data.else
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.else.foo (module)
     rego_version: v0
     module: |
       package test
@@ -2308,7 +3262,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.else["foo"]
+  - note: terms/ref-terms-containing-keywords/data.else.foo (body)
+    rego_version: v0
+    body: |
+      data.else.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.else["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -2369,7 +3350,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.else
+  - note: terms/ref-terms-containing-keywords/data.else["foo"] (body)
+    rego_version: v0
+    body: |
+      data.else["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.else (module)
     rego_version: v0
     module: |
       package test
@@ -2430,7 +3438,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].else
+  - note: terms/ref-terms-containing-keywords/data.foo.else (body)
+    rego_version: v0
+    body: |
+      data.foo.else
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].else (module)
     rego_version: v0
     module: |
       package test
@@ -2491,7 +3526,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.with
+  - note: terms/ref-terms-containing-keywords/data["foo"].else (body)
+    rego_version: v0
+    body: |
+      data["foo"].else
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "else"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.with (module)
     rego_version: v0
     module: |
       package test
@@ -2548,7 +3610,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.with
+  - note: terms/ref-terms-containing-keywords/foo.with (body)
+    rego_version: v0
+    body: |
+      foo.with
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.with (module)
     rego_version: v0
     module: |
       package test
@@ -2605,7 +3690,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.with
+  - note: terms/ref-terms-containing-keywords/input.with (body)
+    rego_version: v0
+    body: |
+      input.with
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.with (module)
     rego_version: v0
     module: |
       package test
@@ -2662,7 +3770,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.with.foo
+  - note: terms/ref-terms-containing-keywords/data.with (body)
+    rego_version: v0
+    body: |
+      data.with
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.with.foo (module)
     rego_version: v0
     module: |
       package test
@@ -2723,7 +3854,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.with["foo"]
+  - note: terms/ref-terms-containing-keywords/data.with.foo (body)
+    rego_version: v0
+    body: |
+      data.with.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.with["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -2784,7 +3942,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.with
+  - note: terms/ref-terms-containing-keywords/data.with["foo"] (body)
+    rego_version: v0
+    body: |
+      data.with["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.with (module)
     rego_version: v0
     module: |
       package test
@@ -2845,7 +4030,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].with
+  - note: terms/ref-terms-containing-keywords/data.foo.with (body)
+    rego_version: v0
+    body: |
+      data.foo.with
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].with (module)
     rego_version: v0
     module: |
       package test
@@ -2906,7 +4118,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.null
+  - note: terms/ref-terms-containing-keywords/data["foo"].with (body)
+    rego_version: v0
+    body: |
+      data["foo"].with
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "with"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.null (module)
     rego_version: v0
     module: |
       package test
@@ -2963,7 +4202,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.null
+  - note: terms/ref-terms-containing-keywords/foo.null (body)
+    rego_version: v0
+    body: |
+      foo.null
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.null (module)
     rego_version: v0
     module: |
       package test
@@ -3020,7 +4282,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.null
+  - note: terms/ref-terms-containing-keywords/input.null (body)
+    rego_version: v0
+    body: |
+      input.null
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.null (module)
     rego_version: v0
     module: |
       package test
@@ -3077,7 +4362,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.null.foo
+  - note: terms/ref-terms-containing-keywords/data.null (body)
+    rego_version: v0
+    body: |
+      data.null
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.null.foo (module)
     rego_version: v0
     module: |
       package test
@@ -3138,7 +4446,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.null["foo"]
+  - note: terms/ref-terms-containing-keywords/data.null.foo (body)
+    rego_version: v0
+    body: |
+      data.null.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.null["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -3199,7 +4534,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.null
+  - note: terms/ref-terms-containing-keywords/data.null["foo"] (body)
+    rego_version: v0
+    body: |
+      data.null["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.null (module)
     rego_version: v0
     module: |
       package test
@@ -3260,7 +4622,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].null
+  - note: terms/ref-terms-containing-keywords/data.foo.null (body)
+    rego_version: v0
+    body: |
+      data.foo.null
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].null (module)
     rego_version: v0
     module: |
       package test
@@ -3321,7 +4710,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.true
+  - note: terms/ref-terms-containing-keywords/data["foo"].null (body)
+    rego_version: v0
+    body: |
+      data["foo"].null
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "null"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.true (module)
     rego_version: v0
     module: |
       package test
@@ -3378,7 +4794,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.true
+  - note: terms/ref-terms-containing-keywords/foo.true (body)
+    rego_version: v0
+    body: |
+      foo.true
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.true (module)
     rego_version: v0
     module: |
       package test
@@ -3435,7 +4874,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.true
+  - note: terms/ref-terms-containing-keywords/input.true (body)
+    rego_version: v0
+    body: |
+      input.true
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.true (module)
     rego_version: v0
     module: |
       package test
@@ -3492,7 +4954,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.true.foo
+  - note: terms/ref-terms-containing-keywords/data.true (body)
+    rego_version: v0
+    body: |
+      data.true
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.true.foo (module)
     rego_version: v0
     module: |
       package test
@@ -3553,7 +5038,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.true["foo"]
+  - note: terms/ref-terms-containing-keywords/data.true.foo (body)
+    rego_version: v0
+    body: |
+      data.true.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.true["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -3614,7 +5126,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.true
+  - note: terms/ref-terms-containing-keywords/data.true["foo"] (body)
+    rego_version: v0
+    body: |
+      data.true["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.true (module)
     rego_version: v0
     module: |
       package test
@@ -3675,7 +5214,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].true
+  - note: terms/ref-terms-containing-keywords/data.foo.true (body)
+    rego_version: v0
+    body: |
+      data.foo.true
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].true (module)
     rego_version: v0
     module: |
       package test
@@ -3736,7 +5302,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.false
+  - note: terms/ref-terms-containing-keywords/data["foo"].true (body)
+    rego_version: v0
+    body: |
+      data["foo"].true
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "true"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.false (module)
     rego_version: v0
     module: |
       package test
@@ -3793,7 +5386,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.false
+  - note: terms/ref-terms-containing-keywords/foo.false (body)
+    rego_version: v0
+    body: |
+      foo.false
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.false (module)
     rego_version: v0
     module: |
       package test
@@ -3850,7 +5466,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.false
+  - note: terms/ref-terms-containing-keywords/input.false (body)
+    rego_version: v0
+    body: |
+      input.false
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.false (module)
     rego_version: v0
     module: |
       package test
@@ -3907,7 +5546,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.false.foo
+  - note: terms/ref-terms-containing-keywords/data.false (body)
+    rego_version: v0
+    body: |
+      data.false
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.false.foo (module)
     rego_version: v0
     module: |
       package test
@@ -3968,7 +5630,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.false["foo"]
+  - note: terms/ref-terms-containing-keywords/data.false.foo (body)
+    rego_version: v0
+    body: |
+      data.false.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.false["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -4029,7 +5718,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.false
+  - note: terms/ref-terms-containing-keywords/data.false["foo"] (body)
+    rego_version: v0
+    body: |
+      data.false["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.false (module)
     rego_version: v0
     module: |
       package test
@@ -4090,7 +5806,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].false
+  - note: terms/ref-terms-containing-keywords/data.foo.false (body)
+    rego_version: v0
+    body: |
+      data.foo.false
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].false (module)
     rego_version: v0
     module: |
       package test
@@ -4151,7 +5894,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.some
+  - note: terms/ref-terms-containing-keywords/data["foo"].false (body)
+    rego_version: v0
+    body: |
+      data["foo"].false
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.some (module)
     rego_version: v0
     module: |
       package test
@@ -4208,7 +5978,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.some
+  - note: terms/ref-terms-containing-keywords/foo.some (body)
+    rego_version: v0
+    body: |
+      foo.some
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.some (module)
     rego_version: v0
     module: |
       package test
@@ -4265,7 +6058,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.some
+  - note: terms/ref-terms-containing-keywords/input.some (body)
+    rego_version: v0
+    body: |
+      input.some
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.some (module)
     rego_version: v0
     module: |
       package test
@@ -4322,7 +6138,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.some.foo
+  - note: terms/ref-terms-containing-keywords/data.some (body)
+    rego_version: v0
+    body: |
+      data.some
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.some.foo (module)
     rego_version: v0
     module: |
       package test
@@ -4383,7 +6222,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.some["foo"]
+  - note: terms/ref-terms-containing-keywords/data.some.foo (body)
+    rego_version: v0
+    body: |
+      data.some.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.some["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -4444,7 +6310,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.some
+  - note: terms/ref-terms-containing-keywords/data.some["foo"] (body)
+    rego_version: v0
+    body: |
+      data.some["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.some (module)
     rego_version: v0
     module: |
       package test
@@ -4505,7 +6398,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].some
+  - note: terms/ref-terms-containing-keywords/data.foo.some (body)
+    rego_version: v0
+    body: |
+      data.foo.some
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].some (module)
     rego_version: v0
     module: |
       package test
@@ -4566,7 +6486,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.if
+  - note: terms/ref-terms-containing-keywords/data["foo"].some (body)
+    rego_version: v0
+    body: |
+      data["foo"].some
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "some"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.if (module)
     rego_version: v0
     module: |
       package test
@@ -4623,7 +6570,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.if
+  - note: terms/ref-terms-containing-keywords/foo.if (body)
+    rego_version: v0
+    body: |
+      foo.if
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.if (module)
     rego_version: v0
     module: |
       package test
@@ -4680,7 +6650,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.if
+  - note: terms/ref-terms-containing-keywords/input.if (body)
+    rego_version: v0
+    body: |
+      input.if
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.if (module)
     rego_version: v0
     module: |
       package test
@@ -4737,7 +6730,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.if.foo
+  - note: terms/ref-terms-containing-keywords/data.if (body)
+    rego_version: v0
+    body: |
+      data.if
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.if.foo (module)
     rego_version: v0
     module: |
       package test
@@ -4798,7 +6814,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.if["foo"]
+  - note: terms/ref-terms-containing-keywords/data.if.foo (body)
+    rego_version: v0
+    body: |
+      data.if.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.if["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -4859,7 +6902,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.if
+  - note: terms/ref-terms-containing-keywords/data.if["foo"] (body)
+    rego_version: v0
+    body: |
+      data.if["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.if (module)
     rego_version: v0
     module: |
       package test
@@ -4920,7 +6990,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].if
+  - note: terms/ref-terms-containing-keywords/data.foo.if (body)
+    rego_version: v0
+    body: |
+      data.foo.if
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].if (module)
     rego_version: v0
     module: |
       package test
@@ -4981,7 +7078,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/if.foo
+  - note: terms/ref-terms-containing-keywords/data["foo"].if (body)
+    rego_version: v0
+    body: |
+      data["foo"].if
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "if"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/if.foo (module)
     rego_version: v0
     module: |
       package test
@@ -5038,7 +7162,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/if["foo"]
+  - note: terms/ref-terms-containing-keywords/if.foo (body)
+    rego_version: v0
+    body: |
+      if.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "if"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/if["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -5095,7 +7242,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.contains
+  - note: terms/ref-terms-containing-keywords/if["foo"] (body)
+    rego_version: v0
+    body: |
+      if["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "if"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.contains (module)
     rego_version: v0
     module: |
       package test
@@ -5152,7 +7322,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.contains
+  - note: terms/ref-terms-containing-keywords/foo.contains (body)
+    rego_version: v0
+    body: |
+      foo.contains
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.contains (module)
     rego_version: v0
     module: |
       package test
@@ -5209,7 +7402,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.contains
+  - note: terms/ref-terms-containing-keywords/input.contains (body)
+    rego_version: v0
+    body: |
+      input.contains
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.contains (module)
     rego_version: v0
     module: |
       package test
@@ -5266,7 +7482,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.contains.foo
+  - note: terms/ref-terms-containing-keywords/data.contains (body)
+    rego_version: v0
+    body: |
+      data.contains
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.contains.foo (module)
     rego_version: v0
     module: |
       package test
@@ -5327,7 +7566,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.contains["foo"]
+  - note: terms/ref-terms-containing-keywords/data.contains.foo (body)
+    rego_version: v0
+    body: |
+      data.contains.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.contains["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -5388,7 +7654,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.contains
+  - note: terms/ref-terms-containing-keywords/data.contains["foo"] (body)
+    rego_version: v0
+    body: |
+      data.contains["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.contains (module)
     rego_version: v0
     module: |
       package test
@@ -5449,7 +7742,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].contains
+  - note: terms/ref-terms-containing-keywords/data.foo.contains (body)
+    rego_version: v0
+    body: |
+      data.foo.contains
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].contains (module)
     rego_version: v0
     module: |
       package test
@@ -5510,7 +7830,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/contains.foo
+  - note: terms/ref-terms-containing-keywords/data["foo"].contains (body)
+    rego_version: v0
+    body: |
+      data["foo"].contains
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "contains"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/contains.foo (module)
     rego_version: v0
     module: |
       package test
@@ -5567,7 +7914,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/contains["foo"]
+  - note: terms/ref-terms-containing-keywords/contains.foo (body)
+    rego_version: v0
+    body: |
+      contains.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "contains"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/contains["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -5624,7 +7994,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.in
+  - note: terms/ref-terms-containing-keywords/contains["foo"] (body)
+    rego_version: v0
+    body: |
+      contains["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "contains"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.in (module)
     rego_version: v0
     module: |
       package test
@@ -5681,7 +8074,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.in
+  - note: terms/ref-terms-containing-keywords/foo.in (body)
+    rego_version: v0
+    body: |
+      foo.in
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.in (module)
     rego_version: v0
     module: |
       package test
@@ -5738,7 +8154,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.in
+  - note: terms/ref-terms-containing-keywords/input.in (body)
+    rego_version: v0
+    body: |
+      input.in
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.in (module)
     rego_version: v0
     module: |
       package test
@@ -5795,7 +8234,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.in.foo
+  - note: terms/ref-terms-containing-keywords/data.in (body)
+    rego_version: v0
+    body: |
+      data.in
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.in.foo (module)
     rego_version: v0
     module: |
       package test
@@ -5856,7 +8318,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.in["foo"]
+  - note: terms/ref-terms-containing-keywords/data.in.foo (body)
+    rego_version: v0
+    body: |
+      data.in.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.in["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -5917,7 +8406,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.in
+  - note: terms/ref-terms-containing-keywords/data.in["foo"] (body)
+    rego_version: v0
+    body: |
+      data.in["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.in (module)
     rego_version: v0
     module: |
       package test
@@ -5978,7 +8494,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].in
+  - note: terms/ref-terms-containing-keywords/data.foo.in (body)
+    rego_version: v0
+    body: |
+      data.foo.in
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].in (module)
     rego_version: v0
     module: |
       package test
@@ -6039,7 +8582,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/in.foo
+  - note: terms/ref-terms-containing-keywords/data["foo"].in (body)
+    rego_version: v0
+    body: |
+      data["foo"].in
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "in"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/in.foo (module)
     rego_version: v0
     module: |
       package test
@@ -6096,7 +8666,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/in["foo"]
+  - note: terms/ref-terms-containing-keywords/in.foo (body)
+    rego_version: v0
+    body: |
+      in.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "in"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/in["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -6153,7 +8746,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/foo.every
+  - note: terms/ref-terms-containing-keywords/in["foo"] (body)
+    rego_version: v0
+    body: |
+      in["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "in"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/foo.every (module)
     rego_version: v0
     module: |
       package test
@@ -6210,7 +8826,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/input.every
+  - note: terms/ref-terms-containing-keywords/foo.every (body)
+    rego_version: v0
+    body: |
+      foo.every
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/input.every (module)
     rego_version: v0
     module: |
       package test
@@ -6267,7 +8906,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.every
+  - note: terms/ref-terms-containing-keywords/input.every (body)
+    rego_version: v0
+    body: |
+      input.every
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.every (module)
     rego_version: v0
     module: |
       package test
@@ -6324,7 +8986,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.every.foo
+  - note: terms/ref-terms-containing-keywords/data.every (body)
+    rego_version: v0
+    body: |
+      data.every
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.every.foo (module)
     rego_version: v0
     module: |
       package test
@@ -6385,7 +9070,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.every["foo"]
+  - note: terms/ref-terms-containing-keywords/data.every.foo (body)
+    rego_version: v0
+    body: |
+      data.every.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.every["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -6446,7 +9158,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data.foo.every
+  - note: terms/ref-terms-containing-keywords/data.every["foo"] (body)
+    rego_version: v0
+    body: |
+      data.every["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data.foo.every (module)
     rego_version: v0
     module: |
       package test
@@ -6507,7 +9246,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/data["foo"].every
+  - note: terms/ref-terms-containing-keywords/data.foo.every (body)
+    rego_version: v0
+    body: |
+      data.foo.every
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/data["foo"].every (module)
     rego_version: v0
     module: |
       package test
@@ -6568,7 +9334,34 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/every.foo
+  - note: terms/ref-terms-containing-keywords/data["foo"].every (body)
+    rego_version: v0
+    body: |
+      data["foo"].every
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "every"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/every.foo (module)
     rego_version: v0
     module: |
       package test
@@ -6625,7 +9418,30 @@ cases:
           }
         ]
       }
-  - note: terms/ref-terms-containing-keywords/every["foo"]
+  - note: terms/ref-terms-containing-keywords/every.foo (body)
+    rego_version: v0
+    body: |
+      every.foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "every"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/ref-terms-containing-keywords/every["foo"] (module)
     rego_version: v0
     module: |
       package test
@@ -6682,3 +9498,26 @@ cases:
           }
         ]
       }
+  - note: terms/ref-terms-containing-keywords/every["foo"] (body)
+    rego_version: v0
+    body: |
+      every["foo"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "every"
+              },
+              {
+                "type": "string",
+                "value": "foo"
+              }
+            ]
+          }
+        }
+      ]

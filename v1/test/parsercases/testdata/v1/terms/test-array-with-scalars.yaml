@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestArrayWithScalars
 cases:
-  - note: terms/array-with-scalars/number
+  - note: terms/array-with-scalars/number (module)
     module: |
       package test
 
@@ -65,7 +65,37 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/bool
+  - note: terms/array-with-scalars/number (body)
+    body: |
+      [1,2,3,4.5]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              },
+              {
+                "type": "number",
+                "value": 2
+              },
+              {
+                "type": "number",
+                "value": 3
+              },
+              {
+                "type": "number",
+                "value": 4.5
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/bool (module)
     module: |
       package test
 
@@ -125,7 +155,33 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/string
+  - note: terms/array-with-scalars/bool (body)
+    body: |
+      [true, false, true]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "boolean",
+                "value": true
+              },
+              {
+                "type": "boolean",
+                "value": false
+              },
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/string (module)
     module: |
       package test
 
@@ -181,7 +237,29 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/mixed
+  - note: terms/array-with-scalars/string (body)
+    body: |
+      ["foo", "bar"]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "bar"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/mixed (module)
     module: |
       package test
 
@@ -241,7 +319,33 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/trailing comma - one element
+  - note: terms/array-with-scalars/mixed (body)
+    body: |
+      [null, true, 42]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              },
+              {
+                "type": "boolean",
+                "value": true
+              },
+              {
+                "type": "number",
+                "value": 42
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/trailing comma - one element (module)
     module: |
       package test
 
@@ -293,7 +397,25 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/trailing comma
+  - note: terms/array-with-scalars/trailing comma - one element (body)
+    body: |
+      [null, ]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/trailing comma (module)
     module: |
       package test
 
@@ -349,7 +471,29 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/leading comma
+  - note: terms/array-with-scalars/trailing comma (body)
+    body: |
+      [null, true, ]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              },
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/leading comma (module)
     module: |
       package test
 
@@ -405,7 +549,29 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/leading comma not comprehension
+  - note: terms/array-with-scalars/leading comma (body)
+    body: |
+      [, null, true]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "null",
+                "value": {}
+              },
+              {
+                "type": "boolean",
+                "value": true
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/leading comma not comprehension (module)
     module: |
       package test
 
@@ -475,7 +641,43 @@ cases:
           }
         ]
       }
-  - note: terms/array-with-scalars/ambiguous or
+  - note: terms/array-with-scalars/leading comma not comprehension (body)
+    body: |
+      [, 1 | 1]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/array-with-scalars/ambiguous or (module)
     module: |
       package test
 
@@ -563,3 +765,57 @@ cases:
           }
         ]
       }
+  - note: terms/array-with-scalars/ambiguous or (body)
+    body: |
+      [ 1 + 2 | 3 ]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]

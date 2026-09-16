@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestImportContainingKeywords
 cases:
-  - note: imports/import-containing-keywords/import data.not.foo
+  - note: imports/import-containing-keywords/import data.not.foo (module)
     module: |
       package test
 
@@ -42,7 +42,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.not["foo"]
+  - note: imports/import-containing-keywords/import data.not["foo"] (module)
     module: |
       package test
 
@@ -83,7 +83,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import not
+  - note: imports/import-containing-keywords/import not (module)
     module: |
       package test
 
@@ -93,7 +93,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: not (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import not.foo
+  - note: imports/import-containing-keywords/import not.foo (module)
     module: |
       package test
 
@@ -103,7 +103,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: not (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import not["foo"]
+  - note: imports/import-containing-keywords/import not["foo"] (module)
     module: |
       package test
 
@@ -113,7 +113,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: not (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.not
+  - note: imports/import-containing-keywords/import input.not (module)
     module: |
       package test
 
@@ -123,7 +123,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: not (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.not
+  - note: imports/import-containing-keywords/import data.not (module)
     module: |
       package test
 
@@ -133,7 +133,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: not (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.not
+  - note: imports/import-containing-keywords/import data.foo.not (module)
     module: |
       package test
 
@@ -143,7 +143,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: not (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].not
+  - note: imports/import-containing-keywords/import data["foo"].not (module)
     module: |
       package test
 
@@ -153,7 +153,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: not (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.not as foo
+  - note: imports/import-containing-keywords/import data.not as foo (module)
     module: |
       package test
 
@@ -191,7 +191,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["not"] as foo
+  - note: imports/import-containing-keywords/import data["not"] as foo (module)
     module: |
       package test
 
@@ -229,7 +229,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as not
+  - note: imports/import-containing-keywords/import data.foo as not (module)
     module: |
       package test
 
@@ -239,7 +239,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected not keyword: expected var'
-  - note: imports/import-containing-keywords/import data.package.foo
+  - note: imports/import-containing-keywords/import data.package.foo (module)
     module: |
       package test
 
@@ -280,7 +280,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.package["foo"]
+  - note: imports/import-containing-keywords/import data.package["foo"] (module)
     module: |
       package test
 
@@ -321,7 +321,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import package
+  - note: imports/import-containing-keywords/import package (module)
     module: |
       package test
 
@@ -331,7 +331,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: package (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import package.foo
+  - note: imports/import-containing-keywords/import package.foo (module)
     module: |
       package test
 
@@ -341,7 +341,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: package (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import package["foo"]
+  - note: imports/import-containing-keywords/import package["foo"] (module)
     module: |
       package test
 
@@ -351,7 +351,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: package (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.package
+  - note: imports/import-containing-keywords/import input.package (module)
     module: |
       package test
 
@@ -361,7 +361,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: package (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.package
+  - note: imports/import-containing-keywords/import data.package (module)
     module: |
       package test
 
@@ -371,7 +371,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: package (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.package
+  - note: imports/import-containing-keywords/import data.foo.package (module)
     module: |
       package test
 
@@ -381,7 +381,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: package (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].package
+  - note: imports/import-containing-keywords/import data["foo"].package (module)
     module: |
       package test
 
@@ -391,7 +391,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: package (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.package as foo
+  - note: imports/import-containing-keywords/import data.package as foo (module)
     module: |
       package test
 
@@ -429,7 +429,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["package"] as foo
+  - note: imports/import-containing-keywords/import data["package"] as foo (module)
     module: |
       package test
 
@@ -467,7 +467,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as package
+  - note: imports/import-containing-keywords/import data.foo as package (module)
     module: |
       package test
 
@@ -477,7 +477,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected package keyword: expected var'
-  - note: imports/import-containing-keywords/import data.import.foo
+  - note: imports/import-containing-keywords/import data.import.foo (module)
     module: |
       package test
 
@@ -518,7 +518,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.import["foo"]
+  - note: imports/import-containing-keywords/import data.import["foo"] (module)
     module: |
       package test
 
@@ -559,7 +559,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import import
+  - note: imports/import-containing-keywords/import import (module)
     module: |
       package test
 
@@ -569,7 +569,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: import (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import import.foo
+  - note: imports/import-containing-keywords/import import.foo (module)
     module: |
       package test
 
@@ -579,7 +579,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: import (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import import["foo"]
+  - note: imports/import-containing-keywords/import import["foo"] (module)
     module: |
       package test
 
@@ -589,7 +589,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: import (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.import
+  - note: imports/import-containing-keywords/import input.import (module)
     module: |
       package test
 
@@ -599,7 +599,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: import (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.import
+  - note: imports/import-containing-keywords/import data.import (module)
     module: |
       package test
 
@@ -609,7 +609,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: import (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.import
+  - note: imports/import-containing-keywords/import data.foo.import (module)
     module: |
       package test
 
@@ -619,7 +619,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: import (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].import
+  - note: imports/import-containing-keywords/import data["foo"].import (module)
     module: |
       package test
 
@@ -629,7 +629,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: import (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.import as foo
+  - note: imports/import-containing-keywords/import data.import as foo (module)
     module: |
       package test
 
@@ -667,7 +667,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["import"] as foo
+  - note: imports/import-containing-keywords/import data["import"] as foo (module)
     module: |
       package test
 
@@ -705,7 +705,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as import
+  - note: imports/import-containing-keywords/import data.foo as import (module)
     module: |
       package test
 
@@ -715,7 +715,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import keyword: expected var'
-  - note: imports/import-containing-keywords/import data.as.foo
+  - note: imports/import-containing-keywords/import data.as.foo (module)
     module: |
       package test
 
@@ -756,7 +756,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.as["foo"]
+  - note: imports/import-containing-keywords/import data.as["foo"] (module)
     module: |
       package test
 
@@ -797,7 +797,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import as
+  - note: imports/import-containing-keywords/import as (module)
     module: |
       package test
 
@@ -807,7 +807,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: as (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import as.foo
+  - note: imports/import-containing-keywords/import as.foo (module)
     module: |
       package test
 
@@ -817,7 +817,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: as (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import as["foo"]
+  - note: imports/import-containing-keywords/import as["foo"] (module)
     module: |
       package test
 
@@ -827,7 +827,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: as (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.as
+  - note: imports/import-containing-keywords/import input.as (module)
     module: |
       package test
 
@@ -837,7 +837,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: as (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.as
+  - note: imports/import-containing-keywords/import data.as (module)
     module: |
       package test
 
@@ -847,7 +847,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: as (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.as
+  - note: imports/import-containing-keywords/import data.foo.as (module)
     module: |
       package test
 
@@ -857,7 +857,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: as (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].as
+  - note: imports/import-containing-keywords/import data["foo"].as (module)
     module: |
       package test
 
@@ -867,7 +867,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: as (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.as as foo
+  - note: imports/import-containing-keywords/import data.as as foo (module)
     module: |
       package test
 
@@ -905,7 +905,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["as"] as foo
+  - note: imports/import-containing-keywords/import data["as"] as foo (module)
     module: |
       package test
 
@@ -943,7 +943,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as as
+  - note: imports/import-containing-keywords/import data.foo as as (module)
     module: |
       package test
 
@@ -953,7 +953,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected as keyword: expected var'
-  - note: imports/import-containing-keywords/import data.default.foo
+  - note: imports/import-containing-keywords/import data.default.foo (module)
     module: |
       package test
 
@@ -994,7 +994,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.default["foo"]
+  - note: imports/import-containing-keywords/import data.default["foo"] (module)
     module: |
       package test
 
@@ -1035,7 +1035,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import default
+  - note: imports/import-containing-keywords/import default (module)
     module: |
       package test
 
@@ -1045,7 +1045,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: default (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import default.foo
+  - note: imports/import-containing-keywords/import default.foo (module)
     module: |
       package test
 
@@ -1055,7 +1055,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: default (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import default["foo"]
+  - note: imports/import-containing-keywords/import default["foo"] (module)
     module: |
       package test
 
@@ -1065,7 +1065,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: default (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.default
+  - note: imports/import-containing-keywords/import input.default (module)
     module: |
       package test
 
@@ -1075,7 +1075,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: default (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.default
+  - note: imports/import-containing-keywords/import data.default (module)
     module: |
       package test
 
@@ -1085,7 +1085,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: default (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.default
+  - note: imports/import-containing-keywords/import data.foo.default (module)
     module: |
       package test
 
@@ -1095,7 +1095,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: default (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].default
+  - note: imports/import-containing-keywords/import data["foo"].default (module)
     module: |
       package test
 
@@ -1105,7 +1105,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: default (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.default as foo
+  - note: imports/import-containing-keywords/import data.default as foo (module)
     module: |
       package test
 
@@ -1143,7 +1143,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["default"] as foo
+  - note: imports/import-containing-keywords/import data["default"] as foo (module)
     module: |
       package test
 
@@ -1181,7 +1181,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as default
+  - note: imports/import-containing-keywords/import data.foo as default (module)
     module: |
       package test
 
@@ -1191,7 +1191,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected default keyword: expected var'
-  - note: imports/import-containing-keywords/import data.else.foo
+  - note: imports/import-containing-keywords/import data.else.foo (module)
     module: |
       package test
 
@@ -1232,7 +1232,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.else["foo"]
+  - note: imports/import-containing-keywords/import data.else["foo"] (module)
     module: |
       package test
 
@@ -1273,7 +1273,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import else
+  - note: imports/import-containing-keywords/import else (module)
     module: |
       package test
 
@@ -1283,7 +1283,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: else (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import else.foo
+  - note: imports/import-containing-keywords/import else.foo (module)
     module: |
       package test
 
@@ -1293,7 +1293,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: else (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import else["foo"]
+  - note: imports/import-containing-keywords/import else["foo"] (module)
     module: |
       package test
 
@@ -1303,7 +1303,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: else (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.else
+  - note: imports/import-containing-keywords/import input.else (module)
     module: |
       package test
 
@@ -1313,7 +1313,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: else (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.else
+  - note: imports/import-containing-keywords/import data.else (module)
     module: |
       package test
 
@@ -1323,7 +1323,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: else (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.else
+  - note: imports/import-containing-keywords/import data.foo.else (module)
     module: |
       package test
 
@@ -1333,7 +1333,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: else (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].else
+  - note: imports/import-containing-keywords/import data["foo"].else (module)
     module: |
       package test
 
@@ -1343,7 +1343,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: else (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.else as foo
+  - note: imports/import-containing-keywords/import data.else as foo (module)
     module: |
       package test
 
@@ -1381,7 +1381,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["else"] as foo
+  - note: imports/import-containing-keywords/import data["else"] as foo (module)
     module: |
       package test
 
@@ -1419,7 +1419,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as else
+  - note: imports/import-containing-keywords/import data.foo as else (module)
     module: |
       package test
 
@@ -1429,7 +1429,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected else keyword: expected var'
-  - note: imports/import-containing-keywords/import data.with.foo
+  - note: imports/import-containing-keywords/import data.with.foo (module)
     module: |
       package test
 
@@ -1470,7 +1470,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.with["foo"]
+  - note: imports/import-containing-keywords/import data.with["foo"] (module)
     module: |
       package test
 
@@ -1511,7 +1511,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import with
+  - note: imports/import-containing-keywords/import with (module)
     module: |
       package test
 
@@ -1521,7 +1521,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: with (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import with.foo
+  - note: imports/import-containing-keywords/import with.foo (module)
     module: |
       package test
 
@@ -1531,7 +1531,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: with (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import with["foo"]
+  - note: imports/import-containing-keywords/import with["foo"] (module)
     module: |
       package test
 
@@ -1541,7 +1541,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: with (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.with
+  - note: imports/import-containing-keywords/import input.with (module)
     module: |
       package test
 
@@ -1551,7 +1551,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: with (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.with
+  - note: imports/import-containing-keywords/import data.with (module)
     module: |
       package test
 
@@ -1561,7 +1561,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: with (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.with
+  - note: imports/import-containing-keywords/import data.foo.with (module)
     module: |
       package test
 
@@ -1571,7 +1571,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: with (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].with
+  - note: imports/import-containing-keywords/import data["foo"].with (module)
     module: |
       package test
 
@@ -1581,7 +1581,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: with (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.with as foo
+  - note: imports/import-containing-keywords/import data.with as foo (module)
     module: |
       package test
 
@@ -1619,7 +1619,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["with"] as foo
+  - note: imports/import-containing-keywords/import data["with"] as foo (module)
     module: |
       package test
 
@@ -1657,7 +1657,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as with
+  - note: imports/import-containing-keywords/import data.foo as with (module)
     module: |
       package test
 
@@ -1667,7 +1667,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected with keyword: expected var'
-  - note: imports/import-containing-keywords/import data.null.foo
+  - note: imports/import-containing-keywords/import data.null.foo (module)
     module: |
       package test
 
@@ -1708,7 +1708,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.null["foo"]
+  - note: imports/import-containing-keywords/import data.null["foo"] (module)
     module: |
       package test
 
@@ -1749,7 +1749,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import null
+  - note: imports/import-containing-keywords/import null (module)
     module: |
       package test
 
@@ -1759,7 +1759,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: null (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import null.foo
+  - note: imports/import-containing-keywords/import null.foo (module)
     module: |
       package test
 
@@ -1769,7 +1769,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: null (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import null["foo"]
+  - note: imports/import-containing-keywords/import null["foo"] (module)
     module: |
       package test
 
@@ -1779,7 +1779,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: null (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.null
+  - note: imports/import-containing-keywords/import input.null (module)
     module: |
       package test
 
@@ -1789,7 +1789,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: null (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.null
+  - note: imports/import-containing-keywords/import data.null (module)
     module: |
       package test
 
@@ -1799,7 +1799,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: null (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.null
+  - note: imports/import-containing-keywords/import data.foo.null (module)
     module: |
       package test
 
@@ -1809,7 +1809,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: null (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].null
+  - note: imports/import-containing-keywords/import data["foo"].null (module)
     module: |
       package test
 
@@ -1819,7 +1819,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: null (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.null as foo
+  - note: imports/import-containing-keywords/import data.null as foo (module)
     module: |
       package test
 
@@ -1857,7 +1857,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["null"] as foo
+  - note: imports/import-containing-keywords/import data["null"] as foo (module)
     module: |
       package test
 
@@ -1895,7 +1895,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as null
+  - note: imports/import-containing-keywords/import data.foo as null (module)
     module: |
       package test
 
@@ -1905,7 +1905,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected null keyword: expected var'
-  - note: imports/import-containing-keywords/import data.true.foo
+  - note: imports/import-containing-keywords/import data.true.foo (module)
     module: |
       package test
 
@@ -1946,7 +1946,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.true["foo"]
+  - note: imports/import-containing-keywords/import data.true["foo"] (module)
     module: |
       package test
 
@@ -1987,7 +1987,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import true
+  - note: imports/import-containing-keywords/import true (module)
     module: |
       package test
 
@@ -1997,7 +1997,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: true (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import true.foo
+  - note: imports/import-containing-keywords/import true.foo (module)
     module: |
       package test
 
@@ -2007,7 +2007,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: true (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import true["foo"]
+  - note: imports/import-containing-keywords/import true["foo"] (module)
     module: |
       package test
 
@@ -2017,7 +2017,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: true (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.true
+  - note: imports/import-containing-keywords/import input.true (module)
     module: |
       package test
 
@@ -2027,7 +2027,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: true (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.true
+  - note: imports/import-containing-keywords/import data.true (module)
     module: |
       package test
 
@@ -2037,7 +2037,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: true (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.true
+  - note: imports/import-containing-keywords/import data.foo.true (module)
     module: |
       package test
 
@@ -2047,7 +2047,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: true (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].true
+  - note: imports/import-containing-keywords/import data["foo"].true (module)
     module: |
       package test
 
@@ -2057,7 +2057,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: true (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.true as foo
+  - note: imports/import-containing-keywords/import data.true as foo (module)
     module: |
       package test
 
@@ -2095,7 +2095,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["true"] as foo
+  - note: imports/import-containing-keywords/import data["true"] as foo (module)
     module: |
       package test
 
@@ -2133,7 +2133,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as true
+  - note: imports/import-containing-keywords/import data.foo as true (module)
     module: |
       package test
 
@@ -2143,7 +2143,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected true keyword: expected var'
-  - note: imports/import-containing-keywords/import data.false.foo
+  - note: imports/import-containing-keywords/import data.false.foo (module)
     module: |
       package test
 
@@ -2184,7 +2184,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.false["foo"]
+  - note: imports/import-containing-keywords/import data.false["foo"] (module)
     module: |
       package test
 
@@ -2225,7 +2225,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import false
+  - note: imports/import-containing-keywords/import false (module)
     module: |
       package test
 
@@ -2235,7 +2235,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: false (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import false.foo
+  - note: imports/import-containing-keywords/import false.foo (module)
     module: |
       package test
 
@@ -2245,7 +2245,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: false (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import false["foo"]
+  - note: imports/import-containing-keywords/import false["foo"] (module)
     module: |
       package test
 
@@ -2255,7 +2255,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: false (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.false
+  - note: imports/import-containing-keywords/import input.false (module)
     module: |
       package test
 
@@ -2265,7 +2265,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: false (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.false
+  - note: imports/import-containing-keywords/import data.false (module)
     module: |
       package test
 
@@ -2275,7 +2275,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: false (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.false
+  - note: imports/import-containing-keywords/import data.foo.false (module)
     module: |
       package test
 
@@ -2285,7 +2285,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: false (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].false
+  - note: imports/import-containing-keywords/import data["foo"].false (module)
     module: |
       package test
 
@@ -2295,7 +2295,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: false (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.false as foo
+  - note: imports/import-containing-keywords/import data.false as foo (module)
     module: |
       package test
 
@@ -2333,7 +2333,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["false"] as foo
+  - note: imports/import-containing-keywords/import data["false"] as foo (module)
     module: |
       package test
 
@@ -2371,7 +2371,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as false
+  - note: imports/import-containing-keywords/import data.foo as false (module)
     module: |
       package test
 
@@ -2381,7 +2381,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected false keyword: expected var'
-  - note: imports/import-containing-keywords/import data.some.foo
+  - note: imports/import-containing-keywords/import data.some.foo (module)
     module: |
       package test
 
@@ -2422,7 +2422,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.some["foo"]
+  - note: imports/import-containing-keywords/import data.some["foo"] (module)
     module: |
       package test
 
@@ -2463,7 +2463,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import some
+  - note: imports/import-containing-keywords/import some (module)
     module: |
       package test
 
@@ -2473,7 +2473,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: some (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import some.foo
+  - note: imports/import-containing-keywords/import some.foo (module)
     module: |
       package test
 
@@ -2483,7 +2483,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: some (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import some["foo"]
+  - note: imports/import-containing-keywords/import some["foo"] (module)
     module: |
       package test
 
@@ -2493,7 +2493,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: some (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.some
+  - note: imports/import-containing-keywords/import input.some (module)
     module: |
       package test
 
@@ -2503,7 +2503,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: some (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.some
+  - note: imports/import-containing-keywords/import data.some (module)
     module: |
       package test
 
@@ -2513,7 +2513,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: some (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.some
+  - note: imports/import-containing-keywords/import data.foo.some (module)
     module: |
       package test
 
@@ -2523,7 +2523,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: some (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].some
+  - note: imports/import-containing-keywords/import data["foo"].some (module)
     module: |
       package test
 
@@ -2533,7 +2533,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: some (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.some as foo
+  - note: imports/import-containing-keywords/import data.some as foo (module)
     module: |
       package test
 
@@ -2571,7 +2571,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["some"] as foo
+  - note: imports/import-containing-keywords/import data["some"] as foo (module)
     module: |
       package test
 
@@ -2609,7 +2609,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as some
+  - note: imports/import-containing-keywords/import data.foo as some (module)
     module: |
       package test
 
@@ -2619,7 +2619,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected some keyword: expected var'
-  - note: imports/import-containing-keywords/import data.if.foo
+  - note: imports/import-containing-keywords/import data.if.foo (module)
     module: |
       package test
 
@@ -2660,7 +2660,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.if["foo"]
+  - note: imports/import-containing-keywords/import data.if["foo"] (module)
     module: |
       package test
 
@@ -2701,7 +2701,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import if
+  - note: imports/import-containing-keywords/import if (module)
     module: |
       package test
 
@@ -2711,7 +2711,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: if (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import if.foo
+  - note: imports/import-containing-keywords/import if.foo (module)
     module: |
       package test
 
@@ -2721,7 +2721,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: if (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import if["foo"]
+  - note: imports/import-containing-keywords/import if["foo"] (module)
     module: |
       package test
 
@@ -2731,7 +2731,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: if (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.if
+  - note: imports/import-containing-keywords/import input.if (module)
     module: |
       package test
 
@@ -2741,7 +2741,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: if (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.if
+  - note: imports/import-containing-keywords/import data.if (module)
     module: |
       package test
 
@@ -2751,7 +2751,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: if (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.if
+  - note: imports/import-containing-keywords/import data.foo.if (module)
     module: |
       package test
 
@@ -2761,7 +2761,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: if (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].if
+  - note: imports/import-containing-keywords/import data["foo"].if (module)
     module: |
       package test
 
@@ -2771,7 +2771,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: if (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.if as foo
+  - note: imports/import-containing-keywords/import data.if as foo (module)
     module: |
       package test
 
@@ -2809,7 +2809,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["if"] as foo
+  - note: imports/import-containing-keywords/import data["if"] as foo (module)
     module: |
       package test
 
@@ -2847,7 +2847,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as if
+  - note: imports/import-containing-keywords/import data.foo as if (module)
     module: |
       package test
 
@@ -2857,7 +2857,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected if keyword: expected var'
-  - note: imports/import-containing-keywords/import data.contains.foo
+  - note: imports/import-containing-keywords/import data.contains.foo (module)
     module: |
       package test
 
@@ -2898,7 +2898,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.contains["foo"]
+  - note: imports/import-containing-keywords/import data.contains["foo"] (module)
     module: |
       package test
 
@@ -2939,7 +2939,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import contains
+  - note: imports/import-containing-keywords/import contains (module)
     module: |
       package test
 
@@ -2949,7 +2949,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: contains (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import contains.foo
+  - note: imports/import-containing-keywords/import contains.foo (module)
     module: |
       package test
 
@@ -2959,7 +2959,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: contains (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import contains["foo"]
+  - note: imports/import-containing-keywords/import contains["foo"] (module)
     module: |
       package test
 
@@ -2969,7 +2969,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: contains (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.contains
+  - note: imports/import-containing-keywords/import input.contains (module)
     module: |
       package test
 
@@ -2979,7 +2979,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: contains (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.contains
+  - note: imports/import-containing-keywords/import data.contains (module)
     module: |
       package test
 
@@ -2989,7 +2989,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: contains (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.contains
+  - note: imports/import-containing-keywords/import data.foo.contains (module)
     module: |
       package test
 
@@ -2999,7 +2999,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: contains (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].contains
+  - note: imports/import-containing-keywords/import data["foo"].contains (module)
     module: |
       package test
 
@@ -3009,7 +3009,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: contains (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.contains as foo
+  - note: imports/import-containing-keywords/import data.contains as foo (module)
     module: |
       package test
 
@@ -3047,7 +3047,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["contains"] as foo
+  - note: imports/import-containing-keywords/import data["contains"] as foo (module)
     module: |
       package test
 
@@ -3085,7 +3085,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as contains
+  - note: imports/import-containing-keywords/import data.foo as contains (module)
     module: |
       package test
 
@@ -3095,7 +3095,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected contains keyword: expected var'
-  - note: imports/import-containing-keywords/import data.in.foo
+  - note: imports/import-containing-keywords/import data.in.foo (module)
     module: |
       package test
 
@@ -3136,7 +3136,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.in["foo"]
+  - note: imports/import-containing-keywords/import data.in["foo"] (module)
     module: |
       package test
 
@@ -3177,7 +3177,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import in
+  - note: imports/import-containing-keywords/import in (module)
     module: |
       package test
 
@@ -3187,7 +3187,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: in (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import in.foo
+  - note: imports/import-containing-keywords/import in.foo (module)
     module: |
       package test
 
@@ -3197,7 +3197,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: in (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import in["foo"]
+  - note: imports/import-containing-keywords/import in["foo"] (module)
     module: |
       package test
 
@@ -3207,7 +3207,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: in (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.in
+  - note: imports/import-containing-keywords/import input.in (module)
     module: |
       package test
 
@@ -3217,7 +3217,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: in (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.in
+  - note: imports/import-containing-keywords/import data.in (module)
     module: |
       package test
 
@@ -3227,7 +3227,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: in (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.in
+  - note: imports/import-containing-keywords/import data.foo.in (module)
     module: |
       package test
 
@@ -3237,7 +3237,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: in (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].in
+  - note: imports/import-containing-keywords/import data["foo"].in (module)
     module: |
       package test
 
@@ -3247,7 +3247,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: in (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.in as foo
+  - note: imports/import-containing-keywords/import data.in as foo (module)
     module: |
       package test
 
@@ -3285,7 +3285,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["in"] as foo
+  - note: imports/import-containing-keywords/import data["in"] as foo (module)
     module: |
       package test
 
@@ -3323,7 +3323,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as in
+  - note: imports/import-containing-keywords/import data.foo as in (module)
     module: |
       package test
 
@@ -3333,7 +3333,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected in keyword: expected var'
-  - note: imports/import-containing-keywords/import data.every.foo
+  - note: imports/import-containing-keywords/import data.every.foo (module)
     module: |
       package test
 
@@ -3374,7 +3374,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.every["foo"]
+  - note: imports/import-containing-keywords/import data.every["foo"] (module)
     module: |
       package test
 
@@ -3415,7 +3415,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import every
+  - note: imports/import-containing-keywords/import every (module)
     module: |
       package test
 
@@ -3425,7 +3425,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: every (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import every.foo
+  - note: imports/import-containing-keywords/import every.foo (module)
     module: |
       package test
 
@@ -3435,7 +3435,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: every (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import every["foo"]
+  - note: imports/import-containing-keywords/import every["foo"] (module)
     module: |
       package test
 
@@ -3445,7 +3445,7 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: every (hint: if this is unexpected, try updating OPA)'
-  - note: imports/import-containing-keywords/import input.every
+  - note: imports/import-containing-keywords/import input.every (module)
     module: |
       package test
 
@@ -3455,7 +3455,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected import path, must not end with a keyword, got: every (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.every
+  - note: imports/import-containing-keywords/import data.every (module)
     module: |
       package test
 
@@ -3465,7 +3465,7 @@ cases:
         row: 3
         col: 13
         message: 'unexpected import path, must not end with a keyword, got: every (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.foo.every
+  - note: imports/import-containing-keywords/import data.foo.every (module)
     module: |
       package test
 
@@ -3475,7 +3475,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected import path, must not end with a keyword, got: every (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data["foo"].every
+  - note: imports/import-containing-keywords/import data["foo"].every (module)
     module: |
       package test
 
@@ -3485,7 +3485,7 @@ cases:
         row: 3
         col: 20
         message: 'unexpected import path, must not end with a keyword, got: every (hint: import a different path or use an alias)'
-  - note: imports/import-containing-keywords/import data.every as foo
+  - note: imports/import-containing-keywords/import data.every as foo (module)
     module: |
       package test
 
@@ -3523,7 +3523,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data["every"] as foo
+  - note: imports/import-containing-keywords/import data["every"] as foo (module)
     module: |
       package test
 
@@ -3561,7 +3561,7 @@ cases:
           ]
         }
       }
-  - note: imports/import-containing-keywords/import data.foo as every
+  - note: imports/import-containing-keywords/import data.foo as every (module)
     module: |
       package test
 

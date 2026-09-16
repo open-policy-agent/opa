@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BuiltinCallFormInactive
 cases:
-  - note: exprs/parse-logical-builtin-call-form-inactive/or call
+  - note: exprs/parse-logical-builtin-call-form-inactive/or call (module)
     module: |
       package test
 
@@ -92,7 +92,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-inactive/and call
+  - note: exprs/parse-logical-builtin-call-form-inactive/or call (body)
+    body: |
+      x := or({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-inactive/and call (module)
     module: |
       package test
 
@@ -183,7 +239,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form-inactive/bare or
+  - note: exprs/parse-logical-builtin-call-form-inactive/and call (body)
+    body: |
+      x := and({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "and"
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form-inactive/bare or (module)
     module: |
       package test
 
@@ -246,3 +358,31 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-builtin-call-form-inactive/bare or (body)
+    body: |
+      x := or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "var",
+              "value": "or"
+            }
+          ]
+        }
+      ]

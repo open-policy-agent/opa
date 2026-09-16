@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleIf
 cases:
-  - note: rules/rule-if/complete+else, normal bodies, assign
+  - note: rules/rule-if/complete+else, normal bodies, assign (module)
     rego_version: v0
     module: |
       package test
@@ -127,7 +127,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete+else, shorthand
+  - note: rules/rule-if/complete+else, shorthand (module)
     rego_version: v0
     module: |
       package test

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRegoV1Import
 cases:
-  - note: imports/rego-v1-import/rego
+  - note: imports/rego-v1-import/rego (module)
     module: |
       package test
 
@@ -11,7 +11,7 @@ cases:
         row: 3
         col: 8
         message: invalid import `rego`, must be `rego.v1`
-  - note: imports/rego-v1-import/rego.foo
+  - note: imports/rego-v1-import/rego.foo (module)
     module: |
       package test
 
@@ -21,7 +21,7 @@ cases:
         row: 3
         col: 8
         message: invalid import `rego.foo`, must be `rego.v1`
-  - note: imports/rego-v1-import/rego.foo.bar
+  - note: imports/rego-v1-import/rego.foo.bar (module)
     module: |
       package test
 
@@ -31,7 +31,7 @@ cases:
         row: 3
         col: 8
         message: invalid import `rego.foo.bar`, must be `rego.v1`
-  - note: imports/rego-v1-import/rego.v1.bar
+  - note: imports/rego-v1-import/rego.v1.bar (module)
     module: |
       package test
 
@@ -41,7 +41,7 @@ cases:
         row: 3
         col: 8
         message: invalid import `rego.v1.bar`, must be `rego.v1`
-  - note: imports/rego-v1-import/import rego.v1
+  - note: imports/rego-v1-import/import rego.v1 (module)
     module: |
       package test
 

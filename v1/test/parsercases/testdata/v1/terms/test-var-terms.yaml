@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestVarTerms
 cases:
-  - note: terms/var-terms/var
+  - note: terms/var-terms/var (module)
     module: |
       package test
 
@@ -48,7 +48,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/var (2)
+  - note: terms/var-terms/var (body)
+    body: |
+      foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "foo"
+          }
+        }
+      ]
+  - note: terms/var-terms/var (2) (module)
     module: |
       package test
 
@@ -95,7 +108,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/var (3)
+  - note: terms/var-terms/var (2) (body)
+    body: |
+      foo_bar
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "foo_bar"
+          }
+        }
+      ]
+  - note: terms/var-terms/var (3) (module)
     module: |
       package test
 
@@ -142,7 +168,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/import prefix
+  - note: terms/var-terms/var (3) (body)
+    body: |
+      foo0
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "foo0"
+          }
+        }
+      ]
+  - note: terms/var-terms/import prefix (module)
     module: |
       package test
 
@@ -189,7 +228,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/not prefix
+  - note: terms/var-terms/import prefix (body)
+    body: |
+      imports
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "imports"
+          }
+        }
+      ]
+  - note: terms/var-terms/not prefix (module)
     module: |
       package test
 
@@ -236,7 +288,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/package prefix
+  - note: terms/var-terms/not prefix (body)
+    body: |
+      not_foo
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "not_foo"
+          }
+        }
+      ]
+  - note: terms/var-terms/package prefix (module)
     module: |
       package test
 
@@ -283,7 +348,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/true prefix
+  - note: terms/var-terms/package prefix (body)
+    body: |
+      packages
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "packages"
+          }
+        }
+      ]
+  - note: terms/var-terms/true prefix (module)
     module: |
       package test
 
@@ -330,7 +408,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/false prefix
+  - note: terms/var-terms/true prefix (body)
+    body: |
+      trueish
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "trueish"
+          }
+        }
+      ]
+  - note: terms/var-terms/false prefix (module)
     module: |
       package test
 
@@ -377,7 +468,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/null prefix
+  - note: terms/var-terms/false prefix (body)
+    body: |
+      false_flag
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "false_flag"
+          }
+        }
+      ]
+  - note: terms/var-terms/null prefix (module)
     module: |
       package test
 
@@ -424,7 +528,20 @@ cases:
           }
         ]
       }
-  - note: terms/var-terms/illegal token
+  - note: terms/var-terms/null prefix (body)
+    body: |
+      nullable
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "nullable"
+          }
+        }
+      ]
+  - note: terms/var-terms/illegal token (module)
     module: |
       package test
 
@@ -434,7 +551,15 @@ cases:
         row: 3
         col: 6
         message: illegal token
-  - note: terms/var-terms/not keyword
+  - note: terms/var-terms/illegal token (body)
+    body: |
+      墳
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal token
+  - note: terms/var-terms/not keyword (module)
     module: |
       package test
 
@@ -444,7 +569,14 @@ cases:
         row: 3
         col: 6
         message: unexpected not keyword
-  - note: terms/var-terms/package keyword
+  - note: terms/var-terms/not keyword (body)
+    body: |
+      not
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: unexpected eof token
+  - note: terms/var-terms/package keyword (module)
     module: |
       package test
 
@@ -454,7 +586,14 @@ cases:
         row: 3
         col: 6
         message: unexpected package keyword
-  - note: terms/var-terms/import keyword
+  - note: terms/var-terms/package keyword (body)
+    body: |
+      package
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: unexpected eof token
+  - note: terms/var-terms/import keyword (module)
     module: |
       package test
 
@@ -464,7 +603,14 @@ cases:
         row: 3
         col: 6
         message: unexpected import keyword
-  - note: terms/var-terms/import invalid path
+  - note: terms/var-terms/import keyword (body)
+    body: |
+      import
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: unexpected eof token
+  - note: terms/var-terms/import invalid path (module)
     module: |
       package test
 
@@ -474,3 +620,10 @@ cases:
         row: 3
         col: 6
         message: unexpected import keyword
+  - note: terms/var-terms/import invalid path (body)
+    body: |
+      import x.
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected whitespace token: expected identifier'

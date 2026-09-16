@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleIf
 cases:
-  - note: rules/rule-if/complete
+  - note: rules/rule-if/complete (module)
     module: |
       package test
 
@@ -47,7 +47,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/else
+  - note: rules/rule-if/else (module)
     module: |
       package test
 
@@ -117,7 +117,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/ref head, complete
+  - note: rules/rule-if/ref head, complete (module)
     module: |
       package test
 
@@ -166,7 +166,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete, normal body
+  - note: rules/rule-if/complete, normal body (module)
     module: |
       package test
 
@@ -249,7 +249,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete+else, normal bodies, assign; if
+  - note: rules/rule-if/complete+else, normal bodies, assign; if (module)
     module: |
       package test
 
@@ -351,7 +351,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete, shorthand
+  - note: rules/rule-if/complete, shorthand (module)
     module: |
       package test
 
@@ -397,7 +397,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete, else, shorthand
+  - note: rules/rule-if/complete, else, shorthand (module)
     module: |
       package test
 
@@ -467,7 +467,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete, else, assignment+shorthand
+  - note: rules/rule-if/complete, else, assignment+shorthand (module)
     module: |
       package test
 
@@ -553,7 +553,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete+not, shorthand
+  - note: rules/rule-if/complete+not, shorthand (module)
     module: |
       package test
 
@@ -600,7 +600,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/complete+call, shorthand
+  - note: rules/rule-if/complete+call, shorthand (module)
     module: |
       package test
 
@@ -675,7 +675,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/function, shorthand
+  - note: rules/rule-if/function, shorthand (module)
     module: |
       package test
 
@@ -760,7 +760,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/function+every, shorthand
+  - note: rules/rule-if/function+every, shorthand (module)
     module: |
       package test
 
@@ -843,7 +843,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/object
+  - note: rules/rule-if/object (module)
     module: |
       package test
 
@@ -893,7 +893,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/object, shorthand
+  - note: rules/rule-if/object, shorthand (module)
     module: |
       package test
 
@@ -943,7 +943,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/object with vars
+  - note: rules/rule-if/object with vars (module)
     module: |
       package test
 
@@ -1037,7 +1037,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/set
+  - note: rules/rule-if/set (module)
     module: |
       package test
 
@@ -1083,7 +1083,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/set, shorthand
+  - note: rules/rule-if/set, shorthand (module)
     module: |
       package test
 
@@ -1129,7 +1129,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/set+var+shorthand
+  - note: rules/rule-if/set+var+shorthand (module)
     module: |
       package test
 
@@ -1190,7 +1190,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/partial set+if, shorthand
+  - note: rules/rule-if/partial set+if, shorthand (module)
     module: |
       package test
 
@@ -1258,7 +1258,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-if/partial set+if
+  - note: rules/rule-if/partial set+if (module)
     module: |
       package test
 

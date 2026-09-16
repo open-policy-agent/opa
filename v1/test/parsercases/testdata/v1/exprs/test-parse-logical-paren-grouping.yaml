@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParenGrouping
 cases:
-  - note: exprs/parse-logical-paren-grouping/rhs group
+  - note: exprs/parse-logical-paren-grouping/rhs group (module)
     module: |
       package test
 
@@ -126,7 +126,57 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/lhs group
+  - note: exprs/parse-logical-paren-grouping/rhs group (body)
+    body: |
+      a and (b or c)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/lhs group (module)
     module: |
       package test
 
@@ -251,7 +301,57 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/outer group unwrapped
+  - note: exprs/parse-logical-paren-grouping/lhs group (body)
+    body: |
+      (a or b) and c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/outer group unwrapped (module)
     module: |
       package test
 
@@ -339,7 +439,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/nested groups
+  - note: exprs/parse-logical-paren-grouping/outer group unwrapped (body)
+    body: |
+      (a or b)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/nested groups (module)
     module: |
       package test
 
@@ -481,7 +613,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/redundant parens around group collapse
+  - note: exprs/parse-logical-paren-grouping/nested groups (body)
+    body: |
+      (a and (b or c)) and d
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "d"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/redundant parens around group collapse (module)
     module: |
       package test
 
@@ -569,7 +768,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/redundant parens around operand collapse
+  - note: exprs/parse-logical-paren-grouping/redundant parens around group collapse (body)
+    body: |
+      ((a or b))
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/redundant parens around operand collapse (module)
     module: |
       package test
 
@@ -657,7 +888,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/group on both sides
+  - note: exprs/parse-logical-paren-grouping/redundant parens around operand collapse (body)
+    body: |
+      a or ((b))
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/group on both sides (module)
     module: |
       package test
 
@@ -799,7 +1062,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/group forces right nesting of same operator
+  - note: exprs/parse-logical-paren-grouping/group on both sides (body)
+    body: |
+      (a or b) and (c or d)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "d"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/group forces right nesting of same operator (module)
     module: |
       package test
 
@@ -904,7 +1234,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/not inside group
+  - note: exprs/parse-logical-paren-grouping/group forces right nesting of same operator (body)
+    body: |
+      a or (b or c)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/not inside group (module)
     module: |
       package test
 
@@ -976,7 +1355,23 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/not with grouped operand
+  - note: exprs/parse-logical-paren-grouping/not inside group (body)
+    body: |
+      (not a)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": {
+            "type": "var",
+            "value": "a"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/not with grouped operand (module)
     module: |
       package test
 
@@ -1025,7 +1420,21 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/not inside group binds under or
+  - note: exprs/parse-logical-paren-grouping/not with grouped operand (body)
+    body: |
+      not (a)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": {
+            "type": "var",
+            "value": "a"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/not inside group binds under or (module)
     module: |
       package test
 
@@ -1114,7 +1523,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/not with grouped operand inside or
+  - note: exprs/parse-logical-paren-grouping/not inside group binds under or (body)
+    body: |
+      (not a or b)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/not with grouped operand inside or (module)
     module: |
       package test
 
@@ -1203,7 +1645,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/not inside group binds under or (2)
+  - note: exprs/parse-logical-paren-grouping/not with grouped operand inside or (body)
+    body: |
+      not (a) or b
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/not inside group binds under or (2) (module)
     module: |
       package test
 
@@ -1292,7 +1767,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/redundant parens around single operand drop
+  - note: exprs/parse-logical-paren-grouping/not inside group binds under or (2) (body)
+    body: |
+      (not a or b)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/redundant parens around single operand drop (module)
     module: |
       package test
 
@@ -1380,7 +1888,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/group forces right nesting of and
+  - note: exprs/parse-logical-paren-grouping/redundant parens around single operand drop (body)
+    body: |
+      (a) and (b)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/group forces right nesting of and (module)
     module: |
       package test
 
@@ -1485,7 +2025,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/redundant parens preserve same-precedence tree
+  - note: exprs/parse-logical-paren-grouping/group forces right nesting of and (body)
+    body: |
+      a and (b and c)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/redundant parens preserve same-precedence tree (module)
     module: |
       package test
 
@@ -1610,7 +2199,57 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/comparison operands inside groups
+  - note: exprs/parse-logical-paren-grouping/redundant parens preserve same-precedence tree (body)
+    body: |
+      (a and b) or c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/comparison operands inside groups (module)
     module: |
       package test
 
@@ -1728,7 +2367,69 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/deeply mixed and/or groups
+  - note: exprs/parse-logical-paren-grouping/comparison operands inside groups (body)
+    body: |
+      (a == b) or (c == d)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "c"
+                  },
+                  {
+                    "type": "var",
+                    "value": "d"
+                  }
+                ]
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/deeply mixed and/or groups (module)
     module: |
       package test
 
@@ -1870,7 +2571,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/explicit body lhs with paren group rhs
+  - note: exprs/parse-logical-paren-grouping/deeply mixed and/or groups (body)
+    body: |
+      a or (b and (c or d))
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "d"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/explicit body lhs with paren group rhs (module)
     module: |
       package test
 
@@ -2003,7 +2771,65 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/rhs operand, leading part wrapped
+  - note: exprs/parse-logical-paren-grouping/explicit body lhs with paren group rhs (body)
+    body: |
+      {x; y} and (a or b)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/rhs operand, leading part wrapped (module)
     module: |
       package test
 
@@ -2142,7 +2968,90 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/rhs operand, whole operand wrapped
+  - note: exprs/parse-logical-paren-grouping/rhs operand, leading part wrapped (body)
+    body: |
+      z and ({1, 2}) & input.s == set()
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/rhs operand, whole operand wrapped (module)
     module: |
       package test
 
@@ -2281,7 +3190,90 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/lhs operand, leading part wrapped
+  - note: exprs/parse-logical-paren-grouping/rhs operand, whole operand wrapped (body)
+    body: |
+      z and ({1, 2} & input.s == set())
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/lhs operand, leading part wrapped (module)
     module: |
       package test
 
@@ -2420,7 +3412,90 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/lhs operand, whole operand wrapped
+  - note: exprs/parse-logical-paren-grouping/lhs operand, leading part wrapped (body)
+    body: |
+      ({1, 2}) & input.s == set() and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/lhs operand, whole operand wrapped (module)
     module: |
       package test
 
@@ -2559,7 +3634,90 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized arithmetic
+  - note: exprs/parse-logical-paren-grouping/lhs operand, whole operand wrapped (body)
+    body: |
+      ({1, 2} & input.s == set()) and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized arithmetic (module)
     module: |
       package test
 
@@ -2680,7 +3838,72 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized comparison
+  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized arithmetic (body)
+    body: |
+      z and (1 + 2) > 3
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "gt"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized comparison (module)
     module: |
       package test
 
@@ -2783,3 +4006,50 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized comparison (body)
+    body: |
+      z and (a) == b
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]

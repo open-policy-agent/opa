@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BraceLedOperandScope
 cases:
-  - note: exprs/parse-logical-brace-led-operand-scope/body operand, lhs
+  - note: exprs/parse-logical-brace-led-operand-scope/body operand, lhs (module)
     module: |
       package test
 
@@ -90,7 +90,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/body operand, rhs
+  - note: exprs/parse-logical-brace-led-operand-scope/body operand, lhs (body)
+    body: |
+      {x} and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/body operand, rhs (module)
     module: |
       package test
 
@@ -179,7 +212,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, lhs
+  - note: exprs/parse-logical-brace-led-operand-scope/body operand, rhs (body)
+    body: |
+      z and {x}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, lhs (module)
     module: |
       package test
 
@@ -275,7 +341,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, rhs
+  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, lhs (body)
+    body: |
+      {x; y} or z
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, rhs (module)
     module: |
       package test
 
@@ -371,7 +477,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/object body statement
+  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, rhs (body)
+    body: |
+      z or {x; y}
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/object body statement (module)
     module: |
       package test
 
@@ -430,7 +576,31 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/ref into object body statement
+  - note: exprs/parse-logical-brace-led-operand-scope/object body statement (body)
+    body: |
+      {"a": 1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "a"
+                },
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/ref into object body statement (module)
     module: |
       package test
 
@@ -498,7 +668,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/comparison with set body statement
+  - note: exprs/parse-logical-brace-led-operand-scope/ref into object body statement (body)
+    body: |
+      {"a": 1}[_]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "a"
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                ]
+              },
+              {
+                "type": "var",
+                "value": "$0"
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/comparison with set body statement (module)
     module: |
       package test
 
@@ -575,7 +778,49 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/object as call argument
+  - note: exprs/parse-logical-brace-led-operand-scope/comparison with set body statement (body)
+    body: |
+      {x} == input.y
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "equal"
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "type": "string",
+                  "value": "y"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/object as call argument (module)
     module: |
       package test
 
@@ -645,7 +890,42 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/chain
+  - note: exprs/parse-logical-brace-led-operand-scope/object as call argument (body)
+    body: |
+      f({"a": 1})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ]
+            },
+            {
+              "type": "object",
+              "value": [
+                [
+                  {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/chain (module)
     module: |
       package test
 
@@ -659,7 +939,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, lhs
+  - note: exprs/parse-logical-brace-led-operand-scope/chain (body)
+    body: |
+      {"a": 1} and z or w
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, lhs (module)
     module: |
       package test
 
@@ -673,7 +963,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({x} == input.y) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, rhs
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, lhs (body)
+    body: |
+      {x} == input.y and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({x} == input.y) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, rhs (module)
     module: |
       package test
 
@@ -687,7 +987,17 @@ cases:
         row: 6
         col: 12
         message: 'unexpected equal token: expected \n or ; or }'
-  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, lhs, not unimported
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, rhs (body)
+    body: |
+      z and {x} == input.y
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 11
+        message: unexpected equal token
+  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, lhs, not unimported (module)
     module: |
       package test
 
@@ -781,7 +1091,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, rhs, not unimported
+  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, lhs, not unimported (body)
+    body: |
+      not {1} and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, rhs, not unimported (module)
     module: |
       package test
 
@@ -875,7 +1223,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/not-body, lhs, not imported
+  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, rhs, not unimported (body)
+    body: |
+      z and not {1}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/not-body, lhs, not imported (module)
     module: |
       package test
 
@@ -969,7 +1355,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-brace-led-operand-scope/not-body, rhs, not imported
+  - note: exprs/parse-logical-brace-led-operand-scope/not-body, lhs, not imported (body)
+    body: |
+      not {1} and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand-scope/not-body, rhs, not imported (module)
     module: |
       package test
 
@@ -1063,3 +1487,41 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-brace-led-operand-scope/not-body, rhs, not imported (body)
+    body: |
+      z and not {1}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]

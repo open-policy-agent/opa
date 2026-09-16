@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestObjectWithRelation
 cases:
-  - note: terms/object-with-relation/relation term value
+  - note: terms/object-with-relation/relation term value (module)
     module: |
       package test
 
@@ -77,7 +77,49 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-relation/invalid relation term value
+  - note: terms/object-with-relation/relation term value (body)
+    body: |
+      {"x": 1+1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "x"
+                },
+                {
+                  "type": "call",
+                  "value": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "plus"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-relation/invalid relation term value (module)
     module: |
       package test
 
@@ -86,4 +128,12 @@ cases:
       - code: rego_parse_error
         row: 3
         col: 13
+        message: 'unexpected eq token: non-terminated object'
+  - note: terms/object-with-relation/invalid relation term value (body)
+    body: |
+      {"x": 0= }
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 8
         message: 'unexpected eq token: non-terminated object'

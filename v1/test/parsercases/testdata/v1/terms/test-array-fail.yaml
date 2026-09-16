@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestArrayFail
 cases:
-  - note: terms/array-fail/non-terminated 1
+  - note: terms/array-fail/non-terminated 1 (module)
     module: |
       package test
 
@@ -10,7 +10,14 @@ cases:
       - code: rego_parse_error
         row: 4
         message: 'unexpected eof token: expected "," or "]"'
-  - note: terms/array-fail/non-terminated 2
+  - note: terms/array-fail/non-terminated 1 (body)
+    body: |
+      [foo, bar
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: expected "," or "]"'
+  - note: terms/array-fail/non-terminated 2 (module)
     module: |
       package test
 
@@ -19,7 +26,14 @@ cases:
       - code: rego_parse_error
         row: 4
         message: unexpected eof token
-  - note: terms/array-fail/missing separator
+  - note: terms/array-fail/non-terminated 2 (body)
+    body: |
+      [foo, bar,
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: unexpected eof token
+  - note: terms/array-fail/missing separator (module)
     module: |
       package test
 
@@ -29,7 +43,15 @@ cases:
         row: 3
         col: 11
         message: 'unexpected identifier token: expected "," or "]"'
-  - note: terms/array-fail/missing start
+  - note: terms/array-fail/missing separator (body)
+    body: |
+      [foo bar]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'unexpected identifier token: expected "," or "]"'
+  - note: terms/array-fail/missing start (module)
     module: |
       package test
 
@@ -39,7 +61,15 @@ cases:
         row: 3
         col: 9
         message: unexpected , token
-  - note: terms/array-fail/bad term
+  - note: terms/array-fail/missing start (body)
+    body: |
+      foo, bar, baz]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected , token
+  - note: terms/array-fail/bad term (module)
     module: |
       package test
 
@@ -49,7 +79,15 @@ cases:
         row: 3
         col: 7
         message: illegal ! character
-  - note: terms/array-fail/double comma
+  - note: terms/array-fail/bad term (body)
+    body: |
+      [!!!]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: illegal ! character
+  - note: terms/array-fail/double comma (module)
     module: |
       package test
 
@@ -59,7 +97,15 @@ cases:
         row: 3
         col: 9
         message: unexpected , token
-  - note: terms/array-fail/leading double comma
+  - note: terms/array-fail/double comma (body)
+    body: |
+      [a,,b]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected , token
+  - note: terms/array-fail/leading double comma (module)
     module: |
       package test
 
@@ -69,7 +115,15 @@ cases:
         row: 3
         col: 8
         message: unexpected , token
-  - note: terms/array-fail/trailing double comma
+  - note: terms/array-fail/leading double comma (body)
+    body: |
+      [,,a]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: unexpected , token
+  - note: terms/array-fail/trailing double comma (module)
     module: |
       package test
 
@@ -78,4 +132,12 @@ cases:
       - code: rego_parse_error
         row: 3
         col: 9
+        message: unexpected , token
+  - note: terms/array-fail/trailing double comma (body)
+    body: |
+      [a,,]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
         message: unexpected , token

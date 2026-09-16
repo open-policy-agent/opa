@@ -16,10 +16,11 @@ complete without a Go counterpart, and a new parser test can land as YAML only.
 
 ## Adding a case
 
-Write `module` plus whatever configuration it needs, run `make generate`, and
-review what comes out. Whether the case is a success or a failure case is
-decided by the parser, not by you: if the module parses, the generator fills in
-`want_ast`; if it does not, it fills in `want_errors`.
+Write `module` — or `body`, see [Entry points](#entry-points) — plus whatever
+configuration it needs, run `make generate`, and review what comes out. Whether
+the case is a success or a failure case is decided by the parser, not by you: if
+the policy parses, the generator fills in `want_ast`; if it does not, it fills in
+`want_errors`.
 
 A fixture is what OPA's parser produces, so it is a golden file: it does not
 independently validate OPA, it catches unreviewed change.
@@ -34,7 +35,7 @@ A case is either a **failure case**, asserting `want_errors`, or a **success
 case**, asserting `want_ast` and optionally `want_equivalent`. The loader
 rejects anything else.
 
-A `module` or `want_equivalent` must not carry trailing whitespace on a line. A
+A `module`, `body` or `want_equivalent` must not carry trailing whitespace on a line. A
 YAML emitter will not write a block scalar for such a value, so the generator —
 which rewrites the whole file whenever a fixture changes — would render the
 policy as a single escaped line. The loader rejects it by naming the line rather
@@ -44,8 +45,10 @@ the rest of `Location.Text`.
 
 | field | |
 | - | - |
-| `note` | globally unique identifier, and the subtest name |
+| `note` | globally unique identifier, and the subtest name; its suffix says which entry point, see [Entry points](#entry-points) |
 | `module` | the policy to parse, named `test-0.rego` |
+| `body` | a query to parse instead: one or more expressions, exclusive with `module` |
+| `imports` | directives in effect for `body`, which has nowhere to declare them; `body` cases only |
 | `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
 | `future_keywords`, `all_future_keywords` | activate future keywords by parser option — a last resort, see [Future keywords](#future-keywords) |
 | `experimental_keywords` | opt-in to experimental future keywords, which have no import |
@@ -55,7 +58,7 @@ the rest of `Location.Text`.
 | `want_equivalent` | a second module that must parse to the same AST |
 | `want_errors` | diagnostics the parse must produce, as `code`/`row`/`col`/`message` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
-| `entrypoints` | override the entrypoints derived from the module when generating IR, see [Overriding the entrypoints](#overriding-the-entrypoints) |
+| `entrypoints` | override the entrypoints derived from the module when generating IR, see [Overriding the entrypoints](#overriding-the-entrypoints); `module` cases only |
 
 `want_ast` is JSON carried in a YAML string rather than nested YAML: a YAML
 scalar cannot hold a Rego number literal faithfully, since `1e6` is a string to
@@ -77,13 +80,41 @@ reviewed as the case lands, when a consumer debugs a mismatch against it, and
 when a change to the parser regenerates it. A one-line fixture serves none of
 those, and the size it saves buys nothing — the corpus is never on a hot path.
 
-## Module-only entry point
+## Entry points
 
-A case always parses a whole module. Term, expression, and rule cases are
-wrapped when they are written, not at runtime, so there is no wrapper field in
-the schema and a consumer needs only one entry point — which is what lets an
-implementation that is not split into parser / compiler / planner run the corpus
-at all.
+A case parses a whole module or a bare body — one or more expressions, which is
+what a query is. Which one it is is decided by the field it carries, `module` or
+`body`, and stated again in the note:
+
+| note ends with | the case parses | why |
+| - | - | - |
+| nothing | `module`, exactly as the Go test parsed it | the input was already a whole module |
+| ` (module)` | `module`, built around a term or expression | see the wrapper table below |
+| ` (body)` | `body`, the same Rego unwrapped | the compiler corpus hands queries to `QueryCompiler`, so this is the baseline those cases stand on |
+
+The module and body forms of one input are siblings, adjacent in the same file:
+1,080 of the corpus's cases are a wrapper around a term or an expression, and each
+has a `(body)` sibling. Both are needed. A wrapper is chosen so the case
+reproduces what its Go test asserted, and the wrapper carries part of the
+assertion: of the 237 sibling pairs that assert a diagnostic, 19 report a
+different one on each side. `every x in xs` fails with
+`unexpected } token: missing body` in a rule and
+`unexpected eof token: missing body` on its own, because the brace the parser hit
+was the wrapper's. Neither reading is the wrong one, and every fixture on both
+sides is generated rather than copied across.
+
+A body case takes its keyword activation from `imports`, since a body has nowhere
+to declare one. Only directives are accepted there — `future.keywords.<kw>`,
+`future.keywords`, `rego.v1` — because parsing a body resolves no references. It
+is read with `SkipRules`, as `rego.New` does for a query: without it a body that
+reads as a rule fails with `expected body but got *ast.Rule`, a Go type name with
+no position, where the parser has a positioned `rego_parse_error` to report.
+
+`annotations` and `entrypoints` do not apply to a body: `ParseBody` rejects a
+metadata block, and there is no module to plan. `want_ast` for a body is a JSON
+array of expressions where a module's is an object.
+
+### Wrapping
 
 Wrap in the innermost context where the Rego is legal:
 
@@ -112,6 +143,12 @@ where `testdata/v1/logical/test-call-form.yaml` puts it.
 That case is also the shape to copy for anything subtle: the two cases that
 *parse* are what give the two that fail their meaning. A case that only records a
 diagnostic proves an error happened, not that the right thing was rejected.
+
+Because the wrapper decides what a case can say, it is checked rather than
+trusted. A wrapper is accepted only where the term or body it introduces equals
+what the input parses to on its own — an expression beginning with `{` parses
+inside a rule body, but as a comprehension, because the body's own brace is
+absorbed, and silently.
 
 ## Future keywords
 
@@ -172,7 +209,8 @@ sets, err := cases.LoadParserTestCases(cases.WithIR())
 `WithIR` runs the full downstream pipeline for every success case — parse,
 compile to completion, plan — and populates `WantIR` where it succeeds, along
 with the entrypoints it planned for. A case that fails to compile or plan yields
-no IR, and says why on `IRError`; failure cases never yield one.
+no IR, and says why on `IRError`; failure cases never yield one, and neither do
+body cases — there is no module to compile.
 
 Keeping plans out of the repository is what makes them free: no IR fixtures to
 review, no planner change rewriting thousands of committed files, and no size
@@ -185,7 +223,7 @@ Roughly half the success cases do not plan. Where that happens, `WantIR` is nil
 and `IRError` says why:
 
 ```
-terms/var  1 error occurred: test-0.rego:3: rego_unsafe_var_error: var foo is unsafe
+terms/var-terms/var (module)  1 error occurred: test-0.rego:3: rego_unsafe_var_error: var foo is unsafe
 ```
 
 `IRError` is diagnostic, not an assertion, and the example above is why: that

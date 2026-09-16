@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_NotBodyLeadingOperand
 cases:
-  - note: exprs/parse-logical-not-body-leading-operand/single expression body, and
+  - note: exprs/parse-logical-not-body-leading-operand/single expression body, and (module)
     module: |
       package test
 
@@ -95,7 +95,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-not-body-leading-operand/single expression body, or
+  - note: exprs/parse-logical-not-body-leading-operand/single expression body, and (body)
+    body: |
+      not {x} and y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-not-body-leading-operand/single expression body, or (module)
     module: |
       package test
 
@@ -189,7 +227,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-not-body-leading-operand/multi expression body
+  - note: exprs/parse-logical-not-body-leading-operand/single expression body, or (body)
+    body: |
+      not {x} or y
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-not-body-leading-operand/multi expression body (module)
     module: |
       package test
 
@@ -313,7 +389,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-not-body-leading-operand/chain
+  - note: exprs/parse-logical-not-body-leading-operand/multi expression body (body)
+    body: |
+      not {x; y} and z
+    imports:
+      - future.keywords.and
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    },
+                    {
+                      "index": 1,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-not-body-leading-operand/chain (module)
     module: |
       package test
 
@@ -444,7 +569,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-not-body-leading-operand/both operands are not-bodies
+  - note: exprs/parse-logical-not-body-leading-operand/chain (body)
+    body: |
+      not {x} and y or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-not-body-leading-operand/both operands are not-bodies (module)
     module: |
       package test
 
@@ -544,7 +725,51 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-not-body-leading-operand/parenthesized, unchanged
+  - note: exprs/parse-logical-not-body-leading-operand/both operands are not-bodies (body)
+    body: |
+      not {x} and not {y}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-not-body-leading-operand/parenthesized, unchanged (module)
     module: |
       package test
 
@@ -638,7 +863,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-not-body-leading-operand/no operator
+  - note: exprs/parse-logical-not-body-leading-operand/parenthesized, unchanged (body)
+    body: |
+      (not {x}) and y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-not-body-leading-operand/no operator (module)
     module: |
       package test
 
@@ -692,3 +955,22 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-not-body-leading-operand/no operator (body)
+    body: |
+      not {x}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "var",
+                "value": "x"
+              }
+            ]
+          }
+        }
+      ]

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestHintsOnUnknownImport
 cases:
-  - note: imports/hints-on-unknown-import/unknown
+  - note: imports/hints-on-unknown-import/unknown (module)
     module: |
       package test
 

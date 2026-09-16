@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRuleContains
 cases:
-  - note: rules/rule-contains/no body
+  - note: rules/rule-contains/no body (module)
     module: |
       package test
 
@@ -47,7 +47,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule-contains/ref head, no body
+  - note: rules/rule-contains/ref head, no body (module)
     module: |
       package test
 

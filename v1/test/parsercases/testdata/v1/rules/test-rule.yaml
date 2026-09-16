@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestRule
 cases:
-  - note: rules/rule/default
+  - note: rules/rule/default (module)
     module: |
       package test
 
@@ -48,7 +48,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/default w/ assignment
+  - note: rules/rule/default w/ assignment (module)
     module: |
       package test
 
@@ -96,7 +96,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/default w/ comprehension
+  - note: rules/rule/default w/ comprehension (module)
     module: |
       package test
 
@@ -185,7 +185,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/empty body
+  - note: rules/rule/empty body (module)
     module: |
       package test
 
@@ -195,7 +195,7 @@ cases:
         row: 3
         col: 11
         message: found empty body
-  - note: rules/rule/empty rule body
+  - note: rules/rule/empty rule body (module)
     module: |
       package test
 
@@ -205,7 +205,7 @@ cases:
         row: 3
         col: 4
         message: found empty body
-  - note: rules/rule/no output
+  - note: rules/rule/no output (module)
     module: |
       package test
 
@@ -215,7 +215,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected eq token: non-terminated set'
-  - note: rules/rule/no output (2)
+  - note: rules/rule/no output (2) (module)
     module: |
       package test
 
@@ -225,7 +225,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected eq token: non-terminated set'
-  - note: rules/rule/no output (3)
+  - note: rules/rule/no output (3) (module)
     module: |
       package test
 
@@ -235,7 +235,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected eq token: non-terminated set'
-  - note: rules/rule/no output (4)
+  - note: rules/rule/no output (4) (module)
     module: |
       package test
 
@@ -244,7 +244,7 @@ cases:
       - code: rego_parse_error
         row: 4
         message: unexpected eof token
-  - note: rules/rule/dangling semicolon
+  - note: rules/rule/dangling semicolon (module)
     module: |
       package test
 
@@ -254,7 +254,7 @@ cases:
         row: 3
         col: 18
         message: unexpected } token
-  - note: rules/rule/default invalid rule name
+  - note: rules/rule/default invalid rule name (module)
     module: |
       package test
 
@@ -264,7 +264,7 @@ cases:
         row: 3
         col: 1
         message: unexpected default keyword
-  - note: rules/rule/default invalid rule value
+  - note: rules/rule/default invalid rule value (module)
     module: |
       package test
 
@@ -274,7 +274,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (must have a value)
-  - note: rules/rule/default missing value
+  - note: rules/rule/default missing value (module)
     module: |
       package test
 
@@ -321,7 +321,7 @@ cases:
           }
         ]
       }
-  - note: rules/rule/default invalid rule head ref
+  - note: rules/rule/default invalid rule head ref (module)
     module: |
       package test
 
@@ -331,7 +331,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain ref)
-  - note: rules/rule/default invalid rule head call
+  - note: rules/rule/default invalid rule head call (module)
     module: |
       package test
 
@@ -341,7 +341,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain call)
-  - note: rules/rule/default invalid rule head builtin call
+  - note: rules/rule/default invalid rule head builtin call (module)
     module: |
       package test
 
@@ -351,7 +351,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain call)
-  - note: rules/rule/default invalid rule head call (2)
+  - note: rules/rule/default invalid rule head call (2) (module)
     module: |
       package test
 
@@ -361,7 +361,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain var)
-  - note: rules/rule/default invalid function head ref
+  - note: rules/rule/default invalid function head ref (module)
     module: |
       package test
 
@@ -371,7 +371,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain ref)
-  - note: rules/rule/default invalid function head call
+  - note: rules/rule/default invalid function head call (module)
     module: |
       package test
 
@@ -381,7 +381,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain call)
-  - note: rules/rule/default invalid function head builtin call
+  - note: rules/rule/default invalid function head builtin call (module)
     module: |
       package test
 
@@ -391,7 +391,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain call)
-  - note: rules/rule/default invalid function head call (2)
+  - note: rules/rule/default invalid function head call (2) (module)
     module: |
       package test
 
@@ -401,7 +401,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (value cannot contain var)
-  - note: rules/rule/default invalid function composite argument
+  - note: rules/rule/default invalid function composite argument (module)
     module: |
       package test
 
@@ -411,7 +411,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (arguments cannot contain array)
-  - note: rules/rule/default invalid function number argument
+  - note: rules/rule/default invalid function number argument (module)
     module: |
       package test
 
@@ -421,7 +421,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (arguments cannot contain number)
-  - note: rules/rule/default invalid function repeated vars
+  - note: rules/rule/default invalid function repeated vars (module)
     module: |
       package test
 
@@ -431,7 +431,7 @@ cases:
         row: 3
         col: 1
         message: illegal default rule (arguments cannot be repeated x)
-  - note: rules/rule/extra braces
+  - note: rules/rule/extra braces (module)
     module: |
       package test
 
@@ -441,7 +441,7 @@ cases:
         row: 3
         col: 5
         message: 'unexpected assign token: non-terminated set'
-  - note: rules/rule/invalid rule name hyphen
+  - note: rules/rule/invalid rule name hyphen (module)
     module: |
       package test
 
@@ -451,7 +451,7 @@ cases:
         row: 3
         col: 2
         message: unexpected minus token
-  - note: rules/rule/invalid rule body no separator
+  - note: rules/rule/invalid rule body no separator (module)
     module: |
       package test
 
@@ -461,7 +461,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected identifier token: expected \n or ; or }'
-  - note: rules/rule/invalid rule body no newline
+  - note: rules/rule/invalid rule body no newline (module)
     module: |
       package test
 

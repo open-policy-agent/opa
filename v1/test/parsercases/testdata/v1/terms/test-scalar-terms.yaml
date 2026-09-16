@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestScalarTerms
 cases:
-  - note: terms/scalar-terms/null
+  - note: terms/scalar-terms/null (module)
     module: |
       package test
 
@@ -48,7 +48,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/true
+  - note: terms/scalar-terms/null (body)
+    body: |
+      null
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "null",
+            "value": {}
+          }
+        }
+      ]
+  - note: terms/scalar-terms/true (module)
     module: |
       package test
 
@@ -95,7 +108,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/false
+  - note: terms/scalar-terms/true (body)
+    body: |
+      true
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ]
+  - note: terms/scalar-terms/false (module)
     module: |
       package test
 
@@ -142,7 +168,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/integer
+  - note: terms/scalar-terms/false (body)
+    body: |
+      false
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "boolean",
+            "value": false
+          }
+        }
+      ]
+  - note: terms/scalar-terms/integer (module)
     module: |
       package test
 
@@ -189,7 +228,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/integer2
+  - note: terms/scalar-terms/integer (body)
+    body: |
+      53
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "number",
+            "value": 53
+          }
+        }
+      ]
+  - note: terms/scalar-terms/integer2 (module)
     module: |
       package test
 
@@ -236,7 +288,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/float
+  - note: terms/scalar-terms/integer2 (body)
+    body: |
+      -53
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "number",
+            "value": -53
+          }
+        }
+      ]
+  - note: terms/scalar-terms/float (module)
     module: |
       package test
 
@@ -283,7 +348,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/float2
+  - note: terms/scalar-terms/float (body)
+    body: |
+      16.7
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "number",
+            "value": 16.7
+          }
+        }
+      ]
+  - note: terms/scalar-terms/float2 (module)
     module: |
       package test
 
@@ -330,7 +408,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/exponent
+  - note: terms/scalar-terms/float2 (body)
+    body: |
+      -16.7
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "number",
+            "value": -16.7
+          }
+        }
+      ]
+  - note: terms/scalar-terms/exponent (module)
     module: |
       package test
 
@@ -377,7 +468,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/string
+  - note: terms/scalar-terms/exponent (body)
+    body: |
+      6e7
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "number",
+            "value": 6e7
+          }
+        }
+      ]
+  - note: terms/scalar-terms/string (module)
     module: |
       package test
 
@@ -424,7 +528,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/string (2)
+  - note: terms/scalar-terms/string (body)
+    body: |
+      "a string"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "a string"
+          }
+        }
+      ]
+  - note: terms/scalar-terms/string (2) (module)
     module: |
       package test
 
@@ -471,7 +588,20 @@ cases:
           }
         ]
       }
-  - note: terms/scalar-terms/hex
+  - note: terms/scalar-terms/string (2) (body)
+    body: |
+      "a string u6abc7def8abc0def with unicode"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "a string u6abc7def8abc0def with unicode"
+          }
+        }
+      ]
+  - note: terms/scalar-terms/hex (module)
     module: |
       package test
 
@@ -481,7 +611,15 @@ cases:
         row: 3
         col: 6
         message: illegal number format
-  - note: terms/scalar-terms/non-terminated
+  - note: terms/scalar-terms/hex (body)
+    body: |
+      6abc
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal number format
+  - note: terms/scalar-terms/non-terminated (module)
     module: |
       package test
 
@@ -491,7 +629,15 @@ cases:
         row: 3
         col: 6
         message: non-terminated string
-  - note: terms/scalar-terms/non-terminated-raw
+  - note: terms/scalar-terms/non-terminated (body)
+    body: |
+      "foo
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: non-terminated string
+  - note: terms/scalar-terms/non-terminated-raw (module)
     module: |
       package test
 
@@ -501,7 +647,15 @@ cases:
         row: 3
         col: 6
         message: non-terminated string
-  - note: terms/scalar-terms/non-string
+  - note: terms/scalar-terms/non-terminated-raw (body)
+    body: |
+      `foo
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: non-terminated string
+  - note: terms/scalar-terms/non-string (module)
     module: |
       package test
 
@@ -511,7 +665,15 @@ cases:
         row: 3
         col: 6
         message: illegal token
-  - note: terms/scalar-terms/non-number
+  - note: terms/scalar-terms/non-string (body)
+    body: |
+      'a string'
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal token
+  - note: terms/scalar-terms/non-number (module)
     module: |
       package test
 
@@ -521,7 +683,15 @@ cases:
         row: 3
         col: 6
         message: illegal number format
-  - note: terms/scalar-terms/non-number2
+  - note: terms/scalar-terms/non-number (body)
+    body: |
+      6zxy
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal number format
+  - note: terms/scalar-terms/non-number2 (module)
     module: |
       package test
 
@@ -531,7 +701,15 @@ cases:
         row: 3
         col: 6
         message: illegal number format
-  - note: terms/scalar-terms/non-number4
+  - note: terms/scalar-terms/non-number2 (body)
+    body: |
+      6d7
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal number format
+  - note: terms/scalar-terms/non-number4 (module)
     module: |
       package test
 
@@ -541,7 +719,15 @@ cases:
         row: 3
         col: 6
         message: illegal number format
-  - note: terms/scalar-terms/non-number5
+  - note: terms/scalar-terms/non-number4 (body)
+    body: |
+      6true
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal number format
+  - note: terms/scalar-terms/non-number5 (module)
     module: |
       package test
 
@@ -551,7 +737,15 @@ cases:
         row: 3
         col: 6
         message: illegal number format
-  - note: terms/scalar-terms/non-number6
+  - note: terms/scalar-terms/non-number5 (body)
+    body: |
+      6false
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal number format
+  - note: terms/scalar-terms/non-number6 (module)
     module: |
       package test
 
@@ -561,7 +755,15 @@ cases:
         row: 3
         col: 6
         message: illegal ref (head cannot be number)
-  - note: terms/scalar-terms/non-number8
+  - note: terms/scalar-terms/non-number6 (body)
+    body: |
+      6[null, null]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal ref (head cannot be number)
+  - note: terms/scalar-terms/non-number8 (module)
     module: |
       package test
 
@@ -571,7 +773,15 @@ cases:
         row: 3
         col: 7
         message: expected fraction
-  - note: terms/scalar-terms/non-number9
+  - note: terms/scalar-terms/non-number8 (body)
+    body: |
+      .0.
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: expected fraction
+  - note: terms/scalar-terms/non-number9 (module)
     module: |
       package test
 
@@ -581,7 +791,15 @@ cases:
         row: 3
         col: 6
         message: expected exponent
-  - note: terms/scalar-terms/non-number10
+  - note: terms/scalar-terms/non-number9 (body)
+    body: |
+      0e
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: expected exponent
+  - note: terms/scalar-terms/non-number10 (module)
     module: |
       package test
 
@@ -591,7 +809,15 @@ cases:
         row: 3
         col: 6
         message: expected exponent
-  - note: terms/scalar-terms/non-number11
+  - note: terms/scalar-terms/non-number10 (body)
+    body: |
+      0e.
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: expected exponent
+  - note: terms/scalar-terms/non-number11 (module)
     module: |
       package test
 
@@ -601,7 +827,15 @@ cases:
         row: 3
         col: 6
         message: illegal number format
-  - note: terms/scalar-terms/non-number12
+  - note: terms/scalar-terms/non-number11 (body)
+    body: |
+      0F
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: illegal number format
+  - note: terms/scalar-terms/non-number12 (module)
     module: |
       package test
 
@@ -611,7 +845,15 @@ cases:
         row: 3
         col: 6
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/non-number13
+  - note: terms/scalar-terms/non-number12 (body)
+    body: |
+      00
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number13 (module)
     module: |
       package test
 
@@ -621,7 +863,15 @@ cases:
         row: 3
         col: 6
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/non-number14
+  - note: terms/scalar-terms/non-number13 (body)
+    body: |
+      00.1
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number14 (module)
     module: |
       package test
 
@@ -631,7 +881,15 @@ cases:
         row: 3
         col: 7
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/non-number15
+  - note: terms/scalar-terms/non-number14 (body)
+    body: |
+      -00
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number15 (module)
     module: |
       package test
 
@@ -641,7 +899,15 @@ cases:
         row: 3
         col: 7
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/non-number16
+  - note: terms/scalar-terms/non-number15 (body)
+    body: |
+      -00.1
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number16 (module)
     module: |
       package test
 
@@ -651,7 +917,15 @@ cases:
         row: 3
         col: 7
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/non-number17
+  - note: terms/scalar-terms/non-number16 (body)
+    body: |
+      -00.01
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number17 (module)
     module: |
       package test
 
@@ -661,7 +935,15 @@ cases:
         row: 3
         col: 6
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/non-number18
+  - note: terms/scalar-terms/non-number17 (body)
+    body: |
+      00e1
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number18 (module)
     module: |
       package test
 
@@ -671,7 +953,15 @@ cases:
         row: 3
         col: 7
         message: 'unexpected number token: expected number without leading zero'
-  - note: terms/scalar-terms/parsing float fails
+  - note: terms/scalar-terms/non-number18 (body)
+    body: |
+      -00e1
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/parsing float fails (module)
     module: |
       package test
 
@@ -681,7 +971,15 @@ cases:
         row: 3
         col: 6
         message: 'unexpected number token: invalid float'
-  - note: terms/scalar-terms/float is +inf
+  - note: terms/scalar-terms/parsing float fails (body)
+    body: |
+      7e3000000000
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'unexpected number token: invalid float'
+  - note: terms/scalar-terms/float is +inf (module)
     module: |
       package test
 
@@ -691,7 +989,15 @@ cases:
         row: 3
         col: 6
         message: number too big
-  - note: terms/scalar-terms/float is -inf
+  - note: terms/scalar-terms/float is +inf (body)
+    body: |
+      10245423601e680507880
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: number too big
+  - note: terms/scalar-terms/float is -inf (module)
     module: |
       package test
 
@@ -701,7 +1007,15 @@ cases:
         row: 3
         col: 7
         message: number too big
-  - note: terms/scalar-terms/float exp < -1e5
+  - note: terms/scalar-terms/float is -inf (body)
+    body: |
+      -10245423601e680507880
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: number too big
+  - note: terms/scalar-terms/float exp < -1e5 (module)
     module: |
       package test
 
@@ -711,7 +1025,15 @@ cases:
         row: 3
         col: 6
         message: number too big
-  - note: terms/scalar-terms/float exp > 1e5
+  - note: terms/scalar-terms/float exp < -1e5 (body)
+    body: |
+      1.010034059e-301030
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: number too big
+  - note: terms/scalar-terms/float exp > 1e5 (module)
     module: |
       package test
 
@@ -720,4 +1042,12 @@ cases:
       - code: rego_parse_error
         row: 3
         col: 6
+        message: number too big
+  - note: terms/scalar-terms/float exp > 1e5 (body)
+    body: |
+      9.900656229e+301029
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
         message: number too big

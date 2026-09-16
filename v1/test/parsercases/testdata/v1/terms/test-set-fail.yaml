@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestSetFail
 cases:
-  - note: terms/set-fail/non-terminated 1
+  - note: terms/set-fail/non-terminated 1 (module)
     module: |
       package test
 
@@ -10,7 +10,14 @@ cases:
       - code: rego_parse_error
         row: 4
         message: unexpected eof token
-  - note: terms/set-fail/non-terminated 2
+  - note: terms/set-fail/non-terminated 1 (body)
+    body: |
+      set(
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: unexpected eof token
+  - note: terms/set-fail/non-terminated 2 (module)
     module: |
       package test
 
@@ -19,7 +26,14 @@ cases:
       - code: rego_parse_error
         row: 4
         message: 'unexpected eof token: expected "," or "}"'
-  - note: terms/set-fail/non-terminated 3
+  - note: terms/set-fail/non-terminated 2 (body)
+    body: |
+      {foo, bar
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected eof token: expected "," or "}"'
+  - note: terms/set-fail/non-terminated 3 (module)
     module: |
       package test
 
@@ -28,7 +42,14 @@ cases:
       - code: rego_parse_error
         row: 4
         message: unexpected eof token
-  - note: terms/set-fail/missing separator
+  - note: terms/set-fail/non-terminated 3 (body)
+    body: |
+      {foo, bar,
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: unexpected eof token
+  - note: terms/set-fail/missing separator (module)
     module: |
       package test
 
@@ -38,7 +59,15 @@ cases:
         row: 3
         col: 11
         message: 'unexpected identifier token: non-terminated set'
-  - note: terms/set-fail/missing start
+  - note: terms/set-fail/missing separator (body)
+    body: |
+      {foo bar}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'unexpected identifier token: non-terminated set'
+  - note: terms/set-fail/missing start (module)
     module: |
       package test
 
@@ -48,7 +77,15 @@ cases:
         row: 3
         col: 9
         message: unexpected , token
-  - note: terms/set-fail/bad term
+  - note: terms/set-fail/missing start (body)
+    body: |
+      foo, bar, baz}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected , token
+  - note: terms/set-fail/bad term (module)
     module: |
       package test
 
@@ -58,7 +95,15 @@ cases:
         row: 3
         col: 7
         message: illegal ! character
-  - note: terms/set-fail/double comma
+  - note: terms/set-fail/bad term (body)
+    body: |
+      {!!!}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: illegal ! character
+  - note: terms/set-fail/double comma (module)
     module: |
       package test
 
@@ -68,7 +113,15 @@ cases:
         row: 3
         col: 9
         message: unexpected , token
-  - note: terms/set-fail/leading double comma
+  - note: terms/set-fail/double comma (body)
+    body: |
+      {a,,b}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected , token
+  - note: terms/set-fail/leading double comma (module)
     module: |
       package test
 
@@ -78,7 +131,15 @@ cases:
         row: 3
         col: 8
         message: unexpected , token
-  - note: terms/set-fail/trailing double comma
+  - note: terms/set-fail/leading double comma (body)
+    body: |
+      {,,a}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: unexpected , token
+  - note: terms/set-fail/trailing double comma (module)
     module: |
       package test
 
@@ -87,4 +148,12 @@ cases:
       - code: rego_parse_error
         row: 3
         col: 9
+        message: unexpected , token
+  - note: terms/set-fail/trailing double comma (body)
+    body: |
+      {a,,}
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
         message: unexpected , token

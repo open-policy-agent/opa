@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestObjectWithScalars
 cases:
-  - note: terms/object-with-scalars/number
+  - note: terms/object-with-scalars/number (module)
     module: |
       package test
 
@@ -69,7 +69,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/bool
+  - note: terms/object-with-scalars/number (body)
+    body: |
+      {"abc": 7, "def": 8}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "abc"
+                },
+                {
+                  "type": "number",
+                  "value": 7
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "def"
+                },
+                {
+                  "type": "number",
+                  "value": 8
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/bool (module)
     module: |
       package test
 
@@ -137,7 +171,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/string
+  - note: terms/object-with-scalars/bool (body)
+    body: |
+      {"abc": false, "def": true}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "abc"
+                },
+                {
+                  "type": "boolean",
+                  "value": false
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "def"
+                },
+                {
+                  "type": "boolean",
+                  "value": true
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/string (module)
     module: |
       package test
 
@@ -205,7 +273,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/mixed
+  - note: terms/object-with-scalars/string (body)
+    body: |
+      {"abc": "foo", "def": "bar"}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "abc"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "def"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/mixed (module)
     module: |
       package test
 
@@ -273,7 +375,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/number key
+  - note: terms/object-with-scalars/mixed (body)
+    body: |
+      {"abc": 7, "def": null}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "abc"
+                },
+                {
+                  "type": "number",
+                  "value": 7
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "def"
+                },
+                {
+                  "type": "null",
+                  "value": {}
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/number key (module)
     module: |
       package test
 
@@ -341,7 +477,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/number key 2
+  - note: terms/object-with-scalars/number key (body)
+    body: |
+      {8: 7, "def": null}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "number",
+                  "value": 8
+                },
+                {
+                  "type": "number",
+                  "value": 7
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "def"
+                },
+                {
+                  "type": "null",
+                  "value": {}
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/number key 2 (module)
     module: |
       package test
 
@@ -409,7 +579,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/bool key
+  - note: terms/object-with-scalars/number key 2 (body)
+    body: |
+      {8.5: 7, "def": null}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "number",
+                  "value": 8.5
+                },
+                {
+                  "type": "number",
+                  "value": 7
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "def"
+                },
+                {
+                  "type": "null",
+                  "value": {}
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/bool key (module)
     module: |
       package test
 
@@ -467,7 +671,31 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/trailing comma
+  - note: terms/object-with-scalars/bool key (body)
+    body: |
+      {true: false}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "boolean",
+                  "value": true
+                },
+                {
+                  "type": "boolean",
+                  "value": false
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/trailing comma (module)
     module: |
       package test
 
@@ -535,7 +763,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/leading comma
+  - note: terms/object-with-scalars/trailing comma (body)
+    body: |
+      {"a": "bar", "b": 64, }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "a"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "b"
+                },
+                {
+                  "type": "number",
+                  "value": 64
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/leading comma (module)
     module: |
       package test
 
@@ -603,7 +865,41 @@ cases:
           }
         ]
       }
-  - note: terms/object-with-scalars/leading comma not comprehension
+  - note: terms/object-with-scalars/leading comma (body)
+    body: |
+      {, "a": "bar", "b": 64 }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "string",
+                  "value": "a"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              [
+                {
+                  "type": "string",
+                  "value": "b"
+                },
+                {
+                  "type": "number",
+                  "value": 64
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/object-with-scalars/leading comma not comprehension (module)
     module: |
       package test
 
@@ -679,3 +975,45 @@ cases:
           }
         ]
       }
+  - note: terms/object-with-scalars/leading comma not comprehension (body)
+    body: |
+      {, 1 | 1: "bar"}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "call",
+                  "value": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "or"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ]
+            ]
+          }
+        }
+      ]

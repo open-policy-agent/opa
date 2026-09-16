@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_WithModifier
 cases:
-  - note: exprs/parse-logical-with-modifier/with after binary attaches to outer
+  - note: exprs/parse-logical-with-modifier/with after binary attaches to outer (module)
     module: |
       package test
 
@@ -106,7 +106,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-with-modifier/with inside explicit lhs body is scoped to the inner expression
+  - note: exprs/parse-logical-with-modifier/with after binary attaches to outer (body)
+    body: |
+      a and b with input as v
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "v"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-with-modifier/with inside explicit lhs body is scoped to the inner expression (module)
     module: |
       package test
 
@@ -212,7 +261,57 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-with-modifier/with on outermost in chain
+  - note: exprs/parse-logical-with-modifier/with inside explicit lhs body is scoped to the inner expression (body)
+    body: |
+      {a with input as v} and b
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "v"
+                    }
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-with-modifier/with on outermost in chain (module)
     module: |
       package test
 
@@ -354,7 +453,74 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-with-modifier/and, with on lhs implicit operand is an error
+  - note: exprs/parse-logical-with-modifier/with on outermost in chain (body)
+    body: |
+      a or b and c with input as v
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "type": "or"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "var",
+                "value": "v"
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-with-modifier/and, with on lhs implicit operand is an error (module)
     module: |
       package test
 
@@ -368,7 +534,17 @@ cases:
         row: 6
         col: 4
         message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
-  - note: exprs/parse-logical-with-modifier/or, with on lhs implicit operand is an error
+  - note: exprs/parse-logical-with-modifier/and, with on lhs implicit operand is an error (body)
+    body: |
+      a with input as v and b
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-with-modifier/or, with on lhs implicit operand is an error (module)
     module: |
       package test
 
@@ -382,7 +558,17 @@ cases:
         row: 6
         col: 4
         message: '`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)'
-  - note: exprs/parse-logical-with-modifier/with mid-chain cannot be followed by another operator
+  - note: exprs/parse-logical-with-modifier/or, with on lhs implicit operand is an error (body)
+    body: |
+      a with input as v or b
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: '`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-with-modifier/with mid-chain cannot be followed by another operator (module)
     module: |
       package test
 
@@ -397,3 +583,14 @@ cases:
         row: 7
         col: 26
         message: 'unexpected or keyword: expected \n or ; or }'
+  - note: exprs/parse-logical-with-modifier/with mid-chain cannot be followed by another operator (body)
+    body: |
+      a and b with input as v or c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 25
+        message: unexpected or keyword

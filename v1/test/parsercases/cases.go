@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package parsercases contains the schema and loader for the parser conformance
-// corpus: a Rego module in, an AST, an equivalent module, or diagnostics out.
+// corpus: a Rego module or query in, an AST, an equivalent module, or diagnostics
+// out.
 //
 // The package deliberately depends on nothing but the loader it shares with the
 // other corpora. OPA's own runner lives in package ast, and the generator that
@@ -33,12 +34,22 @@ const DefaultModuleName = conformance.DefaultModuleName
 // RegoVersions are the accepted values of a case's rego_version.
 var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
 
-// TestCase represents a single test case: one module to parse, and either the
-// AST that parse must produce or the diagnostics it must fail with.
+// TestCase represents a single test case: one module or one query to parse, and
+// either the AST that parse must produce or the diagnostics it must fail with.
 type TestCase struct {
-	Filename string `json:"-"       yaml:"-"`      // name of file that case was loaded from
-	Note     string `json:"note"    yaml:"note"`   // globally unique identifier for this test case
-	Module   string `json:"module"  yaml:"module"` // the policy to parse, named test-0.rego
+	Filename string `json:"-"                 yaml:"-"`                // name of file that case was loaded from
+	Note     string `json:"note"              yaml:"note"`             // globally unique identifier for this test case
+	Module   string `json:"module,omitempty"  yaml:"module,omitempty"` // the policy to parse, named test-0.rego
+
+	// Body is a query to parse instead of a module: one or more expressions, which
+	// is what the compiler corpus's query cases are handed. Exclusive with Module.
+	Body string `json:"body,omitempty"  yaml:"body,omitempty"`
+
+	// Imports are the directives in effect for Body, which has nowhere to declare
+	// them itself — future.keywords.<kw>, future.keywords, rego.v1. Body cases
+	// only: a module carries its own. An entry that is not a directive is an error,
+	// since parsing a body resolves no references.
+	Imports []string `json:"imports,omitempty"  yaml:"imports,omitempty"`
 
 	RegoVersion string `json:"rego_version,omitempty"  yaml:"rego_version,omitempty"` // rego version to parse the module as: v0, v1 (default), or v0-compat-v1
 
@@ -63,7 +74,7 @@ type TestCase struct {
 
 	// EntryPoints is authored only to override the entrypoints that would be
 	// derived from the module. Generating IR fills it in either way, so a
-	// consumer never has to derive them itself.
+	// consumer never has to derive them itself. Module cases only.
 	EntryPoints []string `json:"entrypoints,omitempty"  yaml:"entrypoints,omitempty"`
 }
 
@@ -83,23 +94,68 @@ func (tc TestCase) Failure() bool {
 	return len(tc.WantErrors) > 0
 }
 
-// Validate returns an error if tc is not a well-formed case. A case is either a
-// failure case, asserting want_errors, or a success case, asserting want_ast and
-// optionally want_equivalent; nothing else is accepted.
+// BodyCase reports whether tc parses a query rather than a module.
+func (tc TestCase) BodyCase() bool {
+	return tc.Body != ""
+}
+
+// Rego returns the policy tc parses, whichever entry point it is for.
+func (tc TestCase) Rego() string {
+	if tc.BodyCase() {
+		return tc.Body
+	}
+	return tc.Module
+}
+
+// ParseOptions is how tc's Rego has to be read: its rego_version, and the
+// directives among a body's imports folded in.
+func (tc TestCase) ParseOptions() (conformance.ParseOptions, error) {
+	out := conformance.ParseOptions{
+		RegoVersion:       tc.RegoVersion,
+		FutureKeywords:    slices.Clone(tc.FutureKeywords),
+		AllFutureKeywords: tc.AllFutureKeywords,
+	}
+
+	for _, imp := range tc.Imports {
+		directive, err := conformance.DirectiveOption("imports", imp, &out)
+		if err != nil {
+			return conformance.ParseOptions{}, err
+		}
+		if !directive {
+			return conformance.ParseOptions{}, conformance.UnknownDirective("imports", imp)
+		}
+	}
+
+	return out, nil
+}
+
+// Validate returns an error if tc is not a well-formed case. A case parses either
+// a module or a body, and is either a failure case, asserting want_errors, or a
+// success case, asserting want_ast and optionally want_equivalent; nothing else is
+// accepted.
 func (tc TestCase) Validate() error {
 	switch {
 	case tc.Note == "":
 		return errors.New("missing 'note'")
-	case tc.Module == "":
-		return errors.New("missing 'module'")
+	case tc.Module == "" && tc.Body == "":
+		return errors.New("missing 'module' or 'body'")
+	case tc.Module != "" && tc.Body != "":
+		return errors.New("'module' and 'body' are mutually exclusive")
 	case tc.RegoVersion != "" && !slices.Contains(RegoVersions, tc.RegoVersion):
 		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
 	}
 
-	if err := conformance.CheckTrailingWhitespace("module", tc.Module); err != nil {
-		return err
+	for _, f := range []struct{ field, rego string }{
+		{"module", tc.Module},
+		{"body", tc.Body},
+		{"want_equivalent", tc.WantEquivalent},
+	} {
+		if err := conformance.CheckTrailingWhitespace(f.field, f.rego); err != nil {
+			return err
+		}
 	}
-	if err := conformance.CheckTrailingWhitespace("want_equivalent", tc.WantEquivalent); err != nil {
+
+	if err := tc.validateEntryPoint(); err != nil {
 		return err
 	}
 
@@ -126,10 +182,43 @@ func (tc TestCase) Validate() error {
 		return errors.New("'want_equivalent' and 'locations' are mutually exclusive")
 	}
 
-	// Decoding the fixture checks that it is JSON at all — nothing else does — and
-	// finds its top-level fields exactly, rather than by matching the text the
-	// generator happens to write. Values stay raw, so nested structure is scanned
-	// for syntax but not built.
+	return tc.validateWantAST()
+}
+
+// validateEntryPoint checks the fields that only one of the two entry points has a
+// use for.
+func (tc TestCase) validateEntryPoint() error {
+	if !tc.BodyCase() {
+		if len(tc.Imports) > 0 {
+			return errors.New("'imports' is only expected on a case asserting 'body'; a module declares its own")
+		}
+		return nil
+	}
+
+	switch {
+	case tc.Annotations:
+		// ParseBody reports "expected body but got *ast.Annotations".
+		return errors.New("'annotations' has no effect on a case asserting 'body'")
+	case len(tc.EntryPoints) > 0:
+		return errors.New("'entrypoints' is not expected on a case asserting 'body'; there is no module to plan")
+	}
+
+	_, err := tc.ParseOptions()
+	return err
+}
+
+// validateWantAST checks that the fixture is JSON at all — nothing else does — and
+// that it is the shape the case's entry point produces. Values stay raw, so nested
+// structure is scanned for syntax but not built.
+func (tc TestCase) validateWantAST() error {
+	if tc.BodyCase() {
+		var exprs []json.RawMessage
+		if err := json.Unmarshal([]byte(tc.WantAST), &exprs); err != nil {
+			return fmt.Errorf("'want_ast' is not a JSON array of expressions: %w", err)
+		}
+		return nil
+	}
+
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(tc.WantAST), &fields); err != nil {
 		return fmt.Errorf("'want_ast' is not valid JSON: %w", err)

@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_Parsing
 cases:
-  - note: exprs/parse-logical-parsing/and basic
+  - note: exprs/parse-logical-parsing/and basic (module)
     module: |
       package test
 
@@ -89,7 +89,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/or basic
+  - note: exprs/parse-logical-parsing/and basic (body)
+    body: |
+      x and y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/or basic (module)
     module: |
       package test
 
@@ -177,7 +209,39 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/and tighter than or — rhs
+  - note: exprs/parse-logical-parsing/or basic (body)
+    body: |
+      x or y
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/and tighter than or — rhs (module)
     module: |
       package test
 
@@ -302,7 +366,57 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/and tighter than or — lhs
+  - note: exprs/parse-logical-parsing/and tighter than or — rhs (body)
+    body: |
+      x or y and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/and tighter than or — lhs (module)
     module: |
       package test
 
@@ -427,7 +541,57 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/and is left-associative
+  - note: exprs/parse-logical-parsing/and tighter than or — lhs (body)
+    body: |
+      x and y or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/and is left-associative (module)
     module: |
       package test
 
@@ -532,7 +696,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/or is left-associative
+  - note: exprs/parse-logical-parsing/and is left-associative (body)
+    body: |
+      x and y and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/or is left-associative (module)
     module: |
       package test
 
@@ -637,7 +850,56 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/not tighter than and
+  - note: exprs/parse-logical-parsing/or is left-associative (body)
+    body: |
+      x or y or z
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/not tighter than and (module)
     module: |
       package test
 
@@ -726,7 +988,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/not tighter than or
+  - note: exprs/parse-logical-parsing/not tighter than and (body)
+    body: |
+      not x and y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/not tighter than or (module)
     module: |
       package test
 
@@ -815,7 +1110,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/not with explicit body wraps or
+  - note: exprs/parse-logical-parsing/not tighter than or (body)
+    body: |
+      not x or y
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/not with explicit body wraps or (module)
     module: |
       package test
 
@@ -932,7 +1260,49 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/not on rhs, and
+  - note: exprs/parse-logical-parsing/not with explicit body wraps or (body)
+    body: |
+      not {x or y}
+    imports:
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "explicit_body": true,
+            "type": "not"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/not on rhs, and (module)
     module: |
       package test
 
@@ -1021,7 +1391,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/not on rhs, or
+  - note: exprs/parse-logical-parsing/not on rhs, and (body)
+    body: |
+      x and not y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/not on rhs, or (module)
     module: |
       package test
 
@@ -1110,7 +1513,40 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/and, lhs explicit
+  - note: exprs/parse-logical-parsing/not on rhs, or (body)
+    body: |
+      x or not y
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/and, lhs explicit (module)
     module: |
       package test
 
@@ -1206,7 +1642,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/and, rhs explicit
+  - note: exprs/parse-logical-parsing/and, lhs explicit (body)
+    body: |
+      {x; y} and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/and, rhs explicit (module)
     module: |
       package test
 
@@ -1302,7 +1778,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/and, both explicit
+  - note: exprs/parse-logical-parsing/and, rhs explicit (body)
+    body: |
+      x and {y; z}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/and, both explicit (module)
     module: |
       package test
 
@@ -1406,7 +1922,55 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/or, lhs explicit
+  - note: exprs/parse-logical-parsing/and, both explicit (body)
+    body: |
+      {a; b} and {c; d}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "d"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/or, lhs explicit (module)
     module: |
       package test
 
@@ -1502,7 +2066,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/or, rhs explicit
+  - note: exprs/parse-logical-parsing/or, lhs explicit (body)
+    body: |
+      {x; y} or z
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/or, rhs explicit (module)
     module: |
       package test
 
@@ -1598,7 +2202,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/or, both explicit
+  - note: exprs/parse-logical-parsing/or, rhs explicit (body)
+    body: |
+      x or {y; z}
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/or, both explicit (module)
     module: |
       package test
 
@@ -1702,7 +2346,55 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/nested via explicit body, rhs
+  - note: exprs/parse-logical-parsing/or, both explicit (body)
+    body: |
+      {a; b} or {c; d}
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "d"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/nested via explicit body, rhs (module)
     module: |
       package test
 
@@ -1828,7 +2520,58 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-parsing/nested via explicit body, rhs (2)
+  - note: exprs/parse-logical-parsing/nested via explicit body, rhs (body)
+    body: |
+      x and {y or z}
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-parsing/nested via explicit body, rhs (2) (module)
     module: |
       package test
 
@@ -1954,3 +2697,54 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-parsing/nested via explicit body, rhs (2) (body)
+    body: |
+      {x or y} and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]

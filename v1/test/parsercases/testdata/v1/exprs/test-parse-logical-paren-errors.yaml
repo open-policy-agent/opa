@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_ParenErrors
 cases:
-  - note: exprs/parse-logical-paren-errors/empty group
+  - note: exprs/parse-logical-paren-errors/empty group (module)
     module: |
       package test
 
@@ -15,7 +15,17 @@ cases:
         row: 6
         col: 7
         message: empty parenthesized group
-  - note: exprs/parse-logical-paren-errors/parens cannot wrap a body with logical content
+  - note: exprs/parse-logical-paren-errors/empty group (body)
+    body: |
+      a or ()
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: empty parenthesized group
+  - note: exprs/parse-logical-paren-errors/parens cannot wrap a body with logical content (module)
     module: |
       package test
 
@@ -30,7 +40,18 @@ cases:
         row: 7
         col: 8
         message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `{b or c}`)'
-  - note: exprs/parse-logical-paren-errors/unterminated group
+  - note: exprs/parse-logical-paren-errors/parens cannot wrap a body with logical content (body)
+    body: |
+      a and ({b or c})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `{b or c}`)'
+  - note: exprs/parse-logical-paren-errors/unterminated group (module)
     module: |
       package test
 
@@ -45,7 +66,17 @@ cases:
         row: 8
         col: 1
         message: expected ) to close parenthesized group
-  - note: exprs/parse-logical-paren-errors/non-logical group operand backtracks to term path
+  - note: exprs/parse-logical-paren-errors/unterminated group (body)
+    body: |
+      a and (b or c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: expected ) to close parenthesized group
+  - note: exprs/parse-logical-paren-errors/non-logical group operand backtracks to term path (module)
     module: |
       package test
 
@@ -59,7 +90,17 @@ cases:
         row: 6
         col: 10
         message: non-terminated expression
-  - note: exprs/parse-logical-paren-errors/empty group at statement start backtracks to term
+  - note: exprs/parse-logical-paren-errors/non-logical group operand backtracks to term path (body)
+    body: |
+      a or (x = 1)
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: non-terminated expression
+  - note: exprs/parse-logical-paren-errors/empty group at statement start backtracks to term (module)
     module: |
       package test
 
@@ -71,7 +112,15 @@ cases:
         row: 4
         col: 3
         message: unexpected ) token
-  - note: exprs/parse-logical-paren-errors/group opening with an operator
+  - note: exprs/parse-logical-paren-errors/empty group at statement start backtracks to term (body)
+    body: |
+      () and a
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 2
+        message: unexpected ) token
+  - note: exprs/parse-logical-paren-errors/group opening with an operator (module)
     module: |
       package test
 
@@ -86,7 +135,18 @@ cases:
         row: 7
         col: 10
         message: unexpected or keyword
-  - note: exprs/parse-logical-paren-errors/assignment in group backtracks to term path
+  - note: exprs/parse-logical-paren-errors/group opening with an operator (body)
+    body: |
+      a and ( or b)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: unexpected or keyword
+  - note: exprs/parse-logical-paren-errors/assignment in group backtracks to term path (module)
     module: |
       package test
 
@@ -100,7 +160,17 @@ cases:
         row: 6
         col: 11
         message: non-terminated expression
-  - note: exprs/parse-logical-paren-errors/some in group backtracks to term path
+  - note: exprs/parse-logical-paren-errors/assignment in group backtracks to term path (body)
+    body: |
+      a and (x := 1)
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 10
+        message: non-terminated expression
+  - note: exprs/parse-logical-paren-errors/some in group backtracks to term path (module)
     module: |
       package test
 
@@ -114,7 +184,17 @@ cases:
         row: 6
         col: 8
         message: unexpected some keyword
-  - note: exprs/parse-logical-paren-errors/multi-statement needs explicit body
+  - note: exprs/parse-logical-paren-errors/some in group backtracks to term path (body)
+    body: |
+      a or (some x in xs)
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: unexpected some keyword
+  - note: exprs/parse-logical-paren-errors/multi-statement needs explicit body (module)
     module: |
       package test
 
@@ -128,7 +208,17 @@ cases:
         row: 6
         col: 10
         message: non-terminated expression
-  - note: exprs/parse-logical-paren-errors/empty not group
+  - note: exprs/parse-logical-paren-errors/multi-statement needs explicit body (body)
+    body: |
+      a and (x; y)
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: non-terminated expression
+  - note: exprs/parse-logical-paren-errors/empty not group (module)
     module: |
       package test
 
@@ -142,7 +232,17 @@ cases:
         row: 6
         col: 6
         message: empty parenthesized group
-  - note: exprs/parse-logical-paren-errors/logical group cannot be compared
+  - note: exprs/parse-logical-paren-errors/empty not group (body)
+    body: |
+      not ()
+    imports:
+      - future.keywords.not
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: empty parenthesized group
+  - note: exprs/parse-logical-paren-errors/logical group cannot be compared (module)
     module: |
       package test
 
@@ -156,3 +256,13 @@ cases:
         row: 6
         col: 11
         message: 'unexpected equal token: expected \n or ; or }'
+  - note: exprs/parse-logical-paren-errors/logical group cannot be compared (body)
+    body: |
+      (a or b) == c
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 10
+        message: unexpected equal token

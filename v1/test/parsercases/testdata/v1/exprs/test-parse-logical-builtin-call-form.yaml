@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BuiltinCallForm
 cases:
-  - note: exprs/parse-logical-builtin-call-form/or call, statement start
+  - note: exprs/parse-logical-builtin-call-form/or call, statement start (module)
     module: |
       package test
 
@@ -74,7 +74,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, statement start
+  - note: exprs/parse-logical-builtin-call-form/or call, statement start (body)
+    body: |
+      or({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "or"
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, statement start (module)
     module: |
       package test
 
@@ -147,7 +185,45 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, assigned
+  - note: exprs/parse-logical-builtin-call-form/and call, statement start (body)
+    body: |
+      and({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "and"
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, assigned (module)
     module: |
       package test
 
@@ -238,7 +314,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, assigned
+  - note: exprs/parse-logical-builtin-call-form/or call, assigned (body)
+    body: |
+      x := or({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, assigned (module)
     module: |
       package test
 
@@ -329,7 +461,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, unified
+  - note: exprs/parse-logical-builtin-call-form/and call, assigned (body)
+    body: |
+      x := and({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "and"
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, unified (module)
     module: |
       package test
 
@@ -420,7 +608,63 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, comparison lhs
+  - note: exprs/parse-logical-builtin-call-form/or call, unified (body)
+    body: |
+      x = or({1}, {2})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, comparison lhs (module)
     module: |
       package test
 
@@ -501,7 +745,53 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, comparison rhs
+  - note: exprs/parse-logical-builtin-call-form/or call, comparison lhs (body)
+    body: |
+      or(a, b) == x
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "equal"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "a"
+                },
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, comparison rhs (module)
     module: |
       package test
 
@@ -582,7 +872,53 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, non-builtin arity
+  - note: exprs/parse-logical-builtin-call-form/and call, comparison rhs (body)
+    body: |
+      x == and(a, b)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "equal"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "and"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "a"
+                },
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, non-builtin arity (module)
     module: |
       package test
 
@@ -641,7 +977,31 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, no arguments
+  - note: exprs/parse-logical-builtin-call-form/or call, non-builtin arity (body)
+    body: |
+      or(a)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "or"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "a"
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, no arguments (module)
     module: |
       package test
 
@@ -696,7 +1056,27 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, nested in call arguments
+  - note: exprs/parse-logical-builtin-call-form/or call, no arguments (body)
+    body: |
+      or()
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "or"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, nested in call arguments (module)
     module: |
       package test
 
@@ -773,7 +1153,49 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, nested in or call
+  - note: exprs/parse-logical-builtin-call-form/and call, nested in call arguments (body)
+    body: |
+      f(and(a, b))
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "and"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "a"
+                },
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, nested in or call (module)
     module: |
       package test
 
@@ -859,7 +1281,58 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, ref operand
+  - note: exprs/parse-logical-builtin-call-form/or call, nested in or call (body)
+    body: |
+      or(or(a, b), {1})
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "or"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "a"
+                },
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ]
+            },
+            {
+              "type": "set",
+              "value": [
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, ref operand (module)
     module: |
       package test
 
@@ -934,7 +1407,47 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, arithmetic operand
+  - note: exprs/parse-logical-builtin-call-form/or call, ref operand (body)
+    body: |
+      x[or(a, b)]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "x"
+              },
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, arithmetic operand (module)
     module: |
       package test
 
@@ -1047,7 +1560,85 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, set comprehension head
+  - note: exprs/parse-logical-builtin-call-form/or call, arithmetic operand (body)
+    body: |
+      x := count(or(a, b)) + 1
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "assign"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "plus"
+                    }
+                  ]
+                },
+                {
+                  "type": "call",
+                  "value": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "count"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, set comprehension head (module)
     module: |
       package test
 
@@ -1127,7 +1718,52 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, negated
+  - note: exprs/parse-logical-builtin-call-form/or call, set comprehension head (body)
+    body: |
+      {or(a, b) | true}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "setcomprehension",
+            "value": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "boolean",
+                    "value": true
+                  }
+                }
+              ],
+              "term": {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, negated (module)
     module: |
       package test
 
@@ -1191,7 +1827,36 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword
+  - note: exprs/parse-logical-builtin-call-form/and call, negated (body)
+    body: |
+      not and(a, b)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "and"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "a"
+            },
+            {
+              "type": "var",
+              "value": "b"
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword (module)
     module: |
       package test
 
@@ -1294,7 +1959,54 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword
+  - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword (body)
+    body: |
+      x and or(a, b)
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword (module)
     module: |
       package test
 
@@ -1397,7 +2109,54 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword
+  - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword (body)
+    body: |
+      and(a, b) or x
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "and"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword (module)
     module: |
       package test
 
@@ -1515,7 +2274,69 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group
+  - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword (body)
+    body: |
+      or(a, b) or or(b, a)
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  }
+                ]
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group (module)
     module: |
       package test
 
@@ -1655,7 +2476,72 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body
+  - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group (body)
+    body: |
+      x and (and(a, b) or b)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "and"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body (module)
     module: |
       package test
 
@@ -1759,7 +2645,55 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, every domain
+  - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body (body)
+    body: |
+      x and {or(a, b)}
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, every domain (module)
     module: |
       package test
 
@@ -1841,7 +2775,54 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/or call, with modifier target value
+  - note: exprs/parse-logical-builtin-call-form/or call, every domain (body)
+    body: |
+      every y in or(a, b) { y }
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "domain": {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "a"
+                },
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ]
+            },
+            "key": null,
+            "value": {
+              "type": "var",
+              "value": "y"
+            }
+          }
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/or call, with modifier target value (module)
     module: |
       package test
 
@@ -1928,7 +2909,59 @@ cases:
           }
         ]
       }
-  - note: exprs/parse-logical-builtin-call-form/not or call
+  - note: exprs/parse-logical-builtin-call-form/or call, with modifier target value (body)
+    body: |
+      x with data.y as or(a, b)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "x"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "data"
+                  },
+                  {
+                    "type": "string",
+                    "value": "y"
+                  }
+                ]
+              },
+              "value": {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/parse-logical-builtin-call-form/not or call (module)
     module: |
       package test
 
@@ -1992,3 +3025,32 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-builtin-call-form/not or call (body)
+    body: |
+      not or(a, b)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "negated": true,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "or"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "a"
+            },
+            {
+              "type": "var",
+              "value": "b"
+            }
+          ]
+        }
+      ]

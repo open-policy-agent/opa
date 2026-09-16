@@ -64,7 +64,19 @@ func runParseCase(t *testing.T, tc parsercases.TestCase) {
 		t.Fatalf("%s: %v", tc.Filename, err)
 	}
 
-	module, err := ParseModuleWithOpts(parsercases.DefaultModuleName, tc.Module, popts)
+	parse := func(rego string) (any, error) {
+		if tc.BodyCase() {
+			return ParseBodyWithOpts(rego, popts)
+		}
+		return ParseModuleWithOpts(parsercases.DefaultModuleName, rego, popts)
+	}
+
+	what := "module"
+	if tc.BodyCase() {
+		what = "body"
+	}
+
+	node, err := parse(tc.Rego())
 
 	if tc.Failure() {
 		if err == nil {
@@ -78,13 +90,13 @@ func runParseCase(t *testing.T, tc parsercases.TestCase) {
 		t.Fatalf("%s: unexpected parse error: %v", tc.Filename, err)
 	}
 
-	assertWantAST(t, tc, "module", module)
+	assertWantAST(t, tc, what, node)
 
 	if tc.WantEquivalent == "" {
 		return
 	}
 
-	equivalent, err := ParseModuleWithOpts(parsercases.DefaultModuleName, tc.WantEquivalent, popts)
+	equivalent, err := parse(tc.WantEquivalent)
 	if err != nil {
 		t.Fatalf("%s: unexpected parse error in 'want_equivalent': %v", tc.Filename, err)
 	}
@@ -92,14 +104,16 @@ func runParseCase(t *testing.T, tc parsercases.TestCase) {
 	assertWantAST(t, tc, "want_equivalent", equivalent)
 }
 
-func assertWantAST(t *testing.T, tc parsercases.TestCase, what string, module *Module) {
+func assertWantAST(t *testing.T, tc parsercases.TestCase, what string, node any) {
 	t.Helper()
 
-	// Dropped for the same reason locations are off by default, and matching what
-	// the generator writes. See MarshalAST in build/generate-parser-cases.
-	module.Comments = nil
+	if module, ok := node.(*Module); ok {
+		// Dropped for the same reason locations are off by default, and matching what
+		// the generator writes. See MarshalAST in build/generate-parser-cases.
+		module.Comments = nil
+	}
 
-	bs, err := json.Marshal(module)
+	bs, err := json.Marshal(node)
 	if err != nil {
 		t.Fatalf("%s: marshal %s: %v", tc.Filename, what, err)
 	}
@@ -118,20 +132,28 @@ func assertWantAST(t *testing.T, tc parsercases.TestCase, what string, module *M
 }
 
 func parseCaseOptions(tc parsercases.TestCase) (ParserOptions, error) {
-	regoVersion, err := caseRegoVersion(tc.RegoVersion)
+	opts, err := tc.ParseOptions()
 	if err != nil {
 		return ParserOptions{}, err
 	}
 
-	popts := ParserOptions{
+	regoVersion, err := caseRegoVersion(opts.RegoVersion)
+	if err != nil {
+		return ParserOptions{}, err
+	}
+
+	return ParserOptions{
 		RegoVersion:       regoVersion,
 		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(tc.ExperimentalKeywords)),
 		ProcessAnnotation: tc.Annotations,
-		FutureKeywords:    tc.FutureKeywords,
-		AllFutureKeywords: tc.AllFutureKeywords,
-	}
+		FutureKeywords:    opts.FutureKeywords,
+		AllFutureKeywords: opts.AllFutureKeywords,
 
-	return popts, nil
+		// As rego.New does for a query: without it a body that reads as a rule fails
+		// with "expected body but got *ast.Rule", a Go type name with no position,
+		// where the parser has a positioned rego_parse_error to report.
+		SkipRules: tc.BodyCase(),
+	}, nil
 }
 
 func parseCaseErrors(err error) []conformance.Error {

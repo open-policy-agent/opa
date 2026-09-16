@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestWildcards
 cases:
-  - note: rules/wildcards/functions
+  - note: rules/wildcards/functions (module)
     rego_version: v0
     module: |
       package test

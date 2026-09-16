@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestParseLogical_BraceLedOperand
 cases:
-  - note: exprs/parse-logical-brace-led-operand/lhs of and
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (module)
     module: |
       package test
 
@@ -15,7 +15,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of or
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (body)
+    body: |
+      {"a": 1} and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (module)
     module: |
       package test
 
@@ -29,7 +39,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of and
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (body)
+    body: |
+      {"a": 1} or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (module)
     module: |
       package test
 
@@ -43,7 +63,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of or
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (body)
+    body: |
+      z and {"a": 1}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (module)
     module: |
       package test
 
@@ -57,7 +87,17 @@ cases:
         row: 6
         col: 7
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of and (2)
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (body)
+    body: |
+      z or {"a": 1}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (2) (module)
     module: |
       package test
 
@@ -71,7 +111,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of or (2)
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (2) (body)
+    body: |
+      {1, 2} and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (2) (module)
     module: |
       package test
 
@@ -85,7 +135,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of and (2)
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (2) (body)
+    body: |
+      {1, 2} or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (2) (module)
     module: |
       package test
 
@@ -99,7 +159,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of or (2)
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (2) (body)
+    body: |
+      z and {1, 2}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (2) (module)
     module: |
       package test
 
@@ -113,7 +183,17 @@ cases:
         row: 6
         col: 7
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of and (3)
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (2) (body)
+    body: |
+      z or {1, 2}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (3) (module)
     module: |
       package test
 
@@ -127,7 +207,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of or (3)
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (3) (body)
+    body: |
+      {k: v | v := input[k]} and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (3) (module)
     module: |
       package test
 
@@ -141,7 +231,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of and (3)
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (3) (body)
+    body: |
+      {k: v | v := input[k]} or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (3) (module)
     module: |
       package test
 
@@ -155,7 +255,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of or (3)
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (3) (body)
+    body: |
+      z and {k: v | v := input[k]}
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (3) (module)
     module: |
       package test
 
@@ -169,7 +279,17 @@ cases:
         row: 6
         col: 7
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of and (4)
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (3) (body)
+    body: |
+      z or {k: v | v := input[k]}
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (4) (module)
     module: |
       package test
 
@@ -183,7 +303,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of or (4)
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (4) (body)
+    body: |
+      {"a": 1}[_] and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (4) (module)
     module: |
       package test
 
@@ -197,7 +327,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of and (4)
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (4) (body)
+    body: |
+      {"a": 1}[_] or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (4) (module)
     module: |
       package test
 
@@ -211,7 +351,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of or (4)
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (4) (body)
+    body: |
+      z and {"a": 1}[_]
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (4) (module)
     module: |
       package test
 
@@ -225,7 +375,17 @@ cases:
         row: 6
         col: 7
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of and (5)
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (4) (body)
+    body: |
+      z or {"a": 1}[_]
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (5) (module)
     module: |
       package test
 
@@ -239,7 +399,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of or (5)
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (5) (body)
+    body: |
+      {"a": 1}.a and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (5) (module)
     module: |
       package test
 
@@ -253,7 +423,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of and (5)
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (5) (body)
+    body: |
+      {"a": 1}.a or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (5) (module)
     module: |
       package test
 
@@ -267,7 +447,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of or (5)
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (5) (body)
+    body: |
+      z and {"a": 1}.a
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (5) (module)
     module: |
       package test
 
@@ -281,7 +471,17 @@ cases:
         row: 6
         col: 7
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of and (6)
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (5) (body)
+    body: |
+      z or {"a": 1}.a
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (6) (module)
     module: |
       package test
 
@@ -295,7 +495,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/lhs of or (6)
+  - note: exprs/parse-logical-brace-led-operand/lhs of and (6) (body)
+    body: |
+      {1, 2} & input.s == set() and z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (6) (module)
     module: |
       package test
 
@@ -309,7 +519,17 @@ cases:
         row: 6
         col: 2
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of and (6)
+  - note: exprs/parse-logical-brace-led-operand/lhs of or (6) (body)
+    body: |
+      {1, 2} & input.s == set() or z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (6) (module)
     module: |
       package test
 
@@ -323,7 +543,17 @@ cases:
         row: 6
         col: 8
         message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
-  - note: exprs/parse-logical-brace-led-operand/rhs of or (6)
+  - note: exprs/parse-logical-brace-led-operand/rhs of and (6) (body)
+    body: |
+      z and {1, 2} & input.s == set()
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 7
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (6) (module)
     module: |
       package test
 
@@ -336,4 +566,14 @@ cases:
       - code: rego_parse_error
         row: 6
         col: 7
+        message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/rhs of or (6) (body)
+    body: |
+      z or {1, 2} & input.s == set()
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'

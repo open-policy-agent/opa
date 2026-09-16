@@ -1,7 +1,7 @@
 ---
 # Generated externalized tests from TestImport
 cases:
-  - note: imports/import/single-input
+  - note: imports/import/single-input (module)
     module: |
       package test
 
@@ -34,7 +34,7 @@ cases:
           ]
         }
       }
-  - note: imports/import/single-data
+  - note: imports/import/single-data (module)
     module: |
       package test
 
@@ -67,7 +67,7 @@ cases:
           ]
         }
       }
-  - note: imports/import/multiple
+  - note: imports/import/multiple (module)
     module: |
       package test
 
@@ -112,7 +112,7 @@ cases:
           ]
         }
       }
-  - note: imports/import/single alias
+  - note: imports/import/single alias (module)
     module: |
       package test
 
@@ -150,7 +150,7 @@ cases:
           ]
         }
       }
-  - note: imports/import/multiple alias
+  - note: imports/import/multiple alias (module)
     module: |
       package test
 
@@ -196,7 +196,7 @@ cases:
           ]
         }
       }
-  - note: imports/import/white space
+  - note: imports/import/white space (module)
     module: |
       package test
 
@@ -241,7 +241,7 @@ cases:
           ]
         }
       }
-  - note: imports/import/non-ground ref
+  - note: imports/import/non-ground ref (module)
     module: |
       package test
 
@@ -251,7 +251,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected var token: expecting string'
-  - note: imports/import/non-string
+  - note: imports/import/non-string (module)
     module: |
       package test
 
@@ -261,7 +261,7 @@ cases:
         row: 3
         col: 18
         message: 'unexpected number token: expecting string'
-  - note: imports/import/unknown root
+  - note: imports/import/unknown root (module)
     module: |
       package test
 
