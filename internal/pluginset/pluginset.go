@@ -135,12 +135,14 @@ func Parse(
 	}
 	if bundleConfig == nil {
 		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(serviceNames).
-			WithKeyConfigs(manager.PublicKeys()).WithTriggerMode(trigger).Parse()
+			WithKeyConfigs(manager.PublicKeys()).WithTriggerMode(trigger).
+			WithBatchBundleActivation(config.BatchBundleActivation).Parse()
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		manager.Logger().Warn("Deprecated 'bundle' configuration specified. Use 'bundles' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#bundles")
+		bundleConfig.BatchBundleActivation = config.BatchBundleActivation
 	}
 
 	decisionLogsConfig, err := logs.NewConfigBuilder().WithBytes(config.DecisionLogs).WithServices(serviceNames).

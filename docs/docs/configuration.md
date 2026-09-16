@@ -1065,6 +1065,7 @@ The `server` configuration sets:
 | `persistence_directory`          | `string`  | No (default `$PWD/.opa`)            | Set directory to use for persistence with options like `bundles[_].persist`.                                                                                                                                                                                                            |
 | `plugins`                        | `object`  | No (default: `{}`)                  | Location for custom plugin configuration.                                                                                                                                                                                                                                               |
 | `nd_builtin_cache`               | `boolean` | No (default: `false`)               | Enable the non-deterministic builtins caching system during policy evaluation, and include the contents of the cache in decision logs. Note that decision logs that are larger than `upload_size_limit_bytes` will drop the `nd_builtin_cache` key from the log entry before uploading. |
+| `batch_bundle_activation`        | `boolean` | No (default: `false`)               | Activate the initial load's bundles together, so their modules are compiled once instead of once per bundle. They wait for every configured bundle to be downloaded, report no change, or fail; a source that never responds holds the rest back.                                       |
 
 ## Configuration Validation
 

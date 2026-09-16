@@ -92,6 +92,13 @@ func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBui
 	return b
 }
 
+// WithBatchBundleActivation sets whether the bundles collected during the
+// initial load are activated together instead of one at a time.
+func (b *ConfigBuilder) WithBatchBundleActivation(batch bool) *ConfigBuilder {
+	b.batchBundleActivation = batch
+	return b
+}
+
 // Parse validates the config and injects default values for the defined `bundles`.
 func (b *ConfigBuilder) Parse() (*Config, error) {
 	if b.raw == nil {
@@ -104,8 +111,13 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 		return nil, err
 	}
 
-	// Build a `Config` out of the parsed map
-	c := Config{Bundles: map[string]*Source{}}
+	// Build a `Config` out of the parsed map. The bundles map is all this
+	// section holds, so the options that apply to the plugin as a whole are
+	// handed to the builder rather than read from it.
+	c := Config{
+		Bundles:               map[string]*Source{},
+		BatchBundleActivation: b.batchBundleActivation,
+	}
 	for name, source := range bundleConfigs {
 		if source != nil {
 			c.Bundles[name] = source
@@ -122,10 +134,11 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 
 // ConfigBuilder assists in the construction of the plugin configuration.
 type ConfigBuilder struct {
-	raw      []byte
-	services []string
-	keys     map[string]*keys.Config
-	trigger  *plugins.TriggerMode
+	raw                   []byte
+	services              []string
+	keys                  map[string]*keys.Config
+	trigger               *plugins.TriggerMode
+	batchBundleActivation bool
 }
 
 // Config represents the configuration of the plugin.
@@ -137,6 +150,14 @@ type Config struct {
 	download.Config // Deprecated: Use `Bundles` map instead
 
 	Bundles map[string]*Source
+
+	// BatchBundleActivation activates the bundles collected during the initial
+	// load in a single call, compiling their modules together rather than once
+	// per bundle. The collected bundles are held back until every configured
+	// bundle has been downloaded, reported no change, or failed, so a source
+	// that never responds keeps the others out of the store. Bundles downloaded
+	// after the plugin is ready are activated one at a time, as before.
+	BatchBundleActivation bool `json:"batch_bundle_activation"`
 
 	Name    string  `json:"name"`    // Deprecated: Use `Bundles` map instead
 	Service string  `json:"service"` // Deprecated: Use `Bundles` map instead

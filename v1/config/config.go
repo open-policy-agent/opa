@@ -89,6 +89,7 @@ type Config struct {
 	Discovery                    json.RawMessage            `json:"discovery,omitempty"`
 	Bundle                       json.RawMessage            `json:"bundle,omitempty"` // Deprecated: Use `bundles` instead
 	Bundles                      json.RawMessage            `json:"bundles,omitempty"`
+	BatchBundleActivation        bool                       `json:"batch_bundle_activation,omitempty"`
 	DecisionLogs                 json.RawMessage            `json:"decision_logs,omitempty"`
 	Status                       json.RawMessage            `json:"status,omitempty"`
 	Plugins                      map[string]json.RawMessage `json:"plugins,omitempty"`
@@ -332,10 +333,11 @@ func (c *Config) Clone() *Config {
 	}
 
 	clone := &Config{
-		NDBuiltinCache: c.NDBuiltinCache,
-		Server:         c.Server.Clone(),
-		Storage:        c.Storage.Clone(),
-		Labels:         maps.Clone(c.Labels),
+		NDBuiltinCache:        c.NDBuiltinCache,
+		BatchBundleActivation: c.BatchBundleActivation,
+		Server:                c.Server.Clone(),
+		Storage:               c.Storage.Clone(),
+		Labels:                maps.Clone(c.Labels),
 	}
 
 	if c.Services != nil {
