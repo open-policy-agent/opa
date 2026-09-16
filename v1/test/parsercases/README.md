@@ -88,7 +88,7 @@ what a query is. Which one it is is decided by the field it carries, `module` or
 
 | note ends with | the case parses | why |
 | - | - | - |
-| nothing | `module`, exactly as the Go test parsed it | the input was already a whole module |
+| nothing | `module`, exactly as the Go test parsed it, or `body` where that is what the Go test parsed | the input was already a whole module, or already a query |
 | ` (module)` | `module`, built around a term or expression | see the wrapper table below |
 | ` (body)` | `body`, the same Rego unwrapped | the compiler corpus hands queries to `QueryCompiler`, so this is the baseline those cases stand on |
 
@@ -109,6 +109,15 @@ to declare one. Only directives are accepted there — `future.keywords.<kw>`,
 is read with `SkipRules`, as `rego.New` does for a query: without it a body that
 reads as a rule fails with `expected body but got *ast.Rule`, a Go type name with
 no position, where the parser has a positioned `rego_parse_error` to report.
+
+**A body case states its activation even where the query parses without it.** This
+is the one place the corpus does not import the narrowest set that works, and the
+reason is that "works" does not mean "means the same thing". `x and y` parses as
+one `and` expression with the keyword active and as three juxtaposed expressions
+without it — cleanly, both times, because a body may hold several expressions on a
+line where a rule body may not. A case recording the shorter form would assert the
+reading it was not about. So `imports` says what the query was parsed with, and a
+consumer reads it as the whole activation rather than a hint.
 
 `annotations` and `entrypoints` do not apply to a body: `ParseBody` rejects a
 metadata block, and there is no module to plan. `want_ast` for a body is a JSON

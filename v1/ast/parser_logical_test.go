@@ -597,6 +597,7 @@ func TestParseLogical_PartialActivation(t *testing.T) {
 		input     string
 		expectAnd bool
 		expectOr  bool
+		expErr    bool
 	}{
 		{
 			note:      "only and enabled: `x and y` parses",
@@ -619,6 +620,7 @@ func TestParseLogical_PartialActivation(t *testing.T) {
 			note:   "only and enabled: `{x; y} or z` does NOT parse",
 			enable: []string{"and"},
 			input:  "{x; y} or z",
+			expErr: true,
 		},
 		{
 			note:     "only or enabled: `x or y` parses",
@@ -641,6 +643,7 @@ func TestParseLogical_PartialActivation(t *testing.T) {
 			note:   "only or enabled: `{x; y} and z` does NOT parse",
 			enable: []string{"or"},
 			input:  "{x; y} and z",
+			expErr: true,
 		},
 	}
 
@@ -649,25 +652,26 @@ func TestParseLogical_PartialActivation(t *testing.T) {
 			opts := ParserOptions{
 				FutureKeywords: tc.enable,
 			}
-			body, err := ParseBodyWithOpts(tc.input, opts)
+
+			if tc.expErr {
+				assertParseBodyError(t, tc.note, tc.input, opts)
+				return
+			}
+
+			body := assertParseBody(t, tc.note, tc.input, opts)
 
 			if !tc.expectAnd && !tc.expectOr {
-				if err == nil {
-					for _, expr := range body {
-						if _, ok := expr.Terms.(*LogicalAnd); ok {
-							t.Errorf("unexpected *LogicalAnd in parsed body: %s", body)
-						}
-						if _, ok := expr.Terms.(*LogicalOr); ok {
-							t.Errorf("unexpected *LogicalOr in parsed body: %s", body)
-						}
+				for _, expr := range body {
+					if _, ok := expr.Terms.(*LogicalAnd); ok {
+						t.Errorf("unexpected *LogicalAnd in parsed body: %s", body)
+					}
+					if _, ok := expr.Terms.(*LogicalOr); ok {
+						t.Errorf("unexpected *LogicalOr in parsed body: %s", body)
 					}
 				}
 				return
 			}
 
-			if err != nil {
-				t.Fatalf("expected successful parse, got: %v", err)
-			}
 			if len(body) != 1 {
 				t.Fatalf("expected exactly one expression, got %d: %s", len(body), body)
 			}
@@ -1481,10 +1485,7 @@ func TestParseLogical_ParenExplicit(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			body, err := ParseBodyWithOpts(tc.input, opts)
-			if err != nil {
-				t.Fatalf("unexpected parse error: %v", err)
-			}
+			body := assertParseBody(t, tc.note, tc.input, opts)
 			and, ok := body[0].Terms.(*LogicalAnd)
 			if !ok {
 				t.Fatalf("expected *LogicalAnd, got %T", body[0].Terms)
@@ -2019,9 +2020,7 @@ func TestParseLogical_BraceLedOperand(t *testing.T) {
 					input := fmt.Sprintf(ptc.expr, tc.operand)
 
 					if ptc.expParse {
-						if _, err := ParseBodyWithOpts(input, opts); err != nil {
-							t.Fatalf("unexpected error for %q: %v", input, err)
-						}
+						assertParseBody(t, ptc.note, input, opts)
 						return
 					}
 
@@ -2413,9 +2412,7 @@ func TestParseLogical_VoidCallOperandIsRejected(t *testing.T) {
 
 	for _, input := range allowed {
 		t.Run(input, func(t *testing.T) {
-			if _, err := ParseBodyWithOpts(input, opts); err != nil {
-				t.Fatalf("unexpected error for %q: %v", input, err)
-			}
+			assertParseBody(t, input, input, opts)
 		})
 	}
 }
@@ -2510,10 +2507,7 @@ func TestParseLogical_NotBodyLeadingOperand(t *testing.T) {
 	}
 
 	t.Run("with modifier binds to the whole expression", func(t *testing.T) {
-		body, err := ParseBodyWithOpts("not {x} and y with input as 1", opts)
-		if err != nil {
-			t.Fatal(err)
-		}
+		body := assertParseBody(t, "with modifier binds to the whole expression", "not {x} and y with input as 1", opts)
 		if len(body) != 1 {
 			t.Fatalf("expected 1 expression, got %d: %v", len(body), body)
 		}

@@ -97,6 +97,182 @@ cases:
         row: 1
         col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of and
+    body: |
+      ({"a": 1}) and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": [
+                    [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of or
+    body: |
+      ({"a": 1}) or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": [
+                    [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of and
+    body: |
+      z and ({"a": 1})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": [
+                    [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of or
+    body: |
+      z or ({"a": 1})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": [
+                    [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  ]
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
   - note: exprs/parse-logical-brace-led-operand/lhs of and (2) (module)
     module: |
       package test
@@ -193,6 +369,174 @@ cases:
         row: 1
         col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of and (2)
+    body: |
+      ({1, 2}) and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of or (2)
+    body: |
+      ({1, 2}) or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of and (2)
+    body: |
+      z and ({1, 2})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of or (2)
+    body: |
+      z or ({1, 2})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "number",
+                      "value": 1
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
   - note: exprs/parse-logical-brace-led-operand/lhs of and (3) (module)
     module: |
       package test
@@ -289,6 +633,306 @@ cases:
         row: 1
         col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({k: v | v := input[k]}) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of and (3)
+    body: |
+      ({k: v | v := input[k]}) and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "objectcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "assign"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "v"
+                          },
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              },
+                              {
+                                "type": "var",
+                                "value": "k"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "key": {
+                      "type": "var",
+                      "value": "k"
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "v"
+                    }
+                  }
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of or (3)
+    body: |
+      ({k: v | v := input[k]}) or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "objectcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "assign"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "v"
+                          },
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              },
+                              {
+                                "type": "var",
+                                "value": "k"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "key": {
+                      "type": "var",
+                      "value": "k"
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "v"
+                    }
+                  }
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of and (3)
+    body: |
+      z and ({k: v | v := input[k]})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "objectcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "assign"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "v"
+                          },
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              },
+                              {
+                                "type": "var",
+                                "value": "k"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "key": {
+                      "type": "var",
+                      "value": "k"
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "v"
+                    }
+                  }
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of or (3)
+    body: |
+      z or ({k: v | v := input[k]})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "objectcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "assign"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "var",
+                            "value": "v"
+                          },
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              },
+                              {
+                                "type": "var",
+                                "value": "k"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "key": {
+                      "type": "var",
+                      "value": "k"
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "v"
+                    }
+                  }
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
   - note: exprs/parse-logical-brace-led-operand/lhs of and (4) (module)
     module: |
       package test
@@ -385,6 +1029,218 @@ cases:
         row: 1
         col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}[_]) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of and (4)
+    body: |
+      ({"a": 1}[_]) and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "$0"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of or (4)
+    body: |
+      ({"a": 1}[_]) or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "$0"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of and (4)
+    body: |
+      z and ({"a": 1}[_])
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "$0"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of or (4)
+    body: |
+      z or ({"a": 1}[_])
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "$0"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
   - note: exprs/parse-logical-brace-led-operand/lhs of and (5) (module)
     module: |
       package test
@@ -481,6 +1337,218 @@ cases:
         row: 1
         col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}.a) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of and (5)
+    body: |
+      ({"a": 1}.a) and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of or (5)
+    body: |
+      ({"a": 1}.a) or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of and (5)
+    body: |
+      z and ({"a": 1}.a)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of or (5)
+    body: |
+      z or ({"a": 1}.a)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
   - note: exprs/parse-logical-brace-led-operand/lhs of and (6) (module)
     module: |
       package test
@@ -577,3 +1645,339 @@ cases:
         row: 1
         col: 6
         message: 'operand of `or` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({1, 2} & input.s == set()) or ...`)'
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of and (6)
+    body: |
+      ({1, 2} & input.s == set()) and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized lhs of or (6)
+    body: |
+      ({1, 2} & input.s == set()) or z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of and (6)
+    body: |
+      z and ({1, 2} & input.s == set())
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-brace-led-operand/parenthesized rhs of or (6)
+    body: |
+      z or ({1, 2} & input.s == set())
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "s"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  }
+                ]
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]

@@ -8848,6 +8848,32 @@ func assertParseOneBody(t *testing.T, msg string, input string, correct Body) {
 	}
 }
 
+// assertParseBody asserts that input parses as a body and returns it, so a test
+// asserting something about the parsed shape can carry on from here.
+func assertParseBody(t *testing.T, msg string, input string, opts ...ParserOptions) Body {
+	t.Helper()
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	body, err := ParseBodyWithOpts(input, opt)
+	if err != nil {
+		t.Fatalf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
+	}
+	return body
+}
+
+func assertParseBodyError(t *testing.T, msg string, input string, opts ...ParserOptions) {
+	t.Helper()
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	if body, err := ParseBodyWithOpts(input, opt); err == nil {
+		t.Fatalf("Error on test \"%s\": expected parse error on %s, got: %v", msg, input, body)
+	}
+}
+
 func assertParseOneExpr(t *testing.T, msg string, input string, correct *Expr, opts ...ParserOptions) {
 	t.Helper()
 	assertParseOne(t, msg, input, func(parsed any) {

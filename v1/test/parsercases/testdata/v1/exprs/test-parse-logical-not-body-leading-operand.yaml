@@ -901,6 +901,66 @@ cases:
           }
         }
       ]
+  - note: exprs/parse-logical-not-body-leading-operand/with modifier binds to the whole expression
+    body: |
+      not {x} and y with input as 1
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          ]
+        }
+      ]
   - note: exprs/parse-logical-not-body-leading-operand/no operator (module)
     module: |
       package test

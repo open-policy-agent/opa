@@ -943,3 +943,371 @@ cases:
         row: 1
         col: 2
         message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/{print("x"); true} and z
+    body: |
+      {print("x"); true} and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "print"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "x"
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-void-call-operand-is-rejected/{some v in [1]; print(v)} and z
+    body: |
+      {some v in [1]; print(v)} and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_2"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "v"
+                        },
+                        {
+                          "type": "array",
+                          "value": [
+                            {
+                              "type": "number",
+                              "value": 1
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "print"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "v"
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-void-call-operand-is-rejected/not print("x") and z
+    body: |
+      not print("x") and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "print"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "value": "x"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-void-call-operand-is-rejected/not {print("x")} and z
+    body: |
+      not {print("x")} and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "print"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "value": "x"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-void-call-operand-is-rejected/x := [1 | print("x")] and z
+    body: |
+      x := [1 | print("x")] and z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "arraycomprehension",
+                    "value": {
+                      "body": [
+                        {
+                          "index": 0,
+                          "terms": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "print"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "value": "x"
+                            }
+                          ]
+                        }
+                      ],
+                      "term": {
+                        "type": "number",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-void-call-operand-is-rejected/print(f(x)) ; z
+    body: |
+      print(f(x)) ; z
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "print"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "f"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "var",
+            "value": "z"
+          }
+        }
+      ]

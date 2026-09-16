@@ -1,0 +1,579 @@
+---
+# Generated externalized tests from TestMultiLineBody
+cases:
+  - note: exprs/multi-line-body/three definitions
+    body: |
+      x = 1
+      y = 2
+      z = [ i | [x,y] = arr
+      	arr[_] = i]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "number",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "y"
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "z"
+            },
+            {
+              "type": "arraycomprehension",
+              "value": {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "x"
+                          },
+                          {
+                            "type": "var",
+                            "value": "y"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "arr"
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "arr"
+                          },
+                          {
+                            "type": "var",
+                            "value": "$0"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "i"
+                      }
+                    ]
+                  }
+                ],
+                "term": {
+                  "type": "var",
+                  "value": "i"
+                }
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/multi-line-body/three definitions, with comments and w/o enclosing braces
+    body: |
+      x = 1 ; # comment after semicolon
+      y = 2   # comment without semicolon
+      z = [ i | [x,y] = arr  # comment in comprehension
+      	arr[_] = i]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            },
+            {
+              "type": "number",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "y"
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "z"
+            },
+            {
+              "type": "arraycomprehension",
+              "value": {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "x"
+                          },
+                          {
+                            "type": "var",
+                            "value": "y"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "arr"
+                      }
+                    ]
+                  },
+                  {
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "arr"
+                          },
+                          {
+                            "type": "var",
+                            "value": "$0"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "i"
+                      }
+                    ]
+                  }
+                ],
+                "term": {
+                  "type": "var",
+                  "value": "i"
+                }
+              }
+            }
+          ]
+        }
+      ]
+  - note: exprs/multi-line-body/array following call w/ whitespace
+    body: |
+      f(x)
+      [1]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/set following call w/ semicolon
+    body: |
+      f(x);{1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/array following array w/ whitespace
+    body: |
+      [1]
+      [2]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/array following set w/ whitespace
+    body: |
+      {1}
+      [2]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "number",
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/set following call w/ whitespace
+    body: |
+      f(x)
+      {1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "x"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/set following ref w/ whitespace
+    body: |
+      data.p.q
+      {1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "data"
+              },
+              {
+                "type": "string",
+                "value": "p"
+              },
+              {
+                "type": "string",
+                "value": "q"
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/set following variable w/ whitespace
+    body: |
+      input
+      {1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "ref",
+            "value": [
+              {
+                "type": "var",
+                "value": "input"
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+  - note: exprs/multi-line-body/set following equality w/ whitespace
+    body: |
+      input = 2
+      {1}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "number",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]

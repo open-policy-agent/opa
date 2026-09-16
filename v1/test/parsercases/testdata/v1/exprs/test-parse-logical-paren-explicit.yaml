@@ -1,0 +1,254 @@
+---
+# Generated externalized tests from TestParseLogical_ParenExplicit
+cases:
+  - note: exprs/parse-logical-paren-explicit/paren group rhs stays implicit
+    body: |
+      a and (b or c)
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-explicit/explicit body rhs is explicit
+    body: |
+      a and {b}
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "b"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-explicit/explicit body with logical content is explicit
+    body: |
+      a and {b or c}
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_rhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-explicit/explicit body lhs before and is explicit
+    body: |
+      {a} and c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-explicit/wrapped braces are a value, not an explicit body
+    body: |
+      a and ({b})
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "b"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: exprs/parse-logical-paren-explicit/wrapped braces lhs are a value, not an explicit body
+    body: |
+      ({a}) and c
+    imports:
+      - future.keywords.and
+      - future.keywords.or
+      - future.keywords.not
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "c"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]

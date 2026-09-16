@@ -1,0 +1,225 @@
+---
+# Generated externalized tests from TestParseLogical_PartialActivation
+cases:
+  - note: 'exprs/parse-logical-partial-activation/only and enabled: `x and y` parses'
+    body: |
+      x and y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: 'exprs/parse-logical-partial-activation/only and enabled: or stays an Ident'
+    body: |
+      x or y
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "x"
+          }
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "var",
+            "value": "or"
+          }
+        },
+        {
+          "index": 2,
+          "terms": {
+            "type": "var",
+            "value": "y"
+          }
+        }
+      ]
+  - note: 'exprs/parse-logical-partial-activation/only and enabled: `{x; y} and z` parses'
+    body: |
+      {x; y} and z
+    imports:
+      - future.keywords.and
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "and"
+          }
+        }
+      ]
+  - note: 'exprs/parse-logical-partial-activation/only and enabled: `{x; y} or z` does NOT parse'
+    body: |
+      {x; y} or z
+    imports:
+      - future.keywords.and
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: 'unexpected ; token: non-terminated set'
+  - note: 'exprs/parse-logical-partial-activation/only or enabled: `x or y` parses'
+    body: |
+      x or y
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: 'exprs/parse-logical-partial-activation/only or enabled: and stays an Ident'
+    body: |
+      x and y
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "x"
+          }
+        },
+        {
+          "index": 1,
+          "terms": {
+            "type": "var",
+            "value": "and"
+          }
+        },
+        {
+          "index": 2,
+          "terms": {
+            "type": "var",
+            "value": "y"
+          }
+        }
+      ]
+  - note: 'exprs/parse-logical-partial-activation/only or enabled: `{x; y} or z` parses'
+    body: |
+      {x; y} or z
+    imports:
+      - future.keywords.or
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "explicit_lhs": true,
+            "lhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "y"
+                }
+              }
+            ],
+            "rhs": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "z"
+                }
+              }
+            ],
+            "type": "or"
+          }
+        }
+      ]
+  - note: 'exprs/parse-logical-partial-activation/only or enabled: `{x; y} and z` does NOT parse'
+    body: |
+      {x; y} and z
+    imports:
+      - future.keywords.or
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 3
+        message: 'unexpected ; token: non-terminated set'
