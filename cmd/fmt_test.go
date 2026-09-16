@@ -7,12 +7,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/format"
+	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -1249,8 +1251,7 @@ foo.if.else = true
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
 				params.v0Compatible = true
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1297,8 +1298,7 @@ foo.if.else := true
 			note: "v1, no capability",
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1443,8 +1443,7 @@ foo.if.else = true
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
 				params.v0Compatible = true
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1491,8 +1490,7 @@ foo.if.else := true
 			note: "v1, no capability",
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1540,13 +1538,7 @@ foo["if"]["else"] := true
 	}
 }
 
-func dropCapabilityFeature(caps *ast.Capabilities, feature string) *ast.Capabilities {
-	feats := make([]string, 0, len(caps.Features))
-	for _, f := range caps.Features {
-		if f != feature {
-			feats = append(feats, f)
-		}
-	}
-	caps.Features = feats
+func dropKeywordsInRefsFeature(caps *ast.Capabilities) *ast.Capabilities {
+	caps.Features = slices.DeleteFunc(caps.Features, util.CmpEqual(ast.FeatureKeywordsInRefs))
 	return caps
 }

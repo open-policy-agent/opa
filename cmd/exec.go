@@ -89,8 +89,8 @@ e.g., ` + executable + ` exec --decision /foo/bar/baz ...
 	execCommand.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	execCommand.Flags().BoolVarP(&params.StdIn, "stdin-input", "I", false, "read input document from stdin rather than a static file")
 	execCommand.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
-	addV0CompatibleFlag(execCommand.Flags(), &params.V0Compatible, false)
-	addV1CompatibleFlag(execCommand.Flags(), &params.V1Compatible, false)
+	addV0CompatibleFlag(execCommand.Flags(), &params.V0Compatible)
+	addV1CompatibleFlag(execCommand.Flags(), &params.V1Compatible)
 
 	root.AddCommand(execCommand)
 }

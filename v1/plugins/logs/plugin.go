@@ -844,9 +844,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.ConsoleLogs {
-		if err := p.logEvent(event); err != nil {
-			p.logger.Error("Failed to log to console: %v.", err)
-		}
+		p.logEvent(event)
 	}
 
 	if p.config.Service != "" {
@@ -1219,10 +1217,9 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 	return nil
 }
 
-func (p *Plugin) logEvent(event EventV1) error {
+func (p *Plugin) logEvent(event EventV1) {
 	fields := eventToFields(event)
 	p.manager.ConsoleLogger().WithFields(fields).Info("Decision Log")
-	return nil
 }
 
 func addAttrIfNonZeroString(attrs *[]slog.Attr, key string, value string) {

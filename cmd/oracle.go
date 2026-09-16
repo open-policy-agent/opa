@@ -125,8 +125,8 @@ by the input location.`,
 	findDefinitionCommand.Flags().BoolVarP(&findDefinitionParams.stdinBuffer, "stdin-buffer", "", false, "read buffer from stdin")
 	addBundleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.bundlePaths)
 	addCapabilitiesFlag(findDefinitionCommand.Flags(), findDefinitionParams.capabilities)
-	addV0CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible, false)
-	addV1CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v1Compatible, false)
+	addV0CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible)
+	addV1CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v1Compatible)
 	oracleCommand.AddCommand(findDefinitionCommand)
 	root.AddCommand(oracleCommand)
 }

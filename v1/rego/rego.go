@@ -2158,24 +2158,21 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 		return nil, err
 	}
 	popts.RegoVersion = r.regoVersion
-	popts, err = parserOptionsFromRegoVersionImport(queryImports, popts)
-	if err != nil {
-		return nil, err
-	}
+	popts = parserOptionsFromRegoVersionImport(queryImports, popts)
 	popts.SkipRules = true
 	popts.Capabilities = r.capabilities
 
 	return ast.ParseBodyWithOpts(r.query, popts)
 }
 
-func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) (ast.ParserOptions, error) {
+func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) ast.ParserOptions {
 	for _, imp := range imports {
 		if ast.RegoV1CompatibleRef.Compare(imp.Path.Value) == 0 {
 			popts.RegoVersion = ast.RegoV1
-			return popts, nil
+			return popts
 		}
 	}
-	return popts, nil
+	return popts
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {

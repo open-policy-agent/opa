@@ -141,8 +141,8 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	explainMode := getExplain(r.URL, types.ExplainOffV1)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	explainMode := getExplain(r.URL)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1)
 
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()

@@ -36,7 +36,7 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 		{
 			desc:   "Trivial Schema with cache - string",
 			schema: ast.StringTerm(employeeGQLSchema),
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			result: ast.InternedTerm(true),
 		},
 		{
@@ -48,7 +48,7 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 		{
 			desc:   fmt.Sprintf("Schema w/ %d types with cache - string", extraTypes+1),
 			schema: ast.StringTerm(schemaWithExtraEmployeeTypes(extraTypes)),
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			result: ast.InternedTerm(true),
 		},
 		{
@@ -60,7 +60,7 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 		{
 			desc:   "Trivial Schema with cache - AST object",
 			schema: ast.NewTerm(ast.MustParseTerm(employeeGQLSchemaAST).Value.(ast.Object)),
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			result: ast.InternedTerm(true),
 		},
 	}
@@ -106,7 +106,7 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 		{
 			desc:   "Trivial Schema with cache - string",
 			schema: ast.StringTerm(employeeGQLSchema),
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			result: ast.NewTerm(employeeGQLSchemaASTObj),
 		},
 	}
@@ -152,7 +152,7 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 		{
 			desc:   "Trivial Query with cache - string",
 			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			result: ast.NewTerm(employeeGQLQueryASTObj),
 		},
 	}
@@ -199,7 +199,7 @@ func BenchmarkGraphQLIsValid(b *testing.B) {
 		},
 		{
 			desc:   "Trivial Schema with cache - string",
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
 			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.InternedTerm(true),
@@ -213,7 +213,7 @@ func BenchmarkGraphQLIsValid(b *testing.B) {
 		},
 		{
 			desc:   fmt.Sprintf("Schema w/ %d types with cache - string", extraTypes+1),
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
 			schema: ast.StringTerm(schemaWithExtraEmployeeTypes(extraTypes)),
 			result: ast.InternedTerm(true),
@@ -268,7 +268,7 @@ func BenchmarkGraphQLParse(b *testing.B) {
 		},
 		{
 			desc:   "Trivial Schema with cache - string",
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries),
 			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
 			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.ArrayTerm(
@@ -336,7 +336,7 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 		},
 		{
 			desc:   "Trivial Schema with cache - string",
-			cache:  valueCacheFactory(gqlCacheName, defaultCacheEntries),
+			cache:  valueCacheFactory(defaultCacheEntries + 1),
 			query:  ast.StringTerm(`{ employeeByID(id: "alice") { salary } }`),
 			schema: ast.StringTerm(employeeGQLSchema),
 			result: ast.ArrayTerm(
@@ -384,13 +384,13 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 	}
 }
 
-func valueCacheFactory(name string, maxEntries int) cache.InterQueryValueCache {
+func valueCacheFactory(maxEntries int) cache.InterQueryValueCache {
 	return cache.NewInterQueryValueCache(
 		context.Background(),
 		&cache.Config{
 			InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
 				NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
-					name: {
+					gqlCacheName: {
 						MaxNumEntries: &[]int{maxEntries}[0],
 					},
 				},

@@ -656,7 +656,7 @@ func (r *REPL) cmdFormat(s string) error {
 
 func (r *REPL) cmdTarget(t []string) error {
 	if len(t) != 1 {
-		return newBadArgsErr("target <mode>: expects exactly one argument")
+		return newBadArgsErr("target <mode>: expects exactly one argument, got %d", len(t))
 	}
 
 	if _, ok := allowedTargets[t[0]]; !ok {
@@ -857,10 +857,7 @@ func (r *REPL) cmdUnsetPackage(ctx context.Context, args []string) error {
 		return newBadArgsErr("argument must identify a package")
 	}
 
-	unset, err := r.unsetPackage(ctx, pkg)
-	if err != nil {
-		return err
-	} else if !unset {
+	if !r.unsetPackage(ctx, pkg) {
 		fmt.Fprintln(r.output, "warning: no matching package")
 	}
 
@@ -934,13 +931,13 @@ func refsOverlap(a, b ast.Ref) bool {
 	return true
 }
 
-func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
+func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) bool {
 	path := pkg.Path.String()
 	_, ok := r.modules[path]
 	if ok {
 		delete(r.modules, path)
 	} else {
-		return false, nil
+		return false
 	}
 
 	// Change back to default module if current one is being removed
@@ -948,7 +945,7 @@ func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
 		r.currentModuleID = ""
 	}
 
-	return true, nil
+	return true
 }
 
 func (r *REPL) timerStart(msg string) {

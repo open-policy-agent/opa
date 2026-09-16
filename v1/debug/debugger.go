@@ -539,7 +539,7 @@ func (s *session) StepOver(threadID ThreadID) error {
 
 	err = t.stepOver()
 	if err == nil {
-		i, e, _ := t.current()
+		i, e := t.current()
 		if e != nil {
 			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
 		}
@@ -576,7 +576,7 @@ func (s *session) StepIn(threadID ThreadID) error {
 
 	_, err = t.stepIn()
 	if err == nil {
-		i, e, _ := t.current()
+		i, e := t.current()
 		if e != nil {
 			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
 		}
@@ -613,7 +613,7 @@ func (s *session) StepOut(threadID ThreadID) error {
 
 	err = t.stepOut()
 	if err == nil {
-		i, e, _ := t.current()
+		i, e := t.current()
 		if e != nil {
 			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
 		}

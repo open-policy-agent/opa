@@ -30,10 +30,7 @@ func New(repo string, logf func(format string, args ...any)) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	token, err := resolveToken()
-	if err != nil {
-		return nil, err
-	}
+	token := resolveToken()
 	if token == "" && logf != nil {
 		logf("no GitHub token found ($GITHUB_TOKEN or `gh auth token`); GraphQL calls will fail with 401 and REST is limited to 60 requests/hour")
 	}
@@ -69,15 +66,15 @@ func splitRepo(s string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-func resolveToken() (string, error) {
+func resolveToken() string {
 	if t := strings.TrimSpace(os.Getenv("GITHUB_TOKEN")); t != "" {
-		return t, nil
+		return t
 	}
 	out, err := exec.Command("gh", "auth", "token").Output()
 	if err != nil {
-		return "", nil
+		return ""
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(string(out))
 }
 
 func (c *realClient) IssueURL(number int) string {

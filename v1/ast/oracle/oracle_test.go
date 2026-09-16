@@ -8,6 +8,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func TestOracleFindDefinitionErrors(t *testing.T) {
@@ -1115,6 +1116,26 @@ func TestCompileUptoNoModules(t *testing.T) {
 	}
 }
 
+func TestCompileUptoInvalidStageNoError(t *testing.T) {
+	t.Parallel()
+	compiler, module, err := New().compileUpto("INVALID", DefinitionQuery{
+		Buffer:   []byte("package test\np=1"),
+		Filename: "test.rego",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rules := compiler.GetRulesExact(ast.MustParseRef("data.test.p"))
+	if len(rules) != 1 {
+		t.Fatal("unexpected rules:", rules)
+	}
+
+	if module == nil {
+		t.Fatal("expected parsed module")
+	}
+}
+
 func TestCompileUptoNoBuffer(t *testing.T) {
 	t.Parallel()
 	compiler, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
@@ -1204,9 +1225,7 @@ r := 2`
 
 		// The compiler's capabilities gate the keywords available to the buffer.
 		capabilities := ast.CapabilitiesForThisVersion()
-		capabilities.FutureKeywords = slices.DeleteFunc(capabilities.FutureKeywords, func(kw string) bool {
-			return kw == "and"
-		})
+		capabilities.FutureKeywords = slices.DeleteFunc(capabilities.FutureKeywords, util.CmpEqual("and"))
 		o := New().WithCompiler(ast.NewCompiler().WithCapabilities(capabilities))
 
 		if _, _, err := o.compileUpto("SetRuleTree", DefinitionQuery{

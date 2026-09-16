@@ -2064,6 +2064,8 @@ func mustGZIPPayload(payload []byte) []byte {
 
 // generateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
 // Taken from topdown/topdown_bench_test.go
+//
+//nolint:unparam // always called with value 100, but useful to be able to change easily
 func generateJSONBenchmarkData(k, v int) map[string]any {
 	// create array of null values that can be iterated over
 	keys := make([]any, k)

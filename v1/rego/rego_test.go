@@ -3316,7 +3316,7 @@ func TestDescriptionRegisterBuiltin1(t *testing.T) {
 	description := "custom-arity-1"
 
 	decl := &Function{
-		Name:        "foo",
+		Name:        "baz",
 		Description: description,
 		Decl: types.NewFunction(
 			types.Args(types.S),
@@ -3327,7 +3327,7 @@ func TestDescriptionRegisterBuiltin1(t *testing.T) {
 	RegisterBuiltin1(decl, func(_ BuiltinContext, _ *ast.Term) (*ast.Term, error) {
 		return ast.StringTerm("bar"), nil
 	})
-	defer unregisterBuiltin("foo")
+	defer unregisterBuiltin("baz")
 
 	got := ast.Builtins[len(ast.Builtins)-1].Description
 	if got != description {

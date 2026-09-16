@@ -109,7 +109,7 @@ data.policy.is_admin.
 	addDataFlag(depsCommand.Flags(), &params.dataPaths)
 	addBundleFlag(depsCommand.Flags(), &params.bundlePaths)
 	addOutputFormat(depsCommand.Flags(), params.outputFormat)
-	addV1CompatibleFlag(depsCommand.Flags(), &params.v1Compatible, false)
+	addV1CompatibleFlag(depsCommand.Flags(), &params.v1Compatible)
 
 	root.AddCommand(depsCommand)
 }

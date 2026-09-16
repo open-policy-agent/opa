@@ -8900,10 +8900,10 @@ func assertLocationText(t *testing.T, expected string, actual *Location) {
 	}
 }
 
-func assertParseError(t *testing.T, msg string, input string, opts ...ParserOptions) {
+func assertParseError(t *testing.T, msg string, input string) {
 	t.Helper()
 	t.Run(msg, func(t *testing.T) {
-		assertParseErrorFunc(t, msg, input, func(string) {}, opts...)
+		assertParseErrorFunc(t, msg, input, func(string) {})
 	})
 }
 
@@ -8980,9 +8980,9 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module, 
 
 }
 
-func assertParseModuleError(t *testing.T, msg, input string, opts ...ParserOptions) {
+func assertParseModuleError(t *testing.T, msg, input string) {
 	t.Helper()
-	assertParseModuleErrorMessage(t, msg, input, "", opts...)
+	assertParseModuleErrorMessage(t, msg, input, "")
 }
 
 func assertParseModuleErrorMessage(t *testing.T, msg, input, expected string, opts ...ParserOptions) {

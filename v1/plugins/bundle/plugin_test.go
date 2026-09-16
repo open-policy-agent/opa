@@ -4988,9 +4988,9 @@ func TestLegacyBundleDataRead(t *testing.T) {
 			module := "package a.a1\n\nbar=1"
 
 			b := bundle.Bundle{
-				Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
+				Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"foo/a1", "foo/a2"}},
 				Data: map[string]any{
-					"a": map[string]any{
+					"foo": map[string]any{
 						"a2": "foo",
 					},
 				},
@@ -5023,7 +5023,7 @@ func TestLegacyBundleDataRead(t *testing.T) {
 			}
 
 			expIDs := []string{"bundle/id1"}
-			validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
+			validateStoreState(ctx, t, manager.Store, "/foo", expData, expIDs, bundleName, "quickbrownfaux", nil)
 		})
 	}
 }
