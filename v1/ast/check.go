@@ -44,13 +44,28 @@ func newTypeChecker() *typeChecker {
 
 func (tc *typeChecker) newEnv(exist *TypeEnv) *TypeEnv {
 	if exist != nil {
-		return exist.wrap()
+		env := exist.wrap()
+		// The wrapped environment would otherwise inherit exist's checker
+		// factory, which may have been built with a different configuration
+		// than tc -- the compiler seeds Compiler.TypeEnv from a bare checker,
+		// for one. Comprehension bodies are typed lazily through this factory,
+		// so it has to reflect the checker that is running now.
+		env.newChecker = tc.copyForEnv
+		return env
 	}
 	env := newTypeEnv(tc.copy)
 	if tc.input != nil {
 		env.tree.Put(InputRootRef, tc.input)
 	}
 	return env
+}
+
+// copyForEnv returns a checker for typing the closures an environment is asked
+// about. It drops the required-capabilities accumulator: environments outlive
+// the compilation that produced them, and the builtins in those closures are
+// already recorded by checkClosures.
+func (tc *typeChecker) copyForEnv() *typeChecker {
+	return tc.copy().WithRequiredCapabilities(nil)
 }
 
 func (tc *typeChecker) copy() *typeChecker {
@@ -306,7 +321,16 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 			args[i] = cpy.GetByValue(rule.Head.Args[i].Value)
 		}
 
-		tpe = types.NewFunction(args, cpy.GetByValue(rule.Head.Value.Value))
+		result := cpy.GetByValue(rule.Head.Value.Value)
+		if result == nil && tc.allowUndefinedFuncs {
+			// The value is only unknown because it came out of a call to an
+			// undefined function. Recording a function type without a result
+			// would make callers look like they pass one argument too many, so
+			// fall back to any.
+			result = types.A
+		}
+
+		tpe = types.NewFunction(args, result)
 	} else {
 		switch rule.Head.RuleKind() {
 		case SingleValue:
