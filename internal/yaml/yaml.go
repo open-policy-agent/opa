@@ -13,7 +13,9 @@ package yaml
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 
@@ -72,26 +74,53 @@ func Unmarshal(bs []byte, obj any, opts ...JSONOpt) error {
 	return nil
 }
 
-// YAMLToJSON converts a single YAML document to JSON.
+// YAMLToJSON converts a single YAML document to JSON. Input holding more than
+// one document keeps its historical meaning - only the first is converted -
+// but the rest of the stream still has to parse.
 func YAMLToJSON(bs []byte) ([]byte, error) {
-	var node yaml.Node
-	if err := yaml.Unmarshal(bs, &node); err != nil {
+	node, err := firstDocument(bs)
+	if err != nil {
 		return nil, err
 	}
 
 	var obj any
-	if node.Kind != 0 { // an empty document decodes to the zero Node
-		normalize(&node, map[*yaml.Node]struct{}{})
+	if node != nil {
+		normalize(node, map[*yaml.Node]struct{}{})
 		if err := node.Decode(&obj); err != nil {
 			return nil, err
 		}
 	}
 
-	obj, err := jsonable(obj)
+	obj, err = jsonable(obj)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(obj)
+}
+
+// firstDocument returns the first document in bs, or nil if bs holds none.
+//
+// The remaining documents are parsed and discarded. go-yaml stops reading at
+// the end of the first document, so without this a syntax error further into
+// the input is never reported: `"  a:\nb: 1"` closes the mapping at the dedent
+// and silently drops `b: 1`, rather than failing the way the YAML spec calls
+// for (issue 6854).
+func firstDocument(bs []byte) (*yaml.Node, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(bs))
+
+	var first *yaml.Node
+	for {
+		var node yaml.Node
+		if err := dec.Decode(&node); err != nil {
+			if errors.Is(err, io.EOF) {
+				return first, nil
+			}
+			return nil, err
+		}
+		if first == nil {
+			first = &node
+		}
+	}
 }
 
 // normalize rewrites the node tree before it is decoded, so that documents

@@ -1259,6 +1259,21 @@ func TestLoadErrors(t *testing.T) {
 	})
 }
 
+func TestLoadYAMLUnreachableContent(t *testing.T) {
+	files := map[string]string{
+		"/data.yaml": "\n  test:\ntest1: hello\n",
+	}
+	test.WithTempFS(files, func(rootDir string) {
+		_, err := NewFileLoader().All([]string{filepath.Join(rootDir, "data.yaml")})
+		if err == nil {
+			t.Fatal("expected failure")
+		}
+		if exp := "did not find expected <document start>"; !strings.Contains(err.Error(), exp) {
+			t.Fatalf("expected error to contain %v but got:\n%v", exp, err)
+		}
+	})
+}
+
 func TestLoadFileURL(t *testing.T) {
 	files := map[string]string{
 		"/a/a/1.json": `1`,        // this will load as a directory (e.g., file://a/a)
