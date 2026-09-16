@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -7799,4 +7800,663 @@ func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
 	if status.State != state {
 		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, state)
 	}
+}
+
+// countingStore counts the write transactions opened on a store, which is one
+// per bundle activation.
+type countingStore struct {
+	storage.Store
+
+	mtx         sync.Mutex
+	activations int
+}
+
+func (s *countingStore) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+	if len(params) > 0 && params[0].Write {
+		s.mtx.Lock()
+		s.activations++
+		s.mtx.Unlock()
+	}
+	return s.Store.NewTransaction(ctx, params...)
+}
+
+// activationCount returns the number of activations opened so far.
+func (s *countingStore) activationCount() int {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	return s.activations
+}
+
+// testBundleForName returns a bundle holding a single module in a package of its
+// own, so that several of them can be activated alongside each other.
+func testBundleForName(name string) bundle.Bundle {
+	pkg := strings.ReplaceAll(name, "-", "_")
+	module := fmt.Sprintf("package %s\n\nvalue := %q\n", pkg, name)
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "revision-" + name, Roots: &[]string{pkg}},
+		Data:     map[string]any{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/" + pkg + "/policy.rego",
+				Path:   "/" + pkg + "/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+	b.Manifest.Init()
+
+	return b
+}
+
+// saveTestBundleToDisk writes a bundle to the plugin's persist directory, where
+// loadAndActivateBundlesFromDisk looks for the bundles of an earlier run.
+func saveTestBundleToDisk(t *testing.T, plugin *Plugin, name string) {
+	t.Helper()
+
+	saveTestBundle(t, plugin, name, testBundleForName(name))
+}
+
+// saveTestBundle writes the given bundle to the plugin's persist directory,
+// which lets a test hand the plugin a bundle that would not load as it stands.
+func saveTestBundle(t *testing.T, plugin *Plugin, name string, b bundle.Bundle) {
+	t.Helper()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal(err)
+	}
+	if err := plugin.saveBundleToDisk(name, &buf); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ensurePolicyCount asserts the number of modules in the store. The test bundles
+// hold one module each.
+func ensurePolicyCount(t *testing.T, ctx context.Context, manager *plugins.Manager, exp int) {
+	t.Helper()
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != exp {
+		t.Errorf("Expected %d policies in the store, got %d", exp, len(ids))
+	}
+}
+
+// testBatchBundles are the bundle names the initial load tests configure, one
+// per package so that they can be activated alongside each other.
+func testBatchBundles() []string {
+	return []string{"test-bundle-a", "test-bundle-b", "test-bundle-c"}
+}
+
+// initialLoadCase pairs the activation count the initial load is expected to
+// need with the option that selects it, so that each assertion is checked
+// against the behaviour it replaces.
+type initialLoadCase struct {
+	name           string
+	batch          bool
+	expActivations int
+}
+
+// initialLoadCases returns the expectations the initial load tests run against,
+// once with batching on and once with the behaviour it replaces.
+func initialLoadCases(bundleNames []string) []initialLoadCase {
+	return []initialLoadCase{
+		{name: "batched", batch: true, expActivations: 1},
+		{name: "one at a time", batch: false, expActivations: len(bundleNames)},
+	}
+}
+
+// The bundles persisted by an earlier run are all in hand before the downloaders
+// start, so the initial load compiles them together rather than once per bundle.
+func TestPluginInitialLoadFromDisk(t *testing.T) {
+	t.Parallel()
+
+	bundleNames := testBatchBundles()
+
+	for _, tc := range initialLoadCases(bundleNames) {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			store := &countingStore{Store: inmemtst.New()}
+			manager := getTestManagerWithOpts(nil, store)
+			defer manager.Stop(ctx)
+
+			bundles := map[string]*Source{}
+			for _, name := range bundleNames {
+				bundles[name] = &Source{Persist: true}
+			}
+
+			plugin := New(&Config{Bundles: bundles, BatchBundleActivation: tc.batch}, manager)
+			plugin.bundlePersistPath = filepath.Join(t.TempDir(), ".opa")
+
+			for _, name := range bundleNames {
+				saveTestBundleToDisk(t, plugin, name)
+			}
+
+			activations := store.activationCount()
+			plugin.loadAndActivateBundlesFromDisk(ctx)
+
+			if act := store.activationCount() - activations; act != tc.expActivations {
+				t.Errorf("Expected %d activations, got %d", tc.expActivations, act)
+			}
+
+			ensurePluginState(t, plugin, plugins.StateOK)
+			ensurePolicyCount(t, ctx, manager, len(bundleNames))
+		})
+	}
+}
+
+// Bundles that arrive over the network are held back until every configured
+// bundle has reported, and are then activated together rather than as each one
+// arrives.
+func TestPluginInitialLoadFromService(t *testing.T) {
+	t.Parallel()
+
+	bundleNames := testBatchBundles()
+
+	for _, tc := range initialLoadCases(bundleNames) {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			store := &countingStore{Store: inmemtst.New()}
+			manager := getTestManagerWithOpts(nil, store)
+			defer manager.Stop(ctx)
+
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				name := strings.TrimPrefix(r.URL.Path, "/")
+				if !slices.Contains(bundleNames, name) {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+
+				if err := bundle.NewWriter(w).Write(testBundleForName(name)); err != nil {
+					t.Error(err)
+				}
+			}))
+			defer ts.Close()
+
+			const serviceName = "test-service"
+			if err := manager.Reconfigure(&config.Config{
+				Services: fmt.Appendf(nil, "{%q:{ \"url\": %q}}", serviceName, ts.URL),
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			bundles := map[string]*Source{}
+			for _, name := range bundleNames {
+				bundles[name] = &Source{
+					Config:         download.Config{Trigger: pointTo(plugins.TriggerManual)},
+					Service:        serviceName,
+					Resource:       name,
+					SizeLimitBytes: bundle.DefaultSizeLimitBytes,
+				}
+			}
+
+			plugin := New(&Config{Bundles: bundles, BatchBundleActivation: tc.batch}, manager)
+			defer plugin.Stop(ctx)
+
+			if err := plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			activations := store.activationCount()
+			if err := plugin.Trigger(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			if act := store.activationCount() - activations; act != tc.expActivations {
+				t.Errorf("Expected %d activations, got %d", tc.expActivations, act)
+			}
+
+			ensurePluginState(t, plugin, plugins.StateOK)
+			ensurePolicyCount(t, ctx, manager, len(bundleNames))
+		})
+	}
+}
+
+// Activation is all or nothing, so a batch holding a bundle that does not
+// compile falls back to activating the bundles one at a time: the valid bundles
+// still reach the store and the invalid one reports its own error.
+func TestPluginBatchInitialLoadFallsBackToIndividualActivation(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	store := &countingStore{Store: inmemtst.New()}
+	manager := getTestManagerWithOpts(nil, store)
+	defer manager.Stop(ctx)
+
+	bundleNames := testBatchBundles()
+	bundles := map[string]*Source{}
+	for _, name := range bundleNames {
+		bundles[name] = &Source{Persist: true}
+	}
+
+	plugin := New(&Config{Bundles: bundles, BatchBundleActivation: true}, manager)
+	plugin.bundlePersistPath = filepath.Join(t.TempDir(), ".opa")
+
+	for _, name := range bundleNames {
+		saveTestBundleToDisk(t, plugin, name)
+	}
+
+	// Persist one of them again with a module that does not compile.
+	const invalidName = "test-bundle-b"
+	undefined := "package test_bundle_b\n\nvalue := nosuchfunc(1)\n"
+
+	invalidBundle := testBundleForName(invalidName)
+	invalidBundle.Modules[0].Parsed = ast.MustParseModule(undefined)
+	invalidBundle.Modules[0].Raw = []byte(undefined)
+	saveTestBundle(t, plugin, invalidName, invalidBundle)
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	if len(plugin.status[invalidName].Errors) == 0 {
+		t.Error("Expected the invalid bundle to report an activation error")
+	}
+
+	for _, name := range bundleNames {
+		if name == invalidName {
+			continue
+		}
+		if len(plugin.status[name].Errors) != 0 {
+			t.Errorf("Expected %s to activate, got errors: %v", name, plugin.status[name].Errors)
+		}
+	}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+	ensurePolicyCount(t, ctx, manager, len(bundleNames)-1)
+}
+
+// A bundle the server has no new revision for has nothing to activate, and it
+// must not hold the rest of the initial load back. The etag of a previous
+// process is in the store here, which is what makes the downloader ask with
+// If-None-Match and get a 304 in the first place.
+func TestPluginBatchInitialLoadWithNotModifiedBundle(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil)
+	defer manager.Stop(ctx)
+
+	const unchangedEtag = "etag-unchanged"
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/unchanged" {
+			if got := r.Header.Get("If-None-Match"); got != unchangedEtag {
+				t.Errorf("Expected the stored etag to be sent for the unchanged bundle, got %q", got)
+				return
+			}
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+
+		if err := bundle.NewWriter(w).Write(testBundleForName("downloaded")); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer ts.Close()
+
+	plugin := newBatchInitialLoadPlugin(t, manager, ts.URL, "unchanged", "downloaded")
+
+	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		return bundle.WriteEtagToStore(ctx, manager.Store, txn, "unchanged", unchangedEtag)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	if err := plugin.Trigger(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"unchanged", "downloaded"} {
+		if isErrStatus(*plugin.status[name]) {
+			t.Errorf("Expected %s to report no error, got: %+v", name, *plugin.status[name])
+		}
+	}
+
+	// The unchanged bundle has nothing to activate, but the one that downloaded
+	// is still expected in the store.
+	ensurePolicyCount(t, ctx, manager, 1)
+}
+
+// A bundle whose download fails reports the error itself rather than holding
+// the other bundles of the initial load out of the store.
+func TestPluginBatchInitialLoadWithFailingBundle(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil)
+	defer manager.Stop(ctx)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/failing" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if err := bundle.NewWriter(w).Write(testBundleForName("downloaded")); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer ts.Close()
+
+	plugin := newBatchInitialLoadPlugin(t, manager, ts.URL, "failing", "downloaded")
+
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	// The failing bundle is reported through the trigger as well, which is
+	// asserted on its own below.
+	_ = plugin.Trigger(ctx)
+
+	if !isErrStatus(*plugin.status["failing"]) {
+		t.Error("Expected the failing bundle to report its download error")
+	}
+	if isErrStatus(*plugin.status["downloaded"]) {
+		t.Errorf("Expected the downloaded bundle to report no error, got: %+v", *plugin.status["downloaded"])
+	}
+
+	ensurePolicyCount(t, ctx, manager, 1)
+
+	// The failing bundle never activated, so the plugin stays not ready even
+	// though the others did, which is what activating one at a time does today.
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+}
+
+// A batch that fails to activate falls back to activating the bundles one at a
+// time on the download path too, where the failed bundle has to be downloaded
+// again rather than skipped as unchanged.
+func TestPluginBatchInitialLoadFallsBackOnActivationFailure(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil)
+	defer manager.Stop(ctx)
+
+	undefined := "package bad\n\nvalue := nosuchfunc(1)\n"
+	invalidBundle := testBundleForName("bad")
+	invalidBundle.Modules[0].Parsed = ast.MustParseModule(undefined)
+	invalidBundle.Modules[0].Raw = []byte(undefined)
+
+	var mtx sync.Mutex
+	var sentForBad []string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/bad" {
+			mtx.Lock()
+			sentForBad = append(sentForBad, r.Header.Get("If-None-Match"))
+			mtx.Unlock()
+
+			w.Header().Set("ETag", "bad-revision")
+			if err := bundle.NewWriter(w).Write(invalidBundle); err != nil {
+				t.Error(err)
+			}
+			return
+		}
+
+		if err := bundle.NewWriter(w).Write(testBundleForName("good")); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer ts.Close()
+
+	plugin := newBatchInitialLoadPlugin(t, manager, ts.URL, "bad", "good")
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	err := plugin.Trigger(ctx)
+	if err == nil {
+		t.Fatal("Expected the trigger to report the bundle that failed to activate")
+	}
+	if !strings.Contains(err.Error(), "bad") {
+		t.Errorf("Expected the trigger error to name the failed bundle, got: %v", err)
+	}
+
+	if !isErrStatus(*plugin.status["bad"]) {
+		t.Error("Expected the invalid bundle to report its activation error")
+	}
+	if isErrStatus(*plugin.status["good"]) {
+		t.Errorf("Expected the valid bundle to activate, got: %+v", *plugin.status["good"])
+	}
+	ensurePolicyCount(t, ctx, manager, 1)
+
+	// The downloader stored the failed revision's etag before the callback ran,
+	// so the fallback has to put the previous one back or the server would reply
+	// not modified and the bundle would never be downloaded again.
+	if err := plugin.Trigger(ctx); err != nil && !strings.Contains(err.Error(), "bad") {
+		t.Errorf("Expected only the invalid bundle to fail, got: %v", err)
+	}
+
+	mtx.Lock()
+	defer mtx.Unlock()
+	if len(sentForBad) < 2 {
+		t.Fatalf("Expected the invalid bundle to be downloaded again, saw %d requests", len(sentForBad))
+	}
+	if got := sentForBad[len(sentForBad)-1]; got != "" {
+		t.Errorf("Expected the failed bundle to be requested without an etag, got %q", got)
+	}
+}
+
+// Removing the bundle the initial load was still waiting for is what lets the
+// load complete, so the batch is activated without waiting for a download that
+// is no longer coming.
+func TestPluginBatchInitialLoadActivatedWhenWaitingBundleRemoved(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil)
+	defer manager.Stop(ctx)
+
+	bundles := map[string]*Source{}
+	for _, name := range []string{"kept", "removed"} {
+		bundles[name] = &Source{
+			Config:         download.Config{Trigger: pointTo(plugins.TriggerManual)},
+			SizeLimitBytes: bundle.DefaultSizeLimitBytes,
+		}
+	}
+
+	plugin := New(&Config{Bundles: bundles, BatchBundleActivation: true}, manager)
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	var mtx sync.Mutex
+	var reported []map[string]*Status
+	plugin.RegisterBulkListener("test-listener", func(statuses map[string]*Status) {
+		mtx.Lock()
+		reported = append(reported, statuses)
+		mtx.Unlock()
+	})
+
+	// One bundle reports while the other is still outstanding, so the initial
+	// load has something to wait for when the configuration changes.
+	kept := testBundleForName("kept")
+	if err := plugin.oneShot(ctx, "kept", download.Update{Bundle: &kept, Metrics: metrics.New()}); err != nil {
+		t.Fatal(err)
+	}
+	ensurePolicyCount(t, ctx, manager, 0)
+
+	plugin.Reconfigure(ctx, &Config{
+		Bundles:               map[string]*Source{"kept": bundles["kept"]},
+		BatchBundleActivation: true,
+	})
+
+	ensurePolicyCount(t, ctx, manager, 1)
+
+	// The bundle that is left is now activated, so the plugin is ready.
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// And the activation is reported, rather than the listeners being left with
+	// the unfinished load until the next download.
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	if len(reported) == 0 {
+		t.Fatal("Expected the status to be reported to the bulk listeners")
+	}
+	status, ok := reported[len(reported)-1]["kept"]
+	if !ok {
+		t.Fatal("Expected the last report to include the bundle that is left")
+	}
+	if status.LastSuccessfulActivation.IsZero() {
+		t.Errorf("Expected the last report to show the activated bundle, got: %+v", *status)
+	}
+}
+
+// A bundle whose source changed has its loader restarted, so the download the
+// initial load is holding for it describes the previous configuration and must
+// not be the one that completes the load.
+func TestPluginBatchInitialLoadWaitsForUpdatedBundle(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil)
+	defer manager.Stop(ctx)
+
+	bundles := map[string]*Source{}
+	for _, name := range []string{"kept", "waiter"} {
+		bundles[name] = &Source{
+			Config:         download.Config{Trigger: pointTo(plugins.TriggerManual)},
+			SizeLimitBytes: bundle.DefaultSizeLimitBytes,
+		}
+	}
+
+	plugin := New(&Config{Bundles: bundles, BatchBundleActivation: true}, manager)
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	kept := testBundleForName("kept")
+	if err := plugin.oneShot(ctx, "kept", download.Update{Bundle: &kept, Metrics: metrics.New()}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The source of the reported bundle changes in the same reconfiguration that
+	// removes the bundle the load was still waiting for.
+	updated := &Source{
+		Config:         download.Config{Trigger: pointTo(plugins.TriggerManual)},
+		Resource:       "elsewhere",
+		SizeLimitBytes: bundle.DefaultSizeLimitBytes,
+	}
+
+	plugin.Reconfigure(ctx, &Config{
+		Bundles:               map[string]*Source{"kept": updated},
+		BatchBundleActivation: true,
+	})
+
+	// The restarted loader has not reported yet, so the download held for the
+	// previous configuration stays out of the store and the plugin is not ready.
+	ensurePolicyCount(t, ctx, manager, 0)
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+}
+
+// A bundle that activates but fails to persist is reported through the trigger,
+// as it is when the initial load is not batched.
+func TestPluginBatchInitialLoadReportsPersistFailure(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil)
+	defer manager.Stop(ctx)
+
+	bundleNames := []string{"first", "second"}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		if err := bundle.NewWriter(w).Write(testBundleForName(name)); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer ts.Close()
+
+	const serviceName = "test-service"
+	if err := manager.Reconfigure(&config.Config{
+		Services: fmt.Appendf(nil, "{%q:{ \"url\": %q}}", serviceName, ts.URL),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	bundles := map[string]*Source{}
+	for _, name := range bundleNames {
+		bundles[name] = &Source{
+			Config:         download.Config{Trigger: pointTo(plugins.TriggerManual)},
+			Service:        serviceName,
+			Resource:       name,
+			Persist:        true,
+			SizeLimitBytes: bundle.DefaultSizeLimitBytes,
+		}
+	}
+
+	plugin := New(&Config{Bundles: bundles, BatchBundleActivation: true}, manager)
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	// A file where the persist directory belongs, so that writing a bundle out
+	// fails once the batch has activated it.
+	blocked := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blocked, []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plugin.bundlePersistPath = filepath.Join(blocked, "bundles")
+
+	if err := plugin.Trigger(ctx); err == nil {
+		t.Error("Expected the trigger to report the bundles that could not be persisted")
+	}
+
+	for _, name := range bundleNames {
+		if !isErrStatus(*plugin.status[name]) {
+			t.Errorf("Expected %s to report its persist failure, got: %+v", name, *plugin.status[name])
+		}
+	}
+
+	// The bundles reached the store before the persistence failed, so the plugin
+	// is still not ready.
+	ensurePolicyCount(t, ctx, manager, len(bundleNames))
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+}
+
+// newBatchInitialLoadPlugin configures the given bundle names over HTTP, with
+// batching on and the downloads under manual control.
+func newBatchInitialLoadPlugin(t *testing.T, manager *plugins.Manager, url string, bundleNames ...string) *Plugin {
+	t.Helper()
+
+	const serviceName = "test-service"
+	if err := manager.Reconfigure(&config.Config{
+		Services: fmt.Appendf(nil, "{%q:{ \"url\": %q}}", serviceName, url),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	bundles := map[string]*Source{}
+	for _, name := range bundleNames {
+		bundles[name] = &Source{
+			Config:         download.Config{Trigger: pointTo(plugins.TriggerManual)},
+			Service:        serviceName,
+			Resource:       name,
+			SizeLimitBytes: bundle.DefaultSizeLimitBytes,
+		}
+	}
+
+	return New(&Config{Bundles: bundles, BatchBundleActivation: true}, manager)
 }

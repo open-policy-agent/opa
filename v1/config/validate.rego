@@ -88,6 +88,7 @@ _input_specs := input.specs
 _core_specs := [
 	{"pattern": [], "keys": {
 		"services", "labels", "discovery", "bundle", "bundles",
+		"batch_bundle_activation",
 		"decision_logs", "status", "plugins", "keys", "default_decision",
 		"default_authorization_decision", "caching", "nd_builtin_cache",
 		"persistence_directory", "distributed_tracing", "metrics_export",

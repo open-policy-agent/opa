@@ -72,6 +72,9 @@ type Plugin struct {
 	ready             bool
 	bundlePersistPath string
 	stopped           bool
+	batching          bool                       // collecting the initial load's downloads, guarded by mtx
+	batchedBundles    map[string]download.Update // downloads collected during the initial load, by name, guarded by mtx
+	batchedReported   map[string]struct{}        // bundles that have reported during the initial load, guarded by mtx
 }
 
 // New returns a new Plugin with the given config.
@@ -125,6 +128,20 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 	p.loadAndActivateBundlesFromDisk(ctx)
 
+	// Bundles that arrive from here on are held back until every configured
+	// bundle has reported, so the initial load compiles them once instead of
+	// once per bundle. A load that already made the plugin ready has nothing
+	// left to batch.
+	p.cfgMtx.RLock()
+	batchBundleActivation := p.config.BatchBundleActivation
+	p.cfgMtx.RUnlock()
+
+	p.batching = batchBundleActivation && !p.ready
+	if p.batching {
+		p.batchedBundles = map[string]download.Update{}
+		p.batchedReported = map[string]struct{}{}
+	}
+
 	p.initDownloaders(ctx)
 	for name, dl := range p.downloaders {
 		p.log(name).Info("Starting bundle loader.")
@@ -140,6 +157,9 @@ func (p *Plugin) Stop(ctx context.Context) {
 	maps.Copy(stopDownloaders, p.downloaders)
 	p.downloaders = nil
 	p.stopped = true
+	p.batching = false
+	p.batchedBundles = nil
+	p.batchedReported = nil
 	p.mtx.Unlock()
 
 	for name, dl := range stopDownloaders {
@@ -200,6 +220,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 			delete(p.downloaders, name)
 			delete(p.status, name)
 			delete(p.etags, name)
+			p.dropFromBatch(name)
 		}
 	}
 
@@ -235,6 +256,11 @@ func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 		_, isNew := newBundles[name]
 
 		if isNew || updated {
+			// A restarted loader has to report before the initial load can
+			// complete, because what the load is holding for this name, if
+			// anything, was downloaded for the configuration it just replaced.
+			p.dropFromBatch(name)
+
 			if isNew {
 				p.status[name] = &Status{Name: name}
 				p.log(name).Info("New bundle loader configuration added. Starting bundle loader.")
@@ -258,6 +284,19 @@ func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 	if !readyNow {
 		p.ready = false
 		p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+	}
+
+	// Last, because a removal can complete the initial load: the activation
+	// decides for itself whether the plugin is ready once it has run.
+	if p.batching {
+		if err := p.activateBatchIfComplete(ctx); err != nil {
+			p.pluginLog().Debug("Batched bundle activation failed after a configuration change: %v", err)
+		}
+
+		// A download reports the status it produced; the initial load was
+		// completed by the configuration change here, so the status goes out
+		// without one.
+		p.notifyBulkListeners()
 	}
 }
 
@@ -339,8 +378,9 @@ func (p *Plugin) Config() *Config {
 	p.cfgMtx.RLock()
 	defer p.cfgMtx.RUnlock()
 	return &Config{
-		Name:    p.config.Name,
-		Bundles: p.getBundlesCpy(),
+		Name:                  p.config.Name,
+		Bundles:               p.getBundlesCpy(),
+		BatchBundleActivation: p.config.BatchBundleActivation,
 	}
 }
 
@@ -409,6 +449,34 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 		return
 	}
 
+	p.cfgMtx.RLock()
+	batchBundleActivation := p.config.BatchBundleActivation
+	p.cfgMtx.RUnlock()
+
+	// Every persisted bundle is in hand, so they can be activated together. If
+	// that fails, the loop below activates them one at a time, which reports the
+	// error against the bundle that caused it and retries around any bundle
+	// ordering.
+	if batchBundleActivation {
+		for name, b := range persistedBundles {
+			p.status[name].Metrics = metrics.New()
+			p.status[name].Type = b.Type()
+		}
+
+		err := p.activate(ctx, persistedBundles, isMultiBundle)
+		if err == nil {
+			for name, b := range persistedBundles {
+				p.status[name].SetError(nil)
+				p.status[name].SetActivateSuccess(b.Manifest.Revision)
+				p.log(name).Debug("Bundle loaded from disk and activated successfully.")
+			}
+			p.checkPluginReadiness()
+			return
+		}
+
+		p.pluginLog().Info("Batched bundle activation failed, activating bundles individually: %v", err)
+	}
+
 	for range maxActivationRetry {
 
 		numActivatedBundles := 0
@@ -416,7 +484,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 			p.status[name].Metrics = metrics.New()
 			p.status[name].Type = b.Type()
 
-			err := p.activate(ctx, name, b, isMultiBundle)
+			err := p.activate(ctx, map[string]*bundle.Bundle{name: b}, isMultiBundle)
 			if err != nil {
 				p.log(name).Error("Bundle activation failed: %v", err)
 				p.status[name].SetError(err)
@@ -489,6 +557,15 @@ func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) er
 		listener(*p.status[name])
 	}
 
+	p.notifyBulkListeners()
+
+	return err
+}
+
+// notifyBulkListeners sends the current status of every bundle to the bulk
+// listeners, which is the listener a multi-bundle configuration registers, and
+// so the one an activation has to be reported through.
+func (p *Plugin) notifyBulkListeners() {
 	for _, listener := range p.bulkListeners {
 		// Send a copy of the full status map to the bulk listeners.
 		// They shouldn't have access to the original underlying
@@ -501,8 +578,6 @@ func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) er
 		}
 		listener(statusCpy)
 	}
-
-	return err
 }
 
 func (p *Plugin) process(ctx context.Context, name string, u download.Update) error {
@@ -521,6 +596,10 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) er
 			etag := p.etags[name]
 			p.downloaders[name].SetCache(etag)
 		}
+
+		if err := p.settleBatch(ctx, name, u); err != nil {
+			return errors.Join(u.Error, err)
+		}
 		return u.Error
 	}
 
@@ -537,7 +616,11 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) er
 		isMultiBundle := p.config.IsMultiBundle()
 		p.cfgMtx.RUnlock()
 
-		if err := p.activate(ctx, name, u.Bundle, isMultiBundle); err != nil {
+		if p.batching {
+			return p.settleBatch(ctx, name, u)
+		}
+
+		if err := p.activate(ctx, map[string]*bundle.Bundle{name: u.Bundle}, isMultiBundle); err != nil {
 			p.log(name).Error("Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
 			if !p.stopped {
@@ -547,32 +630,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) er
 			return err
 		}
 
-		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name, p.getBundlesCpy()) {
-			p.log(name).Debug("Persisting bundle to disk in progress.")
-
-			err := p.saveBundleToDisk(name, u.Raw)
-			if err != nil {
-				p.log(name).Error("Persisting bundle to disk failed: %v", err)
-				p.status[name].SetError(err)
-				if !p.stopped {
-					etag := p.etags[name]
-					p.downloaders[name].SetCache(etag)
-				}
-				return err
-			}
-			p.log(name).Debug("Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
+		if err := p.recordActivation(name, u); err != nil {
+			return err
 		}
-
-		p.status[name].SetError(nil)
-		p.status[name].SetActivateSuccess(u.Bundle.Manifest.Revision)
-		p.status[name].SetBundleSize(u.Size)
-
-		if u.ETag != "" {
-			p.log(name).Info("Bundle loaded and activated successfully. Etag updated to %v.", u.ETag)
-		} else {
-			p.log(name).Info("Bundle loaded and activated successfully.")
-		}
-		p.etags[name] = u.ETag
 
 		// If the plugin wasn't ready yet then check if we are now after activating this bundle.
 		p.checkPluginReadiness()
@@ -585,10 +645,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) er
 
 		// The downloader received a 304 (same etag as saved in local state), update plugin readiness
 		p.checkPluginReadiness()
-		return nil
 	}
 
-	return nil
+	return p.settleBatch(ctx, name, u)
 }
 
 func (p *Plugin) checkPluginReadiness() {
@@ -608,22 +667,29 @@ func (p *Plugin) checkPluginReadiness() {
 	}
 }
 
-func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, isMultiBundle bool) error {
-	p.log(name).Debug("Bundle activation in progress (%v). Opening storage transaction.", b.Manifest.Revision)
+// activate compiles and activates the given bundles in a single storage
+// transaction, so that their modules are compiled together instead of once per
+// bundle.
+func (p *Plugin) activate(ctx context.Context, bundles map[string]*bundle.Bundle, isMultiBundle bool) error {
+	for name, b := range bundles {
+		p.log(name).Debug("Bundle activation in progress (%v). Opening storage transaction.", b.Manifest.Revision)
+	}
+
+	m := p.activationMetrics(bundles)
 
 	params := storage.WriteParams
-	params.Context = storage.NewContext().WithMetrics(p.status[name].Metrics)
+	params.Context = storage.NewContext().WithMetrics(m)
 
 	err := storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
-		p.log(name).Debug("Opened storage transaction (%v).", txn.ID())
-		defer p.log(name).Debug("Closing storage transaction (%v).", txn.ID())
+		p.pluginLog().Debug("Opened storage transaction (%v).", txn.ID())
+		defer p.pluginLog().Debug("Closing storage transaction (%v).", txn.ID())
 
 		// Compile the bundle modules with a new compiler and set it on the
 		// transaction params for use by onCommit hooks.
 		// If activating a delta bundle, use the manager's compiler which should have
 		// the polices compiled on it.
 		var compiler *ast.Compiler
-		if b.Type() == bundle.DeltaBundleType {
+		if hasDeltaBundle(bundles) {
 			compiler = p.manager.GetCompiler()
 		}
 
@@ -634,8 +700,14 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 		compiler = compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
 			WithEnablePrintStatements(p.manager.EnablePrintStatements())
 
-		if b.Manifest.Roots != nil {
-			compiler = compiler.WithPathConflictsCheckRoots(*b.Manifest.Roots)
+		var roots []string
+		for _, b := range bundles {
+			if b.Manifest.Roots != nil {
+				roots = append(roots, *b.Manifest.Roots...)
+			}
+		}
+		if len(roots) > 0 {
+			compiler = compiler.WithPathConflictsCheckRoots(roots)
 		}
 
 		var activateErr error
@@ -644,8 +716,10 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 		// and register external sources before compilation.
 		p.manager.Hooks().Each(func(h hooks.Hook) {
 			if f, ok := h.(hooks.BundlePreActivateHook); ok {
-				if err := f.OnBundlePreActivate(ctx, name, b.Manifest); err != nil {
-					p.log(name).Warn("Pre-activation hook failed: %v", err)
+				for name, b := range bundles {
+					if err := f.OnBundlePreActivate(ctx, name, b.Manifest); err != nil {
+						p.log(name).Warn("Pre-activation hook failed: %v", err)
+					}
 				}
 			}
 		})
@@ -656,8 +730,8 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 			Txn:             txn,
 			TxnCtx:          params.Context,
 			Compiler:        compiler,
-			Metrics:         p.status[name].Metrics,
-			Bundles:         map[string]*bundle.Bundle{name: b},
+			Metrics:         m,
+			Bundles:         bundles,
 			ExternalSources: p.manager.GetExternalSources(),
 			ParserOptions:   p.manager.ParserOptions(),
 		}
@@ -695,6 +769,196 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 	})
 
 	return err
+}
+
+// activationMetrics returns the metrics an activation is recorded against. A
+// single bundle is recorded against its own status, which is what activating one
+// bundle has always done. A batch spans several bundles, so it gets a set of its
+// own rather than being charged to one of them arbitrarily.
+func (p *Plugin) activationMetrics(bundles map[string]*bundle.Bundle) metrics.Metrics {
+	if len(bundles) == 1 {
+		for name := range bundles {
+			return p.status[name].Metrics
+		}
+	}
+	return metrics.New()
+}
+
+// hasDeltaBundle reports whether any of the bundles is a delta bundle. A delta
+// bundle patches the modules already in the store, so it is compiled against the
+// manager's compiler instead of a fresh one.
+func hasDeltaBundle(bundles map[string]*bundle.Bundle) bool {
+	for _, b := range bundles {
+		if b.Type() == bundle.DeltaBundleType {
+			return true
+		}
+	}
+	return false
+}
+
+// settleBatch records that the bundle has produced a download result and
+// activates the collected bundles once the initial load has nothing left to
+// wait for. Any result settles a bundle: a failed download reports an error of
+// its own rather than holding the others back, and a bundle the server has no
+// new revision for has nothing to activate in the first place.
+func (p *Plugin) settleBatch(ctx context.Context, name string, u download.Update) error {
+	if !p.batching {
+		return nil
+	}
+
+	p.batchedReported[name] = struct{}{}
+	if u.Bundle != nil {
+		p.batchedBundles[name] = u
+	}
+
+	return p.activateBatchIfComplete(ctx)
+}
+
+// activateBatchIfComplete activates the collected bundles once the initial load
+// has nothing left to wait for. Taking a bundle out of the configuration can be
+// the last thing the load was waiting for, so this is not only reached from a
+// download.
+func (p *Plugin) activateBatchIfComplete(ctx context.Context) error {
+	if !p.batching || !p.batchComplete() {
+		return nil
+	}
+
+	p.cfgMtx.RLock()
+	isMultiBundle := p.config.IsMultiBundle()
+	p.cfgMtx.RUnlock()
+
+	return p.activateBatch(ctx, isMultiBundle)
+}
+
+// dropFromBatch forgets a bundle the initial load is holding. Its configuration
+// changed or it is gone, so a download taken before that no longer describes
+// what the bundle is, and it must not settle the load on its own.
+func (p *Plugin) dropFromBatch(name string) {
+	delete(p.batchedBundles, name)
+	delete(p.batchedReported, name)
+}
+
+// batchComplete reports whether the initial load has nothing left to wait for.
+// A bundle is done with once it has reported a download result, or once it has
+// already activated from disk and so has nothing left to contribute. It reads
+// p.status rather than counting, because configuring a bundle adds it to the
+// load and removing one takes it out again while the load is running.
+func (p *Plugin) batchComplete() bool {
+	for name, status := range p.status {
+		if _, ok := p.batchedReported[name]; ok {
+			continue
+		}
+		if !status.LastSuccessfulActivation.IsZero() {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// activateBatch activates the bundles collected during the initial load. The
+// plugin is ready to serve once every configured bundle has activated, so they
+// are activated together and their modules compiled once instead of once per
+// bundle.
+func (p *Plugin) activateBatch(ctx context.Context, isMultiBundle bool) error {
+	updates := p.batchedBundles
+	p.batching = false
+	p.batchedBundles = nil
+	p.batchedReported = nil
+
+	// A bundle that is no longer configured is not part of the load, and
+	// activating it would put back what removing it erased.
+	bundles := make(map[string]*bundle.Bundle, len(updates))
+	for name, u := range updates {
+		if _, ok := p.status[name]; ok {
+			bundles[name] = u.Bundle
+		}
+	}
+
+	if len(bundles) == 0 {
+		p.checkPluginReadiness()
+		return nil
+	}
+
+	// bundle.Activate is all or nothing: one invalid bundle fails the batch and
+	// no bundle reaches the store. A delta bundle patches what is already there
+	// rather than replacing it. Both are activated one bundle at a time instead,
+	// which is what the initial load does when it is not batched, so that a bad
+	// bundle only keeps itself out of the store and reports its own error.
+	individually := hasDeltaBundle(bundles)
+	if !individually {
+		if err := p.activate(ctx, bundles, isMultiBundle); err != nil {
+			p.pluginLog().Info("Batched bundle activation failed, activating bundles individually: %v", err)
+			individually = true
+		}
+	}
+
+	var errs Errors
+
+	for name, u := range updates {
+		if _, ok := p.status[name]; !ok {
+			continue
+		}
+
+		if individually {
+			if err := p.activate(ctx, map[string]*bundle.Bundle{name: u.Bundle}, isMultiBundle); err != nil {
+				p.log(name).Error("Bundle activation failed: %v", err)
+				p.status[name].SetError(err)
+				if !p.stopped {
+					etag := p.etags[name]
+					p.downloaders[name].SetCache(etag)
+				}
+				errs = append(errs, NewBundleError(name, err))
+				continue
+			}
+		}
+
+		if err := p.recordActivation(name, u); err != nil {
+			errs = append(errs, NewBundleError(name, err))
+			continue
+		}
+		p.log(name).Debug("Bundle activated as part of the initial load.")
+	}
+
+	p.checkPluginReadiness()
+
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs
+}
+
+// recordActivation persists the bundle to disk when its source asks for it, and
+// records the successful activation against the bundle's status. Activation
+// itself has already happened by the time this runs.
+func (p *Plugin) recordActivation(name string, u download.Update) error {
+	if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name, p.getBundlesCpy()) {
+		p.log(name).Debug("Persisting bundle to disk in progress.")
+
+		if err := p.saveBundleToDisk(name, u.Raw); err != nil {
+			p.log(name).Error("Persisting bundle to disk failed: %v", err)
+			p.status[name].SetError(err)
+			if !p.stopped {
+				etag := p.etags[name]
+				p.downloaders[name].SetCache(etag)
+			}
+			return err
+		}
+		p.log(name).Debug("Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
+	}
+
+	p.status[name].SetError(nil)
+	p.status[name].SetActivateSuccess(u.Bundle.Manifest.Revision)
+	p.status[name].SetBundleSize(u.Size)
+
+	if u.ETag != "" {
+		p.log(name).Info("Bundle loaded and activated successfully. Etag updated to %v.", u.ETag)
+	} else {
+		p.log(name).Info("Bundle loaded and activated successfully.")
+	}
+	p.etags[name] = u.ETag
+
+	return nil
 }
 
 func (*Plugin) persistBundle(name string, bundles map[string]*Source) bool {
@@ -791,10 +1055,17 @@ func (p *Plugin) loadBundleFromDisk(path, name string, src *Source) (*bundle.Bun
 }
 
 func (p *Plugin) log(name string) logging.Logger {
+	return p.pluginLog().WithFields(map[string]any{"name": name, "plugin": Name})
+}
+
+// pluginLog returns the logger of the plugin itself, for the messages that are
+// not about a single bundle. It falls back to the global logger for the plugins
+// that were not built by New.
+func (p *Plugin) pluginLog() logging.Logger {
 	if p.logger == nil {
 		p.logger = logging.Get()
 	}
-	return p.logger.WithFields(map[string]any{"name": name, "plugin": Name})
+	return p.logger
 }
 
 func (p *Plugin) getBundlePersistPath() (string, error) {
