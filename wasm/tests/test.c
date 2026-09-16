@@ -2959,6 +2959,25 @@ void test_builtin_graph_reachable(void)
     test("reachable/null edge", opa_value_compare(builtin_graph_reachable(&graph4->hdr, &initial3->hdr), &expected4->hdr) == 0);
 }
 
+static int test_replace_n(const char *s, const char *want, int n, ...)
+{
+    opa_object_t *patterns = opa_cast_object(opa_object());
+    va_list args;
+    va_start(args, n);
+
+    for (int i = 0; i < n; i++)
+    {
+        const char *k = va_arg(args, const char *);
+        const char *v = va_arg(args, const char *);
+        opa_object_insert(patterns, opa_string_terminated(k), opa_string_terminated(v));
+    }
+
+    va_end(args);
+
+    opa_value *got = opa_strings_replace_n(&patterns->hdr, opa_string_terminated(s));
+    return got != NULL && opa_value_compare(got, opa_string_terminated(want)) == 0;
+}
+
 WASM_EXPORT(test_strings)
 void test_strings(void)
 {
@@ -3170,6 +3189,24 @@ void test_strings(void)
 
     test("replace_n/empty", opa_value_compare(opa_strings_replace_n(opa_object(), opa_string_terminated("a")), opa_string_terminated("a")) == 0);
     test("replace_n/two", opa_value_compare(opa_strings_replace_n(&obj2->hdr, opa_string_terminated("ac")), opa_string_terminated("bd")) == 0);
+    test("replace_n/longer key sorted first", test_replace_n("anotherinfo", "Y", 2, "info", "X", "anotherinfo", "Y"));
+    test("replace_n/longer key sorted first/insertion order", test_replace_n("anotherinfo", "Y", 2, "anotherinfo", "Y", "info", "X"));
+    test("replace_n/shorter key sorted first", test_replace_n("bbab", "bXb", 2, "a", "YY", "bba", "bX"));
+    test("replace_n/no rescan of output", test_replace_n("baaabbbba", "YaabYYYa", 2, "ab", "b", "b", "Y"));
+    test("replace_n/no chaining", test_replace_n("abba", "baab", 2, "a", "b", "b", "a"));
+    test("replace_n/replacement contains key", test_replace_n("aaa", "aaaaaa", 1, "a", "aa"));
+    test("replace_n/non-overlapping", test_replace_n("aaaaa", "bba", 1, "aa", "b"));
+    test("replace_n/overlapping keys", test_replace_n("bbaa", "bYXbYXaa", 2, "b", "bYX", "baa", "ab"));
+    test("replace_n/overlapping keys 2", test_replace_n("aaaaab", "XaXaXaXaXab", 4, "a", "Xa", "ab", "X", "ba", "bYa", "aaa", "X"));
+    test("replace_n/empty values", test_replace_n("bbaab", "", 3, "aab", "Y", "a", "", "b", ""));
+    test("replace_n/empty value", test_replace_n("bababbaa", "ababbab", 2, "ba", "ab", "a", ""));
+    test("replace_n/empty key/empty input", test_replace_n("", "X", 1, "", "X"));
+    test("replace_n/empty key/one byte", test_replace_n("a", "XaX", 1, "", "X"));
+    test("replace_n/empty key/two bytes", test_replace_n("ab", "XaXbX", 1, "", "X"));
+    test("replace_n/empty key/with other key", test_replace_n("ab", "XYXbX", 2, "a", "Y", "", "X"));
+    test("replace_n/empty key/empty value", test_replace_n("abb", "aYY", 2, "", "", "b", "Y"));
+    test("replace_n/empty key/multi-byte input", test_replace_n("\xc3\xa9", "X\xc3X\xa9X", 1, "", "X"));
+    test("replace_n/empty key/multi-byte key", test_replace_n("a\xc3\xa9" "b", "-a-e-b-", 2, "\xc3\xa9", "e", "", "-"));
 
     opa_array_t *arr2b = opa_cast_array(opa_array());
     opa_array_append(arr2b, opa_string_terminated(""));
