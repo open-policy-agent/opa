@@ -63,8 +63,7 @@ func (hs Hooks) Len() int {
 }
 
 // ConfigHook allows inspecting or rewriting the configuration when the plugin
-// manager is processing it. It also runs when the runtime reloads its
-// configuration file from disk.
+// manager is processing it.
 // Note that this hook is not run when the plugin manager is reconfigured. This
 // usually only happens when there's a new config from a discovery bundle, and
 // for processing _that_, there's `ConfigDiscoveryHook`.
