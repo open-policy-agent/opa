@@ -1,7 +1,11 @@
-// Copyright 2017 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Deprecated: This package is intended for older projects transitioning from OPA v0.x and will remain for the lifetime of OPA v1.x, but its use is not recommended.
+// For newer features and behaviours, such as defaulting to the Rego v1 syntax, use the corresponding components in the [github.com/open-policy-agent/opa/v1] package instead.
+// See https://www.openpolicyagent.org/docs/latest/v0-compatibility/ for more information.
+//
 // Package rego exposes high level APIs for evaluating Rego policies.
 package rego
 
@@ -22,6 +26,28 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/tracing"
 )
+
+// HaltError is an error type to return from a custom function implementation
+// that will abort the evaluation process (analogous to topdown.Halt).
+type HaltError = v1.HaltError
+
+// NewHaltError wraps an error such that the evaluation process will stop
+// when it occurs.
+func NewHaltError(err error) error {
+	return v1.NewHaltError(err)
+}
+
+// ErrorDetails interface is satisfied by an error that provides further
+// details.
+type ErrorDetails = v1.ErrorDetails
+
+type TargetPlugin = v1.TargetPlugin
+
+type TargetPluginEval = v1.TargetPluginEval
+
+func RegisterPlugin(name string, p TargetPlugin) {
+	v1.RegisterPlugin(name, p)
+}
 
 // CompileResult represents the result of compiling a Rego query, zero or more
 // Rego modules, and arbitrary contextual data into an executable.
@@ -636,3 +662,20 @@ func WithNoInline(paths []string) PrepareOption {
 func WithBuiltinFuncs(bis map[string]*topdown.Builtin) PrepareOption {
 	return v1.WithBuiltinFuncs(bis)
 }
+
+// ResultSet represents a collection of output from Rego evaluation. An empty
+// result set represents an undefined query.
+type ResultSet = v1.ResultSet
+
+// Vars represents a collection of variable bindings. The keys are the variable
+// names and the values are the binding values.
+type Vars = v1.Vars
+
+// Result defines the output of Rego evaluation.
+type Result = v1.Result
+
+// Location defines a position in a Rego query or module.
+type Location = v1.Location
+
+// ExpressionValue defines the value of an expression in a Rego query.
+type ExpressionValue = v1.ExpressionValue

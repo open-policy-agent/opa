@@ -1,12 +1,23 @@
-// Copyright 2016 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package server contains the policy engine's server handlers.
+//
+// Deprecated: This package is intended for older projects transitioning from OPA v0.x and will remain for the lifetime of OPA v1.x, but its use is not recommended.
+// For newer features and behaviours, such as defaulting to the Rego v1 syntax, use the corresponding components in the [github.com/open-policy-agent/opa/v1] package instead.
+// See https://www.openpolicyagent.org/docs/latest/v0-compatibility/ for more information.
 package server
 
 import (
 	v1 "github.com/open-policy-agent/opa/v1/server"
 )
+
+// Info contains information describing a policy decision.
+type Info = v1.Info
+
+// BundleInfo contains information describing a bundle.
+type BundleInfo = v1.BundleInfo
 
 // AuthenticationScheme enumerates the supported authentication schemes. The
 // authentication scheme determines how client identities are established.

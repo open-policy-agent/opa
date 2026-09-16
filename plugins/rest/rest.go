@@ -1,16 +1,36 @@
-// Copyright 2018 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Deprecated: This package is intended for older projects transitioning from OPA v0.x and will remain for the lifetime of OPA v1.x, but its use is not recommended.
+// For newer features and behaviours, such as defaulting to the Rego v1 syntax, use the corresponding components in the [github.com/open-policy-agent/opa/v1] package instead.
+// See https://www.openpolicyagent.org/docs/latest/v0-compatibility/ for more information.
+//
 // Package rest implements a REST client for communicating with remote services.
 package rest
 
 import (
+	"crypto/tls"
+	"net/http"
+
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/v1/keys"
 	v1 "github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/tracing"
 )
+
+// DefaultTLSConfig defines standard TLS configurations based on the Config
+func DefaultTLSConfig(c Config) (*tls.Config, error) {
+	return v1.DefaultTLSConfig(c)
+}
+
+// DefaultRoundTripperClient is a reasonable set of defaults for HTTP auth plugins
+func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
+	return v1.DefaultRoundTripperClient(t, timeout)
+}
+
+// AccessToken holds a GCP access token.
+type AccessToken = v1.AccessToken
 
 // An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
 type HTTPAuthPlugin = v1.HTTPAuthPlugin

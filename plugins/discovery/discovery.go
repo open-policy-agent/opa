@@ -1,8 +1,12 @@
-// Copyright 2018 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
 // Package discovery implements configuration discovery.
+//
+// Deprecated: This package is intended for older projects transitioning from OPA v0.x and will remain for the lifetime of OPA v1.x, but its use is not recommended.
+// For newer features and behaviours, such as defaulting to the Rego v1 syntax, use the corresponding components in the [github.com/open-policy-agent/opa/v1] package instead.
+// See https://www.openpolicyagent.org/docs/latest/v0-compatibility/ for more information.
 package discovery
 
 import (
@@ -11,6 +15,22 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	v1 "github.com/open-policy-agent/opa/v1/plugins/discovery"
 )
+
+// Config represents the configuration for the discovery feature.
+type Config = v1.Config
+
+// ConfigBuilder assists in the construction of the plugin configuration.
+type ConfigBuilder = v1.ConfigBuilder
+
+// NewConfigBuilder returns a new ConfigBuilder to build and parse the discovery config
+func NewConfigBuilder() *ConfigBuilder {
+	return v1.NewConfigBuilder()
+}
+
+// ParseConfig returns a valid Config object with defaults injected.
+func ParseConfig(bs []byte, services []string) (*Config, error) {
+	return v1.ParseConfig(bs, services)
+}
 
 const (
 	// Name is the discovery plugin name that will be registered with the plugin manager.
