@@ -208,7 +208,10 @@ func main() {
 			log.Fatalf("%s: %v", t.Pkg, err)
 		}
 		if len(rs) == 0 {
-			log.Printf("warning: %s defines no Benchmark%s* benchmarks", t.Pkg, benchlabPrefix)
+			// Either the package defines no wrappers, or none of them exist at
+			// the baseline yet -- the skip above says which. Both leave this
+			// target contributing nothing to tonight's record.
+			log.Printf("warning: %s contributed no results", t.Pkg)
 		}
 		n.Results = append(n.Results, rs...)
 	}
@@ -577,9 +580,18 @@ func assemble(t target, n night, labels map[string]string, vsBase, vsPrev map[st
 	for _, measure := range measures {
 		table := vsBase[measure]
 
+		// A benchmark the baseline does not have is skipped, not fatal. The
+		// baseline is the newest release tag, so every benchmark added to the
+		// curated set since that tag is missing there and benchstat emits no
+		// column for it; aborting meant one new benchmark stopped its whole
+		// shard from reporting until the next release. There is nothing to
+		// chart for these -- the trend is a percentage of the baseline -- so
+		// they are left out and the rest of the shard still lands.
 		baseCol, ok := table.column(baseLabel)
 		if !ok {
-			return nil, fmt.Errorf("%s: no benchstat column for baseline %s", measure, short(n.BaselineSHA))
+			log.Printf("warning: %s: %s not measured at baseline %s; skipping",
+				t.Pkg, measure, short(n.BaselineSHA))
+			continue
 		}
 		headCol, ok := table.column(headLabel)
 		if !ok {
