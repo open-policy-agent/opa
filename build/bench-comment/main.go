@@ -118,6 +118,12 @@ func requireEnv(name string) string {
 // runBenchlab runs a single benchlab comparison for pkg, writing its
 // bench/benchstat output under .benchlab/ for parseBenchstatFile to pick up.
 //
+// Only the curated BenchmarkBenchlab* wrappers are measured -- the same set the
+// nightly run charts (see build/bench-nightly/set.json), so a comment here and
+// a trend line there are about the same benchmarks. Running everything a
+// changed package defines is the alternative, and for v1/ast that is some 435
+// cases at two commits apiece.
+//
 // One benchmark run per rep, rather than benchlab's default of five: benchstat
 // treats every sample as independent, but samples from one process share a map
 // hash seed, a heap layout and a set of interned globals, so a cluster of five
@@ -133,6 +139,7 @@ func runBenchlab(before, after, pkg string) error {
 		"-count", "1",
 		"-benchtime", "300ms",
 		"-run", "^$",
+		"-bench", "^BenchmarkBenchlab",
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -252,7 +259,10 @@ func parseBenchstatFile(path string) ([]change, error) {
 
 		// benchstat strips the leading "Benchmark" from names in its tables,
 		// but the published chart pages are keyed by the full Go benchmark
-		// name (including GOMAXPROCS suffix), so it must be added back.
+		// name (including GOMAXPROCS suffix), so it must be added back. The
+		// benchlab marker is part of that name -- bench-nightly records it --
+		// so it stays, and the link resolves to the page charting this
+		// benchmark.
 		fullName := name + "-" + gomaxprocs
 		slug := nonAlnumRE.ReplaceAllString(pkgDisplay+"_Benchmark"+fullName, "_")
 
