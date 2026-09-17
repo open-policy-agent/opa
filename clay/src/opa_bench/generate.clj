@@ -29,9 +29,9 @@ style/page-style
 
 (defn render-all! []
   (println "Generating source files...")
-  (doseq [b data/benchmarks-with-ids]
+  (doseq [b data/benchlab-benchmarks-with-ids]
     (generate-benchmark-source! b))
-  (println (str "Generated " (count data/benchmarks-with-ids) " source files."))
+  (println (str "Generated " (count data/benchlab-benchmarks-with-ids) " source files."))
 
   (println "Rendering index...")
   (clay/make! {:source-path    "notebooks/index.clj"
@@ -44,7 +44,7 @@ style/page-style
                :live-reload    false})
 
   (println "Rendering benchmark pages...")
-  (doseq [b data/benchmarks-with-ids]
+  (doseq [b data/benchlab-benchmarks-with-ids]
     (let [src (str "notebooks/benchmarks/" (:id b) ".clj")]
       (print (str "  " (:id b) "... ")) (flush)
       (clay/make! {:source-path      src
@@ -57,7 +57,7 @@ style/page-style
                    :live-reload      false})
       (println "done.")))
 
-  (println (str "\nDone. " (count data/benchmarks-with-ids) " pages in ../docs/")))
+  (println (str "\nDone. " (count data/benchlab-benchmarks-with-ids) " pages in ../docs/")))
 
 (defn -main [& _args]
   (render-all!)

@@ -7,4 +7,4 @@ style/page-style
 
 (style/page-title "OPA Benchmarks")
 
-(charts/index-table data/benchmarks-with-ids)
+(charts/index-table data/benchlab-benchmarks-with-ids)
