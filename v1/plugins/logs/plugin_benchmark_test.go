@@ -2,6 +2,7 @@ package logs
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -191,23 +192,6 @@ func BenchmarkMaskingNop(b *testing.B) {
 func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	numRules := []int{1, 10, 100, 1000}
 
-	ctx := b.Context()
-	store := inmem.New()
-
-	manager, err := plugins.New(nil, "test", store)
-	if err != nil {
-		b.Fatal(err)
-	} else if err := manager.Start(ctx); err != nil {
-		b.Fatal(err)
-	}
-
-	cfg := &Config{Service: "svc"}
-	t := plugins.DefaultTriggerMode
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t, nil); err != nil {
-		b.Fatal(err)
-	}
-	plugin := New(cfg, manager)
-
 	var event EventV1
 	if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
 		b.Fatal(err)
@@ -219,7 +203,43 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 
 	for _, ruleCount := range numRules {
 		b.Run(fmt.Sprintf("%dRules", ruleCount), func(b *testing.B) {
-			b.ResetTimer()
+			ctx := b.Context()
+			store := inmem.New()
+
+			// Rules that never fire. Cost is expected to stay flat as
+			// ruleCount grows: rule indexing rejects the whole set on one
+			// lookup. A linear result here means indexing stopped working.
+			policy := strings.Builder{}
+			policy.WriteString("package system.log\n")
+			for i := range ruleCount {
+				fmt.Fprintf(&policy, `
+mask contains "/input/absent%d" if {
+	input.input.request.kind.kind == "NoSuchKind%d"
+}
+`, i, i)
+			}
+
+			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+				return store.UpsertPolicy(ctx, txn, "test.rego", []byte(policy.String()))
+			})
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			manager, err := plugins.New(nil, "test", store)
+			if err != nil {
+				b.Fatal(err)
+			} else if err := manager.Start(ctx); err != nil {
+				b.Fatal(err)
+			}
+
+			cfg := &Config{Service: "svc"}
+			t := plugins.DefaultTriggerMode
+			if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t, nil); err != nil {
+				b.Fatal(err)
+			}
+			plugin := New(cfg, manager)
+
 			for b.Loop() {
 				if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 					b.Fatal(err)
