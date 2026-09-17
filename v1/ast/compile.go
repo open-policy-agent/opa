@@ -938,7 +938,7 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 			if child := node.Child(ref[i].Value); child != nil {
 				if len(child.Values) > 0 {
 					// Add any rules at this position
-					insertRules(set, child.Values)
+					insertRulesIntersecting(set, child.Values, ref, i+1)
 				}
 				// There might still be "sub-rules" contributing key-value "overrides" for e.g. partial object rules, continue walking
 				walk(child, i+1)
@@ -953,7 +953,7 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 				if child.Hide && !opts.IncludeHiddenModules {
 					continue
 				}
-				insertRules(set, child.Values)
+				insertRulesIntersecting(set, child.Values, ref, i+1)
 				walk(child, i+1)
 			}
 		}
@@ -968,6 +968,33 @@ func insertRules(set map[*Rule]struct{}, rules []*Rule) {
 	for _, rule := range rules {
 		set[rule] = struct{}{}
 	}
+}
+
+// insertRulesIntersecting adds the rules whose refs could still intersect ref
+// beyond position i. Rules with general refs are all stored at the ground
+// prefix of their ref, so a rule like data.a.p[x].foo.bar sits at data.a.p
+// alongside data.a.p[x].foo.baz. Without comparing the remaining parts, a ref
+// to one of them would appear to refer to both.
+func insertRulesIntersecting(set map[*Rule]struct{}, rules []*Rule, ref Ref, i int) {
+	for _, rule := range rules {
+		if refsMayIntersect(rule.Ref(), ref, i) {
+			set[rule] = struct{}{}
+		}
+	}
+}
+
+// refsMayIntersect reports whether a and b could refer to overlapping data,
+// comparing the parts from position i onwards. Parts that aren't statically
+// known match anything, and a ref that runs out of parts matches whatever the
+// longer ref has left.
+func refsMayIntersect(a, b Ref, i int) bool {
+	for ; i < len(a) && i < len(b); i++ {
+		x, y := a[i].Value, b[i].Value
+		if IsConstant(x) && IsConstant(y) && x.Compare(y) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // RuleIndex returns a RuleIndex built for the rule set referred to by path.

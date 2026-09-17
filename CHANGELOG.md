@@ -5,6 +5,39 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Rules with general refs no longer collide in the recursion check ([#6813](https://github.com/open-policy-agent/opa/issues/6813))
+
+Rules whose heads contain a variable are stored in the compiler's rule tree under the
+ground prefix of their ref, so `p[x].foo.bar` and `p[x].foo.baz` both sit at `p`. The
+dependency graph was built from that lookup without comparing the parts after the
+variable, so every rule under `p` looked like a dependency of every other one and this
+policy was rejected as recursive:
+
+```rego
+package play
+
+p[x].foo.bar if {
+	x := "a"
+	not p[x].foo.baz
+}
+
+p[x].foo.baz if {
+	x := "a"
+	false
+}
+```
+
+`Compiler.GetRulesDynamicWithOpts` now compares the ref parts past the ground prefix and
+drops rules that cannot match, so the two leaves are independent and the policy compiles.
+Genuine cycles — a rule referring to itself, to an ancestor, or to a dynamic position that
+could be itself — are still reported.
+
+Note that the Wasm and IR targets plan one function per ground path prefix and cannot
+evaluate part of a function that is still being planned. Policies of this shape are now
+rejected by the planner with a clear error instead of overflowing the stack.
+
+Authored by @sspaink
+
 ### Data and Query APIs can return rule labels in the response
 
 `# METADATA` `labels` for evaluated rules were only available in decision log
