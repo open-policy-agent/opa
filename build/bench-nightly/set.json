@@ -1,17 +1,17 @@
 {
-  "//": "Curated benchmark set for the nightly benchlab experiment. Each target is measured at three commits in one benchlab invocation, so the cost of adding a target is roughly three times its plain benchmark time -- see build/bench-nightly/main.go. The full published set is ~1118 cases, far too many to measure this way nightly; these targets cover the evaluation hot paths, and the noisier blanket coverage is left to the per-push gobenchdata run. Case counts in the comments are as published on the benchmarks branch, and are a rough sizing guide rather than a promise.",
+  "//": "Curated benchmark set for the nightly benchlab run. Each target is measured at three commits in one benchlab invocation, so the cost of adding a target is roughly three times its plain benchmark time -- see build/bench-nightly/main.go. Cost is per case and independent of how fast the case is, since -benchtime is fixed: one case is reps * benchtime * 3 arms. The full published set is ~1118 cases, far too many to measure this way nightly. A target without a \"bench\" selects its package's BenchmarkBenchlab* wrappers, defined in that package's benchlab_test.go, which is where the set is decided; the remaining regexes are held over until those packages grow one.",
 
   "targets": [
     {
       "shard": "topdown",
       "pkg": "./v1/topdown",
-      "//": "~106 of 492 cases: rule evaluation, comprehensions, bindings, partial eval, base-document access and iteration. Deliberately excludes the JSONPatch*, Tokens and Builtin* families, which are builtin micro-benchmarks rather than evaluation hot paths.",
+      "//": "Rule evaluation, comprehensions, bindings, partial eval, base-document access and iteration. Deliberately excludes the JSONPatch*, Tokens and Builtin* families, which are builtin micro-benchmarks rather than evaluation hot paths.",
       "bench": "^Benchmark(VirtualDocs|VirtualCache|ComplexRules|RuleBindings|RuleWithComprehensions|Comprehension|Bindings|Biunify|PartialEval|Concurrency|InliningFullScan|Enumerate|ArrayIteration|ObjectIteration|SetIteration|ObjectGet|MemberWithKeyFromBaseDoc|LargeJSON)"
     },
     {
       "shard": "ast",
       "pkg": "./v1/ast",
-      "//": "~101 of 336 cases: parsing, object/set construction and lookup, and term rewriting. Excludes the NoASTTypeAllocates*/NoNodeTypeAllocates* families, which are allocation assertions rather than trend material.",
+      "//": "Parsing, object/set construction and lookup, and term rewriting. Excludes the NoASTTypeAllocates*/NoNodeTypeAllocates* families, which are allocation assertions rather than trend material.",
       "bench": "^Benchmark(Parse|ObjectGet|ObjectFind|ObjectConstruction|ObjectCreationAndLookup|SetCreationAndLookup|RewriteDynamics|RefString)"
     },
     {
@@ -25,6 +25,46 @@
       "pkg": "./v1/storage/inmem",
       "//": "All ~48 cases: the store read/write hot path.",
       "bench": "."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/compile",
+      "//": "opa build over increasingly many dynamically-selected policies, and against large partial rule sets. Both families exist because of filed regressions (#5216, #5756)."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/types",
+      "//": "Any.Merge/Union, reached from types.Or on the type checker's hot path, plus Type.Select."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/format",
+      "//": "opa fmt / LSP formatting of a large policy."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./internal/wasm/sdk/opa",
+      "//": "WASM eval, the Rego-to-WASM compiler, and a Go arm to compare against. Requires the opa_wasm build tag, which is already the default."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/cover",
+      "//": "The coverage tracer's overhead, paid by every opa test --coverage run."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/profiler",
+      "//": "The profiler's overhead, on the same shapes as v1/cover so the two are comparable."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/test/scheduler",
+      "//": "A comprehension-heavy Kubernetes policy, compiled and evaluated per iteration."
+    },
+    {
+      "shard": "compile",
+      "pkg": "./v1/dependencies",
+      "//": "opa deps. The lowest-value target in this shard; cut first if the shard needs to shrink."
     }
   ]
 }

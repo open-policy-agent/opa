@@ -48,6 +48,13 @@ import (
 
 const opaModulePath = "github.com/open-policy-agent/opa"
 
+// benchlabPrefix names the curated benchmarks. Each participating package holds
+// a benchlab_test.go defining BenchmarkBenchlab* wrappers, so a target selects
+// its set by this prefix instead of by a regex listing benchmark names -- one
+// that silently stops matching when a benchmark upstream is renamed, and
+// silently over-matches when an unrelated one is added.
+const benchlabPrefix = "Benchlab"
+
 // measureForUnit maps benchstat's units onto the measure names benchmarks.json
 // already uses, so both data sources can be charted on the same axes.
 var measureForUnit = map[string]string{
@@ -57,11 +64,11 @@ var measureForUnit = map[string]string{
 	"allocs/op": "AllocsPerOp",
 }
 
-// target is one curated entry: a package and the benchmarks to run within it.
+// target is one curated entry: a package whose BenchmarkBenchlab* wrappers are
+// the benchmarks to run.
 type target struct {
 	Shard string `json:"shard"`
 	Pkg   string `json:"pkg"`
-	Bench string `json:"bench"`
 }
 
 type benchmarkSet struct {
@@ -201,7 +208,7 @@ func main() {
 			log.Fatalf("%s: %v", t.Pkg, err)
 		}
 		if len(rs) == 0 {
-			log.Printf("warning: %s matched no benchmarks for -bench %q", t.Pkg, t.Bench)
+			log.Printf("warning: %s defines no Benchmark%s* benchmarks", t.Pkg, benchlabPrefix)
 		}
 		n.Results = append(n.Results, rs...)
 	}
@@ -323,9 +330,7 @@ func runBenchlab(t target, n night, tags string, commits []string) (string, erro
 		"-count", strconv.Itoa(n.Count),
 		"-benchtime", n.Benchtime,
 		"-run", "^$",
-	}
-	if t.Bench != "" {
-		args = append(args, "-bench", t.Bench)
+		"-bench", "^Benchmark" + benchlabPrefix,
 	}
 
 	cmd := exec.Command("benchlab", args...)
@@ -602,7 +607,10 @@ func assemble(t target, n night, labels map[string]string, vsBase, vsPrev map[st
 			r := result{
 				// benchstat strips the "Benchmark" prefix from names in its
 				// tables, but the published chart pages are keyed by the full
-				// Go benchmark name, so it has to go back on.
+				// Go benchmark name, so it has to go back on. The benchlab
+				// marker stays: a wrapper measures a set of cases of its own
+				// choosing, so charting it under the name of the benchmark it
+				// borrows from would claim more than it measures.
 				Pkg:           t.Pkg,
 				Name:          "Benchmark" + name,
 				Measure:       measure,
