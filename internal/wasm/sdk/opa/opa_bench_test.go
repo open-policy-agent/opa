@@ -129,33 +129,37 @@ func BenchmarkWASMLargeJSON(b *testing.B) {
 		{100, 1000},
 	} {
 		b.Run(fmt.Sprintf("%dx%d", kv.key, kv.val), func(b *testing.B) {
-			ctx := context.Background()
-			data := test.GenerateJSONBenchmarkData(kv.key, kv.val)
-
-			// Read data.values N times inside query.
-			query := "data.keys[_] = x; data.values = y"
-			policy := compileRegoToWasm("", query, false)
-
-			instance, err := opa.New().
-				WithPolicyBytes(policy).
-				WithDataJSON(data).
-				WithMemoryLimits(200*util.PageSize, 600*util.PageSize). // This is rather much
-				WithPoolSize(1).
-				Init()
-			if err != nil {
-				b.Fatalf("init sdk: %v", err)
-			}
-
-			b.ResetTimer()
-			var input any = make(map[string]any)
-
-			for i := 0; i < b.N; i++ {
-				r, err = instance.Eval(ctx, opa.EvalOpts{Input: &input})
-				if err != nil {
-					b.Fatalf("Unexpected query error: %v", err)
-				}
-			}
+			runLargeJSONBenchmark(b, kv.key, kv.val)
 		})
+	}
+}
+
+func runLargeJSONBenchmark(b *testing.B, numKeys, numVals int) {
+	ctx := context.Background()
+	data := test.GenerateJSONBenchmarkData(numKeys, numVals)
+
+	// Read data.values N times inside query.
+	query := "data.keys[_] = x; data.values = y"
+	policy := compileRegoToWasm("", query, false)
+
+	instance, err := opa.New().
+		WithPolicyBytes(policy).
+		WithDataJSON(data).
+		WithMemoryLimits(200*util.PageSize, 600*util.PageSize). // This is rather much
+		WithPoolSize(1).
+		Init()
+	if err != nil {
+		b.Fatalf("init sdk: %v", err)
+	}
+
+	b.ResetTimer()
+	var input any = make(map[string]any)
+
+	for i := 0; i < b.N; i++ {
+		r, err = instance.Eval(ctx, opa.EvalOpts{Input: &input})
+		if err != nil {
+			b.Fatalf("Unexpected query error: %v", err)
+		}
 	}
 }
 

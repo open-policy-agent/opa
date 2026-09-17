@@ -241,18 +241,29 @@ func TestCalibrate(t *testing.T) {
 // The workflow derives its shard matrix from set.json with jq while the tool
 // reads the same file with -shard, so the two have to agree about its shape.
 func TestLoadTargetsFromSet(t *testing.T) {
-	for _, shard := range []string{"topdown", "ast", "rego", "inmem"} {
-		targets := loadTargets("set.json", shard)
-		if len(targets) == 0 {
-			t.Errorf("shard %q resolved no targets", shard)
+	var set benchmarkSet
+	readJSON("set.json", &set)
+	if len(set.Targets) == 0 {
+		t.Fatal("set.json holds no targets")
+	}
+
+	// A target names a package; the benchmarks are whichever
+	// BenchmarkBenchlab* wrappers that package defines.
+	shards := map[string]struct{}{}
+	for _, target := range set.Targets {
+		if target.Shard == "" || target.Pkg == "" {
+			t.Errorf("incomplete target: %+v", target)
 			continue
 		}
-		for _, target := range targets {
-			if target.Pkg == "" || target.Bench == "" {
-				t.Errorf("shard %q has an incomplete target: %+v", shard, target)
-			}
+		shards[target.Shard] = struct{}{}
+	}
+
+	for shard := range shards {
+		if targets := loadTargets("set.json", shard); len(targets) == 0 {
+			t.Errorf("shard %q resolved no targets", shard)
 		}
 	}
+
 	if targets := loadTargets("set.json", "nonexistent"); len(targets) != 0 {
 		t.Errorf("unknown shard resolved %d targets, want 0", len(targets))
 	}
