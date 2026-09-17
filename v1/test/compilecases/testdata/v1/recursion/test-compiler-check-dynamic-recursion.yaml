@@ -1,0 +1,32 @@
+---
+# Generated externalized tests from TestCompilerCheckDynamicRecursion
+cases:
+  - note: recursion/recursion
+    modules:
+      - |
+        package recursion
+
+        pkg = "recursion"
+        foo contains x if {
+        	data[pkg]["foo"][x]
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 4
+        col: 1
+        message: 'rule data.recursion.foo is recursive: data.recursion.foo -> data.recursion.foo'
+    exhaustive: true
+  - note: recursion/system.main
+    modules:
+      - |
+        package system.main
+
+        foo if {
+        	data[input]
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.system.main.foo is recursive: data.system.main.foo -> data.system.main.foo'
+    exhaustive: true

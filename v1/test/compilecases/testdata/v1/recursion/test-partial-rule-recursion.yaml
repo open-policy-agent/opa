@@ -1,0 +1,34 @@
+---
+# The regression TestCompilerCheckPartialRuleRecursion guards, hand-authored: the test is
+# not table-driven, and its point is which rules make the cycle visible rather than any
+# one message.
+cases:
+  - note: recursion/a partial rule does not hide a cycle behind another definition
+    # Before OPA 0.56.0 the first definition of `results` hid the cycle between
+    # `results.foo` and `final_allow` from the recursion check, and nothing was reported.
+    # `exhaustive` is the assertion: the two rules in the cycle, and only those.
+    modules:
+      - |
+        package test
+
+        results[id] := 1 if {
+        	id := "bar"
+        }
+
+        results.foo := 2 if {
+        	final_allow
+        }
+
+        final_allow if {
+        	results.foo == 3
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 7
+        col: 1
+        message: 'rule data.test.results.foo is recursive: data.test.results.foo -> data.test.final_allow -> data.test.results.foo'
+      - code: rego_recursion_error
+        row: 11
+        col: 1
+        message: 'rule data.test.final_allow is recursive: data.test.final_allow -> data.test.results.foo -> data.test.final_allow'
+    exhaustive: true

@@ -1,0 +1,300 @@
+---
+# Recursion, the cycles a compiler has to refuse. Hand-authored: TestCompilerCheckRecursion
+# builds one compiler out of seventeen modules and asserts twenty-six diagnostics against
+# it, so there is no table to read — and one case per scenario says which cycle failed,
+# where one case of seventeen modules would only say that something did.
+#
+# Every case is `exhaustive`: what a recursion check gets wrong is usually the extent of
+# the cycle, so the rules that are *not* reported carry as much of the assertion as the
+# ones that are.
+cases:
+  - note: recursion/two rules referring to each other
+    modules:
+      - |
+        package rec
+
+        s = true if { t }
+        t = true if { s }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec.s is recursive: data.rec.s -> data.rec.t -> data.rec.s'
+      - code: rego_recursion_error
+        row: 4
+        col: 1
+        message: 'rule data.rec.t is recursive: data.rec.t -> data.rec.s -> data.rec.t'
+    exhaustive: true
+  - note: recursion/a rule depending on a cycle is not itself recursive
+    # x reaches the cycle, and rec2.y reaches x, neither of them is part of one. The
+    # exhaustive set is where that is stated.
+    modules:
+      - |
+        package rec
+
+        s = true if { t }
+        t = true if { s }
+        x = true if { s }
+      - |
+        package rec2
+
+        import data.rec.x
+
+        y = true if { x }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec.s is recursive: data.rec.s -> data.rec.t -> data.rec.s'
+      - code: rego_recursion_error
+        row: 4
+        col: 1
+        message: 'rule data.rec.t is recursive: data.rec.t -> data.rec.s -> data.rec.t'
+    exhaustive: true
+  - note: recursion/cycle through a chain of rules
+    # d is reached by the cycle without being in it, so it is not reported.
+    modules:
+      - |
+        package rec
+
+        a = true if { b }
+        b = true if { c }
+        c = true if { d; e }
+        d = true if { true }
+        e = true if { a }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec.a is recursive: data.rec.a -> data.rec.b -> data.rec.c -> data.rec.e -> data.rec.a'
+      - code: rego_recursion_error
+        row: 4
+        col: 1
+        message: 'rule data.rec.b is recursive: data.rec.b -> data.rec.c -> data.rec.e -> data.rec.a -> data.rec.b'
+      - code: rego_recursion_error
+        row: 5
+        col: 1
+        message: 'rule data.rec.c is recursive: data.rec.c -> data.rec.e -> data.rec.a -> data.rec.b -> data.rec.c'
+      - code: rego_recursion_error
+        row: 7
+        col: 1
+        message: 'rule data.rec.e is recursive: data.rec.e -> data.rec.a -> data.rec.b -> data.rec.c -> data.rec.e'
+    exhaustive: true
+  - note: recursion/mutual recursion across packages
+    modules:
+      - |
+        package rec3
+
+        p[x] = y if { data.rec4[x][y] = z }
+      - |
+        package rec4
+
+        import data.rec3.p
+
+        q[x] = y if { p[x] = y }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec3.p[x] is recursive: data.rec3.p[x] -> data.rec4.q[x] -> data.rec3.p[x]'
+      - module: test-1.rego
+        code: rego_recursion_error
+        row: 5
+        col: 1
+        message: 'rule data.rec4.q[x] is recursive: data.rec4.q[x] -> data.rec3.p[x] -> data.rec4.q[x]'
+    exhaustive: true
+  - note: recursion/cycle through a comprehension body
+    modules:
+      - |
+        package rec5
+
+        acp contains x if { acq[x] }
+        acq contains x if { a = [true | acp[_]]; a[_] = x }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec5.acp is recursive: data.rec5.acp -> data.rec5.acq -> data.rec5.acp'
+      - code: rego_recursion_error
+        row: 4
+        col: 1
+        message: 'rule data.rec5.acq is recursive: data.rec5.acq -> data.rec5.acp -> data.rec5.acq'
+    exhaustive: true
+  - note: recursion/cycle through dynamic ref keys
+    modules:
+      - |
+        package rec6
+
+        np[x] = y if { data.a[data.b.c[nq[x]]] = y }
+        nq[x] = y if { data.d[data.e[x].f[np[y]]] }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec6.np[x] is recursive: data.rec6.np[x] -> data.rec6.nq[x] -> data.rec6.np[x]'
+      - code: rego_recursion_error
+        row: 4
+        col: 1
+        message: 'rule data.rec6.nq[x] is recursive: data.rec6.nq[x] -> data.rec6.np[x] -> data.rec6.nq[x]'
+    exhaustive: true
+  - note: recursion/rule referring to its own package
+    # data.rec7 includes prefix itself, so the reference is a cycle of one.
+    modules:
+      - |
+        package rec7
+
+        prefix = true if { data.rec7 }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec7.prefix is recursive: data.rec7.prefix -> data.rec7.prefix'
+    exhaustive: true
+  - note: recursion/rule referring to the whole data document
+    modules:
+      - |
+        package rec8
+
+        dataref = true if { data }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.rec8.dataref is recursive: data.rec8.dataref -> data.rec8.dataref'
+    exhaustive: true
+  - note: recursion/else body referring to its own rule
+    modules:
+      - |
+        package rec9
+
+        else_self if { false } else if { else_self }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 24
+        message: 'rule data.rec9.else_self is recursive: data.rec9.else_self -> data.rec9.else_self'
+    exhaustive: true
+  - note: recursion/cycle through else bodies
+    # The cycle runs elsetop -> elsemid -> elsebottom -> elsetop, and two of the three
+    # hops are else bodies rather than primary ones.
+    modules:
+      - |
+        package rec9
+
+        elsetop if {
+        	false
+        } else = elsemid if {
+        	true
+        }
+
+        elsemid if {
+        	false
+        } else if {
+        	elsebottom
+        }
+
+        elsebottom if { elsetop }
+    want_errors:
+      - code: rego_recursion_error
+        row: 5
+        col: 3
+        message: 'rule data.rec9.elsetop is recursive: data.rec9.elsetop -> data.rec9.elsemid -> data.rec9.elsebottom -> data.rec9.elsetop'
+      - code: rego_recursion_error
+        row: 11
+        col: 3
+        message: 'rule data.rec9.elsemid is recursive: data.rec9.elsemid -> data.rec9.elsebottom -> data.rec9.elsetop -> data.rec9.elsemid'
+      - code: rego_recursion_error
+        row: 15
+        col: 1
+        message: 'rule data.rec9.elsebottom is recursive: data.rec9.elsebottom -> data.rec9.elsetop -> data.rec9.elsemid -> data.rec9.elsebottom'
+    exhaustive: true
+  - note: recursion/function calling itself
+    modules:
+      - |
+        package f0
+
+        fn(x) = y if {
+        	fn(x, y)
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.f0.fn is recursive: data.f0.fn -> data.f0.fn'
+    exhaustive: true
+  - note: recursion/functions calling each other
+    modules:
+      - |
+        package f1
+
+        foo(x) = y if {
+        	bar("buz", x, y)
+        }
+
+        bar(x, y) = z if {
+        	foo([x, y], z)
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.f1.foo is recursive: data.f1.foo -> data.f1.bar -> data.f1.foo'
+      - code: rego_recursion_error
+        row: 7
+        col: 1
+        message: 'rule data.f1.bar is recursive: data.f1.bar -> data.f1.foo -> data.f1.bar'
+    exhaustive: true
+  - note: recursion/function cycle through a rule
+    modules:
+      - |
+        package f2
+
+        foo(x) = y if {
+        	bar("buz", x, y)
+        }
+
+        bar(x, y) = z if {
+        	x = p[y]
+        	z = x
+        }
+
+        p[x] = y if {
+        	x = "foo.bar"
+        	foo(x, y)
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.f2.foo is recursive: data.f2.foo -> data.f2.bar -> data.f2.p[x] -> data.f2.foo'
+      - code: rego_recursion_error
+        row: 7
+        col: 1
+        message: 'rule data.f2.bar is recursive: data.f2.bar -> data.f2.p[x] -> data.f2.foo -> data.f2.bar'
+      - code: rego_recursion_error
+        row: 12
+        col: 1
+        message: 'rule data.f2.p[x] is recursive: data.f2.p[x] -> data.f2.foo -> data.f2.bar -> data.f2.p[x]'
+    exhaustive: true
+  - note: recursion/cycle through an every body and an every domain
+    modules:
+      - |
+        package everymod
+
+        everyp if {
+        	every x in [true, false] { x; everyp }
+        }
+
+        everyq contains 1 if {
+        	every x in everyq { x == 1 }
+        }
+    want_errors:
+      - code: rego_recursion_error
+        row: 3
+        col: 1
+        message: 'rule data.everymod.everyp is recursive: data.everymod.everyp -> data.everymod.everyp'
+      - code: rego_recursion_error
+        row: 7
+        col: 1
+        message: 'rule data.everymod.everyq is recursive: data.everymod.everyq -> data.everymod.everyq'
+    exhaustive: true

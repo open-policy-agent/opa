@@ -461,9 +461,9 @@ testdata/v1/<area>/<file>.yaml
 ```
 
 The top level is the Rego version, below it the language area — `builtins/`,
-`functions/`, `imports/`, `keywords/`, `print/`, `safety/`, `templatestrings/`,
-`vars/` — not the outcome, which `want_errors` already records. Grouping by area puts
-a rule and its counter-example side by side.
+`functions/`, `imports/`, `keywords/`, `print/`, `recursion/`, `safety/`,
+`templatestrings/`, `vars/` — not the outcome, which `want_errors` already records.
+Grouping by area puts a rule and its counter-example side by side.
 
 The directory is organisational; `rego_version` drives parsing, and the two should
 agree. Where the same source means different things in v0 and v1, write one case per
