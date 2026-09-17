@@ -20,10 +20,12 @@ import (
 )
 
 // CompilerTestCase is a corpus case together with whatever a filter had to say
-// about it. Nothing below the embedded case is committed to the repository.
+// about it, and whatever an option generated for it. Nothing below the embedded case
+// is committed to the repository.
 type CompilerTestCase struct {
 	compilecases.TestCase
-	Ignore bool `json:"ignore"` // a filter rejected the case: it is reported, not runnable
+	ASTError string `json:"ast_error,omitempty"` // why an expectation has no marshalled form, leaving whatever the corpus committed; diagnostic only, never an assertion
+	Ignore   bool   `json:"ignore"`              // a filter rejected the case: it is reported, not runnable
 }
 
 // CompilerSet is the set of cases loaded from one corpus file.
@@ -37,6 +39,7 @@ type Option func(*config)
 
 type config struct {
 	directiveImports bool
+	ast              bool
 }
 
 // WithDirectiveImports rewrites each want entry's Module to carry its own imports,
@@ -48,6 +51,14 @@ type config struct {
 // compare against OPA. Nothing lands in the corpus.
 func WithDirectiveImports() Option {
 	return func(c *config) { c.directiveImports = true }
+}
+
+// WithAST marshals what each case compiles to onto the AST field of every want and
+// want_stages entry, and onto a query case's WantAST. For a consumer with an AST but
+// no printer for OPA's canonical Rego: the Rego spelling is left where a case has
+// one, so nothing is lost by asking for both.
+func WithAST() Option {
+	return func(c *config) { c.ast = true }
 }
 
 // Filters are functions that will return true if a test case should be filtered out
@@ -125,6 +136,12 @@ func LoadCompilerTestCasesFiltered(filters []Filters, opts ...Option) ([]Compile
 
 	if cfg.directiveImports {
 		if err := addDirectiveImports(sets); err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.ast {
+		if err := generateAST(sets); err != nil {
 			return nil, err
 		}
 	}

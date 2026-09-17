@@ -188,6 +188,26 @@ in, and annotated with what disqualified it:
           {
 ```
 
+If you have an AST but no printer for OPA's canonical Rego, ask for that form
+everywhere:
+
+```go
+sets, err := cases.LoadCompilerTestCases(cases.WithAST())
+```
+
+Every `want` and `want_stages` entry then carries an `ast`, and a query case carries
+`query.want_ast`, alongside whatever Rego the corpus committed — additive, so a
+consumer with both can cross-check them. Nothing lands in the corpus, and where a case
+committed the AST form already the generated value is the same one.
+
+The marshalled form carries the compiler's own `generated` markers, which Rego cannot
+spell, so it says slightly more than the module does. Locations are off, as everywhere
+else: compiler output is full of synthesized nodes whose positions are whatever the
+rewriter had to hand.
+
+A compiled form OPA cannot marshal leaves `ast_error` on the case instead of an `ast`.
+One case does today — a number written `.14` is emitted as invalid JSON.
+
 ## Queries
 
 A case that carries a `query` asserts what **the query** compiles to, not what its
@@ -493,12 +513,16 @@ parse. Matching is exact — `v0-compat-v1` is its own mode — and passing no v
 filters nothing. `StrictModeFilter` does the same for the strict setting a case pins.
 A rejected case is marked, never removed, so the corpus stays addressable by index.
 
+`WithAST()` marshals what each case compiles to, for a consumer without a printer for
+OPA's canonical Rego; see [`ast`](#ast-where-the-compiled-form-has-no-rego-spelling).
+
 `CapabilitiesFilter` has no counterpart here yet: it filters on the builtins a plan
 calls, and this corpus does not generate plans.
 
 ## What this corpus does not carry yet
 
-Query compilation. Those cases still live in `v1/ast/compile_test.go`.
+IR. `WithIR()` is not implemented here, so an implementation that plans but has no
+separable AST has nothing to read.
 
 ## What this corpus will not carry
 

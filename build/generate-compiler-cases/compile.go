@@ -206,6 +206,11 @@ func marshalBody(body ast.Body) (string, error) {
 	astJSON.SetOptions(conformance.MarshalOptions(false, false))
 	defer astJSON.SetOptions(restore)
 
+	return encodeBody(body)
+}
+
+// encodeBody marshals body under whatever marshalling options are in effect.
+func encodeBody(body ast.Body) (string, error) {
 	bs, err := json.Marshal(body)
 	if err != nil {
 		return "", err
@@ -454,6 +459,11 @@ func marshalModule(mod *ast.Module) (string, error) {
 	astJSON.SetOptions(conformance.MarshalOptions(false, false))
 	defer astJSON.SetOptions(restore)
 
+	return encodeModule(mod)
+}
+
+// encodeModule marshals mod under whatever marshalling options are in effect.
+func encodeModule(mod *ast.Module) (string, error) {
 	mod.Comments = nil
 
 	bs, err := json.Marshal(mod)
