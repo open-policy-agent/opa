@@ -88,11 +88,11 @@ result if {
 
 func generateBulkStartsWithInput() map[string]any {
 	strs := make([]string, 0, 1000)
-	for i := range strs {
+	for i := range 1000 {
 		strs = append(strs, fmt.Sprintf("aabbccddeeffgghhiijjkkllmmnnoopp_%d", i))
 	}
 	prefixes := make([]string, 0, 100)
-	for i := range prefixes {
+	for i := range 100 {
 		prefixes = append(prefixes, fmt.Sprintf("aabbccddeeffgghhiijjkkllmmnnoorr_%d", i))
 	}
 	return map[string]any{
