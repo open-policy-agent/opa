@@ -14,6 +14,10 @@ Go counterpart, and a new compiler test can land as YAML only.
 2. **This corpus.** Diagnostics are observable in any pipeline, whether or not the
    implementation has a separable compiler stage.
 
+An implementation that has no printer for OPA's canonical Rego, or no separable AST at
+all, reads the same cases through the generated
+[`ast`](#ast-where-the-compiled-form-has-no-rego-spelling) or [IR](#ir) instead.
+
 ## Adding a case
 
 Write `note` and `modules` plus whatever configuration they need, run `make
@@ -515,14 +519,51 @@ A rejected case is marked, never removed, so the corpus stays addressable by ind
 
 `WithAST()` marshals what each case compiles to, for a consumer without a printer for
 OPA's canonical Rego; see [`ast`](#ast-where-the-compiled-form-has-no-rego-spelling).
+`WithIR()` plans it, for a consumer with no separable AST; see [IR](#ir).
 
-`CapabilitiesFilter` has no counterpart here yet: it filters on the builtins a plan
-calls, and this corpus does not generate plans.
+## IR
 
-## What this corpus does not carry yet
+`WithIR()` compiles and plans every case that asserts a compiled form, putting the plan
+on `WantIR` and the entrypoints it was planned for on `EntryPoints`:
 
-IR. `WithIR()` is not implemented here, so an implementation that plans but has no
-separable AST has nothing to read.
+```go
+sets, err := cases.LoadCompilerTestCases(cases.WithIR())
+```
+
+Nothing lands in the corpus — no plan is committed, so there is no planner churn and no
+size cost, and OPA's own runner asserts nothing about IR. What the generation test holds
+plans to is the published schema (`v1/ir/plan.schema.json`), one plan per entrypoint, and
+planning twice giving the same answer.
+
+**Entrypoints are derived, one per document the modules define** — every ground rule ref,
+sorted, across all of a case's modules. A key a path cannot spell (`p[1] := "x"`) names
+the document that holds it. A query case is planned for its query, under the single
+entrypoint `query`.
+
+**A function is not a document.** `data.test.f` names nothing, and the query a plan is
+built from — `result = data.test.f` — is rejected as a function used as a value. A module
+of nothing but functions therefore has no entrypoint and no plan: planning its package
+instead would succeed and produce a plan with no functions in it, which asserts nothing
+while looking like coverage. 47 cases are in that position today.
+
+A case that does not plan says why on `IRError`, and nothing is silently skipped. Besides
+the function-only cases, two use a dynamic `with` target (`true with input[x] as 1`),
+which the planner has never supported.
+
+**Built-in declarations are OPA's own**, not yours: a plan calls whatever the module
+calls, so narrowing them would fail generation rather than describe your implementation.
+Say what you have with `CapabilitiesFilter` instead — it marks `Ignore` and drops the
+plan on any case whose plan calls a built-in you lack:
+
+```go
+sets, err := cases.LoadCompilerTestCasesFiltered(
+	[]cases.Filters{cases.CapabilitiesFilter(myCapabilities)},
+	cases.WithIR(),
+)
+```
+
+That is the advertising direction: you say which built-ins you have, and a plan you could
+not execute is filtered rather than failed.
 
 ## What this corpus will not carry
 

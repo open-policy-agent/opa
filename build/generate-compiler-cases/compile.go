@@ -77,7 +77,7 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 				len(compiled.Errors), compiled.Errors[0])
 		}
 
-		_, qerrs, qerr := compileQuery(tc, compiled)
+		_, _, qerrs, qerr := compileQuery(tc, compiled)
 		if qerr != nil {
 			return nil, qerr
 		}
@@ -107,19 +107,19 @@ func sortedErrors(in []conformance.Error) []conformance.Error {
 }
 
 // compileQuery compiles a case's query against its already-compiled modules, returning
-// the compiled body and whatever the query compiler reported.
+// the query compiler, the compiled body and whatever it reported.
 //
 // The options come off the case rather than from the caller: a query is read with the
 // directives among its own imports, not with whatever the modules were parsed under.
-func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.Body, []conformance.Error, error) {
+func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.QueryCompiler, ast.Body, []conformance.Error, error) {
 	popts, err := queryParserOptions(tc)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	query, err := ast.ParseBodyWithOpts(tc.Query.Body, popts)
 	if err != nil {
-		return nil, nil, fmt.Errorf("query.body does not parse: %w", err)
+		return nil, nil, nil, fmt.Errorf("query.body does not parse: %w", err)
 	}
 
 	qc := compiled.QueryCompiler()
@@ -131,7 +131,7 @@ func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.Body, [
 		if tc.Query.Package != "" {
 			pkg, perr := ast.ParsePackage("package " + tc.Query.Package)
 			if perr != nil {
-				return nil, nil, fmt.Errorf("query.package does not parse: %w", perr)
+				return nil, nil, nil, fmt.Errorf("query.package does not parse: %w", perr)
 			}
 			qctx = qctx.WithPackage(pkg)
 		}
@@ -142,7 +142,7 @@ func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.Body, [
 			}
 			imports, ierr := ast.ParseImports(strings.Join(decls, "\n"))
 			if ierr != nil {
-				return nil, nil, fmt.Errorf("query.imports do not parse: %w", ierr)
+				return nil, nil, nil, fmt.Errorf("query.imports do not parse: %w", ierr)
 			}
 			qctx = qctx.WithImports(imports)
 		}
@@ -152,12 +152,12 @@ func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.Body, [
 
 	body, cerr := qc.Compile(query)
 	if cerr == nil {
-		return body, nil, nil
+		return qc, body, nil, nil
 	}
 
 	errs, ok := errors.AsType[ast.Errors](cerr)
 	if !ok {
-		return nil, nil, fmt.Errorf("compiling the query failed with %v, which is not an ast.Errors", cerr)
+		return nil, nil, nil, fmt.Errorf("compiling the query failed with %v, which is not an ast.Errors", cerr)
 	}
 
 	out := make([]conformance.Error, 0, len(errs))
@@ -165,7 +165,7 @@ func compileQuery(tc compilecases.TestCase, compiled *ast.Compiler) (ast.Body, [
 		out = append(out, caseError(e))
 	}
 
-	return nil, out, nil
+	return qc, nil, out, nil
 }
 
 // compiledQuery returns what the case's query compiles to: Rego where the printed body
@@ -231,7 +231,7 @@ func compiledQueryBody(tc compilecases.TestCase) (ast.Body, error) {
 		return nil, err
 	}
 
-	body, qerrs, qerr := compileQuery(tc, compiled)
+	_, body, qerrs, qerr := compileQuery(tc, compiled)
 	if qerr != nil {
 		return nil, qerr
 	}

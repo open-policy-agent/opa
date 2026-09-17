@@ -143,7 +143,7 @@ func outcome(tc compilecases.TestCase, strict bool) (string, []*ast.Module, erro
 	// environment. Comparing those alone would call a setting immaterial whenever the
 	// only thing strict mode changes is what the query reports.
 	if tc.QueryCase() && len(c.Errors) == 0 {
-		_, qerrs, qerr := compileQuery(tc, c)
+		_, _, qerrs, qerr := compileQuery(tc, c)
 		if qerr != nil {
 			return "", nil, qerr
 		}

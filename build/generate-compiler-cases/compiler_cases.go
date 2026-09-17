@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/compilecases/testdata"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
@@ -24,8 +25,11 @@ import (
 // is committed to the repository.
 type CompilerTestCase struct {
 	compilecases.TestCase
-	ASTError string `json:"ast_error,omitempty"` // why an expectation has no marshalled form, leaving whatever the corpus committed; diagnostic only, never an assertion
-	Ignore   bool   `json:"ignore"`              // a filter rejected the case: it is reported, not runnable
+	ASTError    string     `json:"ast_error,omitempty"`   // why an expectation has no marshalled form, leaving whatever the corpus committed; diagnostic only, never an assertion
+	WantIR      *ir.Policy `json:"want_ir,omitempty"`     // the plan the case compiles to, absent where it does not plan or where a filter rejected it
+	EntryPoints []string   `json:"entrypoints,omitempty"` // what WantIR was planned for, one per plan; always derived, where parsercases lets a case author them
+	IRError     string     `json:"ir_error,omitempty"`    // why a case that asserts a compiled form has no plan; diagnostic only, never an assertion
+	Ignore      bool       `json:"ignore"`                // a filter rejected the case: it is reported, not runnable
 }
 
 // CompilerSet is the set of cases loaded from one corpus file.
@@ -40,6 +44,7 @@ type Option func(*config)
 type config struct {
 	directiveImports bool
 	ast              bool
+	ir               bool
 }
 
 // WithDirectiveImports rewrites each want entry's Module to carry its own imports,
@@ -61,8 +66,41 @@ func WithAST() Option {
 	return func(c *config) { c.ast = true }
 }
 
+// WithIR plans every case that asserts a compiled form, populating WantIR and the
+// EntryPoints it was planned for. For a consumer that plans but has no separable AST.
+//
+// A case that does not plan says why on IRError: a module of nothing but functions has
+// no entrypoint, and the planner rejects a few constructs the compiler accepts. Nothing
+// lands in the corpus.
+func WithIR() Option {
+	return func(c *config) { c.ir = true }
+}
+
 // Filters are functions that will return true if a test case should be filtered out
 type Filters func(*CompilerTestCase) bool
+
+// CapabilitiesFilter will filter out any test case whose plan calls a builtin that is
+// not in c. It pairs with WithIR, and passes any case that has no plan.
+func CapabilitiesFilter(c *ast.Capabilities) Filters {
+	builtins := make(map[string]struct{}, len(c.Builtins))
+	for _, b := range c.Builtins {
+		builtins[b.Name] = struct{}{}
+	}
+
+	return func(tc *CompilerTestCase) bool {
+		if len(builtins) == 0 || tc.WantIR == nil {
+			return false
+		}
+
+		for _, b := range tc.WantIR.Static.BuiltinFuncs {
+			if _, ok := builtins[b.Name]; !ok {
+				return true
+			}
+		}
+
+		return false
+	}
+}
 
 // RegoVersionFilter will filter out any test case written for a rego_version
 // that is not in versions. Matching is exact: v0-compat-v1 is its own parsing
@@ -146,11 +184,18 @@ func LoadCompilerTestCasesFiltered(filters []Filters, opts ...Option) ([]Compile
 		}
 	}
 
+	if cfg.ir {
+		if err := generateIR(sets); err != nil {
+			return nil, err
+		}
+	}
+
 	for _, set := range sets {
 		for _, tc := range set.Cases {
 			for _, filter := range filters {
 				if filter(tc) {
 					tc.Ignore = true
+					tc.WantIR = nil
 					break
 				}
 			}
