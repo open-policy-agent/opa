@@ -79,6 +79,29 @@ func TestParseBenchstatCSV(t *testing.T) {
 	}
 }
 
+// A benchmark added since the baseline's release tag is not present at the
+// baseline, so benchstat emits no column for it. That has to skip the benchmark
+// rather than fail the shard, or one new benchmark stops its whole shard from
+// reporting until the next release.
+func TestAssembleSkipsBenchmarksMissingAtBaseline(t *testing.T) {
+	n := night{BaselineSHA: baseSHA, Prev: prevSHA, Head: headSHA}
+	// The baseline arm produced nothing, so nothing in the tables is keyed by
+	// its label.
+	labels := map[string]string{baseSHA: "absent", prevSHA: prevSHA, headSHA: headSHA}
+
+	results, err := assemble(
+		target{Pkg: "./v1/topdown"}, n, labels,
+		loadTable(t, "testdata/vsbase.csv"),
+		loadTable(t, "testdata/vsprev.csv"),
+	)
+	if err != nil {
+		t.Fatalf("want the benchmarks skipped, got error: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("got %d results, want 0", len(results))
+	}
+}
+
 func TestAssemble(t *testing.T) {
 	n := night{BaselineSHA: baseSHA, Prev: prevSHA, Head: headSHA}
 	identity := map[string]string{baseSHA: baseSHA, prevSHA: prevSHA, headSHA: headSHA}
