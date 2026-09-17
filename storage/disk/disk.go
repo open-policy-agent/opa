@@ -1,4 +1,4 @@
-// Copyright 2021 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -54,16 +54,27 @@
 //
 // * Trigger events do not include a set of changed paths because the underlying
 // key-value store does not make them available.
+//
+// Deprecated: This package is intended for older projects transitioning from OPA v0.x and will remain for the lifetime of OPA v1.x, but its use is not recommended.
+// For newer features and behaviours, such as defaulting to the Rego v1 syntax, use the corresponding components in the [github.com/open-policy-agent/opa/v1] package instead.
+// See https://www.openpolicyagent.org/docs/latest/v0-compatibility/ for more information.
 package disk
 
 import (
 	"context"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/open-policy-agent/opa/logging"
 	v1 "github.com/open-policy-agent/opa/v1/storage/disk"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var ErrInvalidPartitionPath = v1.ErrInvalidPartitionPath
+
+// OptionsFromConfig parses the passed config, extracts the disk storage
+// settings, validates it, and returns a *Options struct pointer on success.
+func OptionsFromConfig(raw []byte, id string) (*Options, error) {
+	return v1.OptionsFromConfig(raw, id)
+}
 
 // Options contains parameters that configure the disk-based store.
 type Options = v1.Options
