@@ -260,6 +260,36 @@
         (map (fn [[k points]] [k (:ratio (last points))]))
         benchlab-series))
 
+(def benchlab-keys
+  "[pkg name] pairs the nightly experiment covers."
+  (into #{} (map (fn [[pkg name _measure]] [pkg name])) (keys benchlab-series)))
+
+(def benchlab-sparklines
+  "[pkg name] -> NsPerOp ratio history from the nightly experiment, oldest first."
+  (into {}
+        (keep (fn [[[pkg name measure] points]]
+                (when (= measure "NsPerOp")
+                  [[pkg name] (mapv :ratio points)])))
+        benchlab-series))
+
+(def benchlab-benchmarks-with-ids
+  "The dashboard's benchmark list, restricted to what the nightly experiment
+   covers: benchmarks.json's per-push numbers carry between-machine variance
+   benchlab doesn't, so the site shows only the more precise number rather than
+   both. Shaped like benchmarks-with-ids (:pkg :name :id :spark plus a ratio per
+   measure) so the index table and page generator don't need to know which
+   source they're reading."
+  (->> benchlab-keys
+       (map (fn [[pkg name]]
+              (merge {:pkg pkg :name name :id (benchmark-id pkg name)
+                      :spark (get benchlab-sparklines [pkg name])}
+                     (into {}
+                           (keep (fn [measure]
+                                   (when-let [r (get benchlab-latest-ratios [pkg name measure])]
+                                     [measure r])))
+                           ["NsPerOp" "AllocsPerOp" "BytesPerOp"]))))
+       (sort-by #(get % "NsPerOp" 0))))
+
 (def sparklines
   (->> rows
        (filter #(= (:measure %) "NsPerOp"))

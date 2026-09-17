@@ -19,31 +19,8 @@
    "AllocsPerOp" "#d33682"
    "BytesPerOp"  "#859900"})
 
-(def push-window
-  "How many of the most recent per-push runs a benchmark's push-panel shows.
-   benchmarks.json keeps up to 250; plotting all of them is illegible."
-  60)
-
 (def ^:private plotly-cdn
   "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.20.0/plotly.min.js")
-
-(defn- format-value [measure v]
-  (let [v (double v)]
-    (case measure
-      "NsPerOp"    (cond
-                     (>= v 1e9) (format "%.2fs" (/ v 1e9))
-                     (>= v 1e6) (format "%.2fms" (/ v 1e6))
-                     (>= v 1e3) (format "%.2fµs" (/ v 1e3))
-                     :else       (format "%.2fns" v))
-      "BytesPerOp" (cond
-                     (>= v 1e9) (format "%.2fGB" (/ v 1e9))
-                     (>= v 1e6) (format "%.2fMB" (/ v 1e6))
-                     (>= v 1e3) (format "%.2fKB" (/ v 1e3))
-                     :else       (format "%.0fB" v))
-      "AllocsPerOp" (cond
-                      (>= v 1e6) (format "%.2fM allocs" (/ v 1e6))
-                      (>= v 1e3) (format "%.2fK allocs" (/ v 1e3))
-                      :else       (format "%.0f allocs" v)))))
 
 (defn- commit-url [sha]
   (str "https://github.com/open-policy-agent/opa/commit/" sha))
@@ -62,19 +39,6 @@
   "Categorical x value for a commit: its tag if it has one, else a short sha."
   [commit tag]
   (or tag (data/tag-map commit) (subs commit 0 7)))
-
-(defn- ordered-categories
-  "Explicit x-axis order, oldest first.
-
-   Plotly orders a categorical axis by first appearance across traces, which is
-   only chronological if every trace covers the same commits. Measures can differ
-   in coverage, so the order is stated rather than inferred."
-  [labelled]
-  (->> labelled
-       (sort-by :date)
-       (map :x)
-       distinct
-       vec))
 
 (defn- commit-index [labelled]
   (into {} (map (fn [{:keys [x commit]}] [x (commit-detail commit)])) labelled))
@@ -285,70 +249,6 @@
    :font {:family "Go Mono, monospace" :size 11}
    :showlegend true})
 
-(defn- recent-runs
-  "The last push-window commits' worth of rows, oldest first. bench-rows
-   carries up to one row per measure per commit, so windowing by commit rather
-   than by row count keeps every measure's trace covering the same commits."
-  [bench-rows]
-  (let [commits (into #{} (take-last push-window (distinct (map :commit bench-rows))))]
-    (filterv #(contains? commits (:commit %)) bench-rows)))
-
-(defn- push-panel
-  "The per-push series: absolute measurements divided by the value at the
-   anchoring tag. Every point comes from a different runner, so most of the
-   spread between neighbours is between-machine variance rather than change."
-  [pkg bench-name bench-rows]
-  (let [bench-rows (recent-runs bench-rows)
-        by-measure (group-by :measure bench-rows)
-        tag-xs     (into #{} (keep :tag) bench-rows)
-        labelled   (mapv (fn [r] {:x (x-label (:commit r) (:tag r))
-                                  :date (:date r) :commit (:commit r)})
-                         bench-rows)
-        tick-vals  (filterv some? (mapv :tag bench-rows))
-        traces (for [measure measure-order
-                     :let [rows  (get by-measure measure)
-                           color (measure-colors measure)]
-                     :when (and (seq rows) (some #(pos? (:value %)) rows))]
-                 (let [basis-val (get data/basis [pkg bench-name measure] 1)
-                       basis-val (if (zero? basis-val) 1 basis-val)]
-                   {:x    (mapv #(x-label (:commit %) (:tag %)) rows)
-                    :y    (mapv #(/ (double (:value %)) basis-val) rows)
-                    :text (mapv #(format-value measure (:value %)) rows)
-                    :customdata (mapv #(commit-detail (:commit %)) rows)
-                    :name (measure-labels measure measure)
-                    :type "scatter"
-                    :mode "lines+markers"
-                    :line {:shape "hvh" :color color}
-                    :marker {:color color}
-                    :hovertemplate "%{text}<extra>%{fullData.name}</extra>"}))]
-    {:id "chart-push"
-     :heading "Per-push runs"
-     :caption (str "Measurements relative to " data/latest-tag
-                   (when-not data/basis-measured?
-                     " (which has no run of its own, so the nearest run stands in)")
-                   ". Each point is a separate CI run on a different machine, so much of the "
-                   "spread between neighbouring points is measurement noise. Showing the most "
-                   "recent " push-window " runs.")
-     :traces traces
-     :commit-by-x (commit-index labelled)
-     :intervals (-> data/commits-ordered
-                    (interval-commits (into #{} (map :commit) bench-rows))
-                    intervals-by-commit)
-     :layout (merge base-layout
-                    {:yaxis {:type "log" :title (str "Relative to " data/latest-tag)}
-                     :xaxis {:title "" :tickangle -45
-                             :tickvals tick-vals :ticktext tick-vals
-                             :categoryorder "array"
-                             :categoryarray (ordered-categories labelled)}
-                     :height 480
-                     :margin {:b 120}
-                     :shapes (into [{:type "line" :xref "paper" :x0 0 :x1 1
-                                     :yref "y" :y0 1 :y1 1}]
-                                   (for [tag tag-xs]
-                                     {:type "line" :x0 tag :x1 tag
-                                      :yref "paper" :y0 0 :y1 1
-                                      :line {:color "grey" :width 1 :dash "dash"}}))})}))
-
 (defn- benchlab-panel
   "The nightly experiment, on its own axes.
 
@@ -397,7 +297,7 @@
                   :marker {:color color :symbol "diamond" :size 7}
                   :hovertemplate "%{text}<extra>%{fullData.name}</extra>"})]
     {:id "chart-benchlab"
-     :heading "Nightly benchlab experiment"
+     :heading "Nightly benchlab run"
      :caption (str "Percent difference from " data/latest-tag
                    ", with both measured side by side on one machine each night. "
                    "Error bars are benchstat's interval for the commit's own samples; "
@@ -419,24 +319,15 @@
                                :yref "y" :y0 0 :y1 0}]})}))
 
 (defn benchmark-chart [pkg bench-name]
-  (let [bench-rows (->> data/rows
-                        (filter #(and (= (:pkg %) pkg)
-                                      (= (:name %) bench-name)))
-                        (sort-by :date))
-        series (into {}
+  (let [series (into {}
                      (keep (fn [measure]
                              (when-let [ps (seq (data/benchlab-series
                                                   [pkg bench-name measure]))]
                                [measure (mapv #(assoc % :x (x-label (:commit %) nil)) ps)])))
                      measure-order)]
     (kind/hiccup
-      (into [:div [:script {:src plotly-cdn}]]
-            ;; The nightly chart leads when there is one: it is the trustworthy
-            ;; measurement, and most benchmarks are outside the curated set and so
-            ;; show only the per-push chart, exactly as before.
-            (cond-> []
-              (seq series) (conj (chart-panel (benchlab-panel series)))
-              :always      (conj (chart-panel (push-panel pkg bench-name bench-rows))))))))
+      [:div [:script {:src plotly-cdn}]
+       (chart-panel (benchlab-panel series))])))
 
 (defn color-for-ratio [ratio]
   (let [t (max -1.0 (min 1.0 (Math/log ratio)))
@@ -495,18 +386,12 @@
 (defn index-table [benchmarks]
   (kind/fragment
     [(kind/table
-       ;; "NsPerOp (benchlab)" is the same ratio as the NsPerOp column, measured
-       ;; against the baseline on one machine instead of across two. Where the
-       ;; two disagree, this one is the trustworthy number; it is blank for
-       ;; benchmarks outside the curated nightly set.
-       {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "NsPerOp (benchlab)"
-                       "AllocsPerOp" "BytesPerOp"]
-        :row-maps (for [{:keys [pkg name id spark benchlab] :as b} benchmarks]
+       {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
+        :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
                     {"Pkg"        pkg
                      "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
                      "Trend"      (or (sparkline spark) "")
                      "NsPerOp"    (ratio-cell (get b "NsPerOp"))
-                     "NsPerOp (benchlab)" (ratio-cell benchlab)
                      "AllocsPerOp" (ratio-cell (get b "AllocsPerOp"))
                      "BytesPerOp" (ratio-cell (get b "BytesPerOp"))})}
        {:use-datatables true
