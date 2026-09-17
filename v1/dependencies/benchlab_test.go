@@ -13,22 +13,27 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
+// The largest of the three rule counts, named so the chart says which one.
 func BenchmarkBenchlabBase(b *testing.B) {
-	compiler, ref := benchlabPolicy(b, 50)
-	for b.Loop() {
-		if _, err := Base(compiler, ref); err != nil {
-			b.Fatal(err)
+	b.Run("50", func(b *testing.B) {
+		compiler, ref := benchlabPolicy(b, 50)
+		for b.Loop() {
+			if _, err := Base(compiler, ref); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkBenchlabVirtual(b *testing.B) {
-	compiler, ref := benchlabPolicy(b, 50)
-	for b.Loop() {
-		if _, err := Virtual(compiler, ref); err != nil {
-			b.Fatal(err)
+	b.Run("50", func(b *testing.B) {
+		compiler, ref := benchlabPolicy(b, 50)
+		for b.Loop() {
+			if _, err := Virtual(compiler, ref); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
 }
 
 func benchlabPolicy(b *testing.B, ruleCount int) (*ast.Compiler, ast.Ref) {
