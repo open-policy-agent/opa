@@ -210,7 +210,7 @@ func TestTarballLoaderWithFilter(t *testing.T) {
 		}
 
 		loader := NewTarballLoaderWithBaseURL(f, tarballFile).WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
-			return getFilter("*_test.rego", 1)(abspath, info, depth)
+			return getFilter("*_test.rego")(abspath, info, depth)
 		})
 
 		defer f.Close()
@@ -262,7 +262,7 @@ func TestTarballLoaderWithFilterDir(t *testing.T) {
 		}
 
 		loader := NewTarballLoaderWithBaseURL(f, tarballFile).WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
-			return getFilter("*_test.rego", 1)(abspath, info, depth)
+			return getFilter("*_test.rego")(abspath, info, depth)
 		})
 
 		defer f.Close()
@@ -322,7 +322,7 @@ func TestDirectoryLoaderWithFilter(t *testing.T) {
 	test.WithTempFS(files, func(rootDir string) {
 
 		dl := NewDirectoryLoader(rootDir).WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
-			return getFilter("*_test.rego", 1)(abspath, info, depth)
+			return getFilter("*_test.rego")(abspath, info, depth)
 		})
 
 		fileCount := 0
@@ -371,7 +371,7 @@ func TestDirectoryLoaderWithFilterDir(t *testing.T) {
 	test.WithTempFS(files, func(rootDir string) {
 
 		dl := NewDirectoryLoader(rootDir).WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
-			return getFilter("a", 1)(abspath, info, depth)
+			return getFilter("a")(abspath, info, depth)
 		})
 
 		fileCount := 0
@@ -538,10 +538,10 @@ func TestNewDirectoryLoaderNormalizedRoot(t *testing.T) {
 	}
 }
 
-func getFilter(pattern string, minDepth int) filter.LoaderFilter {
+func getFilter(pattern string) filter.LoaderFilter {
 	return func(_ string, info os.FileInfo, depth int) bool {
 		match, _ := filepath.Match(pattern, info.Name())
-		return match && depth >= minDepth
+		return match && depth >= 1
 	}
 }
 

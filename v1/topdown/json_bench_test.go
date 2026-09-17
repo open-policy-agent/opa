@@ -109,8 +109,8 @@ func BenchmarkJSONPatchAddShallowScalar(b *testing.B) {
 	for i := range maxN {
 		path := ast.StringTerm("/" + strconv.Itoa(i))
 		value := ast.InternedTerm(i)
-		objArrPatches[i] = createPatch("add", path, nil, value)
-		setPatches[i] = createPatch("add", ast.ArrayTerm(value), nil, value)
+		objArrPatches[i] = createPatch("add", path, value)
+		setPatches[i] = createPatch("add", ast.ArrayTerm(value), value)
 	}
 
 	for _, n := range sizes {
@@ -208,7 +208,7 @@ func buildAddCompositePatches(n, m int) *ast.Array {
 	out := make([]*ast.Term, m)
 	for i := range m {
 		path := ast.StringTerm("/" + strconv.Itoa(i+n))
-		out[i] = createPatch("add", path, nil, ast.ArrayTerm(ast.InternedTerm(i+n)))
+		out[i] = createPatch("add", path, ast.ArrayTerm(ast.InternedTerm(i+n)))
 	}
 	return ast.NewArray(out...)
 }
@@ -219,7 +219,7 @@ func buildSetAddCompositePatches(n, m int) *ast.Array {
 	out := make([]*ast.Term, m)
 	for i := range m {
 		path := ast.ArrayTerm(ast.ArrayTerm(ast.InternedTerm(i + n)))
-		out[i] = createPatch("add", path, nil, ast.ArrayTerm(ast.InternedTerm(i+n)))
+		out[i] = createPatch("add", path, ast.ArrayTerm(ast.InternedTerm(i+n)))
 	}
 	return ast.NewArray(out...)
 }
@@ -230,11 +230,11 @@ func buildAddRemoveScalarPatches(n, m int) *ast.Array {
 	out := make([]*ast.Term, 0, 2*m)
 	for i := range m {
 		path := ast.StringTerm("/" + strconv.Itoa(i+n))
-		out = append(out, createPatch("add", path, nil, ast.InternedTerm(i+n)))
+		out = append(out, createPatch("add", path, ast.InternedTerm(i+n)))
 	}
 	for i := m - 1; i >= 0; i-- {
 		path := ast.StringTerm("/" + strconv.Itoa(i+n))
-		out = append(out, createPatch("remove", path, nil, nil))
+		out = append(out, createPatch("remove", path, nil))
 	}
 	return ast.NewArray(out...)
 }
@@ -245,23 +245,20 @@ func buildSetAddRemovePatches(n, m int) *ast.Array {
 	out := make([]*ast.Term, 0, 2*m)
 	for i := range m {
 		v := ast.InternedTerm(i + n)
-		out = append(out, createPatch("add", ast.ArrayTerm(v), nil, v))
+		out = append(out, createPatch("add", ast.ArrayTerm(v), v))
 	}
 	for i := m - 1; i >= 0; i-- {
 		v := ast.InternedTerm(i + n)
-		out = append(out, createPatch("remove", ast.ArrayTerm(v), nil, nil))
+		out = append(out, createPatch("remove", ast.ArrayTerm(v), nil))
 	}
 	return ast.NewArray(out...)
 }
 
-func createPatch(op string, path, from, value *ast.Term) *ast.Term {
+func createPatch(op string, path, value *ast.Term) *ast.Term {
 	patchObj := ast.NewObject(
 		[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm(op)},
 		[2]*ast.Term{ast.InternedTerm("path"), path},
 	)
-	if from != nil {
-		patchObj.Insert(ast.InternedTerm("from"), from)
-	}
 	if value != nil {
 		patchObj.Insert(ast.InternedTerm("value"), value)
 	}

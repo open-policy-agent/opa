@@ -167,9 +167,7 @@ q := 1
 r := 2`
 
 	restricted := ast.CapabilitiesForThisVersion()
-	restricted.FutureKeywords = slices.DeleteFunc(restricted.FutureKeywords, func(kw string) bool {
-		return kw == "or"
-	})
+	restricted.FutureKeywords = slices.DeleteFunc(restricted.FutureKeywords, util.CmpEqual("or"))
 
 	capabilities, err := json.Marshal(restricted)
 	if err != nil {

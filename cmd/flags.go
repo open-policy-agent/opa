@@ -47,8 +47,8 @@ func addBundleFlag(fs *pflag.FlagSet, paths *repeatedStringFlag) {
 	fs.VarP(paths, "bundle", "b", "set bundle file(s) or directory path(s). This flag can be repeated.")
 }
 
-func addBundleModeFlag(fs *pflag.FlagSet, bundle *bool, value bool) {
-	fs.BoolVarP(bundle, "bundle", "b", value, "load paths as bundle files or root directories")
+func addBundleModeFlag(fs *pflag.FlagSet, bundle *bool) {
+	fs.BoolVarP(bundle, "bundle", "b", false, "load paths as bundle files or root directories")
 }
 
 func addInputFlag(fs *pflag.FlagSet, inputPath *string) {
@@ -171,12 +171,12 @@ func addRegoV0V1FlagWithDescription(fs *pflag.FlagSet, regoV1 *bool, value bool,
 	_ = fs.MarkHidden("rego-v1")
 }
 
-func addV0CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
-	fs.BoolVar(v1Compatible, "v0-compatible", value, "opt-in to OPA features and behaviors prior to the OPA v1.0 release")
+func addV0CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool) {
+	fs.BoolVar(v1Compatible, "v0-compatible", false, "opt-in to OPA features and behaviors prior to the OPA v1.0 release")
 }
 
-func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
-	fs.BoolVar(v1Compatible, "v1-compatible", value, "opt-in to OPA features and behaviors that are enabled by default in OPA v1.0")
+func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool) {
+	fs.BoolVar(v1Compatible, "v1-compatible", false, "opt-in to OPA features and behaviors that are enabled by default in OPA v1.0")
 	_ = fs.MarkHidden("v1-compatible")
 }
 

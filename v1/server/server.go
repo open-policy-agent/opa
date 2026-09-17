@@ -638,7 +638,7 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 		loop, listener, err = s.getListenerForUNIXSocket(parsedURL, h, t)
 		loops = []Loop{loop}
 	case "http":
-		loop, listener, err = s.getListenerForHTTPServer(parsedURL, h, t)
+		loop, listener = s.getListenerForHTTPServer(parsedURL, h, t)
 		loops = []Loop{loop}
 	case "https":
 		loop, listener, err = s.getListenerForHTTPSServer(parsedURL, h, t)
@@ -661,7 +661,7 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 	return loops, listener, err
 }
 
-func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
+func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener) {
 	h1s := http.Server{
 		Addr:              u.Host,
 		Handler:           h,
@@ -676,7 +676,7 @@ func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpList
 
 	l := newHTTPListener(&h1s, t)
 
-	return l.ListenAndServe, l, nil
+	return l.ListenAndServe, l
 }
 
 func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
@@ -1108,7 +1108,7 @@ func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, escapedPathValue(r, "path"), false)
+	s.v0QueryPath(w, r, escapedPathValue(r), false)
 }
 
 func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath string, useDefaultDecisionPath bool) {
@@ -1301,9 +1301,9 @@ func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true) || //nolint:staticcheck
-		getBoolParam(r.URL, types.ParamBundlesActivationV1, true)
-	includePluginStatus := getBoolParam(r.URL, types.ParamPluginsV1, true)
+	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1) || //nolint:staticcheck
+		getBoolParam(r.URL, types.ParamBundlesActivationV1)
+	includePluginStatus := getBoolParam(r.URL, types.ParamPluginsV1)
 	excludePlugin := getStringSliceParam(r.URL, types.ParamExcludePluginV1)
 	excludePluginMap := map[string]struct{}{}
 	for _, name := range excludePlugin {
@@ -1381,7 +1381,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 		}
 	}()
 
-	healthDataPath := "/system/health/" + escapedPathValue(r, "path")
+	healthDataPath := "/system/health/" + escapedPathValue(r)
 
 	healthDataPathQuery, err := stringPathToQuery(healthDataPath)
 	if err != nil {
@@ -1433,8 +1433,8 @@ func writeHealthResponse(w http.ResponseWriter, err error) {
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	explainMode := getExplain(r.URL, types.ExplainOffV1)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	explainMode := getExplain(r.URL)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1)
 
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
@@ -1530,12 +1530,12 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	ctx := logging.WithDecisionID(r.Context(), decisionID)
 	annotateSpan(ctx, decisionID)
 
-	urlPath := escapedPathValue(r, "path")
-	explainMode := getExplain(r.URL, types.ExplainOffV1)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
-	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
-	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
+	urlPath := escapedPathValue(r)
+	explainMode := getExplain(r.URL)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1)
+	provenance := getBoolParam(r.URL, types.ParamProvenanceV1)
+	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1706,7 +1706,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	patches, err := s.prepareV1PatchSlice(escapedPathValue(r, "path"), ops)
+	patches, err := s.prepareV1PatchSlice(escapedPathValue(r), ops)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1801,7 +1801,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Abort(ctx, txn)
 
-	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
+	provenance := getBoolParam(r.URL, types.ParamProvenanceV1)
 
 	var logger decisionLogger
 	var br bundleRevisions
@@ -1819,7 +1819,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	var buf *topdown.BufferTracer
 
-	explainMode := getExplain(r.URL, types.ExplainOffV1)
+	explainMode := getExplain(r.URL)
 	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
 	}
@@ -1829,11 +1829,11 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		ndbCache = builtins.NDBCache{}
 	}
 
-	urlPath := escapedPathValue(r, "path")
+	urlPath := escapedPathValue(r)
 
-	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
+	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1)
 
 	pqID := "v1DataPost::"
 	if strictBuiltinErrors {
@@ -1913,7 +1913,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Warning = types.NewWarning(types.CodeAPIUsageWarn, types.MsgInputKeyMissing)
 	}
 
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1)
 	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}
@@ -1955,8 +1955,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	writer.JSONOK(w, result, pretty(r))
 }
 
-func escapedPathValue(r *http.Request, key string) string {
-	pathValue := r.PathValue(key)
+func escapedPathValue(r *http.Request) string {
+	pathValue := r.PathValue("path")
 	escaped := r.URL.EscapedPath()
 	if !strings.Contains(escaped, "%") {
 		return pathValue
@@ -1984,7 +1984,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	pv := escapedPathValue(r, "path")
+	pv := escapedPathValue(r)
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(pv, "/"))
 	if !ok {
@@ -2056,15 +2056,14 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
 
-	ctx := r.Context()
-
-	pv := escapedPathValue(r, "path")
+	pv := escapedPathValue(r)
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(pv, "/"))
 	if !ok {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", pv))
 		return
 	}
 
+	ctx := r.Context()
 	params := storage.WriteParams
 	params.Context = storage.NewContext().WithMetrics(m)
 	txn, err := s.store.NewTransaction(ctx, params)
@@ -2097,9 +2096,7 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.ServerHandler).Stop()
 
 	if includeMetrics(r) {
-		result := types.DataResponseV1{
-			Metrics: m.All(),
-		}
+		result := types.DataResponseV1{Metrics: m.All()}
 		writer.JSONOK(w, result, false)
 		return
 	}
@@ -2370,9 +2367,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	explainMode := getExplain(r.URL, types.ExplainOffV1)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
+	explainMode := getExplain(r.URL)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1)
 
 	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
 	txn, err := s.store.NewTransaction(ctx, params)
@@ -2430,10 +2427,10 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pretty := pretty(r)
-	explainMode := getExplain(r.URL, types.ExplainOffV1)
+	explainMode := getExplain(r.URL)
 	includeMetrics := includeMetrics(r)
-	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1)
+	includeRuleLabels := getBoolParam(r.URL, types.ParamRuleLabelsV1)
 
 	var input ast.Value
 
@@ -2525,8 +2522,8 @@ func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transa
 }
 
 func (s *Server) getMetrics(r *http.Request) metrics.Metrics {
-	metricsInQuery := getBoolParam(r.URL, types.ParamMetricsV1, true)
-	instrumentationInQuery := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	metricsInQuery := getBoolParam(r.URL, types.ParamMetricsV1)
+	instrumentationInQuery := getBoolParam(r.URL, types.ParamInstrumentV1)
 
 	if s.logger == nil && !metricsInQuery && !instrumentationInQuery {
 		return metrics.NoOp()
@@ -2874,7 +2871,7 @@ func validateQuery(query string, opts ast.ParserOptions) (ast.Body, error) {
 	return ast.ParseBodyWithOpts(query, opts)
 }
 
-func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
+func getBoolParam(url *url.URL, name string) bool {
 	if url.RawQuery == "" {
 		return false
 	}
@@ -2887,7 +2884,7 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	// Query params w/o values are represented as slice (of len 1) with an
 	// empty string.
 	if len(p) == 1 && p[0] == "" {
-		return ifEmpty
+		return true
 	}
 
 	for _, x := range p {
@@ -2914,9 +2911,9 @@ func getStringSliceParam(url *url.URL, name string) []string {
 	return p
 }
 
-func getExplain(url *url.URL, zero types.ExplainModeV1) types.ExplainModeV1 {
+func getExplain(url *url.URL) types.ExplainModeV1 {
 	if url.RawQuery == "" {
-		return zero
+		return types.ExplainOffV1
 	}
 
 	for _, x := range url.Query()[types.ParamExplainV1] {
@@ -2931,7 +2928,7 @@ func getExplain(url *url.URL, zero types.ExplainModeV1) types.ExplainModeV1 {
 			return types.ExplainDebugV1
 		}
 	}
-	return zero
+	return types.ExplainOffV1
 }
 
 func readInputV0(r *http.Request) (ast.Value, *any, error) {
@@ -3228,9 +3225,9 @@ func annotateSpan(ctx context.Context, decisionID string) {
 }
 
 func pretty(r *http.Request) bool {
-	return getBoolParam(r.URL, types.ParamPrettyV1, true)
+	return getBoolParam(r.URL, types.ParamPrettyV1)
 }
 
 func includeMetrics(r *http.Request) bool {
-	return getBoolParam(r.URL, types.ParamMetricsV1, true)
+	return getBoolParam(r.URL, types.ParamMetricsV1)
 }

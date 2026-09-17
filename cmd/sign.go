@@ -152,7 +152,7 @@ https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format
 		},
 	}
 
-	addBundleModeFlag(signCommand.Flags(), &cmdParams.bundleMode, false)
+	addBundleModeFlag(signCommand.Flags(), &cmdParams.bundleMode)
 
 	// bundle signing config
 	addSigningKeyFlag(signCommand.Flags(), &cmdParams.key)

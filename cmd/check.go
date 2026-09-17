@@ -207,14 +207,14 @@ and exit with a non-zero exit code.`,
 	addMaxErrorsFlag(checkCommand.Flags(), &checkParams.errLimit)
 	addIgnoreFlag(checkCommand.Flags(), &checkParams.ignore)
 	addOutputFormat(checkCommand.Flags(), checkParams.format)
-	addBundleModeFlag(checkCommand.Flags(), &checkParams.bundleMode, false)
+	addBundleModeFlag(checkCommand.Flags(), &checkParams.bundleMode)
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
 	addRegoV0V1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
 		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
-	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, false)
-	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible, false)
+	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible)
+	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible)
 
 	root.AddCommand(checkCommand)
 }

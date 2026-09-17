@@ -6,6 +6,7 @@ package rest
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -115,18 +116,13 @@ type ssoSessionDetails struct {
 }
 
 type awsSSOCredentialsService struct {
-	Path         string `json:"path,omitempty"`
-	SSOCachePath string `json:"cache_path,omitempty"`
-
-	Profile string `json:"profile,omitempty"`
-
-	logger logging.Logger
-
-	creds aws.Credentials
-
+	Path                 string `json:"path,omitempty"`
+	SSOCachePath         string `json:"cache_path,omitempty"`
+	Profile              string `json:"profile,omitempty"`
+	logger               logging.Logger
+	creds                aws.Credentials
 	credentialsExpiresAt time.Time
-
-	session *ssoSessionDetails
+	session              *ssoSessionDetails
 }
 
 func (cs *awsSSOCredentialsService) configPath() (string, error) {
@@ -162,18 +158,11 @@ func (cs *awsSSOCredentialsService) ssoCachePath() (string, error) {
 	return cs.Path, nil
 }
 
-func (cs *awsSSOCredentialsService) cacheKeyFileName() (string, error) {
-
-	val := cs.session.StartUrl
-	if cs.session.Name != "" {
-		val = cs.session.Name
-	}
-
+func (cs *awsSSOCredentialsService) cacheKeyFileName() string {
 	hash := sha1.New()
-	hash.Write([]byte(val))
-	cacheKey := hex.EncodeToString(hash.Sum(nil))
+	hash.Write([]byte(cmp.Or(cs.session.Name, cs.session.StartUrl)))
 
-	return cacheKey + ".json", nil
+	return hex.EncodeToString(hash.Sum(nil)) + ".json"
 }
 
 func (cs *awsSSOCredentialsService) loadSSOCredentials() error {
@@ -182,12 +171,7 @@ func (cs *awsSSOCredentialsService) loadSSOCredentials() error {
 		return fmt.Errorf("failed to get sso cache path: %w", err)
 	}
 
-	cacheKeyFile, err := cs.cacheKeyFileName()
-	if err != nil {
-		return err
-	}
-
-	cacheFile := path.Join(ssoCachePath, cacheKeyFile)
+	cacheFile := path.Join(ssoCachePath, cs.cacheKeyFileName())
 	cache, err := os.ReadFile(cacheFile)
 	if err != nil {
 		return fmt.Errorf("failed to load cache file: %v", err)

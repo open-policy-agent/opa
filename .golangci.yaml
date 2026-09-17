@@ -19,6 +19,7 @@ linters:
     - revive # replacement for golint
     - staticcheck
     - unconvert
+    - unparam
     - unused
     - usetesting
     # - gosec # too many false positives

@@ -59,6 +59,14 @@ func SliceLenCompare[T any, S ~[]T](a, b S) int {
 	return 1
 }
 
+// CmpEqual is a functional helper for equals comparison of comparable values
+// (i.e. using ==), meant to be used for stdlib funtions like [slices.DeleteFunc].
+func CmpEqual[T comparable](a T) func(b T) bool {
+	return func(b T) bool {
+		return a == b
+	}
+}
+
 // Compare returns 0 if a equals b, -1 if a is less than b, and 1 if b is than a.
 //
 // For comparison between values of different types, the following ordering is used:

@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"net"
+	"slices"
 )
 
 const (
@@ -61,7 +62,7 @@ func RangeToCIDRs(firstIP, lastIP net.IP) []*net.IPNet {
 		} else {
 			bitLen = ipv6BitLen
 		}
-		_, _, right := partitionCIDR(spanningCIDR, net.IPNet{IP: prevFirstRangeIP, Mask: net.CIDRMask(bitLen, bitLen)})
+		_, right := partitionCIDR(spanningCIDR, net.IPNet{IP: prevFirstRangeIP, Mask: net.CIDRMask(bitLen, bitLen)})
 
 		// Append all CIDRs but the first, as this CIDR includes the upper
 		// bound of the spanning CIDR, which we still need to partition on.
@@ -84,7 +85,7 @@ func RangeToCIDRs(firstIP, lastIP net.IP) []*net.IPNet {
 		} else {
 			bitLen = ipv6BitLen
 		}
-		left, _, _ := partitionCIDR(spanningCIDR, net.IPNet{IP: nextFirstRangeIP, Mask: net.CIDRMask(bitLen, bitLen)})
+		left, _ := partitionCIDR(spanningCIDR, net.IPNet{IP: nextFirstRangeIP, Mask: net.CIDRMask(bitLen, bitLen)})
 		cidrList = append(cidrList, left...)
 	} else {
 		// Otherwise, there is no need to partition; just use add the spanning
@@ -110,8 +111,7 @@ func GetAddressRange(ipNet net.IPNet) (net.IP, net.IP) {
 		lastIP = append(v4Mappedv6Prefix, lastIP...)
 	}
 
-	lastIPMask := make(net.IPMask, len(ipNet.Mask))
-	copy(lastIPMask, ipNet.Mask)
+	lastIPMask := slices.Clone(ipNet.Mask)
 	for i := range lastIPMask {
 		lastIPMask[len(lastIPMask)-i-1] = ^lastIPMask[len(lastIPMask)-i-1]
 		lastIP[net.IPv6len-i-1] |= lastIPMask[len(lastIPMask)-i-1]
@@ -127,8 +127,7 @@ func GetPreviousIP(ip net.IP) net.IP {
 		return ip
 	}
 
-	previousIP := make(net.IP, len(ip))
-	copy(previousIP, ip)
+	previousIP := slices.Clone(ip)
 
 	var overflow bool
 	var lowerByteBound int
@@ -215,7 +214,7 @@ func createSpanningCIDR(firstIP, lastIP *net.IP) net.IPNet {
 // contained within the targetCIDR (nil otherwise), and the
 // third is a list containing the networks to the right of the excludeCIDR in
 // the partition.
-func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, []*net.IPNet, []*net.IPNet) {
+func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, []*net.IPNet) {
 	var targetIsIPv4 bool
 	if targetCIDR.IP.To4() != nil {
 		targetIsIPv4 = true
@@ -228,25 +227,20 @@ func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, [
 	excludeMaskSize, _ := excludeCIDR.Mask.Size()
 
 	if bytes.Compare(excludeLastIP, targetFirstIP) < 0 {
-		return nil, nil, []*net.IPNet{&targetCIDR}
+		return nil, []*net.IPNet{&targetCIDR}
 	} else if bytes.Compare(targetLastIP, excludeFirstIP) < 0 {
-		return []*net.IPNet{&targetCIDR}, nil, nil
+		return []*net.IPNet{&targetCIDR}, nil
 	}
 
 	if targetMaskSize >= excludeMaskSize {
-		return nil, []*net.IPNet{&targetCIDR}, nil
+		return nil, nil
 	}
 
 	left := []*net.IPNet{}
 	right := []*net.IPNet{}
 
 	newPrefixLen := targetMaskSize + 1
-
-	targetFirstCopy := make(net.IP, len(targetFirstIP))
-	copy(targetFirstCopy, targetFirstIP)
-
-	iLowerOld := make(net.IP, len(targetFirstCopy))
-	copy(iLowerOld, targetFirstCopy)
+	targetFirstCopy := slices.Clone(targetFirstIP)
 
 	// Since golang only supports up to unsigned 64-bit integers, and we need
 	// to perform addition on addresses, use math/big library, which allows
@@ -258,12 +252,9 @@ func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, [
 	iUpper := big.NewInt(0)
 	iLower = iLower.SetBytes(targetFirstCopy)
 
-	var bitLen int
-
+	bitLen := ipv6BitLen
 	if targetIsIPv4 {
 		bitLen = ipv4BitLen
-	} else {
-		bitLen = ipv6BitLen
 	}
 	shiftAmount := (uint)(bitLen - newPrefixLen)
 
@@ -297,7 +288,6 @@ func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, [
 				iUpperBytes = append(zeroBytes, iUpper.Bytes()...)
 			} else {
 				iUpperBytes = iUpper.Bytes()
-
 			}
 
 			iLowerBytesLen := len(iLower.Bytes())
@@ -330,11 +320,9 @@ func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, [
 
 		iLower = iLower.Set(matched)
 		iUpper = iUpper.Add(matched, big.NewInt(0).Lsh(big.NewInt(1), uint(bitLen-newPrefixLen)))
-
 	}
-	excludeList := []*net.IPNet{&excludeCIDR}
 
-	return left, excludeList, right
+	return left, right
 }
 
 func getNextIP(ip net.IP) net.IP {

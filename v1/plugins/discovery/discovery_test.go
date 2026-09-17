@@ -3885,7 +3885,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	defer fixture.stop()
 
 	// run query
-	result, err := fixture.runQuery(ctx, "data.foo.bar", m)
+	result, err := fixture.runQuery(ctx, "data.foo.baz", m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3895,7 +3895,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	}
 
 	// log result (there should not be a decision log plugin on the manager yet)
-	err = fixture.log(ctx, "data.foo.bar", m, &result)
+	err = fixture.log(ctx, "data.foo.baz", m, &result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3933,7 +3933,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	}
 
 	// run query (since the bundle plugin is not triggered yet, there should not be any activated bundles)
-	result, err = fixture.runQuery(ctx, "data.foo.bar", m)
+	result, err = fixture.runQuery(ctx, "data.foo.baz", m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3943,7 +3943,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	}
 
 	// log result
-	err = fixture.log(ctx, "data.foo.bar", m, &result)
+	err = fixture.log(ctx, "data.foo.baz", m, &result)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3951,7 +3951,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	// trigger the bundle plugin
 	fixture.server.bundleData = map[string]any{
 		"foo": map[string]any{
-			"bar": "hello",
+			"baz": "hello",
 		},
 	}
 	fixture.server.bundleRevision = "abc"
@@ -3976,7 +3976,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	fixture.manager.Store.Abort(ctx, txn)
 
 	// run query
-	result, err = fixture.runQuery(ctx, "data.foo.bar", m)
+	result, err = fixture.runQuery(ctx, "data.foo.baz", m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3987,7 +3987,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	}
 
 	// log result
-	err = fixture.log(ctx, "data.foo.bar", m, &result)
+	err = fixture.log(ctx, "data.foo.baz", m, &result)
 	if err != nil {
 		t.Fatal(err)
 	}

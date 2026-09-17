@@ -509,10 +509,7 @@ func (w *writer) writeModule(module *ast.Module) error {
 			return err
 		}
 		rules, others = gatherRules(others)
-		comments, err = w.writeRules(rules, comments)
-		if err != nil {
-			return err
-		}
+		comments = w.writeRules(rules, comments)
 	}
 
 	for i, c := range comments {
@@ -593,7 +590,7 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 	return nil
 }
 
-func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.Comment, error) {
+func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.Comment {
 	for i, rule := range rules {
 		var err error
 		if comments, err = w.insertComments(comments, rule.Location); err != nil {
@@ -618,7 +615,7 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.
 		}
 		w.blankLine()
 	}
-	return comments, nil
+	return comments
 }
 
 // groupableOneLiner reports whether rule is written on a single line, and so may

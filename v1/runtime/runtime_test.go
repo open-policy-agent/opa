@@ -697,7 +697,7 @@ func TestCheckOPAUpdateWithNewUpdate(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp)
 	defer teardown()
 
 	exp := &versioncheck.DataResponse{Latest: versioncheck.ReleaseDetails{
@@ -735,7 +735,7 @@ func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(srvResp, http.StatusOK)
+	baseURL, teardown := getTestServer(srvResp)
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is up to date.")
@@ -747,7 +747,7 @@ func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp)
 	defer teardown()
 
 	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
@@ -794,7 +794,7 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp)
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
@@ -1613,12 +1613,12 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 	}
 }
 
-func getTestServer(update any, statusCode int) (string, func()) {
+func getTestServer(update any) (string, func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
 	mux.HandleFunc("/repos/open-policy-agent/opa/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(statusCode)
+		w.WriteHeader(http.StatusOK)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(bs) // ignore error

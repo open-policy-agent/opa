@@ -110,8 +110,8 @@ will load that file and summarize its structure and contents.
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
-	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, false)
-	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible, false)
+	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible)
+	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible)
 	root.AddCommand(inspectCommand)
 }
 

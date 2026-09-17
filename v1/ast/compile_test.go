@@ -3902,7 +3902,7 @@ func TestCompilerCheckUnusedImports(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 func TestCompilerCheckDuplicateImports(t *testing.T) {
@@ -3947,7 +3947,7 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 func TestCompilerCheckKeywordOverrides(t *testing.T) {
@@ -4275,7 +4275,7 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 func TestCompilerCheckDeprecatedMethods(t *testing.T) {
@@ -4334,7 +4334,7 @@ func TestCompilerCheckDeprecatedMethods(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 type strictnessTestCase struct {
@@ -4343,7 +4343,7 @@ type strictnessTestCase struct {
 	expectedErrors Errors
 }
 
-func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocation bool) {
+func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase) {
 	t.Helper()
 	makeTestRunner := func(tc strictnessTestCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -4356,7 +4356,7 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 			compileStages(compiler, "")
 
 			if strict {
-				assertErrors(t, compiler.Errors, tc.expectedErrors, assertLocation)
+				assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 			} else {
 				assertNotFailed(t, compiler)
 			}

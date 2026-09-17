@@ -1026,9 +1026,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				return nil, err
 			}
 		case *ir.CallDynamicStmt:
-			if err := c.compileCallDynamicStmt(stmt, &instrs); err != nil {
-				return nil, err
-			}
+			c.compileCallDynamicStmt(stmt, &instrs)
 		case *ir.WithStmt:
 			if err := c.compileWithStmt(stmt, &instrs); err != nil {
 				return instrs, err
@@ -1485,7 +1483,7 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, _
 	)
 }
 
-func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]instruction.Instruction) error {
+func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]instruction.Instruction) {
 	instrs := make([]instruction.Instruction, 0, 3+3*len(stmt.Path)+len(stmt.Args)+10)
 	larray := c.genLocal()
 	lidx := c.genLocal()
@@ -1533,7 +1531,6 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 	)
 
 	*result = append(*result, instrs...)
-	return nil
 }
 
 func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Instruction) error {

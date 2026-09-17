@@ -97,7 +97,7 @@ Print the capabilities of a capabilities file
 	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showCurrent, "current", false, "print current capabilities")
 	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.version, "version", "", "print capabilities of a specific version")
 	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.file, "file", "", "print capabilities defined by a file")
-	addV0CompatibleFlag(capabilitiesCommand.Flags(), &capabilitiesParams.v0Compatible, false)
+	addV0CompatibleFlag(capabilitiesCommand.Flags(), &capabilitiesParams.v0Compatible)
 
 	root.AddCommand(capabilitiesCommand)
 }
