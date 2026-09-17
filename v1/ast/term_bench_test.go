@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -743,7 +742,7 @@ func BenchmarkObjectStringInterfaces(b *testing.B) {
 
 func BenchmarkObjectConstruction(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000, 500000}
-	seed := time.Now().UnixNano()
+	const seed = 67 // fixed, so the key order does not vary between runs
 
 	b.Run("shuffled keys", func(b *testing.B) {
 		for _, n := range sizes {
