@@ -213,6 +213,7 @@ type Manager struct {
 	initFiles                    loader.Result
 	maxErrors                    int
 	initialized                  bool
+	stopped                      bool
 	interQueryBuiltinCacheConfig *cache.Config
 	gracefulShutdownPeriod       int
 	registeredCacheTriggers      []func(*cache.Config)
@@ -947,18 +948,29 @@ func (m *Manager) Start(ctx context.Context) error {
 // of the graceful shutdown period passed with the context as a timeout.
 // Note that a graceful shutdown period configured with the Manager instance
 // will override the timeout of the passed in context (if applicable).
-// NOTE: You cannot call this twice, or it will hang.
+// Stopping a manager that is already stopped is a no-op.
 func (m *Manager) Stop(ctx context.Context) {
 	var toStop []Plugin
 
-	func() {
+	// The goroutines signalled at the end of this are stopped for good, so a
+	// second pass would block on them forever. A restart that fails part-way
+	// leaves a manager stopped and then comes back through here to fall back to
+	// the previous configuration.
+	if stopped := func() bool {
 		m.mtx.Lock()
 		defer m.mtx.Unlock()
+		if m.stopped {
+			return true
+		}
+		m.stopped = true
 		toStop = make([]Plugin, len(m.plugins))
 		for i := range m.plugins {
 			toStop[i] = m.plugins[i].plugin
 		}
-	}()
+		return false
+	}(); stopped {
+		return
+	}
 
 	var cancel context.CancelFunc
 	if m.gracefulShutdownPeriod > 0 {

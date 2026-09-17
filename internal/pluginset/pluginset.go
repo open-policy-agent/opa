@@ -1,4 +1,4 @@
-// Copyright 2018 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -10,9 +10,12 @@ package pluginset
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
+	cfg "github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/v1/config"
+	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -56,21 +59,14 @@ type pluginfactory struct {
 }
 
 // Configs holds the plugin configurations a configuration enables. Deriving them
-// registers nothing, so a caller can inspect Orphaned and reject a configuration
-// before any plugin has been created.
+// registers nothing, so a caller can validate a configuration before any plugin
+// has been created.
 type Configs struct {
 	bundle  *bundle.Config
 	logs    *logs.Config
 	status  *status.Config
 	custom  []pluginfactory
 	metrics metrics.Metrics
-
-	// Orphaned names the configuration sections of plugins that are running but
-	// that these configurations no longer enable. Building the set leaves them
-	// running unchanged -- the manager cannot unregister a plugin -- so a caller
-	// that needs the running plugins to match the configuration has to reject it
-	// instead. Discovery ignores this.
-	Orphaned []string
 }
 
 // New validates config and registers any plugin it enables that isn't registered
@@ -91,6 +87,37 @@ func New(
 	return configs.Set(manager), nil
 }
 
+// servicesAndKeys returns the service names and key configurations available to
+// the plugins a configuration enables. Taken from the configuration as well as
+// the manager, because a configuration may be validated before it is applied,
+// when its services are not registered yet -- and because services and keys
+// already registered stay registered.
+func servicesAndKeys(manager *plugins.Manager, config *config.Config) ([]string, map[string]*keys.Config, error) {
+	parsedKeys, err := keys.ParseKeysConfig(config.Keys)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keyConfigs := manager.PublicKeys()
+	maps.Copy(keyConfigs, parsedKeys)
+
+	opts := manager.DefaultServiceOpts(config)
+	opts.Keys = keyConfigs
+	services, err := cfg.ParseServicesConfig(opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	names := manager.Services()
+	for name := range services {
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+
+	return names, keyConfigs, nil
+}
+
 // Parse validates config and derives the plugin configurations it enables,
 // without touching the manager.
 func Parse(
@@ -104,7 +131,11 @@ func Parse(
 	// Parse and validate plugin configurations.
 	pluginNames := []string{}
 	pluginFactories := []pluginfactory{}
-	serviceNames := manager.Services()
+
+	serviceNames, keyConfigs, err := servicesAndKeys(manager, config)
+	if err != nil {
+		return nil, err
+	}
 
 	for k := range config.Plugins {
 		f, ok := factories[k]
@@ -135,7 +166,7 @@ func Parse(
 	}
 	if bundleConfig == nil {
 		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(serviceNames).
-			WithKeyConfigs(manager.PublicKeys()).WithTriggerMode(trigger).Parse()
+			WithKeyConfigs(keyConfigs).WithTriggerMode(trigger).Parse()
 		if err != nil {
 			return nil, err
 		}
@@ -162,24 +193,6 @@ func Parse(
 		custom:  pluginFactories,
 		metrics: m,
 	}
-
-	if bundleConfig == nil && bundle.Lookup(manager) != nil {
-		configs.Orphaned = append(configs.Orphaned, "bundles")
-	}
-	if decisionLogsConfig == nil && logs.Lookup(manager) != nil {
-		configs.Orphaned = append(configs.Orphaned, "decision_logs")
-	}
-	if statusConfig == nil && status.Lookup(manager) != nil {
-		configs.Orphaned = append(configs.Orphaned, "status")
-	}
-	// Only the plugins this package manages: the manager holds others, such as
-	// discovery itself, that no configuration section here enables.
-	for name := range factories {
-		if _, ok := config.Plugins[name]; !ok && manager.Plugin(name) != nil {
-			configs.Orphaned = append(configs.Orphaned, "plugins."+name)
-		}
-	}
-	slices.Sort(configs.Orphaned)
 
 	return configs, nil
 }
