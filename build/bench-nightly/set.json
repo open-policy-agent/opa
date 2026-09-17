@@ -1,30 +1,26 @@
 {
-  "//": "Curated benchmark set for the nightly benchlab run. Each target is measured at three commits in one benchlab invocation, so the cost of adding a target is roughly three times its plain benchmark time -- see build/bench-nightly/main.go. Cost is per case and independent of how fast the case is, since -benchtime is fixed: one case is reps * benchtime * 3 arms. The full published set is ~1118 cases, far too many to measure this way nightly. A target without a \"bench\" selects its package's BenchmarkBenchlab* wrappers, defined in that package's benchlab_test.go, which is where the set is decided; the remaining regexes are held over until those packages grow one.",
+  "//": "Curated benchmark set for the nightly benchlab run. Each target is measured at three commits in one benchlab invocation, so the cost of adding a target is roughly three times its plain benchmark time -- see build/bench-nightly/main.go. Cost is per case and independent of how fast the case is, since -benchtime is fixed: one case is reps * benchtime * 3 arms. The full published set is ~1118 cases, far too many to measure this way nightly. A target without a \"bench\" selects its package's BenchmarkBenchlab* wrappers, defined in that package's benchlab_test.go, which is where the set is decided.",
 
   "targets": [
     {
       "shard": "topdown",
       "pkg": "./v1/topdown",
-      "//": "Rule evaluation, comprehensions, bindings, partial eval, base-document access and iteration. Deliberately excludes the JSONPatch*, Tokens and Builtin* families, which are builtin micro-benchmarks rather than evaluation hot paths.",
-      "bench": "^Benchmark(VirtualDocs|VirtualCache|ComplexRules|RuleBindings|RuleWithComprehensions|Comprehension|Bindings|Biunify|PartialEval|Concurrency|InliningFullScan|Enumerate|ArrayIteration|ObjectIteration|SetIteration|ObjectGet|MemberWithKeyFromBaseDoc|LargeJSON)"
+      "//": "The eval driver, iteration and enumerate, bindings, comprehension indexing, the rule index, and partial eval. The sweeps this replaces re-measured one code path at several sizes, which at a fixed cost per case bought nothing."
     },
     {
       "shard": "ast",
       "pkg": "./v1/ast",
-      "//": "Parsing, object/set construction and lookup, and term rewriting. Excludes the NoASTTypeAllocates*/NoNodeTypeAllocates* families, which are allocation assertions rather than trend material.",
-      "bench": "^Benchmark(Parse|ObjectGet|ObjectFind|ObjectConstruction|ObjectCreationAndLookup|SetCreationAndLookup|RewriteDynamics|RefString)"
+      "//": "Compilation, the rule index, parsing, object/set/array internals, refs and value conversion. Excludes the NoASTTypeAllocates*/NoNodeTypeAllocates* families, which are allocation assertions rather than trend material."
     },
     {
       "shard": "rego",
       "pkg": "./v1/rego",
-      "//": "All ~53 cases: the public evaluation API, the closest thing here to end-to-end user-visible performance.",
-      "bench": "."
+      "//": "The public evaluation API, the closest thing here to end-to-end user-visible performance. The *Targets families measure their shape once per evaluation target, which is the only place topdown and wasm are tracked against each other."
     },
     {
       "shard": "inmem",
       "pkg": "./v1/storage/inmem",
-      "//": "All ~48 cases: the store read/write hot path.",
-      "bench": "."
+      "//": "The store read/write hot path, each family measured against all three store representations -- Go, Go with a round trip on write, and AST -- which is the comparison this package exists to make."
     },
     {
       "shard": "compile",
@@ -65,6 +61,31 @@
       "shard": "compile",
       "pkg": "./v1/dependencies",
       "//": "opa deps. The lowest-value target in this shard; cut first if the shard needs to shrink."
+    },
+    {
+      "shard": "runtime",
+      "pkg": "./v1/bundle",
+      "//": "Bundle activation and ingest: root-conflict detection per conflict shape, the tarball and directory loaders, signature hashing and the per-activation deep copy."
+    },
+    {
+      "shard": "runtime",
+      "pkg": "./v1/plugins/logs",
+      "//": "Decision-log cost per logged decision: event-to-AST conversion, and masking with and without a rule that fires."
+    },
+    {
+      "shard": "runtime",
+      "pkg": "./v1/test/authz",
+      "//": "The canonical OPA-as-API-authorization policy through a prepared query. The disk arm is excluded; it measures Badger rather than the policy."
+    },
+    {
+      "shard": "runtime",
+      "pkg": "./v1/server",
+      "//": "The data and compile handlers, in-process rather than over a socket. Note newBenchFixture binds a fixed port, so keep server in one shard."
+    },
+    {
+      "shard": "runtime",
+      "pkg": "./v1/util",
+      "//": "util.RoundTripFast, on the path of every store write, logged decision and rego result, with the legacy RoundTrip as a comparison anchor."
     }
   ]
 }
