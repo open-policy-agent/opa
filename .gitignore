@@ -44,3 +44,7 @@ resource.syso
 
 # generated when building proto codegen plugin (see Makefile generate-proto)
 build/tools/bin/
+
+# benchlab raw output and worktrees (see the Makefile benchlab target)
+.benchlab/
+benchlab.run.*
