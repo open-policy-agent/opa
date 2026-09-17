@@ -159,8 +159,7 @@ func (r *matchResult) addVarIfNotSelf(
 		return
 	}
 
-	v, ok := term.Value.(ast.Var)
-	if !ok || v.Compare(targetVar) != 0 {
+	if !targetVar.Equal(term.Value) {
 		return
 	}
 
