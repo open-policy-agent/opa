@@ -27,15 +27,16 @@ import (
 )
 
 type metricsExportConfig struct {
-	Type                  string `json:"type,omitempty"`
-	Address               string `json:"address,omitempty"`
-	ExportIntervalMs      *int   `json:"export_interval_ms,omitempty"`
-	ServiceName           string `json:"service_name,omitempty"`
-	EncryptionScheme      string `json:"encryption,omitempty"`
-	EncryptionSkipVerify  *bool  `json:"allow_insecure_tls,omitempty"`
-	TLSCertFile           string `json:"tls_cert_file,omitempty"`
-	TLSCertPrivateKeyFile string `json:"tls_private_key_file,omitempty"`
-	TLSCACertFile         string `json:"tls_ca_cert_file,omitempty"`
+	Type                  string            `json:"type,omitempty"`
+	Address               string            `json:"address,omitempty"`
+	ExportIntervalMs      *int              `json:"export_interval_ms,omitempty"`
+	ServiceName           string            `json:"service_name,omitempty"`
+	EncryptionScheme      string            `json:"encryption,omitempty"`
+	EncryptionSkipVerify  *bool             `json:"allow_insecure_tls,omitempty"`
+	TLSCertFile           string            `json:"tls_cert_file,omitempty"`
+	TLSCertPrivateKeyFile string            `json:"tls_private_key_file,omitempty"`
+	TLSCACertFile         string            `json:"tls_ca_cert_file,omitempty"`
+	Headers               map[string]string `json:"headers,omitempty"`
 }
 
 //go:embed validate.rego
@@ -112,11 +113,17 @@ func Init(ctx context.Context, raw []byte, id string, gatherer prometheus_client
 			otlpmetricgrpc.WithEndpoint(cfg.Address),
 			grpcTLSOption(cfg.EncryptionScheme, tlsConfig),
 		}
+		if len(cfg.Headers) > 0 {
+			opts = append(opts, otlpmetricgrpc.WithHeaders(cfg.Headers))
+		}
 		metricExporter, err = otlpmetricgrpc.New(ctx, opts...)
 	} else {
 		opts := []otlpmetrichttp.Option{
 			otlpmetrichttp.WithEndpoint(cfg.Address),
 			httpTLSOption(cfg.EncryptionScheme, tlsConfig),
+		}
+		if len(cfg.Headers) > 0 {
+			opts = append(opts, otlpmetrichttp.WithHeaders(cfg.Headers))
 		}
 		metricExporter, err = otlpmetrichttp.New(ctx, opts...)
 	}
