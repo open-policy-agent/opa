@@ -26,6 +26,10 @@ test_preserves_configured_values[tc.note] if {
 	some tc in [
 		{"note": "interval", "config": {"export_interval_ms": 30000}, "key": "export_interval_ms", "want": 30000},
 		{"note": "allow_insecure_tls", "config": {"allow_insecure_tls": true}, "key": "allow_insecure_tls", "want": true},
+		{
+			"note": "headers", "config": {"headers": {"x-tenant-id": "acmecorp"}},
+			"key": "headers", "want": {"x-tenant-id": "acmecorp"},
+		},
 	]
 
 	result := metrics_export.processed with input as {"config": tc.config}
