@@ -1,0 +1,105 @@
+---
+# SemVer 2.0.0 forbids leading zeroes in the major, minor, patch and numeric
+# pre-release identifiers, and requires a non-empty section after the `-`/`+`
+# separator. These are pinned here so alternative implementations agree on
+# which strings are rejected. See https://semver.org/#spec-item-2
+cases:
+  - note: semverisvalid/leading zero in major version
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("01.2.3")
+    want_result:
+      - x: false
+  - note: semverisvalid/leading zero in minor version
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.02.3")
+    want_result:
+      - x: false
+  - note: semverisvalid/leading zero in patch version
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.03")
+    want_result:
+      - x: false
+  - note: semverisvalid/leading zero in numeric pre-release identifier
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3-01")
+    want_result:
+      - x: false
+  - note: semverisvalid/leading zero in trailing numeric pre-release identifier
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3-alpha.01")
+    want_result:
+      - x: false
+  - note: semverisvalid/empty pre-release section
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3-")
+    want_result:
+      - x: false
+  - note: semverisvalid/empty build metadata section
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3+")
+    want_result:
+      - x: false
+  - note: semverisvalid/zero major, minor and patch version
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("0.0.0")
+    want_result:
+      - x: true
+  - note: semverisvalid/single zero is a valid numeric pre-release identifier
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3-0")
+    want_result:
+      - x: true
+  - note: semverisvalid/alphanumeric pre-release identifier may start with zero
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3-0a")
+    want_result:
+      - x: true
+  - note: semverisvalid/build metadata may have a leading zero
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.is_valid("1.2.3+01")
+    want_result:
+      - x: true

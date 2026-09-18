@@ -1,0 +1,53 @@
+---
+# A version that SemVer 2.0.0 rejects must error rather than compare as an
+# ordinary version, and build metadata is ignored when determining precedence.
+# See https://semver.org/#spec-item-10
+cases:
+  - note: semvercompare/leading zero in operand 1
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.compare("1.02.3", "1.2.3")
+    want_error_code: eval_builtin_error
+    want_error: 'semver.compare: operand 1: string "1.02.3" is not a valid SemVer'
+    strict_error: true
+  - note: semvercompare/leading zero in a numeric pre-release identifier of operand 2
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.compare("1.2.3", "1.2.3-01")
+    want_error_code: eval_builtin_error
+    want_error: 'semver.compare: operand 2: string "1.2.3-01" is not a valid SemVer'
+    strict_error: true
+  - note: semvercompare/empty pre-release section in operand 1
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.compare("1.2.3-", "1.2.3")
+    want_error_code: eval_builtin_error
+    want_error: 'semver.compare: operand 1: string "1.2.3-" is not a valid SemVer'
+    strict_error: true
+  - note: semvercompare/single zero pre-release identifier
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.compare("1.2.3-0", "1.2.3-1")
+    want_result:
+      - x: -1
+  - note: semvercompare/build metadata is ignored
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := semver.compare("1.2.3+01", "1.2.3+2")
+    want_result:
+      - x: 0
