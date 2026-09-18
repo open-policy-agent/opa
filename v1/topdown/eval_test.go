@@ -1532,6 +1532,33 @@ func TestPartialRule(t *testing.T) {
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
 		},
+		{
+			note: "partial object (general ref head) negating a sibling leaf",
+			module: `package test
+				p[x].foo.bar if {
+					x := "a"
+					not p[x].foo.baz
+				}
+
+				p[x].foo.baz if {
+					x := "a"
+					false
+				}`,
+			query: `data.test.p = x`,
+			exp:   `[{"x": {"a": {"foo": {"bar": true}}}}]`,
+		},
+		{
+			note: "partial object (general ref head) reading a sibling subtree",
+			module: `package test
+				p[x].foo.bar := 1 if { x := "a" }
+
+				p[x].qux := y if {
+					x := "b"
+					y := p.a.foo.bar + 1
+				}`,
+			query: `data.test.p = x`,
+			exp:   `[{"x": {"a": {"foo": {"bar": 1}}, "b": {"qux": 2}}}]`,
+		},
 	}
 
 	for _, tc := range tests {

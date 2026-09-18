@@ -472,6 +472,64 @@ q = 2`,
 	}
 }
 
+func TestPlannerSharedPathPrefixReference(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		query  string
+		expErr string
+	}{
+		{
+			note: "general ref head negating a sibling leaf",
+			module: `package test
+p[x].foo.bar if {
+	x := "a"
+	not p[x].foo.baz
+}
+
+p[x].foo.baz if {
+	x := "a"
+	false
+}`,
+			query:  "data.test.p = x",
+			expErr: "reference to data.test.p is not supported: rules sharing that path prefix are planned as a single function",
+		},
+		{
+			note: "partial object with a var key read by a sibling ground key",
+			module: `package test
+p[x] := 1 if { x := "a" }
+p.b := y if { y := p.a + 1 }`,
+			query:  "data.test.p = x",
+			expErr: "reference to data.test.p is not supported: rules sharing that path prefix are planned as a single function",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m, err := ast.ParseModuleWithOpts("test.rego", tc.module, ast.ParserOptions{RegoVersion: ast.RegoV1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := ast.NewCompiler()
+			c.Compile(map[string]*ast.Module{"test.rego": m})
+			if c.Failed() {
+				t.Fatalf("unexpected compile error: %v", c.Errors)
+			}
+
+			_, err = New().WithQueries([]QuerySet{
+				{Name: "test", Queries: []ast.Body{ast.MustParseBody(tc.query)}},
+			}).WithModules([]*ast.Module{c.Modules["test.rego"]}).WithBuiltinDecls(ast.BuiltinMap).Plan()
+
+			if err == nil {
+				t.Fatalf("expected error %q but got none", tc.expErr)
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error %q but got: %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
 type cmpWalker struct {
 	needle any
 	loc    string

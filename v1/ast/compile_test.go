@@ -11151,6 +11151,99 @@ final_allow if {
 	assertErrors(t, c.Errors, expected, false)
 }
 
+func TestCompilerCheckGeneralRefRecursion(t *testing.T) {
+	tests := []struct {
+		note     string
+		policy   string
+		expected []string
+	}{
+		{
+			note: "sibling leaves under a variable are not recursive",
+			policy: `package test
+
+p[x].foo.bar if {
+	x := "a"
+	not p[x].foo.baz
+}
+
+p[x].foo.baz if {
+	x := "a"
+	false
+}`,
+		},
+		{
+			note: "sibling subtrees under a variable are not recursive",
+			policy: `package test
+
+p[x].foo.bar.baz := 1 if { x := "a" }
+p[x].qux := p["a"].foo.bar.baz if { x := "b" }`,
+		},
+		{
+			note: "leaf depending on itself is recursive",
+			policy: `package test
+
+p[x].foo.bar if {
+	x := "a"
+	p[x].foo.bar
+}`,
+			expected: []string{"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.p[__local0__].foo.bar"},
+		},
+		{
+			note: "leaf depending on an ancestor is recursive",
+			policy: `package test
+
+p[x].foo.bar if {
+	x := "a"
+	p[x].foo
+}`,
+			expected: []string{"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.p[__local0__].foo.bar"},
+		},
+		{
+			note: "leaf depending on a dynamic sibling position is recursive",
+			policy: `package test
+
+p[x].foo.bar if {
+	x := "a"
+	p[x].foo[_]
+}`,
+			expected: []string{"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.p[__local0__].foo.bar"},
+		},
+		{
+			note: "mutual recursion across leaves is detected",
+			policy: `package test
+
+p[x].foo.bar if {
+	x := "a"
+	q[x].baz
+}
+
+q[x].baz if {
+	x := "a"
+	p[x].foo.bar
+}`,
+			expected: []string{
+				"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.q[__local1__].baz -> data.test.p[__local0__].foo.bar",
+				"rule data.test.q[__local1__].baz is recursive: data.test.q[__local1__].baz -> data.test.p[__local0__].foo.bar -> data.test.q[__local1__].baz",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test": module(tc.policy)}
+			compileStages(c, StageCheckRecursion)
+
+			expected := make(Errors, len(tc.expected))
+			for i, msg := range tc.expected {
+				expected[i] = &Error{Code: RecursionErr, Message: msg}
+			}
+
+			assertErrors(t, c.Errors, expected, false)
+		})
+	}
+}
+
 func TestCompilerCheckVoidCalls(t *testing.T) {
 	c := NewCompiler().WithCapabilities(&Capabilities{Builtins: []*Builtin{
 		{
@@ -11405,6 +11498,11 @@ r5[x] = 5 if { x := "foo" }
 r5.bar = 6 if { input.x }
 r5.baz = 7 if { input.y }
 `,
+		"mod5": `package c.d
+r6[x].foo.bar = 1 if { x := "a" }
+r6[x].foo.baz = 2 if { x := "a" }
+r6[x].qux = 3 if { x := "a" }
+`,
 	})
 
 	compileStages(compiler, "")
@@ -11417,6 +11515,9 @@ r5.baz = 7 if { input.y }
 	rule5 := compiler.Modules["mod4"].Rules[0]
 	rule5b := compiler.Modules["mod4"].Rules[1]
 	rule5c := compiler.Modules["mod4"].Rules[2]
+	rule6 := compiler.Modules["mod5"].Rules[0]
+	rule6b := compiler.Modules["mod5"].Rules[1]
+	rule6c := compiler.Modules["mod5"].Rules[2]
 
 	tests := []struct {
 		input         string
@@ -11428,16 +11529,25 @@ r5.baz = 7 if { input.y }
 		{input: "data.a.b[x].d", expected: []*Rule{rule1, rule3}},
 		{input: "data.a.b.c", expected: []*Rule{rule1, rule2d, rule2}},
 		{input: "data.a.b.d"},
-		{input: "data", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4, rule5, rule5b, rule5c}},
-		{input: "data[x]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4, rule5, rule5b, rule5c}},
+		{input: "data", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4, rule5, rule5b, rule5c, rule6, rule6b, rule6c}},
+		{input: "data[x]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4, rule5, rule5b, rule5c, rule6, rule6b, rule6c}},
 		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2d, rule2, rule3}},
 		{input: "data[x][y].c.e", expected: []*Rule{rule2d, rule2}},
 		{input: "data[x][y].r3", expected: []*Rule{rule3}},
-		{input: "data[x][y]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule5, rule5b, rule5c}, excludeHidden: true}, // old behaviour of GetRulesDynamic
+		{input: "data[x][y]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule5, rule5b, rule5c, rule6, rule6b, rule6c}, excludeHidden: true}, // old behaviour of GetRulesDynamic
 		{input: "data.b.c", expected: []*Rule{rule5, rule5b, rule5c}},
 		{input: "data.b.c.r5", expected: []*Rule{rule5, rule5b, rule5c}},
 		{input: "data.b.c.r5.bar", expected: []*Rule{rule5, rule5b}}, // rule5 might still define a value for the "bar" key
 		{input: "data.b.c.r5.baz", expected: []*Rule{rule5, rule5c}},
+		// The general refs below all share the ground prefix data.c.d.r6, so
+		// the parts after the variable have to narrow the result set.
+		{input: "data.c.d.r6", expected: []*Rule{rule6, rule6b, rule6c}},
+		{input: "data.c.d.r6[x]", expected: []*Rule{rule6, rule6b, rule6c}},
+		{input: "data.c.d.r6.a.foo", expected: []*Rule{rule6, rule6b}},
+		{input: "data.c.d.r6.a.foo.bar", expected: []*Rule{rule6}},
+		{input: "data.c.d.r6[x].foo.baz", expected: []*Rule{rule6b}},
+		{input: "data.c.d.r6.a.qux", expected: []*Rule{rule6c}},
+		{input: "data.c.d.r6.a.nope"},
 	}
 
 	for _, tc := range tests {
