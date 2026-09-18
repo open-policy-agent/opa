@@ -1,0 +1,27 @@
+---
+# Generated externalized tests from TestRewritePrintCallsWithElseImplicitArgs
+cases:
+  - note: print/print in an else body, with the implicit args renamed
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        f(x, y) if {
+        	x = y
+        }
+
+        else = false if {
+        	print(x, y)
+        }
+    want:
+      - module: |
+          package test
+
+          f(__local0__, __local1__) = true if {
+          	__local0__ = __local1__
+          } else = false if {
+          	__local4__ = {__local2__ | __local2__ = __local0__}
+          	__local5__ = {__local3__ | __local3__ = __local1__}
+          	internal.print([__local4__, __local5__])
+          }

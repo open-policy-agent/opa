@@ -1,0 +1,16 @@
+---
+# Generated externalized tests from TestCompilerMockVirtualDocumentPartially
+cases:
+  - note: 'with/`with` cannot partially replace a virtual document'
+    modules:
+      - |
+        package test
+
+        p = {"a": 1}
+        q = x if { p = x with p.a as 2 }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 23
+        message: with keyword cannot partially replace virtual document(s)
+    exhaustive: true

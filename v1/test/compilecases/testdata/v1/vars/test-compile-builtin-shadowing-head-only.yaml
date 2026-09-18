@@ -1,0 +1,14 @@
+---
+# Generated externalized tests from TestCompileBuiltinShadowingHeadOnly
+cases:
+  - note: vars/a rule head that shadows a built-in leaves its var unsafe
+    modules:
+      - |
+        package test
+
+        p := count if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 6
+        message: var count is unsafe

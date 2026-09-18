@@ -1,0 +1,111 @@
+---
+# Generated externalized tests from TestRewriteLocalVarDeclarationErrors
+cases:
+  - note: vars/every way a local declaration can be rejected
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        redeclaration if {
+        	r1 = 1
+        	r1 := 2
+        	r2 := 1
+        	[b, r2] := [1, 2]
+        	foo.path == 1
+        	foo := "foo"
+        	_ := [1 | nested := 1; nested := 2]
+        }
+
+        negation if {
+        	not a := 1
+        }
+
+        bad_assign if {
+        	null := x
+        	true := x
+        	4.5 := x
+        	"foo" := x
+        	[true | true] := []
+        	{true | true} := set()
+        	{"foo": true | true} := {}
+        	x + 1 := 2
+        	data.foo := 1
+        	[z, 1] := [1, 2]
+        }
+
+        arg_redeclared(arg1) if {
+        	arg1 := 1
+        }
+
+        arg_nested_redeclared({{arg_nested| arg_nested := 1; arg_nested := 2}}) if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: var r1 referenced above
+      - code: rego_compile_error
+        row: 7
+        col: 6
+        message: var r2 assigned above
+      - code: rego_compile_error
+        row: 9
+        col: 2
+        message: var foo referenced above
+      - code: rego_compile_error
+        row: 10
+        col: 25
+        message: var nested assigned above
+      - code: rego_compile_error
+        row: 14
+        col: 2
+        message: cannot assign vars inside negated expression
+      - code: rego_compile_error
+        row: 18
+        col: 2
+        message: cannot assign to null
+      - code: rego_compile_error
+        row: 19
+        col: 2
+        message: cannot assign to boolean
+      - code: rego_compile_error
+        row: 20
+        col: 2
+        message: cannot assign to number
+      - code: rego_compile_error
+        row: 21
+        col: 2
+        message: cannot assign to string
+      - code: rego_compile_error
+        row: 22
+        col: 2
+        message: cannot assign to arraycomprehension
+      - code: rego_compile_error
+        row: 23
+        col: 2
+        message: cannot assign to setcomprehension
+      - code: rego_compile_error
+        row: 24
+        col: 2
+        message: cannot assign to objectcomprehension
+      - code: rego_compile_error
+        row: 25
+        col: 2
+        message: cannot assign to call
+      - code: rego_compile_error
+        row: 26
+        col: 2
+        message: cannot assign to ref
+      - code: rego_compile_error
+        row: 27
+        col: 6
+        message: cannot assign to number
+      - code: rego_compile_error
+        row: 31
+        col: 2
+        message: arg arg1 redeclared
+      - code: rego_compile_error
+        row: 34
+        col: 54
+        message: var arg_nested assigned above
+    exhaustive: true

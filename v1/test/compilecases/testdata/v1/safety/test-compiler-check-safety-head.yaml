@@ -1,0 +1,55 @@
+---
+# Generated externalized tests from TestCompilerCheckSafetyHead
+cases:
+  - note: safety/unsafe vars in rule heads
+    modules:
+      - |
+        package a.b
+
+        unboundKey[x1] = y if { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+        unboundVal[y] = x2 if { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+        unboundCompositeVal[y] = [{"foo": x3, "bar": y}] if { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+        unboundCompositeKey contains [{"x": x4}] if { q[y] }
+        unboundBuiltinOperator = eq if { 4 = 1 }
+        unboundElse if { false } else = else_var if { true }
+        c.d.e[x5] if true
+        f.g.h[y] = x6 if y := "y"
+        i.j.k contains x7 if true
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 12
+        message: var x1 is unsafe
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 17
+        message: var x2 is unsafe
+      - code: rego_unsafe_var_error
+        row: 5
+        col: 35
+        message: var x3 is unsafe
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 37
+        message: var x4 is unsafe
+      - code: rego_unsafe_var_error
+        row: 7
+        col: 26
+        message: var eq is unsafe
+      - code: rego_unsafe_var_error
+        row: 8
+        col: 33
+        message: var else_var is unsafe
+      - code: rego_unsafe_var_error
+        row: 9
+        col: 7
+        message: var x5 is unsafe
+      - code: rego_unsafe_var_error
+        row: 10
+        col: 12
+        message: var x6 is unsafe
+      - code: rego_unsafe_var_error
+        row: 11
+        col: 16
+        message: var x7 is unsafe
+    exhaustive: true
