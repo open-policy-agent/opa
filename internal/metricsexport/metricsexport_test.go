@@ -56,6 +56,17 @@ func TestParseMetricsExportConfigCustomInterval(t *testing.T) {
 	}
 }
 
+func TestParseMetricsExportConfigHeaders(t *testing.T) {
+	raw := []byte(`{"type": "otlp/grpc", "headers": {"x-tenant-id": "acmecorp"}}`)
+	cfg, err := parseMetricsExportConfig(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Headers["x-tenant-id"] != "acmecorp" {
+		t.Fatalf("expected header to round-trip, got %v", cfg.Headers)
+	}
+}
+
 func TestValidateMetricsExportInvalidType(t *testing.T) {
 	raw := []byte(`{"type": "unknown"}`)
 	_, err := parseMetricsExportConfig(raw)
@@ -105,6 +116,32 @@ func TestInitNilGatherer(t *testing.T) {
 func TestInitGRPCWithGatherer(t *testing.T) {
 	registry := prometheus_client.NewRegistry()
 	raw := []byte(`{"metrics_export": {"type": "otlp/grpc"}}`)
+	mp, err := Init(t.Context(), raw, "test", registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mp == nil {
+		t.Fatal("expected non-nil MeterProvider")
+	}
+	_ = mp.Shutdown(t.Context())
+}
+
+func TestInitGRPCWithHeaders(t *testing.T) {
+	registry := prometheus_client.NewRegistry()
+	raw := []byte(`{"metrics_export": {"type": "otlp/grpc", "headers": {"x-tenant-id": "acmecorp"}}}`)
+	mp, err := Init(t.Context(), raw, "test", registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mp == nil {
+		t.Fatal("expected non-nil MeterProvider")
+	}
+	_ = mp.Shutdown(t.Context())
+}
+
+func TestInitHTTPWithHeaders(t *testing.T) {
+	registry := prometheus_client.NewRegistry()
+	raw := []byte(`{"metrics_export": {"type": "otlp/http", "headers": {"x-tenant-id": "acmecorp"}}}`)
 	mp, err := Init(t.Context(), raw, "test", registry)
 	if err != nil {
 		t.Fatal(err)
