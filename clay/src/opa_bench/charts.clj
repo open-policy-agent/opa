@@ -362,20 +362,28 @@
            "UTF-8")
          "&type=code")))
 
+(def ^:private sparkline-amplitude
+  "Ratio deviation from 1.0 that maps to the top/bottom of a sparkline, clamped
+   beyond that. Fixed rather than fit to each row's own min/max so a benchmark
+   with a 1% noise wobble doesn't draw the same full-height swing as one that
+   actually moved 80% -- most benchlab NsPerOp ranges are single-digit percent,
+   so a wobble should look flat, matching how little it moves on the real
+   per-benchmark chart."
+  0.05)
+
 (defn sparkline [values]
   (when (and values (> (count values) 1))
     (let [w 80 h 20
           vs (vec values)
-          mn (apply min vs)
-          mx (apply max vs)
-          rng (- mx mn)
-          rng (if (zero? rng) 1.0 rng)
           n (count vs)
+          y-of (fn [v]
+                 (let [d (max -1.0 (min 1.0 (/ (- v 1.0) sparkline-amplitude)))]
+                   (- (/ h 2.0) (* d (/ h 2.0)))))
           points (str/join " "
                    (for [i (range n)]
                      (str (double (* (/ i (max 1 (dec n))) w))
                           ","
-                          (double (- h (* (/ (- (nth vs i) mn) rng) h))))))]
+                          (double (y-of (nth vs i))))))]
       (kind/hiccup
         [:svg {:width w :height h :style "vertical-align:middle"}
          [:polyline {:points points
