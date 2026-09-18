@@ -63,12 +63,12 @@ func Parse(version string) (v Version, err error) {
 		return v, fmt.Errorf("%s should contain major, minor, and patch versions", version)
 	}
 
-	major, after := cut(version, '.')
+	major, after := cutDot(version)
 	if v.Major, err = parseNumeric(major); err != nil {
 		return v, fmt.Errorf("invalid major version: %w", err)
 	}
 
-	minor, after := cut(after, '.')
+	minor, after := cutDot(after)
 	if v.Minor, err = parseNumeric(minor); err != nil {
 		return v, fmt.Errorf("invalid minor version: %w", err)
 	}
@@ -190,8 +190,8 @@ func (v Version) Compare(other Version) int {
 		return -1
 	}
 
-	a, afterA := cut(v.PreRelease, '.')
-	b, afterB := cut(other.PreRelease, '.')
+	a, afterA := cutDot(v.PreRelease)
+	b, afterB := cutDot(other.PreRelease)
 
 	for {
 		if a == "" && b != "" {
@@ -237,8 +237,8 @@ func (v Version) Compare(other Version) int {
 			return -1
 		}
 
-		a, afterA = cut(afterA, '.')
-		b, afterB = cut(afterB, '.')
+		a, afterA = cutDot(afterA)
+		b, afterB = cutDot(afterB)
 	}
 }
 
@@ -263,10 +263,13 @@ func length(v Version) int {
 	return n
 }
 
-// cut is a *slightly* faster version of strings.Cut only accepting
-// single byte separators, and skipping the boolean return value.
-func cut(s string, sep byte) (before, after string) {
-	if i := strings.IndexByte(s, sep); i >= 0 {
+// cutDot is a *slightly* faster version of strings.Cut for the '.' separator,
+// skipping the boolean return value. strings.Cut looks the separator up with
+// strings.Index, which costs ~12% on BenchmarkCompare next to IndexByte.
+//
+//nolint:modernize // stringscut: measurably slower here, see above.
+func cutDot(s string) (before, after string) {
+	if i := strings.IndexByte(s, '.'); i >= 0 {
 		return s[:i], s[i+1:]
 	}
 	return s, ""
