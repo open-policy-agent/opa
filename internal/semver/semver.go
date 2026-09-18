@@ -95,16 +95,7 @@ func parseNumeric(s string) (int64, error) {
 // has already been checked by reMetaIdentifier.
 func validPreRelease(pre string) bool {
 	for id := range strings.SplitSeq(pre, ".") {
-		if len(id) > 1 && id[0] == '0' && isAllDigits(id) {
-			return false
-		}
-	}
-	return true
-}
-
-func isAllDigits(s string) bool {
-	for i := range len(s) {
-		if s[i] < '0' || s[i] > '9' {
+		if len(id) > 1 && id[0] == '0' && isAllDecimals(id) {
 			return false
 		}
 	}
