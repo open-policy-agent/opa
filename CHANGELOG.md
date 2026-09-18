@@ -106,29 +106,29 @@ collection for emptiness without asserting its type. Sets are unaffected here:
 `set[string]` describes any set of strings, the empty one included, so
 `{"foo"} == set()` still compiles.
 
-### Rule index candidates are returned in declaration order
+### Rule indexing improvements
 
-The rule index returned a ruleset's definitions in whatever order its trie happened to
-reach them. It now returns them in the order they were declared, which is what it
-documented but did not do. Numbering the rules once, rather than sorting the candidates
-of every lookup, also makes building an index and reading a lookup's result
-cheaper.
+The rule indexer now excludes rules from more kinds of expression, and builds a smaller
+trie to do it with. See [Use indexed statements](https://www.openpolicyagent.org/docs/policy-performance#use-indexed-statements)
+for what is indexed.
 
-Two things follow from the order. A `complete rules must not produce multiple outputs`
-error now points at the first of the conflicting definitions rather than the second:
+- `startswith`, `endswith`, `strings.any_prefix_match` and `strings.any_suffix_match`
+  are indexed when the base strings are known at compile time.
+- A reference that reads a key out of the object at its ground prefix in base data
+  (`data.groups.admins.members[input.subject]`) is indexed by asking that object for the
+  key, where such a ruleset used to leave every rule a candidate.
+- References rooted at a local variable (`x := input; x.foo == "a"`) are indexed the
+  same as `input.foo == "a"`, and a chain of assignments no longer drops the constraint
+  at the end of it.
+- A rule's path through the trie stops at the last level it constrains, and a reference
+  reached by several values no longer leaves the rest of the rule unindexed.
+- Candidates come back in declaration order, which the indexer documented but did not
+  do. A `complete rules must not produce multiple outputs` error now points at the first
+  of the conflicting definitions rather than the second, and partial evaluation names
+  and orders the generated locals of its support rules differently. What a policy
+  evaluates to is unaffected.
 
-```rego
-package example
-
-p := 1 if input.x # reported here now
-
-p := 2 if input.y # reported here before
-```
-
-And partial evaluation numbers the local variables of its support rules in evaluation
-order, so `opa eval --partial` and `opa build --optimize` emit the same rules under
-different generated names, and in a different order. What a policy evaluates to is
-unaffected either way.
+Authored by @srenatus and @tsandall
 
 ### Behavior change: `semver.is_valid` and `semver.compare` reject versions the SemVer 2.0.0 spec forbids
 
@@ -153,28 +153,6 @@ alphanumeric identifier starting with zero (`1.2.3-0a`), and build metadata with
 leading zero (`1.2.3+01`) all still parse.
 
 Authored by @sueun-dev
-
-### Rule indexing sees a lookup into a collection in base data
-
-A rule gated on a subject being a key of a collection in base data was recorded only as
-"this reference must be defined", so a ruleset of one rule per group left every rule a
-candidate:
-
-```rego
-allow if data.groups.admins.members[input.subject]
-
-allow if data.groups.devs.members[input.subject]
-```
-
-The index now asks the collection -- one hash lookup, nothing stored per member -- where
-every candidate is going to be evaluated anyway. A `--partial` query filtering data is
-the case that gains: 500 rules that all stayed candidates come back as one. A ruleset
-that can stop at the first definition that holds is left alone, since asking about all
-of them to exclude any is the work evaluation was about to do.
-
-Only an object is indexed this way: base data comes from JSON and holds no set, and an
-array cannot answer without being walked. `value in collection` asks after the
-collection's *values* rather than its keys, and is not indexed either.
 
 ## 1.20.2
 
