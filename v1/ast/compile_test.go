@@ -3181,6 +3181,133 @@ func TestCompilerQueryCompilerCheckUndefinedFuncs(t *testing.T) {
 	}
 }
 
+func TestCompilerAllowUndefinedFunctionCalls(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules map[string]string
+	}{
+		{
+			note: "call in rule body",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p if { custom_func() }`,
+			},
+		},
+		{
+			note: "call in array comprehension body (regression: GH#6946)",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p if {
+					res := [r |
+						some r in input
+						custom_func()
+					]
+					count(res) > 0
+				}`,
+			},
+		},
+		{
+			note: "call in set comprehension body",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p := {r | some r in input; custom_func()}`,
+			},
+		},
+		{
+			note: "call in object comprehension body",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p := {r: 1 | some r in input; custom_func()}`,
+			},
+		},
+		{
+			note: "comprehension term bound by call",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p if {
+					res := [r | r := custom_func()]
+					count(res) > 0
+				}`,
+			},
+		},
+		{
+			note: "function returning call result (regression: GH#6946)",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				f(x) := custom_func(x)
+
+				p if { f("foo") == 1 }`,
+			},
+		},
+		{
+			note: "function returning call result passed to builtin",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				f(x) := custom_func(x)
+
+				p := count(f("foo"))`,
+			},
+		},
+		{
+			note: "function chain returning call result",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				f(x) := custom_func(x)
+
+				g(x) := f(x)
+
+				p if { g("foo") }`,
+			},
+		},
+		{
+			note: "function returning result of undefined rule in another package",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				import data.lib
+
+				dispatcher(arg) := dispatcher_impl(arg.type, arg)
+
+				dispatcher_impl("type1", arg) := lib.f1(arg)`,
+			},
+		},
+		{
+			note: "rule value bound by call",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p := custom_func(1)
+
+				q if { p == 1 }`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			modules := map[string]*Module{}
+			for name, src := range tc.modules {
+				modules[name] = MustParseModule(src)
+			}
+
+			c := NewCompiler().WithAllowUndefinedFunctionCalls(true)
+			c.Compile(modules)
+
+			if c.Failed() {
+				t.Fatalf("unexpected compilation error: %v", c.Errors)
+			}
+		})
+	}
+}
+
 func TestCompilerImportsResolved(t *testing.T) {
 
 	modules := map[string]*Module{
