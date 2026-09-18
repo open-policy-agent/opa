@@ -1,6 +1,26 @@
 ---
 # Generated externalized tests from TestTemplateStringError
 cases:
+  - note: templatestrings/template-string-error/empty template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: invalid template-string expression
+  - note: templatestrings/template-string-error/empty template expression (body)
+    body: |
+      $"{}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: invalid template-string expression
   - note: templatestrings/template-string-error/unification in template expression (module)
     module: |
       package test

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -177,6 +178,232 @@ cases:
 			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
 				t.Fatalf("expected an error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
+// TestGenerateCompletesPinnedDiagnostic covers the case that names the diagnostic it
+// asserts because OPA reports it after another one: the message is the author's, the
+// position and the code are filled in, and a message no parse reports fails generation.
+func TestGenerateCompletesPinnedDiagnostic(t *testing.T) {
+	tests := []struct {
+		note    string
+		corpus  string
+		wantErr string
+		want    parsercases.Error
+	}{
+		{
+			note: "a message OPA reports second is completed",
+			corpus: `---
+cases:
+  - note: errors/pinned
+    module: |
+      package test
+
+      p if {
+      	$"{}"
+      }
+    want_errors:
+      - message: invalid template-string expression
+`,
+			// The parser reports `unexpected } token` first, which is what a case that
+			// names nothing would have recorded.
+			want: parsercases.Error{Code: "rego_parse_error", Row: 4, Col: 5, Message: "invalid template-string expression"},
+		},
+		{
+			note: "a message no parse reports fails generation",
+			corpus: `---
+cases:
+  - note: errors/not reported
+    module: |
+      package test
+
+      p if {
+      	$"{}"
+      }
+    want_errors:
+      - message: something else entirely
+`,
+			wantErr: `names "something else entirely", which the parser does not report`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test-cases.yaml")
+			if err := os.WriteFile(path, []byte(tc.corpus), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			err := Generate(dir)
+
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected an error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			set, err := parsercases.Load(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(set.Cases) != 1 || len(set.Cases[0].WantErrors) != 1 {
+				t.Fatalf("expected one case with one diagnostic, got %v", set.Cases)
+			}
+			if got := set.Cases[0].WantErrors[0]; got != tc.want {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+// TestGenerateCompletesRepeatedMessages covers a message the parser reports more than
+// once: naming it twice asks for both positions, and naming it more often than it is
+// reported is an error rather than a fixture with the same position twice.
+func TestGenerateCompletesRepeatedMessages(t *testing.T) {
+	// Both operands of the `and` are rejected, so one message arrives at two positions.
+	const module = `
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	print("x") and print("x")
+      }
+`
+	const message = "      - message: 'operand of `and` cannot consist only of calls to `print` " +
+		"(hint: `print` produces no value and always succeeds, so the operand can never fail; " +
+		"move it out of the operand, or add an expression that can fail)'\n"
+
+	tests := []struct {
+		note    string
+		corpus  string
+		want    []int // the positions the completed diagnostics carry
+		wantErr string
+	}{
+		{
+			note:   "named twice, one position each",
+			corpus: "---\ncases:\n  - note: errors/twice" + module + "    want_errors:\n" + message + message,
+			want:   []int{2, 17},
+		},
+		{
+			note:    "named more often than reported",
+			corpus:  "---\ncases:\n  - note: errors/thrice" + module + "    want_errors:\n" + message + message + message,
+			wantErr: "more often than the parser reports it",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(tc.corpus), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			err := Generate(dir)
+
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected an error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			set, err := parsercases.Load(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var cols []int
+			for _, e := range set.Cases[0].WantErrors {
+				cols = append(cols, e.Col)
+			}
+			if !slices.Equal(cols, tc.want) {
+				t.Errorf("expected the diagnostics at columns %v, got %v", tc.want, cols)
+			}
+		})
+	}
+}
+
+// TestGenerateFillsEveryDiagnosticWhenExhaustive covers what `exhaustive` asks of the
+// generator: the case asserts that the recorded set is the whole one, so recording the
+// first diagnostic alone would write a fixture the runner rejects for the rest.
+func TestGenerateFillsEveryDiagnosticWhenExhaustive(t *testing.T) {
+	// `$"{}"` reports two diagnostics: `unexpected } token` and, after it, `invalid
+	// template-string expression`.
+	const module = `
+    module: |
+      package test
+
+      p if {
+      	$"{}"
+      }
+`
+
+	tests := []struct {
+		note    string
+		corpus  string
+		want    []parsercases.Error
+		wantErr string
+	}{
+		{
+			note:   "every diagnostic, sorted",
+			corpus: "---\ncases:\n  - note: errors/exhaustive" + module + "    exhaustive: true\n",
+			want: []parsercases.Error{
+				{Code: "rego_parse_error", Row: 4, Col: 5, Message: "invalid template-string expression"},
+				{Code: "rego_parse_error", Row: 4, Col: 5, Message: "unexpected } token"},
+			},
+		},
+		{
+			note: "an exhaustive case that names only one of them fails",
+			corpus: "---\ncases:\n  - note: errors/partial" + module +
+				"    want_errors:\n      - message: invalid template-string expression\n    exhaustive: true\n",
+			wantErr: `also reports "unexpected } token"`,
+		},
+		{
+			note:   "without exhaustive, the first alone",
+			corpus: "---\ncases:\n  - note: errors/first" + module,
+			want: []parsercases.Error{
+				{Code: "rego_parse_error", Row: 4, Col: 5, Message: "unexpected } token"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(tc.corpus), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			err := Generate(dir)
+
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected an error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			set, err := parsercases.Load(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := set.Cases[0].WantErrors; !slices.Equal(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
 			}
 		})
 	}

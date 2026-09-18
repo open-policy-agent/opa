@@ -271,3 +271,12 @@ cases:
         row: 3
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: foo (hint: if this is unexpected, try updating OPA)'
+  - note: imports/import/bad variable term (module)
+    module: |
+      package test
+
+      import input as A(
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected eof token: expected var'

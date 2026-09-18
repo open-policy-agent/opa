@@ -1,0 +1,16 @@
+---
+# An unclosed rule body that ends at EOF. Hand-authored: the diagnostic depends on the
+# input ending with no newline — with one, the parser reports a bare `unexpected eof
+# token` instead — and every wrapper the extractor writes appends one. The block scalar is
+# `|-` for exactly that reason; do not "tidy" it to `|`.
+cases:
+  - note: rules/unclosed rule body at end of input
+    module: |-
+      package test
+
+      f(x) = y { trim(x, ".", y)
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 26
+        message: 'unexpected eof token: expected \n or ; or }'

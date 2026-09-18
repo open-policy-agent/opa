@@ -31,6 +31,57 @@ has none** and is never overwritten, so a diagnostic that changes fails the
 runner instead of being quietly rewritten — the messages are user-facing
 contract, and the corpus is the place that says so.
 
+Where a parse produces several diagnostics, a fixture records **the first**: the ones
+that follow are often a cascade of the same mistake, and matching is a subset, so every
+entry a case records is one an implementation has to report. Holding it to OPA's cascade
+is not a language rule.
+
+A case that is about a *later* diagnostic says so, by naming the message and leaving the
+rest to the generator:
+
+```yaml
+  - note: templatestrings/template-string-error/empty template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{}"
+      }
+    want_errors:
+      - message: invalid template-string expression
+```
+
+`make generate` fills in that entry's `code` and position by finding the message among
+the reported diagnostics — `$"{}"` reports `unexpected } token` first — and fails if no
+parse reports it at all. Authoring a position alongside the message turns the entry back
+into one the generator never touches.
+
+A case that is about **all** of them sets `exhaustive: true`, and the generator fills in
+every diagnostic the parse reported, sorted by position:
+
+```yaml
+  - note: terms/non-terminated-array
+    module: |
+      package test
+
+      p := [1, 2
+    exhaustive: true
+```
+
+That is the field doing what it says: `exhaustive` asserts the recorded set is the whole
+one, so recording only the first would leave the runner rejecting the rest. Where such a
+case names some messages itself, the generator completes them and fails if the parse
+reports one the case does not name.
+
+**Without `exhaustive`, naming several messages records exactly those** — a subset is a
+complete assertion, and the diagnostics the case does not name are neither recorded nor
+required. A message the parse reports twice can be named twice, and each copy takes a
+position of its own; naming it more often than it is reported, or naming one the parse does
+not report at all, fails generation.
+
+Use it where the count is the point — two operands each rejected, two bad imports — and
+leave it off where the extra diagnostics are the parser resynchronising after one mistake.
+
 A case is either a **failure case**, asserting `want_errors`, or a **success
 case**, asserting `want_ast` and optionally `want_equivalent`. The loader
 rejects anything else.

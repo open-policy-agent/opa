@@ -209,13 +209,23 @@ cases:
     module: |
       package test
 
+      f(_) = { "foo" = "bar" }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 16
+        message: 'unexpected eq token: expected rule value term (e.g., f[<nil>] = <VALUE> { ... })'
+  - note: rules/rule/no output (2) (module)
+    module: |
+      package test
+
       f(_) := { "foo" = "bar" }
     want_errors:
       - code: rego_parse_error
         row: 3
         col: 17
         message: 'unexpected eq token: non-terminated set'
-  - note: rules/rule/no output (2) (module)
+  - note: rules/rule/no output (3) (module)
     module: |
       package test
 
@@ -225,7 +235,7 @@ cases:
         row: 3
         col: 14
         message: 'unexpected eq token: non-terminated set'
-  - note: rules/rule/no output (3) (module)
+  - note: rules/rule/no output (4) (module)
     module: |
       package test
 
@@ -235,7 +245,7 @@ cases:
         row: 3
         col: 17
         message: 'unexpected eq token: non-terminated set'
-  - note: rules/rule/no output (4) (module)
+  - note: rules/rule/no output (5) (module)
     module: |
       package test
 

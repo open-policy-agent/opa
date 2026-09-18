@@ -6,10 +6,12 @@ package cases
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -90,7 +92,35 @@ func generateFile(path string, mode fs.FileMode) error {
 			// Fill in the diagnostic only where the case has none. A message
 			// that changes has to fail the runner, not be quietly rewritten
 			// underneath it, so an existing want_errors is never touched.
-			tc.WantErrors = []parsercases.Error{firstDiagnostic(perr)}
+			//
+			// An exhaustive case gets every diagnostic: it asserts that the recorded set
+			// is the whole one, so recording the first alone would write a fixture the
+			// runner rejects for the rest.
+			if tc.Exhaustive {
+				filled, derr := allDiagnostics(perr)
+				if derr != nil {
+					return fmt.Errorf("%s: %s: %w", path, tc.Note, derr)
+				}
+				tc.WantErrors = filled
+			} else {
+				tc.WantErrors = []parsercases.Error{firstDiagnostic(perr)}
+			}
+			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(tc.WantErrors), "exhaustive")
+
+		case perr != nil && positionless(tc.WantErrors):
+			// A case that names the diagnostic it asserts, because OPA reports it after
+			// another one. The message is the author's; the position and the code are
+			// filled in here, the way they are for a case that names nothing.
+			completed, cerr := completeDiagnostics(tc.WantErrors, perr)
+			if cerr != nil {
+				return fmt.Errorf("%s: %s: %w", path, tc.Note, cerr)
+			}
+			if tc.Exhaustive {
+				if cerr := coversAll(completed, perr); cerr != nil {
+					return fmt.Errorf("%s: %s: %w", path, tc.Note, cerr)
+				}
+			}
+			tc.WantErrors = completed
 			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(tc.WantErrors), "exhaustive")
 
 		case perr == nil:
@@ -118,16 +148,138 @@ func generateFile(path string, mode fs.FileMode) error {
 	return os.WriteFile(path, out, mode)
 }
 
+// allDiagnostics returns every diagnostic the parse reported, sorted so the file is
+// stable whatever order the parser produced them in. The runner matches as a set.
+func allDiagnostics(err error) ([]parsercases.Error, error) {
+	errs, ok := err.(ast.Errors)
+	if !ok {
+		return nil, fmt.Errorf("the policy failed with %v, which is not an ast.Errors", err)
+	}
+
+	out := make([]parsercases.Error, 0, len(errs))
+	for _, e := range errs {
+		out = append(out, diagnostic(e))
+	}
+
+	slices.SortFunc(out, func(a, b parsercases.Error) int {
+		return cmp.Or(
+			cmp.Compare(a.Row, b.Row),
+			cmp.Compare(a.Col, b.Col),
+			cmp.Compare(a.Code, b.Code),
+			cmp.Compare(a.Message, b.Message),
+		)
+	})
+
+	return out, nil
+}
+
+// coversAll checks that an exhaustive case names every diagnostic the parse reported.
+// The case claims its set is the whole one, so a diagnostic it leaves out is a fixture
+// the runner would reject.
+func coversAll(want []parsercases.Error, err error) error {
+	errs, ok := err.(ast.Errors)
+	if !ok {
+		return fmt.Errorf("the policy failed with %v, which is not an ast.Errors", err)
+	}
+
+	for _, e := range errs {
+		named := false
+		for _, w := range want {
+			if w.Message == e.Message {
+				named = true
+				break
+			}
+		}
+		if !named {
+			return fmt.Errorf("'exhaustive' says 'want_errors' is the whole set, but the parser also reports %q; name it too, or drop 'exhaustive'",
+				e.Message)
+		}
+	}
+
+	return nil
+}
+
+// positionless reports whether every authored diagnostic still needs its position,
+// which is how a case names the message it asserts and leaves the rest to the
+// generator. A case whose diagnostics carry positions is complete and never touched.
+func positionless(want []parsercases.Error) bool {
+	if len(want) == 0 {
+		return false
+	}
+	for _, e := range want {
+		if e.Row != 0 || e.Col != 0 || e.Code != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// completeDiagnostics fills in the code and position of each authored message by finding
+// it among the ones OPA reported. A message that is not reported at all is an error: the
+// case would otherwise assert something no parse produces.
+//
+// This is what lets a case assert a diagnostic OPA reports *after* another one. Matching
+// is a subset, so recording one of several is a complete assertion; which one is the
+// case's to say, and for a handful of cases the first is a low-level token error while
+// the second names the rule the case is about.
+func completeDiagnostics(want []parsercases.Error, err error) ([]parsercases.Error, error) {
+	errs, ok := err.(ast.Errors)
+	if !ok {
+		return nil, fmt.Errorf("the policy failed with %v, which is not an ast.Errors", err)
+	}
+
+	out := make([]parsercases.Error, 0, len(want))
+	used := make([]bool, len(errs))
+
+	for _, w := range want {
+		// Each authored message takes a reported diagnostic of its own: the same message
+		// can be reported at two positions — both operands of an `and` rejected, say — and
+		// naming it twice asks for both.
+		match := -1
+		for i, e := range errs {
+			if !used[i] && e.Message == w.Message {
+				match = i
+				break
+			}
+		}
+		if match < 0 {
+			reported := make([]string, 0, len(errs))
+			seen := 0
+			for _, e := range errs {
+				reported = append(reported, e.Message)
+				if e.Message == w.Message {
+					seen++
+				}
+			}
+			if seen == 0 {
+				return nil, fmt.Errorf("'want_errors' names %q, which the parser does not report; it reports %q",
+					w.Message, reported)
+			}
+			return nil, fmt.Errorf("'want_errors' names %q more often than the parser reports it, which is %d time(s)",
+				w.Message, seen)
+		}
+
+		used[match] = true
+		out = append(out, diagnostic(errs[match]))
+	}
+
+	return out, nil
+}
+
 // firstDiagnostic returns the diagnostic a fixture records. Only the first is
 // taken: the ones that follow are usually a cascade of the same mistake, and
-// holding another implementation to OPA's cascade is not a language rule.
+// holding another implementation to OPA's cascade is not a language rule. A case
+// that asserts one of the later ones names it, and completeDiagnostics fills it in.
 func firstDiagnostic(err error) parsercases.Error {
 	errs, ok := err.(ast.Errors)
 	if !ok || len(errs) == 0 {
 		return parsercases.Error{Message: err.Error()}
 	}
 
-	e := errs[0]
+	return diagnostic(errs[0])
+}
+
+func diagnostic(e *ast.Error) parsercases.Error {
 	out := parsercases.Error{Code: e.Code, Message: e.Message}
 	if e.Location != nil {
 		out.Row = e.Location.Row
