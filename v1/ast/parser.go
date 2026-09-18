@@ -3215,12 +3215,14 @@ func (p *Parser) parseObject(k *Term, potentialComprehension bool) *Term {
 		return nil
 	}
 
-	potentialRelation := true
 	if potentialComprehension {
 		switch p.s.tok {
 		case tokens.RBrace, tokens.Comma:
-			potentialRelation = false
-			fallthrough
+			// This is the only parse available, so return its result as-is:
+			// backtracking would drop the errors reported here in favour of a
+			// "non-terminated object" pointing at the value we just parsed
+			// rather than at the offending token.
+			return p.parseObjectFinish(k, v, true)
 		case tokens.Or:
 			if term := p.parseObjectFinish(k, v, true); term != nil {
 				return term
@@ -3230,16 +3232,14 @@ func (p *Parser) parseObject(k *Term, potentialComprehension bool) *Term {
 
 	p.restore(s)
 
-	if potentialRelation {
-		v := p.parseTermInfixCallInList()
-		if v == nil {
-			return nil
-		}
+	v = p.parseTermInfixCallInList()
+	if v == nil {
+		return nil
+	}
 
-		switch p.s.tok {
-		case tokens.RBrace, tokens.Comma:
-			return p.parseObjectFinish(k, v, false)
-		}
+	switch p.s.tok {
+	case tokens.RBrace, tokens.Comma:
+		return p.parseObjectFinish(k, v, false)
 	}
 
 	p.illegal("non-terminated object")
