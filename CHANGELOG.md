@@ -5,6 +5,30 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Behavior change: `semver.is_valid` and `semver.compare` reject versions the SemVer 2.0.0 spec forbids
+
+OPA's SemVer parser read the major, minor and patch numbers straight through
+`strconv.ParseInt`, which accepts a leading zero, and skipped the identifier check
+whenever the pre-release or build-metadata section was empty. Five string forms the
+[spec](https://semver.org/#spec-item-2) forbids therefore parsed cleanly:
+
+```rego
+semver.is_valid("01.2.3")         # was true, now false
+semver.is_valid("1.02.3")         # was true, now false
+semver.is_valid("1.2.3-01")       # was true, now false (leading zero in a numeric pre-release id)
+semver.is_valid("1.2.3-")         # was true, now false (empty pre-release)
+semver.is_valid("1.2.3+")         # was true, now false (empty build metadata)
+```
+
+`semver.compare` treated these as ordinary versions rather than erroring, so
+`semver.compare("1.02.3", "1.2.3")` returned `0`; it now raises the same
+`is not a valid SemVer` error it already raised for e.g. `"1.2"`. Spec-valid edge cases
+are unaffected: a single-zero numeric pre-release identifier (`1.2.3-0`), an
+alphanumeric identifier starting with zero (`1.2.3-0a`), and build metadata with a
+leading zero (`1.2.3+01`) all still parse.
+
+Authored by @sueun-dev
+
 ## 1.20.1
 
 This release includes a bug fix for a regression introduced in v1.20.0 in
