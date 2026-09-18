@@ -1793,6 +1793,17 @@ type evalResolver struct {
 	args []*ast.Term
 }
 
+// IndexEveryCandidateEvaluated implements ast.IndexEveryCandidateEvaluated.
+//
+// Partial evaluation never exits early, whatever its definitions resolve to:
+// evalExpr raises the error only where `!e.partial()`. So it evaluates every
+// candidate even under a ruleset IndexResult.EarlyExit says a caller could stop in
+// -- that field is what the ruleset permits, not what this caller does, which is
+// why an index has to ask.
+func (e *evalResolver) IndexEveryCandidateEvaluated() bool {
+	return e.e.partial()
+}
+
 func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.e.instr.startTimer(evalOpResolve)
 

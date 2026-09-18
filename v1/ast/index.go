@@ -65,6 +65,11 @@ type (
 		// required holds, per rule id, the refs it needs defined that are not
 		// trie levels. See refindices.partition.
 		required map[int32][]Ref
+		// memberships holds, per rule id, the collections gather consults; recorded
+		// by refindices.recordMembership.
+		memberships map[int32][]membership
+		// mayEarlyExit decides whether consulting a collection pays; see gather.
+		mayEarlyExit bool
 	}
 )
 
@@ -135,6 +140,13 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			i.rules = append(i.rules, rule)
 			i.groups = append(i.groups, int32(idx))
 
+			if ms := indices.memberships[rule]; len(ms) > 0 {
+				if i.memberships == nil {
+					i.memberships = make(map[int32][]membership, len(rules))
+				}
+				i.memberships[id] = ms
+			}
+
 			// Each set of indices the rule can be reached through gets its own
 			// path. They share an id, so a lookup arriving at the rule down
 			// several of them still reports it once (see trieTraversalResult.Add).
@@ -154,8 +166,17 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	i.root.compact()
+	i.mayEarlyExit = mayEarlyExit(i.rules)
 
 	return true
+}
+
+// mayEarlyExit reports whether a caller could stop at the first of these rules
+// that holds. Build asks it of every rule, which is what gather can know before it
+// has candidates; Lookup asks resultMayEarlyExit of the candidates, which is finer.
+func mayEarlyExit(rules []*Rule) bool {
+	var value Value
+	return agreeOnValue(rules, &value)
 }
 
 // require records the refs rule needs defined, of those partition kept out of the
@@ -345,6 +366,107 @@ func agreeOnValue(rules []*Rule, value *Value) bool {
 	return true
 }
 
+// resolve answers for a reference, asking the resolver the first time only.
+func (c *resolveCache) resolve(resolver ValueResolver, ref Ref) (Value, error) {
+	if c.keyOK && RefEqual(c.keyRef, ref) {
+		return c.keyVal, nil
+	}
+	v, err := resolver.Resolve(ref)
+	if err != nil {
+		return nil, err
+	}
+	c.keyRef, c.keyVal, c.keyOK = ref, v, true
+	return v, nil
+}
+
+// container resolves the collection at ref, resolving the container holding it
+// once: `data.groups.g1.members` and `data.groups.g2.members` share one resolve.
+func (c *resolveCache) container(resolver ValueResolver, ref Ref) (Value, error) {
+	const shared = 2 // data.<container>
+
+	if len(ref) <= shared {
+		return resolver.Resolve(ref)
+	}
+
+	prefix := ref[:shared]
+	if !c.prefixOK || !RefEqual(c.prefix, prefix) {
+		v, err := resolver.Resolve(prefix)
+		if err != nil {
+			return nil, err
+		}
+		c.prefix, c.prefixVal, c.prefixOK = prefix, v, true
+	}
+	if c.prefixVal == nil {
+		return nil, nil
+	}
+
+	v, err := c.prefixVal.Find(ref[shared:])
+	if err != nil {
+		return nil, nil // undefined, not an error
+	}
+	return v, nil
+}
+
+// consultsCollections reports whether excluding a candidate is worth consulting
+// its collections for. It is not where the caller stops at the first candidate that
+// holds: gather would have to consult all of them to exclude any, which is the work
+// evaluation was about to do -- the lookup being what the rule tests.
+//
+// Whether a caller stops is the caller's own business, not IndexResult.EarlyExit's:
+// partial evaluation evaluates every candidate under a ruleset that permits stopping.
+func (i *baseDocEqIndex) consultsCollections(resolver ValueResolver) bool {
+	if !i.mayEarlyExit {
+		return true
+	}
+	every, ok := resolver.(IndexEveryCandidateEvaluated)
+	return ok && every.IndexEveryCandidateEvaluated()
+}
+
+// inCollections reports whether the rule's collection memberships hold. A
+// collection the resolver cannot answer for keeps the rule, as does an array:
+// there is no asking one without scanning it.
+func (i *baseDocEqIndex) inCollections(resolver ValueResolver, id int32, cache *resolveCache) (bool, error) {
+	for _, m := range i.memberships[id] {
+		key, err := cache.resolve(resolver, m.key)
+		if err != nil {
+			if IsUnknownValueErr(err) {
+				continue
+			}
+			return false, err
+		}
+		if key == nil {
+			return false, nil
+		}
+
+		coll, err := cache.container(resolver, m.collection)
+		if err != nil {
+			if IsUnknownValueErr(err) {
+				continue
+			}
+			return false, err
+		}
+		if coll == nil {
+			return false, nil
+		}
+
+		probe := Term{Value: key}
+		switch c := coll.(type) {
+		case Object:
+			if c.Get(&probe) == nil {
+				return false, nil
+			}
+		// Base data read from JSON holds no set, but a store keeping ast.Value can,
+		// and so can a `with` statement replacing the collection.
+		case Set:
+			if !c.Contains(&probe) {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
+}
+
 // gather reads the rules a traversal reached into result. Ids ascend with
 // priority, so a run of them sharing a group is that ruleset's definitions in
 // order, the first being the one to evaluate.
@@ -358,6 +480,7 @@ func (i *baseDocEqIndex) gather(tr *trieTraversalResult, resolver ValueResolver,
 	var cache resolveCache
 	var root *Rule
 	group := int32(-1)
+	consults := i.consultsCollections(resolver)
 
 	// Words are marked as they are first written to, in traversal order.
 	slices.Sort(tr.touched)
@@ -380,6 +503,16 @@ func (i *baseDocEqIndex) gather(tr *trieTraversalResult, resolver ValueResolver,
 					return err
 				}
 				if !defined {
+					continue
+				}
+			}
+
+			if consults && resolver != nil && len(i.memberships) > 0 {
+				in, err := i.inCollections(resolver, id, &cache)
+				if err != nil {
+					return err
+				}
+				if !in {
 					continue
 				}
 			}
@@ -439,6 +572,18 @@ type valueMapper struct {
 }
 
 // refID identifies one of the references an index is built on.
+// IndexEveryCandidateEvaluated may be implemented by a ValueResolver to answer
+// whether every candidate a lookup returns goes on to be evaluated, rather than the
+// caller stopping at the first that holds. Where it does, excluding a candidate
+// saves evaluating it; see baseDocEqIndex.gather.
+type IndexEveryCandidateEvaluated interface {
+	IndexEveryCandidateEvaluated() bool
+}
+
+// membership is "the value at key has to be a key of the collection at
+// collection", which a lookup asks the collection rather than the trie.
+type membership struct{ key, collection Ref }
+
 type refID int32
 
 // refTable numbers the references an index is built on. One table is shared by
@@ -592,6 +737,8 @@ type refindices struct {
 	// operand body: resolvable from inside, but not the operand's own.
 	outer []*refindex
 	table *refTable
+	// memberships holds the collection memberships of each rule; see membership.
+	memberships map[*Rule][]membership
 	// stats holds what Sorted ranks the references by, indexed by ref id.
 	stats  []refStats
 	sorted []refID
@@ -618,9 +765,10 @@ const maxIndexPaths = 32
 
 func newrefindices(isVirtual func(Ref) bool, table *refTable) *refindices {
 	return &refindices{
-		isVirtual: isVirtual,
-		table:     table,
-		rules:     map[*Rule][]*refindex{},
+		isVirtual:   isVirtual,
+		table:       table,
+		rules:       map[*Rule][]*refindex{},
+		memberships: map[*Rule][]membership{},
 	}
 }
 
@@ -686,8 +834,13 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 			// check for type "Var" here. But since it's impossible to call a
 			// function with a undefined argument, there's no point to recording
 			// "needs to be anything" for function args
-			if _, ok := ts.Value.(Ref); ok { // "naked ref"
-				i.updateEq(rule, ts.Value, anyValue, nil)
+			if ref, ok := ts.Value.(Ref); ok { // "naked ref"
+				// `data.groups.g1.members[input.subject]` constrains its last
+				// element to the keys of the collection at the ground prefix,
+				// which is more than the "is defined" updateEq can record.
+				if !i.updateCollectionKey(rule, ref) {
+					i.updateEq(rule, ts.Value, anyValue, nil)
+				}
 			}
 		}
 	}
@@ -1075,6 +1228,10 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 	if rvar, ok := rval.(Var); ok { // rhs is var, try to resolve
 		if resolved, ok := constants[rvar]; ok {
 			rval = resolved
+		} else if cref := i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, rvar); cref != nil {
+			// The collection is behind a reference the compiler hoisted into a
+			// local: `__local0__ = data.groups.g1.members` ahead of the call.
+			rval = cref
 		}
 	}
 
@@ -1082,6 +1239,13 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		forEach func(func(*Term))
 		n       int
 	)
+
+	// `input.subject in data.groups.g1.members` asks for the collection's
+	// *values*, which base data -- an object or an array, never a set -- answers
+	// only by being walked. updateCollectionKey has the question it does answer.
+	if _, ok := rval.(Ref); ok {
+		return
+	}
 
 	switch rcol := rval.(type) {
 	case *Array:
@@ -1185,6 +1349,54 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	if concrete > 1 {
 		i.alternate(id, alternationConverging)
 	}
+}
+
+// updateCollectionKey records `<collection>[<key>]` -- a reference whose ground
+// prefix names a collection in base data and whose last element is the value
+// being looked up in it. Reports whether it did.
+func (i *refindices) updateCollectionKey(rule *Rule, ref Ref) bool {
+	if len(ref) < 2 || !ref[0].Equal(DefaultRootDocument) {
+		return false
+	}
+
+	prefix := ref[:len(ref)-1]
+	if !prefix.IsGround() || i.isVirtual(prefix) {
+		return false
+	}
+
+	keyRef := i.keyRefOf(rule, ref[len(ref)-1])
+	if keyRef == nil || i.isVirtual(keyRef) {
+		return false
+	}
+
+	i.recordMembership(rule, keyRef, prefix)
+	return true
+}
+
+// keyRefOf resolves the term a collection is keyed by to the reference it stands
+// for: `input.subject` directly, or the local a rule bound it to.
+func (i *refindices) keyRefOf(rule *Rule, term *Term) Ref {
+	switch v := term.Value.(type) {
+	case Ref:
+		if v.IsGround() && !i.isVirtual(v) {
+			return v
+		}
+	case Var:
+		return i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, v)
+	}
+	return nil
+}
+
+// recordMembership notes that rule only matches when the value at key is a key
+// of the collection at collection, and that both take part in indexing it.
+func (i *refindices) recordMembership(rule *Rule, key, collection Ref) {
+	for _, m := range i.memberships[rule] {
+		if RefEqual(m.key, key) && RefEqual(m.collection, collection) {
+			return
+		}
+	}
+	i.memberships[rule] = append(i.memberships[rule], membership{key: key, collection: collection})
+	i.count(i.table.intern(key))
 }
 
 func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term) Ref {
@@ -1394,12 +1606,22 @@ func (i *baseDocEqIndex) defined(resolver ValueResolver, id int32, cache *resolv
 
 // resolveCache memoizes, for the length of one lookup, what the resolver answered.
 // The refs kept out of the trie are the same few over and over -- one per level
-// partition dropped, not one per rule.
+// partition dropped, not one per rule -- and the collections of a ruleset sit under
+// a shared prefix.
 //
 // Where topdown's baseCache holds what the store gave, making a resolve cheap, this
 // skips making the call.
 type resolveCache struct {
 	refs []resolvedRef
+	// keyRef and prefix are the last key and the last collection container asked
+	// for: a ruleset's rules test the same field, and their collections sit side
+	// by side under one prefix.
+	keyRef    Ref
+	keyVal    Value
+	keyOK     bool
+	prefix    Ref
+	prefixVal Value
+	prefixOK  bool
 }
 
 type resolvedRef struct {
