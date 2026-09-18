@@ -176,6 +176,6 @@ func BenchmarkParseUUIDRFC4122(b *testing.B) {
 	})
 }
 
-func noOpIter(term *ast.Term) error {
+func noOpIter(*ast.Term) error {
 	return nil
 }

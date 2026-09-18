@@ -1226,7 +1226,7 @@ p contains v if {
 			err = doInspect(params, bundleFile, &out)
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {

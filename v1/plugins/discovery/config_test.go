@@ -53,12 +53,12 @@ func TestConfigValidation(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			input:    `{"name": "a/b/c", "decision": "query", "signing": {"keyid": "foo", "scope": "write"}}}`,
+			input:    `{"name": "a/b/c", "decision": "query", "signing": {"keyid": "foo", "scope": "write"}}`,
 			services: []string{"s1"},
 			wantErr:  false,
 		},
 		{
-			input:    `{"name": "a/b/c", "decision": "query", "signing": {"keyid": "bar", "scope": "write"}}}`,
+			input:    `{"name": "a/b/c", "decision": "query", "signing": {"keyid": "bar", "scope": "write"}}`,
 			services: []string{"s1"},
 			wantErr:  true,
 		},

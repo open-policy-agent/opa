@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -339,7 +340,7 @@ func (ss stringSet) Equal(other stringSet) bool {
 	return true
 }
 
-func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
+func (m *Manifest) validateAndInjectDefaults(b *Bundle) error {
 	m.Init()
 
 	// Validate roots in bundle.
@@ -680,7 +681,7 @@ func (r *Reader) Read() (Bundle, error) {
 		// Normalize the paths to use `/` separators
 		path := filepath.ToSlash(f.Path())
 
-		if strings.HasSuffix(path, RegoExt) {
+		if strings.HasSuffix(path, RegoExt) { //nolint: gocritic // ifElseChain
 			fullPath := r.fullPath(path)
 			bs := buf.Bytes()
 
@@ -837,7 +838,7 @@ func (r *Reader) Read() (Bundle, error) {
 			"file(s) %v specified in bundle signatures but not found in the target bundle", util.Keys(r.files))
 	}
 
-	if err := bundle.Manifest.validateAndInjectDefaults(*bundle); err != nil {
+	if err := bundle.Manifest.validateAndInjectDefaults(bundle); err != nil {
 		return empty, err
 	}
 
@@ -1411,23 +1412,18 @@ func (b Bundle) Equal(other Bundle) bool {
 
 // Copy returns a deep copy of the bundle.
 func (b Bundle) Copy() Bundle {
-
 	// Copy data.
 	var x any = b.Data
-
-	if err := util.RoundTrip(&x); err != nil {
+	if err := util.RoundTripFast(&x); err != nil {
 		panic(err)
 	}
-
 	if x != nil {
 		b.Data = x.(map[string]any)
 	}
 
 	// Copy modules.
 	for i := range b.Modules {
-		bs := make([]byte, len(b.Modules[i].Raw))
-		copy(bs, b.Modules[i].Raw)
-		b.Modules[i].Raw = bs
+		b.Modules[i].Raw = slices.Clone(b.Modules[i].Raw)
 		b.Modules[i].Parsed = b.Modules[i].Parsed.Copy()
 	}
 
@@ -1556,12 +1552,14 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePat
 		return result, nil
 	}
 
-	var roots []string
-	var result Bundle
+	var (
+		roots            []string
+		planFile         string
+		manifestProto    bool
+		manifestProtoSet bool
+	)
 
-	var planFile string
-	var manifestProto bool
-	var manifestProtoSet bool
+	result := &Bundle{}
 
 	for _, b := range bundles {
 		if b.Manifest.Roots == nil {
@@ -1632,7 +1630,7 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePat
 		return nil, err
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion, usePath bool) (map[string]int, error) {

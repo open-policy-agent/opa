@@ -353,7 +353,7 @@ func TestRunServerUploadPolicy(t *testing.T) {
 
 			if tc.expErr {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 			} else {
 				if err != nil {

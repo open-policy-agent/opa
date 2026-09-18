@@ -82,12 +82,12 @@ func TestBodyEmptyJSON(t *testing.T) {
 	var body Body
 	bs := util.MustMarshalJSON(body)
 	if string(bs) != "[]" {
-		t.Fatalf("Unexpected JSON value for empty body")
+		t.Fatal("Unexpected JSON value for empty body")
 	}
 	body = Body{}
 	bs = util.MustMarshalJSON(body)
 	if string(bs) != "[]" {
-		t.Fatalf("Unexpected JSON value for empty body")
+		t.Fatal("Unexpected JSON value for empty body")
 	}
 }
 
@@ -309,7 +309,7 @@ func TestExprEquals(t *testing.T) {
 
 func TestBodyIsGround(t *testing.T) {
 	if MustParseBody(`a.b[0] = 1; a = [1, 2, x]`).IsGround() {
-		t.Errorf("Expected body to be non-ground")
+		t.Error("Expected body to be non-ground")
 	}
 }
 

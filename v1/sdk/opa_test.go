@@ -882,7 +882,7 @@ main = time.now_ns()
 	}
 
 	if entries[0].Fields["decision_id"] == "" {
-		t.Fatalf("expected not empty decision_id")
+		t.Fatal("expected not empty decision_id")
 	}
 
 	if entries[1].Fields["decision_id"] != "164031de-e511-11ec-8fea-0242ac120002" {
@@ -957,11 +957,11 @@ allow if {
 
 	// just checking for existence, since it's a complex value
 	if entries[0].Fields["mapped_result"] == nil {
-		t.Fatalf("expected not nil value for mapped_result but got nil")
+		t.Fatal("expected not nil value for mapped_result but got nil")
 	}
 
 	if entries[0].Fields["result"] == nil {
-		t.Fatalf("expected not nil value for result but got nil")
+		t.Fatal("expected not nil value for result but got nil")
 	}
 
 	if entries[0].Fields["timestamp"] != "2021-05-01T11:23:14.450288Z" {
@@ -1469,7 +1469,7 @@ allow if {
 	}
 
 	if entries[0].Fields["decision_id"] == "" {
-		t.Fatalf("expected not empty decision_id")
+		t.Fatal("expected not empty decision_id")
 	}
 
 	if entries[1].Fields["decision_id"] != "164031de-e511-11ec-8fea-0242ac120002" {
@@ -1832,14 +1832,14 @@ main = time.now_ns()
 	if cache, ok := entries[0].Fields["nd_builtin_cache"]; ok {
 		// Ensure the original cache entry for rand.intn is still there.
 		if _, ok := cache.(map[string]any)["rand.intn"]; !ok {
-			t.Fatalf("ND builtins cache was not preserved during evaluation.")
+			t.Fatal("ND builtins cache was not preserved during evaluation.")
 		}
 		// Ensure time.now_ns entry was picked up correctly.
 		if _, ok := cache.(map[string]any)["time.now_ns"]; !ok {
-			t.Fatalf("ND builtins cache did not observe time.now_ns call during evaluation.")
+			t.Fatal("ND builtins cache did not observe time.now_ns call during evaluation.")
 		}
 	} else {
-		t.Fatalf("ND builtins cache missing.")
+		t.Fatal("ND builtins cache missing.")
 	}
 
 }
@@ -3047,7 +3047,7 @@ loopback = input
 	registeredMetrics := toMetricMap(m)
 
 	if registeredMetrics["opa_info"] == false {
-		t.Errorf("expected metric 'opa_info' to be registered but it was not")
+		t.Error("expected metric 'opa_info' to be registered but it was not")
 	}
 }
 
@@ -3258,7 +3258,7 @@ func TestDecisionWithHTTPRoundTripper(t *testing.T) {
 	ctx := t.Context()
 
 	var upstreamHits atomic.Int32
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		upstreamHits.Add(1)
 		w.WriteHeader(http.StatusOK)
 	}))

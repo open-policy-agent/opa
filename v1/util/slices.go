@@ -55,14 +55,15 @@ func TryMap[T any, U any](s []T, f func(T) (U, error)) (r []U, err error) {
 	return r, nil
 }
 
-// ToSliceOfAny converts a slice of any type T to []any.
-func ToSliceOfAny[T any](s []T) []any {
+// ToSliceOf converts a slice of T to slice of R, via round-trip
+// through any. Needless to say, T must be assignable to R.
+func ToSliceOf[R, T any](s []T) []R {
 	if s == nil {
 		return nil
 	}
-	r := make([]any, len(s))
+	r := make([]R, len(s))
 	for i, v := range s {
-		r[i] = v
+		r[i] = any(v).(R)
 	}
 	return r
 }

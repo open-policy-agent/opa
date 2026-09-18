@@ -17,7 +17,7 @@ import (
 )
 
 func TestEvaluatedRuleTracker(t *testing.T) {
-	t.Run("nil tracker is safe", func(t *testing.T) {
+	t.Run("nil tracker is safe", func(*testing.T) {
 		var tracker *topdown.EvaluatedRuleTracker
 		tracker.Record(&ast.Rule{})
 	})

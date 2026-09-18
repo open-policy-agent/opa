@@ -297,6 +297,44 @@ func TestCheckFailsOnInvalidRego(t *testing.T) {
 	})
 }
 
+func TestCheckStrictReportsAllViolations(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+import data.foo
+import data.foo
+
+a := any([foo])
+b := all([true])
+
+f(x) if {
+	input.bar
+}`,
+	}
+
+	expected := []string{
+		"test.rego:4: rego_compile_error: import must not shadow import data.foo",
+		"test.rego:6: rego_type_error: deprecated built-in function calls in expression: any",
+		"test.rego:7: rego_type_error: deprecated built-in function calls in expression: all",
+		"test.rego:9: rego_compile_error: unused argument x. (hint: use _ (wildcard variable) instead)",
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newCheckParams()
+		params.strict = true
+
+		err := checkModules(params, []string{root})
+		if err == nil {
+			t.Fatal("expected error but received none")
+		}
+
+		exp := "4 errors occurred:\n" + strings.Join(expected, "\n")
+		if got := strings.ReplaceAll(err.Error(), root+string(filepath.Separator), ""); got != exp {
+			t.Errorf("expected:\n\n%v\n\ngot:\n\n%v", exp, got)
+		}
+	})
+}
+
 func TestCheckJSONOutputBytes(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test

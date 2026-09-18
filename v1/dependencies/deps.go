@@ -27,25 +27,21 @@ func All(x any) (resolved []ast.Ref, err error) {
 			return true
 		case *ast.Module, *ast.Head, *ast.Expr, *ast.With, *ast.Term, ast.Object, *ast.Array, *ast.Set, *ast.ArrayComprehension:
 		case *ast.Rule:
-			rawResolved = append(rawResolved, ruleDeps(x)...)
+			// The else chain is part of the rule and its bodies are evaluated
+			// when the preceding ones are undefined, so their dependencies
+			// count as dependencies of the rule.
+			for rule := x; rule != nil; rule = rule.Else {
+				rawResolved = append(rawResolved, ruleDeps(rule)...)
+			}
 			return true
 		case ast.Body:
-			vars := ast.NewVarVisitor()
+			vars := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{SkipWildcardVars: true})
 			vars.Walk(x)
-
-			arr := ast.NewArray()
-			for v := range vars.Vars() {
-				if v.IsWildcard() {
-					continue
-				}
-				arr = arr.Append(ast.NewTerm(v))
-			}
-
 			// The analysis will discard variables that are not used in
 			// direct comparisons or in the output. Since lone Bodies are
 			// often queries, we want all the variables to be in the output.
 			r := &ast.Rule{
-				Head: &ast.Head{Name: ast.Var("_"), Value: ast.NewTerm(arr)},
+				Head: &ast.Head{Name: ast.Var("_"), Value: ast.ArrayTerm(util.MapKeys(vars.Vars(), ast.ToTerm)...)},
 				Body: x,
 			}
 			rawResolved = append(rawResolved, ruleDeps(r)...)
@@ -197,18 +193,11 @@ func (rs *dependencies) visited(rule *ast.Rule) bool {
 }
 
 func (rs *dependencies) toSlice() []ast.Ref {
-	result := make([]ast.Ref, 0, rs.refs.Len())
-	rs.refs.Iter(func(k, _ ast.Ref) bool {
-		result = append(result, k)
-		return false
-	})
-	return result
+	return rs.refs.Keys()
 }
 
 func dedup(refs []ast.Ref) []ast.Ref {
-	slices.SortFunc(refs, ast.RefCompare)
-
-	return slices.CompactFunc(refs, ast.RefEqual)
+	return slices.CompactFunc(util.SortedFunc(refs, ast.RefCompare), ast.RefEqual)
 }
 
 // filter removes all items from the list that cause pred to return true. It is
@@ -285,6 +274,20 @@ func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
 	})
 
 	resolveRemainingVars(joined, visitor, usedVars, headVars)
+
+	// Refs that are only bound to a var that is never used elsewhere are still
+	// dependencies of the rule, as the body can only be satisfied if they are
+	// defined. They are reported unless another dependency already accounts
+	// for them. Note that they are compared against the refs resolved so far
+	// only, as comparing them against each other would make the result depend
+	// on the order they're visited in.
+	n := len(resolved)
+	for _, r := range aliasRefs(joined, usedVars, headVars) {
+		if !covered(resolved[:n], r) {
+			resolved = append(resolved, r.Copy())
+		}
+	}
+
 	return resolved
 }
 
@@ -407,11 +410,7 @@ func resolveOthers(others []*ast.Expr, headVars ast.VarSet, joined map[ast.Var]*
 
 func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor *skipVisitor, usedVars ast.VarSet, headVars ast.VarSet) {
 	for v, refs := range joined {
-		skipped := false
-
-		if headVars.Contains(v) || refs.Len() > 1 || usedVars.Contains(v) {
-			skipped = true
-		}
+		skipped := !isAlias(v, refs, usedVars, headVars)
 
 		refs.Iter(func(a, _ util.T) bool {
 			visitor.skipped = skipped
@@ -422,9 +421,45 @@ func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor *skipVisitor
 	}
 }
 
+// isAlias returns true if v merely stands in for a single ref, i.e. it is not
+// part of the head and is not used anywhere else in the rule.
+func isAlias(v ast.Var, refs *util.HashMap, usedVars ast.VarSet, headVars ast.VarSet) bool {
+	return refs.Len() == 1 && !headVars.Contains(v) && !usedVars.Contains(v)
+}
+
+// aliasRefs returns the refs that are bound to vars that aren't used anywhere
+// else in the rule.
+func aliasRefs(joined map[ast.Var]*util.HashMap, usedVars ast.VarSet, headVars ast.VarSet) []ast.Ref {
+	var refs []ast.Ref
+
+	for v, rs := range joined {
+		if !isAlias(v, rs, usedVars, headVars) {
+			continue
+		}
+
+		rs.Iter(func(a, _ util.T) bool {
+			refs = append(refs, a.(ast.Ref))
+			return false
+		})
+	}
+
+	return refs
+}
+
 func containsPrefix(refs []ast.Ref, r ast.Ref) bool {
 	for _, ref := range refs {
 		if ref.HasPrefix(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// covered returns true if r is already accounted for by refs, i.e. if any of
+// them is a prefix of r, or has r as a prefix.
+func covered(refs []ast.Ref, r ast.Ref) bool {
+	for _, ref := range refs {
+		if ref.HasPrefix(r) || r.HasPrefix(ref) {
 			return true
 		}
 	}

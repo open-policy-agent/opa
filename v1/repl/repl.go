@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/reeflective/readline"
+	"github.com/reeflective/readline/inputrc"
 	"golang.org/x/term"
 
 	"github.com/open-policy-agent/opa/internal/future"
@@ -116,7 +117,6 @@ const exitPromptMessage = "Do you want to exit ([y]/n)? "
 
 // New returns a new instance of the REPL.
 func New(store storage.Store, historyPath string, output io.Writer, outputFormat string, errLimit int, banner string) *REPL {
-
 	return &REPL{
 		output:       output,
 		input:        os.Stdin,
@@ -193,10 +193,92 @@ func (r *REPL) newShell() *readline.Shell {
 	if err := line.Config.Set("enable-bracketed-paste", true); err != nil {
 		fmt.Fprintln(r.stderrWriter(), "warning: failed to enable bracketed paste:", err)
 	}
+	// Without a multiline column the continuation lines of a block are only
+	// indented, and the secondary prompt set below is never rendered.
+	if err := line.Config.Set("multiline-column", true); err != nil {
+		fmt.Fprintln(r.stderrWriter(), "warning: failed to enable the multiline column:", err)
+	}
 	line.Prompt.Primary(r.getPrompt)
+	line.Prompt.Secondary(func() string { return r.bufferPrompt })
+	line.AcceptMultiline = r.acceptLine
 	line.Completer = r.complete
+	r.bindBlockNavigation(line)
 	r.loadHistory(line)
 	return line
+}
+
+// navigationKeymaps are the keymaps whose arrow keys are re-bound. The shell
+// starts in emacs mode, but the user's inputrc may select vi.
+var navigationKeymaps = []string{"emacs", "emacs-standard", "vi", "vi-insert", "vi-command", "vi-move"}
+
+// blockNavigationBinds records the default action each key is expected to have:
+// a sequence the user has bound to something else in their inputrc is left
+// alone.
+var blockNavigationBinds = []struct {
+	sequences []string // normal and application cursor mode
+	replaces  string
+	action    string
+}{
+	{sequences: []string{`\M-[A`, `\M-OA`}, replaces: "previous-history", action: "up-line-or-history"},
+	{sequences: []string{`\M-[B`, `\M-OB`}, replaces: "next-history", action: "down-line-or-history"},
+}
+
+// bindBlockNavigation points the arrow keys at the block-aware history widgets.
+// The default bindings jump straight to the neighbouring history entry, leaving
+// no way to move the cursor between the lines of a multi-line block.
+func (r *REPL) bindBlockNavigation(line *readline.Shell) {
+	for _, keymap := range navigationKeymaps {
+		binds := line.Config.Binds[keymap]
+		if binds == nil {
+			continue
+		}
+		for _, b := range blockNavigationBinds {
+			for _, seq := range b.sequences {
+				key := inputrc.Unescape(seq)
+				if bind, ok := binds[key]; !ok || bind.Action != b.replaces {
+					continue
+				}
+				if err := line.Config.Bind(keymap, key, b.action, false); err != nil {
+					fmt.Fprintf(r.stderrWriter(), "warning: failed to bind %s to %s: %v\n", seq, b.action, err)
+				}
+			}
+		}
+	}
+}
+
+// acceptLine reports whether the block in the editor is finished and should be
+// returned by Readline. Returning false keeps the user on the same buffer under
+// the secondary prompt, so a statement spanning several lines is read - and
+// recorded in history - as one block (issue #4939).
+func (r *REPL) acceptLine(line []rune) bool {
+	if r.bufferDisabled {
+		return true
+	}
+
+	input := string(line)
+
+	// A blank last line ends the block, so input that will never parse is not
+	// trapped on the secondary prompt.
+	if i := strings.LastIndex(input, "\n"); i >= 0 && strings.TrimSpace(input[i+1:]) == "" {
+		return true
+	}
+
+	if strings.TrimSpace(input) == "" {
+		return true
+	}
+
+	// Commands are control input; some (e.g. "unset x") do not parse as Rego.
+	if newCommand(input) != nil {
+		return true
+	}
+
+	popts, err := r.parserOptions()
+	if err != nil {
+		return true // let the evaluation path report it
+	}
+
+	_, _, err = ast.ParseStatementsWithOpts("", input, popts)
+	return err == nil
 }
 
 // Loop reads, evaluates, and prints query results until the input is exhausted
@@ -256,7 +338,6 @@ func (r *REPL) loopPiped(ctx context.Context) error {
 
 // loopInteractive will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
 func (r *REPL) loopInteractive(ctx context.Context) error {
-
 	line := r.newShell()
 
 	if len(r.banner) > 0 {
@@ -271,6 +352,7 @@ loop:
 		r.history.resume()
 	}
 	line.Prompt.Primary(r.getPrompt)
+	line.AcceptMultiline = r.acceptLine
 	for {
 
 		input, err := line.Readline()
@@ -291,7 +373,8 @@ loop:
 			return err
 		}
 
-		if err := r.OneShot(ctx, input); err != nil {
+		// The editor only returns finished blocks.
+		if err := r.oneShot(ctx, input, true); err != nil {
 			switch err := err.(type) {
 			case stop:
 				goto exit
@@ -310,6 +393,8 @@ exitPrompt:
 		r.history.pause()
 	}
 	line.Prompt.Primary(func() string { return exitPromptMessage })
+	// Confirmation answers are not Rego.
+	line.AcceptMultiline = nil
 
 	for {
 		input, err := line.Readline()
@@ -345,7 +430,13 @@ exit:
 // OneShot evaluates the line and prints the result. If an error occurs it is
 // returned for the caller to display.
 func (r *REPL) OneShot(ctx context.Context, line string) error {
+	return r.oneShot(ctx, line, false)
+}
 
+// oneShot evaluates line. When complete is set, line is a finished block: it is
+// evaluated as a whole, leaving nothing buffered and returning parse errors
+// instead of waiting for more input.
+func (r *REPL) oneShot(ctx context.Context, line string, complete bool) error {
 	var err error
 	r.txn, err = r.store.NewTransaction(ctx)
 	if err != nil {
@@ -414,11 +505,14 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 		}
 
 		r.buffer = append(r.buffer, line)
+		if complete {
+			return r.evalBufferMulti(ctx)
+		}
 		return r.evalBufferOne(ctx)
 	}
 
 	r.buffer = append(r.buffer, line)
-	if len(line) == 0 {
+	if complete || len(line) == 0 {
 		return r.evalBufferMulti(ctx)
 	}
 
@@ -562,7 +656,7 @@ func (r *REPL) cmdFormat(s string) error {
 
 func (r *REPL) cmdTarget(t []string) error {
 	if len(t) != 1 {
-		return newBadArgsErr("target <mode>: expects exactly one argument")
+		return newBadArgsErr("target <mode>: expects exactly one argument, got %d", len(t))
 	}
 
 	if _, ok := allowedTargets[t[0]]; !ok {
@@ -763,10 +857,7 @@ func (r *REPL) cmdUnsetPackage(ctx context.Context, args []string) error {
 		return newBadArgsErr("argument must identify a package")
 	}
 
-	unset, err := r.unsetPackage(ctx, pkg)
-	if err != nil {
-		return err
-	} else if !unset {
+	if !r.unsetPackage(ctx, pkg) {
 		fmt.Fprintln(r.output, "warning: no matching package")
 	}
 
@@ -833,20 +924,20 @@ func ruleRefFromTerm(term *ast.Term) (ast.Ref, bool) {
 // previous definitions of user.role, leaving user.email in place.
 func refsOverlap(a, b ast.Ref) bool {
 	for i := range min(len(a), len(b)) {
-		if a[i].Value.Compare(b[i].Value) != 0 {
+		if !a[i].Equal(b[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
+func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) bool {
 	path := pkg.Path.String()
 	_, ok := r.modules[path]
 	if ok {
 		delete(r.modules, path)
 	} else {
-		return false, nil
+		return false
 	}
 
 	// Change back to default module if current one is being removed
@@ -854,7 +945,7 @@ func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
 		r.currentModuleID = ""
 	}
 
-	return true, nil
+	return true
 }
 
 func (r *REPL) timerStart(msg string) {
@@ -1110,7 +1201,6 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 // loadInput returns the input defined in the REPL. The REPL loads the
 // input from the data.repl.input document.
 func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value, error) {
-
 	q := topdown.NewQuery(ast.MustParseBody("data.repl.input = x")).
 		WithCompiler(compiler).
 		WithStore(r.store).
@@ -1171,7 +1261,6 @@ func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 }
 
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
-
 	var tracebuf *topdown.BufferTracer
 	var prof *profiler.Profiler
 
@@ -1232,7 +1321,12 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderrWriter(), output)
+		return pr.PrettyWithOptions(r.output, r.stderrWriter(), output, pr.PrettyOptions{
+			UndefinedPrintsEmpty: r.undefinedDisabled,
+			TraceOpts: topdown.PrettyTraceOptions{
+				Locations: true,
+			},
+		})
 	}
 }
 
@@ -1285,7 +1379,12 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderrWriter(), output)
+		return pr.PrettyWithOptions(r.output, r.stderrWriter(), output, pr.PrettyOptions{
+			UndefinedPrintsEmpty: r.undefinedDisabled,
+			TraceOpts: topdown.PrettyTraceOptions{
+				Locations: true,
+			},
+		})
 	}
 }
 
@@ -1716,7 +1815,6 @@ func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transacti
 // that the module already defines rules for. Statements about such documents
 // are evaluated as queries rather than interpreted as rule definitions.
 func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term) bool {
-
 	var ref ast.Ref
 
 	switch v := term.Value.(type) {
@@ -1734,7 +1832,7 @@ func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term
 	name := ref[0].Value.(ast.Var)
 
 	for _, imp := range module.Imports {
-		if imp.Name().Compare(name) == 0 {
+		if imp.Name() == name {
 			return true
 		}
 	}
@@ -1781,11 +1879,10 @@ func printHelp(output io.Writer, initPrompt string, report [][2]string) {
 }
 
 func printHelpExamples(output io.Writer, promptSymbol string) {
-
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 	fmt.Fprintln(output, "Examples")
 	fmt.Fprintln(output, "========")
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	maxLength := 0
 	for _, ex := range examples {
@@ -1800,11 +1897,10 @@ func printHelpExamples(output io.Writer, promptSymbol string) {
 		fmt.Fprintf(output, f, ex.example, ex.comment)
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
 
 func printHelpCommands(output io.Writer) {
-
 	all := append(extra[:], builtin[:]...)
 
 	// Compute max length of all command and topic names.
@@ -1831,28 +1927,27 @@ func printHelpCommands(output io.Writer) {
 	// Print out command help.
 	fmt.Fprintln(output, "Commands")
 	fmt.Fprintln(output, "========")
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	for _, c := range all {
 		fmt.Fprintf(output, f, c.syntax(), c.help)
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	// Print out topic help.
 	fmt.Fprintln(output, "Additional Topics")
 	fmt.Fprintln(output, "=================")
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 
 	for key, desc := range topics {
 		fmt.Fprintf(output, f, "help "+key, desc.comment)
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
 
 func printOPAReleaseInfo(output io.Writer, report [][2]string) {
-
 	fmt.Fprintln(output, "Version Info")
 	fmt.Fprintln(output, "============")
 	fmt.Fprintln(output)
@@ -1872,7 +1967,7 @@ func printOPAReleaseInfo(output io.Writer, report [][2]string) {
 		fmt.Fprintf(output, fmtStr, pair[0], pair[1])
 	}
 
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }
 
 func printHelpInput(output io.Writer) error {
@@ -1946,8 +2041,8 @@ For example:
 }
 
 func printHelpTitle(output io.Writer, title string) {
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 	fmt.Fprintln(output, title)
 	fmt.Fprintln(output, strings.Repeat("=", len(title)))
-	fmt.Fprintln(output, "")
+	fmt.Fprintln(output)
 }

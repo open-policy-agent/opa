@@ -395,7 +395,7 @@ func TestMakeInputWithBody(t *testing.T) {
 			method: "PUT",
 			path:   "/v1/example-plugin",
 			body:   `{"example": "body must still be yaml or json"}`,
-			extraPaths: []func(string, []any) bool{func(method string, path []any) bool {
+			extraPaths: []func(string, []any) bool{func(_ string, path []any) bool {
 				s1 := path[0].(string)
 				s2 := path[1].(string)
 				return dataAPIVersions[s1] && s2 == "example-plugin"

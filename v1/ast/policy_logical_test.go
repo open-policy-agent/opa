@@ -69,7 +69,7 @@ func TestLogical_ExplicitFlagsIgnoredByCompare(t *testing.T) {
 	b.ExplicitLhs = true
 	b.ExplicitRhs = true
 	if a.Compare(b) != 0 {
-		t.Fatalf("LogicalAnd.Compare should ignore Explicit flags")
+		t.Fatal("LogicalAnd.Compare should ignore Explicit flags")
 	}
 
 	c := newLogicalOr("x", "y")
@@ -77,7 +77,7 @@ func TestLogical_ExplicitFlagsIgnoredByCompare(t *testing.T) {
 	d.ExplicitLhs = true
 	d.ExplicitRhs = true
 	if c.Compare(d) != 0 {
-		t.Fatalf("LogicalOr.Compare should ignore Explicit flags")
+		t.Fatal("LogicalOr.Compare should ignore Explicit flags")
 	}
 }
 
@@ -100,7 +100,7 @@ func TestLogical_Copy_IsDeep(t *testing.T) {
 	// Mutating the copy must not affect the original.
 	cpy.Lhs[0].Terms = VarTerm("z")
 	if Compare(orig.Lhs, cpy.Lhs) == 0 {
-		t.Fatalf("mutating copy.Lhs leaked back to original")
+		t.Fatal("mutating copy.Lhs leaked back to original")
 	}
 }
 
@@ -310,7 +310,7 @@ func TestIsAnd(t *testing.T) {
 		t.Fatalf("IsAnd/IsOr wrong on And expr: IsAnd=%v IsOr=%v", and.IsAnd(), and.IsOr())
 	}
 	if plain.IsAnd() {
-		t.Fatalf("IsAnd should be false for plain expr")
+		t.Fatal("IsAnd should be false for plain expr")
 	}
 }
 
@@ -322,11 +322,11 @@ func TestIsOr(t *testing.T) {
 		t.Fatalf("IsAnd/IsOr wrong on Or expr: IsAnd=%v IsOr=%v", or.IsAnd(), or.IsOr())
 	}
 	if plain.IsOr() {
-		t.Fatalf("IsOr should be false for plain expr")
+		t.Fatal("IsOr should be false for plain expr")
 	}
 }
 
-func TestExpr_NewExprAcceptsLogicalAndOr(t *testing.T) {
+func TestExpr_NewExprAcceptsLogicalAndOr(*testing.T) {
 	// Must not panic
 	NewExpr(newLogicalAnd("x", "y"))
 	NewExpr(newLogicalOr("x", "y"))
@@ -336,12 +336,12 @@ func TestLogicalAnd_CompareViaExpr(t *testing.T) {
 	a := NewExpr(newLogicalAnd("x", "y"))
 	b := NewExpr(newLogicalAnd("x", "y"))
 	if a.Compare(b) != 0 {
-		t.Fatalf("equal And exprs should compare equal")
+		t.Fatal("equal And exprs should compare equal")
 	}
 
 	c := NewExpr(newLogicalOr("x", "y"))
 	if a.Compare(c) == 0 {
-		t.Fatalf("And and Or exprs should not compare equal")
+		t.Fatal("And and Or exprs should not compare equal")
 	}
 }
 

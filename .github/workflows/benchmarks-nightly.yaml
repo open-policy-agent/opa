@@ -36,6 +36,7 @@ jobs:
       baseline_sha: ${{ steps.plan.outputs.baseline_sha }}
       baseline_tag: ${{ steps.plan.outputs.baseline_tag }}
       prev_sha: ${{ steps.plan.outputs.prev_sha }}
+      skip: ${{ steps.plan.outputs.skip }}
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,14 +78,27 @@ jobs:
           fi
           echo "prev_sha=${prev_sha}" >> $GITHUB_OUTPUT
 
+          head_sha=$(git rev-parse HEAD)
+
+          # Same commit as the last recorded night means main went quiet since
+          # then: measuring it again would only add a second point for that
+          # head to the chart, at the cost of the three-shard run.
+          skip=false
+          if [ -n "${prev_sha}" ] && [ "${head_sha}" = "${prev_sha}" ]; then
+            skip=true
+          fi
+          echo "skip=${skip}" >> $GITHUB_OUTPUT
+
           echo "shards:       ${shards}"
           echo "baseline:     ${baseline_sha} (${baseline_tag})"
           echo "previous:     ${prev_sha:-<none>}"
-          echo "head:         $(git rev-parse HEAD)"
+          echo "head:         ${head_sha}"
+          echo "skip:         ${skip}"
 
   measure:
     name: Measure ${{ matrix.shard }}
     needs: plan
+    if: ${{ needs.plan.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
     # Three arms over a shard runs for hours; the hosted-runner ceiling is six.
     timeout-minutes: 350
@@ -146,8 +160,10 @@ jobs:
     name: Publish results
     needs: [plan, measure]
     # A shard that fails should cost its own benchmarks, not the whole night.
-    # The merged record lists the shards it actually contains.
-    if: ${{ !cancelled() }}
+    # The merged record lists the shards it actually contains. !cancelled()
+    # alone would still run this job when measure was skipped rather than
+    # failed, so the skip must be checked explicitly too.
+    if: ${{ !cancelled() && needs.plan.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write # we'll push to the `benchmarks` branch

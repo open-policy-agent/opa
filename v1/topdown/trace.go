@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	minLocationWidth      = 5 // len("query")
+	minLocationWidth      = len("query")
 	maxIdealLocationWidth = 64
 	columnPadding         = 4
 	maxExprVarWidth       = 32
@@ -267,10 +267,6 @@ type PrettyTraceOptions struct {
 
 type traceRow []string
 
-func (r *traceRow) add(s string) {
-	*r = append(*r, s)
-}
-
 type traceTable struct {
 	rows      []traceRow
 	maxWidths []int
@@ -315,10 +311,10 @@ func PrettyTraceWithOpts(w io.Writer, trace []*Event, opts PrettyTraceOptions) {
 		row := traceRow{}
 
 		if opts.Locations {
-			row.add(formatLocation(event, filePathAliases))
+			row = append(row, formatLocation(event, filePathAliases))
 		}
 
-		row.add(formatEvent(event, depth))
+		row = append(row, formatEvent(event, depth))
 
 		if opts.ExprVariables {
 			vars := exprLocalVars(event)
@@ -342,7 +338,7 @@ func PrettyTraceWithOpts(w io.Writer, trace []*Event, opts PrettyTraceOptions) {
 			}
 
 			buf.WriteByte('}')
-			row.add(buf.String())
+			row = append(row, buf.String())
 		}
 
 		if opts.LocalVariables {
@@ -365,9 +361,9 @@ func PrettyTraceWithOpts(w io.Writer, trace []*Event, opts PrettyTraceOptions) {
 				}
 
 				buf.WriteByte('}')
-				row.add(buf.String())
+				row = append(row, buf.String())
 			} else {
-				row.add("{}")
+				row = append(row, "{}")
 			}
 		}
 
@@ -652,7 +648,7 @@ func (v varInfo) Value() string {
 
 func (v varInfo) Title() string {
 	if v.exprLoc != nil && v.exprLoc.Text != nil {
-		return string(v.exprLoc.Text)
+		return util.ByteSliceToString(v.exprLoc.Text)
 	}
 	return string(v.Name)
 }
@@ -662,8 +658,7 @@ func padLocationText(loc *ast.Location) string {
 		return ""
 	}
 
-	text := string(loc.Text)
-
+	text := util.ByteSliceToString(loc.Text)
 	if loc.Col == 0 {
 		return text
 	}
@@ -868,11 +863,7 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 		return
 	}
 
-	byCol := make([]varInfo, 0, len(exprVars))
-	for _, info := range exprVars {
-		byCol = append(byCol, info)
-	}
-	slices.SortFunc(byCol, func(a, b varInfo) int {
+	byCol := util.SortedFunc(util.Values(exprVars), func(a, b varInfo) int {
 		// sort first by column, then by reverse row (to present vars in the same order they appear in the expr)
 		if a.col == b.col {
 			if a.exprLoc.Row == b.exprLoc.Row {

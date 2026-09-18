@@ -284,21 +284,19 @@ func removeInAstArray(arr *ast.Array, path storage.Path) (ast.Value, error) {
 	}
 
 	if len(path) == 1 {
-		var elems []*ast.Term
 		// Note: possibly expensive operation for large data.
+		elems := make([]*ast.Term, 0, arr.Len()-1)
 		for i := range arr.Len() {
-			if i == idx {
-				continue
+			if i != idx {
+				elems = append(elems, arr.Elem(i))
 			}
-			elems = append(elems, arr.Elem(i))
 		}
 		return ast.NewArray(elems...), nil
 	}
 
 	updatedChild, err := removeInAst(arr.Elem(idx).Value, path[1:])
-	if err != nil {
-		return nil, err
+	if err == nil {
+		arr.Set(idx, ast.NewTerm(updatedChild))
 	}
-	arr.Set(idx, ast.NewTerm(updatedChild))
-	return arr, nil
+	return arr, err
 }

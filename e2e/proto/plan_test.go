@@ -234,7 +234,7 @@ func TestPlanProtoRoundTripYAMLSuite(t *testing.T) {
 		t.Fatalf("load YAML cases: %v", err)
 	}
 	if len(corpus.Cases) == 0 {
-		t.Fatalf("no YAML cases loaded; did the test data move?")
+		t.Fatal("no YAML cases loaded; did the test data move?")
 	}
 
 	opts := roundTripCmpOpts()

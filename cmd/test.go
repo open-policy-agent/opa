@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -415,12 +416,9 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		coverageRuns = append(coverageRuns, cover.Kind(r))
 	}
 
-	timeout := testParams.timeout
-	if timeout == 0 { // unset
-		timeout = 5 * time.Second
-		if testParams.benchmark {
-			timeout = 30 * time.Second
-		}
+	timeout := cmp.Or(testParams.timeout, 5*time.Second)
+	if testParams.benchmark {
+		timeout = 30 * time.Second
 	}
 
 	runner := tester.NewRunner().
@@ -613,7 +611,7 @@ recommended as some updates might cause them to be dropped by OPA.
 
 	// Shared flags
 	addOutputFormat(testCommand.Flags(), testParams.outputFormat)
-	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
+	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode)
 	addBenchmemFlag(testCommand.Flags(), &testParams.benchMem, true)
 	addCountFlag(testCommand.Flags(), &testParams.count, "test")
 	addMaxErrorsFlag(testCommand.Flags(), &testParams.errLimit)
@@ -622,8 +620,8 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
-	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, false)
-	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible, false)
+	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible)
+	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible)
 
 	root.AddCommand(testCommand)
 }

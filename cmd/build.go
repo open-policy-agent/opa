@@ -286,7 +286,7 @@ against ` + brand + ` v0.22.0:
 	buildCommand.Flags().BoolVar(&buildParams.wasmIncludePrint, "wasm-include-print", false, "enable print statements inside of WebAssembly modules compiled by the compiler")
 	buildCommand.Flags().StringArrayVar(&buildParams.planAddons, "plan-addons", []string{}, "include optional extra data in the plan; supported value: unplanned_rules (requires --target=plan)")
 
-	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
+	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode)
 	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
 	addCapabilitiesFlag(buildCommand.Flags(), buildParams.capabilities)
 
@@ -302,8 +302,8 @@ against ` + brand + ` v0.22.0:
 	addSigningPluginFlag(buildCommand.Flags(), &buildParams.plugin)
 	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
 
-	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible, false)
-	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible, false)
+	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible)
+	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible)
 
 	root.AddCommand(buildCommand)
 }

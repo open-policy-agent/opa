@@ -44,13 +44,28 @@ func newTypeChecker() *typeChecker {
 
 func (tc *typeChecker) newEnv(exist *TypeEnv) *TypeEnv {
 	if exist != nil {
-		return exist.wrap()
+		env := exist.wrap()
+		// The wrapped environment would otherwise inherit exist's checker
+		// factory, which may have been built with a different configuration
+		// than tc -- the compiler seeds Compiler.TypeEnv from a bare checker,
+		// for one. Comprehension bodies are typed lazily through this factory,
+		// so it has to reflect the checker that is running now.
+		env.newChecker = tc.copyForEnv
+		return env
 	}
 	env := newTypeEnv(tc.copy)
 	if tc.input != nil {
 		env.tree.Put(InputRootRef, tc.input)
 	}
 	return env
+}
+
+// copyForEnv returns a checker for typing the closures an environment is asked
+// about. It drops the required-capabilities accumulator: environments outlive
+// the compilation that produced them, and the builtins in those closures are
+// already recorded by checkClosures.
+func (tc *typeChecker) copyForEnv() *typeChecker {
+	return tc.copy().WithRequiredCapabilities(nil)
 }
 
 func (tc *typeChecker) copy() *typeChecker {
@@ -246,7 +261,6 @@ func (tc *typeChecker) getSchemaType(schemaAnnot *SchemaAnnotation, rule *Rule) 
 }
 
 func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
-
 	env = env.wrap()
 
 	schemaAnnots := getRuleAnnotation(as, rule)
@@ -307,7 +321,16 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 			args[i] = cpy.GetByValue(rule.Head.Args[i].Value)
 		}
 
-		tpe = types.NewFunction(args, cpy.GetByValue(rule.Head.Value.Value))
+		result := cpy.GetByValue(rule.Head.Value.Value)
+		if result == nil && tc.allowUndefinedFuncs {
+			// The value is only unknown because it came out of a call to an
+			// undefined function. Recording a function type without a result
+			// would make callers look like they pass one argument too many, so
+			// fall back to any.
+			result = types.A
+		}
+
+		tpe = types.NewFunction(args, result)
 	} else {
 		switch rule.Head.RuleKind() {
 		case SingleValue:
@@ -357,23 +380,17 @@ func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
 		return tpe, nil
 	}
 
-	k := path[0]
 	typeV, err := nestedObject(env, path[1:], tpe)
-	if err != nil {
+	if err != nil || typeV == nil {
 		return nil, err
 	}
-	if typeV == nil {
-		return nil, nil
-	}
 
-	var dynamicProperty *types.DynamicProperty
-	typeK := env.GetByValue(k.Value)
+	typeK := env.GetByValue(path[0].Value)
 	if typeK == nil {
 		return nil, nil
 	}
-	dynamicProperty = types.NewDynamicProperty(typeK, typeV)
 
-	return types.NewObject(nil, dynamicProperty), nil
+	return types.NewObject(nil, types.NewDynamicProperty(typeK, typeV)), nil
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
@@ -396,7 +413,7 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 	}
 
 	switch operator {
-	case "eq":
+	case Equality.Name:
 		return checkExprEq(env, expr)
 	case Member.Name, MemberWithKey.Name:
 		if err := checkExprMember(env, expr, operator == MemberWithKey.Name); err != nil {
@@ -450,12 +467,15 @@ func checkExprMemberOperand(env *TypeEnv, expr *Expr, term *Term, tpe types.Type
 	// unifies rejects already-typed terms; unify1 infers types for untyped vars
 	// and checks the resolved parts of partially typed composites.
 	if (!types.Nil(have) && !unifies(have, tpe)) || !unify1(env, term, tpe, false) {
-		err := NewError(TypeErr, expr.Location, "match error")
-		err.Details = &UnificationErrDetail{
-			Left:  have,
-			Right: tpe,
+		return &Error{
+			Code:     TypeErr,
+			Location: expr.Location,
+			Message:  "match error",
+			Details: &UnificationErrDetail{
+				Left:  have,
+				Right: tpe,
+			},
 		}
-		return err
 	}
 
 	return nil
@@ -536,14 +556,16 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 }
 
 func checkExprEq(env *TypeEnv, expr *Expr) *Error {
+	ops := expr.Operands()
+	num := len(ops)
 
-	pre := getArgTypes(env, expr.Operands())
-
-	if len(pre) < Equality.Decl.Arity() {
+	if num < Equality.Decl.Arity() {
+		pre := getArgTypes(env, ops)
 		return newArgError(expr.Location, expr.Operator(), "too few arguments", pre, Equality.Decl.FuncArgs())
 	}
 
-	if Equality.Decl.Arity() < len(pre) {
+	if Equality.Decl.Arity() < num {
+		pre := getArgTypes(env, ops)
 		return newArgError(expr.Location, expr.Operator(), "too many arguments", pre, Equality.Decl.FuncArgs())
 	}
 
@@ -955,7 +977,6 @@ func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {
 }
 
 func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx int) *Error {
-
 	if idx == len(ref) {
 		return nil
 	}
@@ -1022,6 +1043,13 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 
 	head := ref[idx]
 
+	if isEmptyCollectionType(tpe) {
+		// The collection has no members at all, so nothing can be selected from
+		// it. Report that like any other missing key rather than as a value that
+		// can't be dereferenced at all.
+		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+	}
+
 	keys := types.Keys(tpe)
 	if keys == nil {
 		return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), idx-1, tpe)
@@ -1059,6 +1087,27 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	}
 
 	return rc.checkRefLeaf(types.Values(tpe), ref, idx+1)
+}
+
+// isEmptyCollectionType returns true if tpe is the type of a collection that
+// can hold nothing: an object with neither static nor dynamic properties, an
+// array with no items, or a set with no element type.
+func isEmptyCollectionType(tpe types.Type) bool {
+	if named, ok := tpe.(*types.NamedType); ok {
+		tpe = named.Type
+	}
+	if rec, ok := tpe.(*types.Recursive); ok {
+		tpe = rec.Unwrap()
+	}
+	switch tpe := tpe.(type) {
+	case *types.Object:
+		return len(tpe.StaticProperties()) == 0 && tpe.DynamicProperties() == nil
+	case *types.Array:
+		return tpe.Len() == 0 && tpe.Dynamic() == nil
+	case *types.Set:
+		return tpe.Of() == nil
+	}
+	return false
 }
 
 // unifies checks whether two types are compatible with each other.
@@ -1123,6 +1172,11 @@ func unifies(a, b types.Type) bool {
 		b, ok := b.(*types.Set)
 		if !ok {
 			return false
+		}
+		// A set type without an element type is the empty set, which is a
+		// member of every set type.
+		if a.Of() == nil || b.Of() == nil {
+			return true
 		}
 		return unifies(types.Values(a), types.Values(b))
 	case *types.Function:
@@ -1231,10 +1285,42 @@ type ArgErrDetail struct {
 
 // Lines returns the string representation of the detail.
 func (d *ArgErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = "have: " + formatArgs(d.Have)
-	lines[1] = "want: " + d.Want.String()
-	return lines
+	have := "have: " + formatArgs(d.Have)
+	want := "want: " + d.Want.String()
+
+	if !tooWideForTypeErr(have, want) {
+		return []string{have, want}
+	}
+
+	// Positions that only exist on one side, as is the case for arity errors,
+	// have nothing to be compared against, and are collapsed to their outermost
+	// type constructor.
+	haveArgs := util.Map(d.Have, elideType)
+	wantArgs := util.Map(d.Want.Args, elideType)
+
+	for i := range min(len(haveArgs), len(wantArgs)) {
+		haveArgs[i], wantArgs[i] = diffArg(d.Have[i], d.Want.Args[i])
+	}
+
+	if d.Want.Variadic != nil {
+		wantArgs = append(wantArgs, elideType(d.Want.Variadic)+"...")
+	}
+
+	return []string{
+		"have: (" + strings.Join(haveArgs, ", ") + ")",
+		"want: (" + strings.Join(wantArgs, ", ") + ")",
+	}
+}
+
+// diffArg renders an actual and an expected argument type side by side. The two
+// are only diffed if they are actually in conflict: an argument that the
+// function would have accepted is not what the error is about, and expanding it
+// is what makes these messages unreadable in the first place.
+func diffArg(have, want types.Type) (string, string) {
+	if have != nil && want != nil && unifies(unwrapNamedType(have), unwrapNamedType(want)) {
+		return elideType(have), elideType(want)
+	}
+	return sprintDiff(have, want)
 }
 
 func (d *ArgErrDetail) nilType() bool {
@@ -1254,10 +1340,15 @@ func (a *UnificationErrDetail) nilType() bool {
 
 // Lines returns the string representation of the detail.
 func (a *UnificationErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = fmt.Sprint("left  : ", types.Sprint(a.Left))
-	lines[1] = fmt.Sprint("right : ", types.Sprint(a.Right))
-	return lines
+	leftLine := "left  : " + types.Sprint(a.Left)
+	rightLine := "right : " + types.Sprint(a.Right)
+
+	if !tooWideForTypeErr(leftLine, rightLine) {
+		return []string{leftLine, rightLine}
+	}
+
+	left, right := sprintDiff(a.Left, a.Right)
+	return []string{"left  : " + left, "right : " + right}
 }
 
 // RefErrUnsupportedDetail describes an undefined reference error where the
@@ -1301,6 +1392,10 @@ func (r *RefErrInvalidDetail) Lines() []string {
 	}
 	if len(r.OneOf) > 0 {
 		lines = append(lines, fmt.Sprintf("%swant (one of): %v", pad, r.OneOf))
+	} else if r.Want == nil {
+		// Neither candidate keys nor a key type: the referenced value has no
+		// selectable keys at all (e.g. an empty object).
+		lines = append(lines, pad+"want (one of): []")
 	} else {
 		lines = append(lines, fmt.Sprintf("%swant (type): %v", pad, r.Want))
 	}
@@ -1371,7 +1466,9 @@ func getOneOfForNode(node *typeTreeNode) []Value {
 func getOneOfForType(tpe types.Type) (result []Value) {
 	switch tpe := tpe.(type) {
 	case *types.Object:
-		for _, k := range tpe.Keys() {
+		keys := tpe.Keys()
+		result = slices.Grow(result, len(keys))
+		for _, k := range keys {
 			v, err := InterfaceToValue(k)
 			if err != nil {
 				panic(err)
@@ -1383,6 +1480,7 @@ func getOneOfForType(tpe types.Type) (result []Value) {
 		return getOneOfForType(tpe.Unwrap())
 
 	case types.Any:
+		result = slices.Grow(result, len(tpe))
 		for _, object := range tpe {
 			objRes := getOneOfForType(object)
 			result = append(result, objRes...)
@@ -1477,7 +1575,7 @@ func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Err
 }
 
 func getKeys(ref Ref, rule *Rule) ([]any, *Error) {
-	keys := []any{}
+	keys := make([]any, 0, len(ref))
 	for _, refElem := range ref {
 		key, err := JSON(refElem.Value)
 		if err != nil {
@@ -1506,7 +1604,6 @@ func getObjectType(ref Ref, o types.Type, rule *Rule, d *types.DynamicProperty) 
 }
 
 func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotation) {
-
 	for _, x := range as.GetSubpackagesScope(rule.Module.Package.Path) {
 		result = append(result, x.Schemas...)
 	}
@@ -1527,15 +1624,12 @@ func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotatio
 }
 
 func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allowNet []string) (types.Type, *Error) {
-
 	var schema any
-
 	if annot.Schema != nil {
 		if ss == nil {
 			return nil, nil
 		}
-		schema = ss.Get(annot.Schema)
-		if schema == nil {
+		if schema = ss.Get(annot.Schema); schema == nil {
 			return nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)
 		}
 	} else if annot.Definition != nil {

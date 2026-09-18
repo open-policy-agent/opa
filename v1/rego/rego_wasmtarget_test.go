@@ -139,7 +139,9 @@ func TestWasmTimeOfDay(t *testing.T) {
 }
 
 func TestEvalWithContextTimeout(t *testing.T) {
-	t.Parallel()
+	// Deliberately not parallel: the subtests below use leaktest, which
+	// inspects process-wide goroutines and would otherwise attribute the
+	// goroutines of concurrently running tests to this one.
 	test.Skip(t)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {

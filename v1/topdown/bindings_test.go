@@ -63,7 +63,7 @@ func testBindingKeys(t *testing.T, bindings *bindings, b *bindingsArrayHashmap, 
 		if v, ok := b.Get(testBindingKey(k)); !ok {
 			t.Errorf("value not found: %v", k)
 		} else if !v.equal(&value) {
-			t.Errorf("value not equal")
+			t.Error("value not equal")
 		}
 	}
 
@@ -71,7 +71,7 @@ func testBindingKeys(t *testing.T, bindings *bindings, b *bindingsArrayHashmap, 
 	b.Iter(func(k *ast.Term, v value) bool {
 		key := k.Value.(ast.Var)
 		if i, _ := strconv.Atoi(string(key)); !testBindingValue(bindings, i).equal(&v) {
-			t.Errorf("iteration value note equal")
+			t.Error("iteration value note equal")
 		}
 
 		found = append(found, key)
@@ -79,7 +79,7 @@ func testBindingKeys(t *testing.T, bindings *bindings, b *bindingsArrayHashmap, 
 	})
 
 	if len(found) != len(keys) {
-		t.Errorf("all keys not found")
+		t.Error("all keys not found")
 	}
 
 next:
@@ -90,7 +90,7 @@ next:
 			}
 		}
 
-		t.Errorf("key not found")
+		t.Error("key not found")
 	}
 }
 
@@ -137,14 +137,14 @@ func TestBindingsArrayHashmapDynamicGrowth(t *testing.T) {
 			// Verify mode (slice vs map)
 			if tc.shouldUseMap {
 				if b.m == nil {
-					t.Errorf("Expected map mode but still in slice mode")
+					t.Error("Expected map mode but still in slice mode")
 				}
 				if b.a != nil {
-					t.Errorf("Expected slice to be nil after transition to map")
+					t.Error("Expected slice to be nil after transition to map")
 				}
 			} else {
 				if b.m != nil {
-					t.Errorf("Expected slice mode but transitioned to map")
+					t.Error("Expected slice mode but transitioned to map")
 				}
 				if cap(b.a) != tc.expectedCap {
 					t.Errorf("Expected capacity %d but got %d", tc.expectedCap, cap(b.a))
@@ -163,7 +163,7 @@ func TestBindingsArrayHashmapDynamicGrowth(t *testing.T) {
 
 			// Verify count via iteration
 			count := 0
-			b.Iter(func(k *ast.Term, v value) bool {
+			b.Iter(func(*ast.Term, value) bool {
 				count++
 				return false
 			})
@@ -207,7 +207,7 @@ func TestBindingsArrayHashmapWithSizeHint(t *testing.T) {
 				}
 			} else if tc.sizeHint > maxLinearScan {
 				if b.m == nil {
-					t.Errorf("Expected pre-allocated map but got nil")
+					t.Error("Expected pre-allocated map but got nil")
 				}
 			}
 
@@ -219,11 +219,11 @@ func TestBindingsArrayHashmapWithSizeHint(t *testing.T) {
 			// Verify mode and capacity
 			if tc.shouldUseMap {
 				if b.m == nil {
-					t.Errorf("Expected map mode but still in slice mode")
+					t.Error("Expected map mode but still in slice mode")
 				}
 			} else {
 				if b.m != nil {
-					t.Errorf("Expected slice mode but transitioned to map")
+					t.Error("Expected slice mode but transitioned to map")
 				}
 				// Only check final capacity for cases that don't transition
 				if tc.numBindings <= maxLinearScan && cap(b.a) != tc.expectedCap {

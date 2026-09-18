@@ -48,7 +48,7 @@ func TestParams_validateParams(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.Params.validateParams()
 			if tc.ShouldError && err == nil {
-				t.Fatalf("expected error, saw none")
+				t.Fatal("expected error, saw none")
 			} else if !tc.ShouldError && err != nil {
 				t.Fatalf("unexpected error: %q", err.Error())
 			}

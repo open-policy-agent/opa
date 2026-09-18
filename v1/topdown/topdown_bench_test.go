@@ -89,6 +89,10 @@ func BenchmarkObjectIteration(b *testing.B) {
 	}
 }
 
+// NOTE(sr): the modules passed here all end in `main if { fixture[i] }`, which
+// early-exits after the first binding of i. Despite the "Iteration" names, the
+// callers measure building fixture, not enumerating it. See
+// BenchmarkEnumerateInputObject for a benchmark that enumerates every element.
 func benchmarkIteration(b *testing.B, module string) {
 	p := ast.MustParseBody("data.test.main")
 	c := ast.MustCompileModules(map[string]string{"test.rego": module})

@@ -512,6 +512,24 @@ opa_value *opa_strings_replace(opa_value *a, opa_value *b, opa_value *c)
     return opa_string_allocated(r, j);
 }
 
+static void replace_n_append(char **buf, int *cap, int *len, const char *v, int n)
+{
+    if (*len + n + 1 > *cap)
+    {
+        int new_cap = *cap * 2;
+        if (new_cap < *len + n + 1)
+        {
+            new_cap = *len + n + 1;
+        }
+        *buf = opa_realloc(*buf, new_cap);
+        *cap = new_cap;
+    }
+
+    memcpy(&(*buf)[*len], v, n);
+    *len += n;
+}
+
+// Mirrors Go's strings.NewReplacer with keys in sorted order.
 OPA_BUILTIN
 opa_value *opa_strings_replace_n(opa_value *a, opa_value *b)
 {
@@ -522,33 +540,100 @@ opa_value *opa_strings_replace_n(opa_value *a, opa_value *b)
 
     opa_object_t *old_new = opa_cast_object(a);
     opa_string_t *s = opa_cast_string(b);
+    opa_array_t *keys = opa_object_keys(old_new);
+    int n = keys->len;
 
-    char *buf = opa_malloc(s->len + 1);
-    memcpy(buf, s->v, s->len + 1);
-    opa_value *result = opa_string_allocated(buf, s->len);
+    opa_string_t **olds = opa_malloc(sizeof(opa_string_t *) * (n + 1));
+    opa_string_t **news = opa_malloc(sizeof(opa_string_t *) * (n + 1));
+    int *next = opa_malloc(sizeof(int) * (n + 1));
+    int head[256];
+    int empty = -1;
+    opa_value *result = NULL;
 
-    for (int i = 0; i < old_new->n; i++)
+    for (int i = 0; i < n; i++)
     {
-        opa_object_elem_t *elem = old_new->buckets[i];
-
-        while (elem != NULL)
+        opa_value *old = keys->elems[i].v;
+        opa_value *new = opa_value_get(a, old);
+        if (opa_value_type(old) != OPA_STRING || opa_value_type(new) != OPA_STRING)
         {
-            opa_value *old = elem->k;
-            opa_value *new = elem->v;
-            if (opa_value_type(old) != OPA_STRING || opa_value_type(new) != OPA_STRING)
-            {
-                opa_value_free(result);
-                return NULL;
-            }
-
-            opa_value *r = opa_strings_replace(result, old, new);
-            opa_value_free(result);
-            result = r;
-
-            elem = elem->next;
+            goto done;
         }
+
+        olds[i] = opa_cast_string(old);
+        news[i] = opa_cast_string(new);
     }
 
+    // Chain non-empty keys by first byte, in sorted (priority) order.
+    for (int c = 0; c < 256; c++)
+    {
+        head[c] = -1;
+    }
+
+    for (int i = n - 1; i >= 0; i--)
+    {
+        if (olds[i]->len == 0)
+        {
+            empty = i;
+            continue;
+        }
+
+        unsigned char c = (unsigned char)olds[i]->v[0];
+        next[i] = head[c];
+        head[c] = i;
+    }
+
+    int cap = s->len + 1;
+    int len = 0;
+    char *buf = opa_malloc(cap);
+    bool prev_match_empty = false;
+
+    for (int i = 0; i <= s->len; )
+    {
+        int best = -1;
+
+        if (i < s->len)
+        {
+            for (int k = head[(unsigned char)s->v[i]]; k != -1; k = next[k])
+            {
+                if (olds[k]->len <= s->len - i && opa_strncmp(&s->v[i], olds[k]->v, olds[k]->len) == 0)
+                {
+                    best = k;
+                    break;
+                }
+            }
+        }
+
+        if (empty != -1 && !prev_match_empty && (best == -1 || empty < best))
+        {
+            best = empty;
+        }
+
+        if (best != -1)
+        {
+            replace_n_append(&buf, &cap, &len, news[best]->v, news[best]->len);
+            i += olds[best]->len;
+            prev_match_empty = olds[best]->len == 0;
+            continue;
+        }
+
+        prev_match_empty = false;
+
+        if (i < s->len)
+        {
+            replace_n_append(&buf, &cap, &len, &s->v[i], 1);
+        }
+
+        i++;
+    }
+
+    buf[len] = '\0';
+    result = opa_string_allocated(buf, len);
+
+done:
+    opa_free(next);
+    opa_free(news);
+    opa_free(olds);
+    opa_array_free(keys, false, false);
     return result;
 }
 

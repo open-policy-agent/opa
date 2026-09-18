@@ -6,10 +6,10 @@ package topdown
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type undo struct {
@@ -35,9 +35,9 @@ type bindings struct {
 	instr  *Instrumentation
 }
 
-func newBindings(id uint64, instr *Instrumentation) *bindings {
+func newBindings(instr *Instrumentation) *bindings {
 	values := newBindingsArrayHashmap()
-	return &bindings{id, values, instr}
+	return &bindings{0, values, instr}
 }
 
 // newBindingsWithSize creates bindings pre-sized for the expected number of entries.
@@ -49,7 +49,6 @@ func newBindingsWithSize(id uint64, instr *Instrumentation, sizeHint int) *bindi
 }
 
 func (u *bindings) Iter(caller *bindings, iter func(*ast.Term, *ast.Term) error) error {
-
 	var err error
 
 	u.values.Iter(func(k *ast.Term, _ value) bool {
@@ -85,6 +84,10 @@ func (u *bindings) PlugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	}
 
 	return u.plugNamespaced(a, caller)
+}
+
+func (u *bindings) size() int {
+	return u.values.size()
 }
 
 func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
@@ -189,12 +192,12 @@ func (u *bindings) namespaceVar(v *ast.Term, caller *bindings) *ast.Term {
 	if !ok {
 		panic("illegal value")
 	}
-	if caller != nil && caller != u {
-		// Root documents (i.e., data, input) should never be namespaced because they
-		// are globally unique.
-		if !ast.RootDocumentNames.Contains(v) {
-			return ast.VarTerm(string(name) + strconv.FormatUint(u.id, 10))
-		}
+	if caller != nil && caller != u && !ast.RootDocumentNames.Contains(v) {
+		// Root documents (i.e., data, input) should never be namespaced
+		// because they are globally unique.
+		len := len(name) + util.NumDigitsUint(u.id)
+		buf := util.AppendInt(append(make([]byte, 0, len), name...), u.id)
+		return ast.VarTerm(util.ByteSliceToString(buf))
 	}
 	return v
 }
@@ -296,11 +299,7 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 		return &cpy
 	case ast.Ref:
 		cpy := *a
-		ref := make(ast.Ref, len(v))
-		for i := range ref {
-			ref[i] = vis.namespaceTerm(v[i])
-		}
-		cpy.Value = ref
+		cpy.Value = ast.Ref(util.Map(v, vis.namespaceTerm))
 		return &cpy
 	}
 	return a
@@ -456,6 +455,13 @@ func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
 			return
 		}
 	}
+}
+
+func (b *bindingsArrayHashmap) size() int {
+	if b.m == nil {
+		return b.n
+	}
+	return len(b.m)
 }
 
 func (b *bindingsArrayHashmap) find(key *ast.Term) int {

@@ -67,6 +67,29 @@ different type after all. This is sometimes considered
 [confusing](https://github.com/open-policy-agent/opa/issues/2132), but given that it also allows catching some bugs at
 compile time, it's likely the right behavior.
 
+The same applies when one side is an empty composite literal, since an object with no properties is a
+different type than one with properties:
+
+```rego
+package policy
+
+user := {"name": "joe"}
+
+anonymous if user == {}
+```
+
+```txt
+1 error occurred: policy.rego:5: rego_type_error: match error
+    left  : object<name: string>
+    right : object
+```
+
+To check whether a value is empty without asserting anything about its type, use `count`:
+
+```rego
+anonymous if count(user) == 0
+```
+
 ## How To Fix It
 
 Fixing this requires changing the types to match on both sides of a comparison. For the few cases where one

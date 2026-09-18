@@ -753,7 +753,7 @@ func TestParseAndVerifyX509CertsWithOptions(t *testing.T) {
 		_, err = verifyX509CertificateChain(parsed, vo)
 		if testCase.expectErr {
 			if err == nil {
-				t.Fatalf("expected error in verifying cert chain, but got nil error")
+				t.Fatal("expected error in verifying cert chain, but got nil error")
 			}
 		} else {
 			if err != nil {

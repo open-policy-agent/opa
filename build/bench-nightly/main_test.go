@@ -79,6 +79,29 @@ func TestParseBenchstatCSV(t *testing.T) {
 	}
 }
 
+// A benchmark added since the baseline's release tag is not present at the
+// baseline, so benchstat emits no column for it. That has to skip the benchmark
+// rather than fail the shard, or one new benchmark stops its whole shard from
+// reporting until the next release.
+func TestAssembleSkipsBenchmarksMissingAtBaseline(t *testing.T) {
+	n := night{BaselineSHA: baseSHA, Prev: prevSHA, Head: headSHA}
+	// The baseline arm produced nothing, so nothing in the tables is keyed by
+	// its label.
+	labels := map[string]string{baseSHA: "absent", prevSHA: prevSHA, headSHA: headSHA}
+
+	results, err := assemble(
+		target{Pkg: "./v1/topdown"}, n, labels,
+		loadTable(t, "testdata/vsbase.csv"),
+		loadTable(t, "testdata/vsprev.csv"),
+	)
+	if err != nil {
+		t.Fatalf("want the benchmarks skipped, got error: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("got %d results, want 0", len(results))
+	}
+}
+
 func TestAssemble(t *testing.T) {
 	n := night{BaselineSHA: baseSHA, Prev: prevSHA, Head: headSHA}
 	identity := map[string]string{baseSHA: baseSHA, prevSHA: prevSHA, headSHA: headSHA}
@@ -241,18 +264,29 @@ func TestCalibrate(t *testing.T) {
 // The workflow derives its shard matrix from set.json with jq while the tool
 // reads the same file with -shard, so the two have to agree about its shape.
 func TestLoadTargetsFromSet(t *testing.T) {
-	for _, shard := range []string{"topdown", "ast", "rego", "inmem"} {
-		targets := loadTargets("set.json", shard)
-		if len(targets) == 0 {
-			t.Errorf("shard %q resolved no targets", shard)
+	var set benchmarkSet
+	readJSON("set.json", &set)
+	if len(set.Targets) == 0 {
+		t.Fatal("set.json holds no targets")
+	}
+
+	// A target names a package; the benchmarks are whichever
+	// BenchmarkBenchlab* wrappers that package defines.
+	shards := map[string]struct{}{}
+	for _, target := range set.Targets {
+		if target.Shard == "" || target.Pkg == "" {
+			t.Errorf("incomplete target: %+v", target)
 			continue
 		}
-		for _, target := range targets {
-			if target.Pkg == "" || target.Bench == "" {
-				t.Errorf("shard %q has an incomplete target: %+v", shard, target)
-			}
+		shards[target.Shard] = struct{}{}
+	}
+
+	for shard := range shards {
+		if targets := loadTargets("set.json", shard); len(targets) == 0 {
+			t.Errorf("shard %q resolved no targets", shard)
 		}
 	}
+
 	if targets := loadTargets("set.json", "nonexistent"); len(targets) != 0 {
 		t.Errorf("unknown shard resolved %d targets, want 0", len(targets))
 	}

@@ -110,6 +110,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(ast.InternedTerm("batch_decision_id"), ast.StringTerm(e.BatchDecisionID))
 	}
 
+	if e.TraceID != "" {
+		event.Insert(ast.InternedTerm("trace_id"), ast.StringTerm(e.TraceID))
+	}
+
+	if e.SpanID != "" {
+		event.Insert(ast.InternedTerm("span_id"), ast.StringTerm(e.SpanID))
+	}
+
 	if e.Labels != nil {
 		labelsObj := ast.NewObject()
 		for k, v := range e.Labels {
@@ -237,6 +245,32 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(ast.InternedTerm("req_id"), ast.UIntNumberTerm(e.RequestID))
 	}
 
+	// The nesting mirrors the `omitempty` tags on RequestContext, so that a
+	// mask policy sees the same shape as the uploaded event.
+	if e.RequestContext != nil {
+		requestContext := ast.NewObject()
+
+		if httpRequest := e.RequestContext.HTTPRequest; httpRequest != nil {
+			httpObj := ast.NewObject()
+
+			if len(httpRequest.Headers) > 0 {
+				headers := ast.NewObject()
+				for name, values := range httpRequest.Headers {
+					terms := make([]*ast.Term, len(values))
+					for i, v := range values {
+						terms[i] = ast.StringTerm(v)
+					}
+					headers.Insert(ast.StringTerm(name), ast.ArrayTerm(terms...))
+				}
+				httpObj.Insert(ast.InternedTerm("headers"), ast.NewTerm(headers))
+			}
+
+			requestContext.Insert(ast.InternedTerm("http"), ast.NewTerm(httpObj))
+		}
+
+		event.Insert(ast.InternedTerm("request_context"), ast.NewTerm(requestContext))
+	}
+
 	if len(e.Custom) > 0 {
 		custom, err := roundtripJSONToAST(e.Custom)
 		if err != nil {
@@ -252,7 +286,7 @@ func roundtripJSONToAST(x any) (ast.Value, error) {
 	rawPtr := util.Reference(x)
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
 	// []any, the only array type ast.InterfaceToValue can work with
-	if err := util.RoundTrip(rawPtr); err != nil {
+	if err := util.RoundTripFast(rawPtr); err != nil {
 		return nil, err
 	}
 
@@ -481,8 +515,8 @@ type Plugin struct {
 	statusMtx     sync.Mutex
 	stop          chan chan struct{}
 	reconfig      chan reconfigure
-	preparedMask  prepareOnce
-	preparedDrop  prepareOnce
+	preparedMask  preparedQueryCache
+	preparedDrop  preparedQueryCache
 	metrics       metrics.Metrics
 	logger        logging.Logger
 	status        *lstat.Status
@@ -490,27 +524,51 @@ type Plugin struct {
 	sloggerMtx    sync.RWMutex
 }
 
-type prepareOnce struct {
-	once          *sync.Once
+// preparedQueryCache caches the prepared mask or drop query. The prepared query
+// is tied to the compiler and plugin config it was built from, so it is dropped
+// whenever either of those change.
+type preparedQueryCache struct {
+	// mtx guards the fields below. It is held across preparation so that a
+	// concurrent drop() is ordered after it and invalidates the query that was
+	// just cached, rather than being lost.
+	mtx           sync.RWMutex
+	prepared      bool
 	preparedQuery *rego.PreparedEvalQuery
 	err           error
 }
 
-func newPrepareOnce() *prepareOnce {
-	return &prepareOnce{
-		once: new(sync.Once),
+// drop invalidates the cached query, so that the next caller prepares a new one.
+func (pc *preparedQueryCache) drop() {
+	pc.mtx.Lock()
+	pc.prepared = false
+	pc.preparedQuery = nil
+	pc.err = nil
+	pc.mtx.Unlock()
+}
+
+// prepare returns the cached query, preparing it with f if it isn't cached yet.
+func (pc *preparedQueryCache) prepare(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
+	pc.mtx.RLock()
+	if pc.prepared {
+		preparedQuery, err := pc.preparedQuery, pc.err
+		pc.mtx.RUnlock()
+		return preparedQuery, err
 	}
-}
+	pc.mtx.RUnlock()
 
-func (po *prepareOnce) drop() {
-	po.once = new(sync.Once)
-}
+	pc.mtx.Lock()
+	defer pc.mtx.Unlock()
 
-func (po *prepareOnce) prepareOnce(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
-	po.once.Do(func() {
-		po.preparedQuery, po.err = f()
-	})
-	return po.preparedQuery, po.err
+	// another caller may have prepared the query while the write lock was
+	// being acquired
+	if pc.prepared {
+		return pc.preparedQuery, pc.err
+	}
+
+	pc.preparedQuery, pc.err = f()
+	pc.prepared = true
+
+	return pc.preparedQuery, pc.err
 }
 
 type reconfigure struct {
@@ -599,14 +657,12 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	plugin := &Plugin{
-		manager:      manager,
-		config:       *parsedConfig,
-		stop:         make(chan chan struct{}),
-		reconfig:     make(chan reconfigure),
-		logger:       manager.Logger().WithFields(map[string]any{"plugin": Name}),
-		status:       &lstat.Status{},
-		preparedDrop: *newPrepareOnce(),
-		preparedMask: *newPrepareOnce(),
+		manager:  manager,
+		config:   *parsedConfig,
+		stop:     make(chan chan struct{}),
+		reconfig: make(chan reconfigure),
+		logger:   manager.Logger().WithFields(map[string]any{"plugin": Name}),
+		status:   &lstat.Status{},
 	}
 
 	switch parsedConfig.Reporting.BufferType {
@@ -788,9 +844,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.ConsoleLogs {
-		if err := p.logEvent(event); err != nil {
-			p.logger.Error("Failed to log to console: %v.", err)
-		}
+		p.logEvent(event)
 	}
 
 	if p.config.Service != "" {
@@ -857,12 +911,15 @@ func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
 	done := make(chan struct{})
 	p.reconfig <- reconfigure{config: config, done: done}
+	<-done
 
+	// Drop the cached queries only once the new config is installed. Dropping
+	// them earlier lets a concurrent Log() re-prepare against the old config and
+	// cache it, leaving the new mask/drop decision paths without effect.
 	p.preparedMask.drop()
 	p.preparedDrop.drop()
 	p.clearSlogCache()
 
-	<-done
 	go p.loop()
 }
 
@@ -1045,7 +1102,7 @@ func (p *Plugin) push(event EventV1) {
 }
 
 func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input ast.Value, event *EventV1) error {
-	pq, err := p.preparedMask.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedMask.prepare(func() (*rego.PreparedEvalQuery, error) {
 		var pq rego.PreparedEvalQuery
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
@@ -1101,7 +1158,7 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input a
 func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, input ast.Value) (bool, error) {
 	var err error
 
-	pq, err := p.preparedDrop.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedDrop.prepare(func() (*rego.PreparedEvalQuery, error) {
 		var pq rego.PreparedEvalQuery
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))
@@ -1160,10 +1217,9 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 	return nil
 }
 
-func (p *Plugin) logEvent(event EventV1) error {
+func (p *Plugin) logEvent(event EventV1) {
 	fields := eventToFields(event)
 	p.manager.ConsoleLogger().WithFields(fields).Info("Decision Log")
-	return nil
 }
 
 func addAttrIfNonZeroString(attrs *[]slog.Attr, key string, value string) {
@@ -1316,12 +1372,12 @@ func eventToFields(event EventV1) map[string]any {
 	}
 	if event.NDBuiltinCache != nil {
 		v := *event.NDBuiltinCache
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["nd_builtin_cache"] = v
 		}
 	}
-	addIfSliceNotEmpty(fields, "erased", util.ToSliceOfAny(event.Erased))
-	addIfSliceNotEmpty(fields, "masked", util.ToSliceOfAny(event.Masked))
+	addIfSliceNotEmpty(fields, "erased", util.ToSliceOf[any](event.Erased))
+	addIfSliceNotEmpty(fields, "masked", util.ToSliceOf[any](event.Masked))
 
 	if event.Error != nil {
 		fields["error"] = event.Error.Error()
@@ -1331,7 +1387,7 @@ func eventToFields(event EventV1) map[string]any {
 	addIfHasLen(fields, "metrics", event.Metrics)
 	if event.RequestID != 0 {
 		var v any = event.RequestID
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["req_id"] = v
 		}
 	}
@@ -1342,14 +1398,14 @@ func eventToFields(event EventV1) map[string]any {
 
 	if len(event.RuleLabels) > 0 {
 		var v any = event.RuleLabels
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["rule_labels"] = v
 		}
 	}
 
 	if len(event.Custom) > 0 {
 		var v any = event.Custom
-		if err := util.RoundTrip(&v); err == nil {
+		if err := util.RoundTripFast(&v); err == nil {
 			fields["custom"] = v
 		}
 	}

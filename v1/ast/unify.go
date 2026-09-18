@@ -115,8 +115,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 			u.markAllSafe(b)
 		}
 	case *SetComprehension:
-		switch b := b.Value.(type) {
-		case Var:
+		if b, ok := b.Value.(Var); ok {
 			u.markSafe(b)
 		}
 
@@ -166,9 +165,8 @@ func (u *unifier) unify(a *Term, b *Term) {
 		}
 
 	default:
-		switch b := b.Value.(type) {
-		case Var:
-			u.markSafe(b)
+		if v, ok := b.Value.(Var); ok {
+			u.markSafe(v)
 		}
 	}
 }

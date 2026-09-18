@@ -2218,7 +2218,7 @@ func TestParsedModules(t *testing.T) {
 					t.Fatalf("Missing expected module %s, got: %+v", exp, parsedMods)
 				}
 				if mod == nil {
-					t.Fatalf("Expected module to be non-nil")
+					t.Fatal("Expected module to be non-nil")
 				}
 			}
 		})
@@ -2641,7 +2641,7 @@ func TestMerge(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			for i := range tc.bundles {
-				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(*tc.bundles[i]); err != nil {
+				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(tc.bundles[i]); err != nil {
 					panic(err)
 				}
 			}

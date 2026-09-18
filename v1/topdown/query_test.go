@@ -95,10 +95,10 @@ func TestQueryTracerDontPlugLocalVars(t *testing.T) {
 			for _, tt := range tracers {
 				for _, e := range tt.events {
 					if !tc.expectLocals && e.LocalMetadata != nil {
-						t.Fatalf("Expected event LocalMetadata to nil")
+						t.Fatal("Expected event LocalMetadata to nil")
 					}
 					if tc.expectLocals && e.LocalMetadata == nil {
-						t.Fatalf("Expected event LocalMetadata to be non-nil")
+						t.Fatal("Expected event LocalMetadata to be non-nil")
 					}
 				}
 			}
@@ -155,7 +155,7 @@ func TestLegacyTracerBackwardsCompatibility(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual([]*Event(*bt), tracer.events) {
-		t.Fatalf("Expected same events on test tracer and BufferTracer")
+		t.Fatal("Expected same events on test tracer and BufferTracer")
 	}
 }
 
@@ -215,7 +215,7 @@ func TestRegoMetadataBuiltinCall(t *testing.T) {
 			_, err := q.Run(t.Context())
 
 			if err == nil {
-				t.Fatalf("expected error")
+				t.Fatal("expected error")
 			}
 
 			if tc.expectedError != err.Error() {
@@ -248,7 +248,7 @@ p := data.q(42)`),
 
 	_, err := q.Run(t.Context())
 	if err == nil {
-		t.Fatalf("expected error, got nil")
+		t.Fatal("expected error, got nil")
 	}
 	expected := "eval_internal_error: compiler has errors"
 	if !strings.Contains(err.Error(), expected) {

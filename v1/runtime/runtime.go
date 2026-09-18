@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -373,6 +374,11 @@ type Runtime struct {
 	meterProvider     *sdkmetric.MeterProvider
 	loadedPathsResult *initload.LoadPathsResult
 
+	// serverTracingOpts holds the distributed tracing options that only apply to
+	// OPA's own HTTP server, and not to the outbound requests made by plugins or
+	// by http.send during evaluation.
+	serverTracingOpts tracing.Options
+
 	serverStatus  ServerStatus
 	serverInitMtx sync.RWMutex
 	done          chan struct{}
@@ -518,7 +524,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
-	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)
+	traceExporter, tracerProvider, _, serverTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -608,6 +614,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		traceExporter:     traceExporter,
 		meterProvider:     meterProvider,
 		loadedPathsResult: loaded,
+		serverTracingOpts: serverTracingOpts,
 	}
 
 	return rt, nil
@@ -723,7 +730,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
-		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
+		WithDistributedTracingOpts(slices.Concat(rt.Params.DistributedTracingOpts, rt.serverTracingOpts)).
 		WithHooks(rt.Params.Hooks).
 		WithNDBCacheEnabled(rt.Params.NDBCacheEnabled)
 
@@ -783,7 +790,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	}()
 
 	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
-	rt.server.DiagnosticHandler = NewLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
+	rt.server.DiagnosticHandler = NewDiagnosticLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
 	rt.setServerStatus(ServerWaitingForPlugins)
 
@@ -1026,9 +1033,10 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 
 func (rt *Runtime) getBanner() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s %v (commit %v, built at %v)\n", rt.Params.Brand, version.Version, version.Vcs, version.Timestamp)
-	fmt.Fprintf(&buf, "\n")
-	fmt.Fprintf(&buf, "Run 'help' to see a list of commands and check for updates.\n")
+	fmt.Fprintf(&buf,
+		"%s %v (commit %v, built at %v)\n\nRun 'help' to see a list of commands and check for updates.\n",
+		rt.Params.Brand, version.Version, version.Vcs, version.Timestamp,
+	)
 	return buf.String()
 }
 

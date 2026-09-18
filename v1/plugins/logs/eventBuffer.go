@@ -5,6 +5,7 @@
 package logs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"math"
@@ -237,6 +238,7 @@ func (b *eventBuffer) read() {
 // Upload reads events from the buffer and uploads them to the configured client.
 // All the events currently in the buffer are read and written to a gzip compressed JSON array to create a chunk of data.
 // Each chunk is limited by the uploadSizeLimitBytes.
+// Chunks that fail to upload are requeued onto the buffer and the first failure is returned.
 func (b *eventBuffer) Upload(ctx context.Context) error {
 	b.uploadLock.Lock()
 	defer b.uploadLock.Unlock()
@@ -248,20 +250,20 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 
 	eventLen := len(b.buffer)
 
+	// uploadErr holds the first upload failure so that the rest of the buffer is
+	// still drained before returning. Failed chunks are requeued by uploadChunks,
+	// so the caller has to see the error to report the plugin status and back off
+	// before the next attempt.
+	var uploadErr error
+
 	for range eventLen {
 		item := b.readBufItem()
 		if item == nil {
 			break
 		}
 
-		result := b.processBufferItem(item)
-		if result != nil {
-			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-				if b.logger != nil {
-					b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
-				}
-			}
-		}
+		chunks := b.processBufferItem(item)
+		uploadErr = cmp.Or(uploadErr, b.uploadChunks(ctx, chunks, b.client, b.uploadPath))
 	}
 
 	// flush any chunks that didn't hit the upload limit
@@ -271,14 +273,10 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		if b.logger != nil {
 			b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried.")
 		}
-		return nil
+		return uploadErr
 	}
 
-	if result == nil {
-		return nil
-	}
-
-	return b.uploadChunks(ctx, result, b.client, b.uploadPath)
+	return cmp.Or(uploadErr, b.uploadChunks(ctx, result, b.client, b.uploadPath))
 }
 
 // uploadChunks attempts to upload multiple chunks to the configured client.

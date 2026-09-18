@@ -873,7 +873,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 							}
 
 							highest := 0
-							lowest.Iter(func(k ast.Var, v int) bool {
+							lowest.Iter(func(_ ast.Var, v int) bool {
 								if v > highest {
 									highest = v
 								}
@@ -914,7 +914,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 
 			// Find the earliest point where the test case function can be injected
 			injectBelow := -1
-			injectBelowMap.Iter(func(k, v ast.Value) bool {
+			injectBelowMap.Iter(func(_, v ast.Value) bool {
 				if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
 					if n > injectBelow {
 						injectBelow = n
@@ -1133,12 +1133,10 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	var fail bool
 	result := SubResultMap{}
 
-	switch x := v.(type) {
-	case map[string]any:
+	if x, ok := v.(map[string]any); ok {
 		for k, v := range x {
-			sr := subResult(k, v)
-			result[k] = sr
-			if sr.Fail {
+			result[k] = subResult(k, v)
+			if result[k].Fail {
 				fail = true
 			}
 		}

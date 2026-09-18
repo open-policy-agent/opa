@@ -72,9 +72,9 @@ func TestProcessWatcherUpdateForRegoVersion(t *testing.T) {
 		filter := func(string, os.FileInfo, int) bool {
 			return false
 		}
-		f := func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+		f := func(_ context.Context, _ storage.Transaction, loaded *initload.LoadPathsResult) error {
 			if loaded.Files.Modules == nil {
-				t.Fatalf("Unexpected nil loaded modules")
+				t.Fatal("Unexpected nil loaded modules")
 			}
 
 			return nil

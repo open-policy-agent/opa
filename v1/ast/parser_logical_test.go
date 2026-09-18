@@ -870,10 +870,10 @@ func collectChainLocs(t *testing.T, e *Expr, emit func(col int, text string)) {
 	}
 
 	if e.Location == nil {
-		t.Fatalf("chain wrapper Expr.Location is nil")
+		t.Fatal("chain wrapper Expr.Location is nil")
 	}
 	if nodeLoc == nil {
-		t.Fatalf("chain node.Location is nil")
+		t.Fatal("chain node.Location is nil")
 	}
 	if e.Location.Col != nodeLoc.Col || e.Location.Row != nodeLoc.Row || !bytes.Equal(e.Location.Text, nodeLoc.Text) {
 		t.Errorf("chain wrapper Expr.Location %+v != node.Location %+v", e.Location, nodeLoc)
@@ -906,17 +906,17 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 
 	outer := mod.Rules[0].Body[0]
 	if outer.Location == nil {
-		t.Fatalf("outer and Expr has nil Location")
+		t.Fatal("outer and Expr has nil Location")
 	}
 
 	and := outer.Terms.(*LogicalAnd)
 	if and.Location == nil {
-		t.Fatalf("LogicalAnd.Location is nil")
+		t.Fatal("LogicalAnd.Location is nil")
 	}
 
 	inner := and.Lhs[0]
 	if inner.Location == nil {
-		t.Fatalf("inner Expr inside LogicalAnd.Lhs has nil Location")
+		t.Fatal("inner Expr inside LogicalAnd.Lhs has nil Location")
 	}
 	if inner.Location.Col != 4 {
 		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
@@ -930,7 +930,7 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 
 	inner = and.Rhs[0]
 	if inner.Location == nil {
-		t.Fatalf("inner Expr inside LogicalAnd.Rhs has nil Location")
+		t.Fatal("inner Expr inside LogicalAnd.Rhs has nil Location")
 	}
 	if inner.Location.Col != 13 {
 		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
@@ -944,17 +944,17 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 
 	outer = mod.Rules[0].Body[1]
 	if outer.Location == nil {
-		t.Fatalf("outer or Expr has nil Location")
+		t.Fatal("outer or Expr has nil Location")
 	}
 
 	or := outer.Terms.(*LogicalOr)
 	if and.Location == nil {
-		t.Fatalf("LogicalOr.Location is nil")
+		t.Fatal("LogicalOr.Location is nil")
 	}
 
 	inner = or.Lhs[0]
 	if inner.Location == nil {
-		t.Fatalf("inner Expr inside LogicalOr.Lhs has nil Location")
+		t.Fatal("inner Expr inside LogicalOr.Lhs has nil Location")
 	}
 	if inner.Location.Col != 4 {
 		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
@@ -968,7 +968,7 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 
 	inner = or.Rhs[0]
 	if inner.Location == nil {
-		t.Fatalf("inner Expr inside LogicalOr.Lhs has nil Location")
+		t.Fatal("inner Expr inside LogicalOr.Lhs has nil Location")
 	}
 	if inner.Location.Col != 12 {
 		t.Errorf("Expected column to be 12 but got: %v", inner.Location.Col)
@@ -2179,6 +2179,46 @@ func TestParseLogical_BraceLedOperandScope(t *testing.T) {
 			}
 
 			assertParseOneExpr(t, tc.note, tc.input, tc.exp, popts)
+		})
+	}
+}
+
+func TestParseLogical_BraceLedOperandKeepsAbandonedErrorsOut(t *testing.T) {
+	opts := logicalParserOpts("in", "if", "contains", "every")
+
+	// A statement-leading `{` is speculatively read as an and/or operand body, where
+	// `|` is the set-union operator. When the body opens with a keyword that cannot
+	// start a term the union reading fails and records an error, and the statement is
+	// then re-read as a comprehension. That error belongs to the abandoned attempt and
+	// must not be reported against input that parses.
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "some ... in on its own line",
+			input: "{\ny |\n\tsome y in xs\n}",
+			exp: NewExpr(SetComprehensionTerm(VarTerm("y"), NewBody(&Expr{
+				Terms: &SomeDecl{
+					Symbols: []*Term{Member.Call(VarTerm("y"), VarTerm("xs"))},
+				},
+			}))),
+		},
+		{
+			note:  "every on its own line",
+			input: "{\ny |\n\tevery v in xs { v == 1 }\n}",
+			exp: NewExpr(SetComprehensionTerm(VarTerm("y"), NewBody(NewExpr(&Every{
+				Value:  VarTerm("v"),
+				Domain: VarTerm("xs"),
+				Body:   NewBody(Equal.Expr(VarTerm("v"), NumberTerm("1"))),
+			})))),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
 		})
 	}
 }

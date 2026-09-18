@@ -1346,7 +1346,7 @@ func TestBearerTokenInvalidConfig(t *testing.T) {
 	_, err = client.Do(ctx, "GET", "test")
 
 	if err == nil {
-		t.Fatalf("Expected error but got nil")
+		t.Fatal("Expected error but got nil")
 	}
 
 	if !strings.HasPrefix(err.Error(), "invalid config") {
@@ -1818,7 +1818,7 @@ func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
 	}
 
 	if authPlugin.logger == nil {
-		t.Errorf("Expected logger to be initialized")
+		t.Error("Expected logger to be initialized")
 	}
 }
 
@@ -1846,7 +1846,7 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 
 	awsPlugin := client.config.Credentials.S3Signing
 	if awsPlugin == nil {
-		t.Fatalf("Client config S3 signing credentials setup unexpected")
+		t.Fatal("Client config S3 signing credentials setup unexpected")
 	}
 
 	chain, ok := awsPlugin.awsCredentialService().(*awsCredentialServiceChain)
@@ -1867,7 +1867,7 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(chain.awsCredentialServices, expectedOrder) {
-		t.Fatalf("Ordering is unexpected")
+		t.Fatal("Ordering is unexpected")
 	}
 }
 
@@ -1939,7 +1939,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 
 			awsPlugin := client.config.Credentials.S3Signing
 			if awsPlugin == nil {
-				t.Fatalf("Client config S3 signing credentials setup unexpected")
+				t.Fatal("Client config S3 signing credentials setup unexpected")
 			}
 
 			req, err := http.NewRequest("GET", "/example/bundle.tar.gz", nil)
@@ -2598,7 +2598,7 @@ func newOauth2KmsClientCredentialsTestClient(t *testing.T, ts *testServer, ots *
 	}
 
 	if client.config.Credentials.OAuth2.AWSSigningPlugin.kmsSignPlugin == nil {
-		t.Errorf("OAuth2.AWSSigningPlugin.kmsSignPlugin isn't setup")
+		t.Error("OAuth2.AWSSigningPlugin.kmsSignPlugin isn't setup")
 	}
 
 	// setup fake KMS signer
@@ -2652,7 +2652,7 @@ func TestOauth2ClientCredentialsGrantTypeWithKeyVault(t *testing.T) {
 	}))
 	defer kvServer.Close()
 
-	tokenerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	tokenerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		b, err := json.Marshal(azureManagedIdentitiesToken{AccessToken: "token1"})
 		if err != nil {
 			t.Fatalf("json.Marshal(azureManagedIdentitiesToken{}) = %v", err)
@@ -2733,7 +2733,7 @@ func newOauth2AzureKVClient(t *testing.T, ts *testServer, ots *oauth2TestServer,
 	}
 
 	if client.config.Credentials.OAuth2.AzureSigningPlugin.keyVaultSignPlugin == nil {
-		t.Errorf("Oauth2.AzureSigningPlugin.keyVaultSignPlugin isn't setup")
+		t.Error("Oauth2.AzureSigningPlugin.keyVaultSignPlugin isn't setup")
 	}
 
 	// setup fake KV config and signer

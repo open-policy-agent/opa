@@ -25,10 +25,10 @@ func initVersion(root *cobra.Command, brand string) {
 		Use:   "version",
 		Short: `Print the version of ` + brand,
 		Long:  `Show version and build information for ` + brand + `.`,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 			return generateCmdOutput(os.Stdout, check)

@@ -23,10 +23,7 @@ const (
 )
 
 func newBadArgsErr(f string, a ...any) *Error {
-	return &Error{
-		Code:    BadArgsErr,
-		Message: fmt.Sprintf(f, a...),
-	}
+	return &Error{Code: BadArgsErr, Message: fmt.Sprintf(f, a...)}
 }
 
 // stop is returned by the 'exit' command to indicate to the REPL that it should

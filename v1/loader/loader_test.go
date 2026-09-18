@@ -98,7 +98,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -172,7 +172,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -242,7 +242,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -312,7 +312,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -382,7 +382,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -453,44 +453,64 @@ func TestLoadYAML(t *testing.T) {
 	})
 }
 
-func TestLoadGuessYAML(t *testing.T) {
+func TestLoadYAMLKeywordKeys(t *testing.T) {
 	files := map[string]string{
-		"/foo": `
-        a: b
-        `,
+		"/foo.yaml": `
+on: push
+off: x
+a: yes
+b: no
+c: y
+d: n
+e: true
+f: FALSE
+`,
 	}
+
 	test.WithTempFS(files, func(rootDir string) {
-		yamlFile := filepath.Join(rootDir, "foo")
-		loaded, err := NewFileLoader().All([]string{yamlFile})
+		loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.yaml")})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-		expected := parseJSON(`{"a": "b"}`)
+		expected := parseJSON(`{
+			"on": "push", "off": "x",
+			"a": "yes", "b": "no", "c": "y", "d": "n",
+			"e": true, "f": false
+		}`)
 		if !reflect.DeepEqual(loaded.Documents, expected) {
 			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
 		}
 	})
 }
 
+func TestLoadGuessYAML(t *testing.T) {
+	rootDir := test.TempDirOf(t, "/foo", `
+        a: b
+        `,
+	)
+	yamlFile := filepath.Join(rootDir, "foo")
+	loaded, err := NewFileLoader().All([]string{yamlFile})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expected := parseJSON(`{"a": "b"}`)
+	if !reflect.DeepEqual(loaded.Documents, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+	}
+}
+
 func TestLoadExtension(t *testing.T) {
-	files := map[string]string{
-		"/foo.mock": `{"a": [1,2,3]}`,
+	extension.RegisterExtension(".mock", util.UnmarshalJSON)
+	rootDir := test.TempDirOf(t, "/foo.mock", `{"a": [1,2,3]}`)
+
+	loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.mock")})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	extension.RegisterExtension(".mock", util.UnmarshalJSON)
-
-	test.WithTempFS(files, func(rootDir string) {
-		loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.mock")})
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		expected := parseJSON(files["/foo.mock"])
-
-		if !reflect.DeepEqual(loaded.Documents, expected) {
-			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
-		}
-	})
+	if exp := parseJSON(`{"a": [1,2,3]}`); !reflect.DeepEqual(loaded.Documents, exp) {
+		t.Fatalf("Expected %v but got: %v", exp, loaded.Documents)
+	}
 }
 
 func TestLoadExtensionFail(t *testing.T) {
@@ -528,7 +548,7 @@ func TestLoadDirRecursive(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		loaded, err := NewFileLoader().All(mustListPaths(rootDir, false)[1:])
+		loaded, err := NewFileLoader().All(mustListPaths(rootDir)[1:])
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -696,7 +716,7 @@ func TestLoadBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	paths := mustListPaths(rootDir, false)[1:]
+	paths := mustListPaths(rootDir)[1:]
 	loaded, err := NewFileLoader().All(paths)
 	if err != nil {
 		t.Fatal(err)
@@ -715,7 +735,6 @@ func TestLoadBundle(t *testing.T) {
 }
 
 func TestLoadBundleWithReader(t *testing.T) {
-
 	buf := bytes.Buffer{}
 	testBundle := bundle.Bundle{
 		Modules: []bundle.ModuleFile{
@@ -745,7 +764,7 @@ func TestLoadBundleWithReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	if b == nil {
-		t.Fatalf("Expected bundle to be non-nil")
+		t.Fatal("Expected bundle to be non-nil")
 	}
 
 	if exp, act := 1, len(b.Modules); exp != act {
@@ -803,7 +822,7 @@ func TestLoadBundleSubDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	paths := mustListPaths(rootDir, false)[1:]
+	paths := mustListPaths(rootDir)[1:]
 	loaded, err := NewFileLoader().All(paths)
 	if err != nil {
 		t.Fatal(err)
@@ -838,7 +857,7 @@ func TestAsBundleWithDir(t *testing.T) {
 		}
 
 		if b == nil {
-			t.Fatalf("Expected bundle to be non-nil")
+			t.Fatal("Expected bundle to be non-nil")
 		}
 
 		if len(b.Modules) != 2 {
@@ -881,7 +900,7 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 		}
 
 		if b == nil {
-			t.Fatalf("Expected bundle to be non-nil")
+			t.Fatal("Expected bundle to be non-nil")
 		}
 
 		if len(b.Modules) != 1 {
@@ -957,11 +976,12 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		var tmp any = b
+		var tmp any = b.Data
 		err = util.RoundTrip(&tmp)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
+		b.Data = tmp.(map[string]any)
 
 		if !actual.Equal(*b) {
 			t.Fatalf("Loaded bundle doesn't match expected.\n\nExpected: %+v\n\nActual: %+v\n\n", b, actual)
@@ -1072,7 +1092,7 @@ func TestLoadRooted(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		paths := util.Sorted(mustListPaths(rootDir, false)[1:])
+		paths := util.Sorted(mustListPaths(rootDir)[1:])
 		paths[0] = "one.two:" + paths[0]
 		paths[1] = "three:" + paths[1]
 		paths[2] = "four:" + paths[2]
@@ -1164,7 +1184,7 @@ func TestLoadWithJSONOptions(t *testing.T) {
 
 	mod, ok := loaded.Modules["bar/bar.rego"]
 	if !ok {
-		t.Fatalf("Expected bar/bar.rego to be loaded")
+		t.Fatal("Expected bar/bar.rego to be loaded")
 	}
 
 	bs, err := json.Marshal(mod.Parsed.Package)
@@ -1179,7 +1199,6 @@ func TestLoadWithJSONOptions(t *testing.T) {
 }
 
 func TestGlobExcludeName(t *testing.T) {
-
 	files := map[string]string{
 		"/.data.json":          `{"x":1}`,
 		"/.y/data.json":        `{"y": 2}`,
@@ -1189,7 +1208,7 @@ func TestGlobExcludeName(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		paths := util.Sorted(mustListPaths(rootDir, false)[1:])
+		paths := util.Sorted(mustListPaths(rootDir)[1:])
 		result, err := NewFileLoader().Filtered(paths, GlobExcludeName(".*", 1))
 		if err != nil {
 			t.Fatal(err)
@@ -1218,9 +1237,9 @@ func TestLoadErrors(t *testing.T) {
 		"/bad_doc.json": "[1,2,3]",
 	}
 	test.WithTempFS(files, func(rootDir string) {
-		_, err := NewFileLoader().All(util.Sorted(mustListPaths(rootDir, false)[1:]))
+		_, err := NewFileLoader().All(util.Sorted(mustListPaths(rootDir)[1:]))
 		if err == nil {
-			t.Fatalf("Expected failure")
+			t.Fatal("Expected failure")
 		}
 
 		expected := []string{
@@ -1240,6 +1259,21 @@ func TestLoadErrors(t *testing.T) {
 	})
 }
 
+func TestLoadYAMLUnreachableContent(t *testing.T) {
+	files := map[string]string{
+		"/data.yaml": "\n  test:\ntest1: hello\n",
+	}
+	test.WithTempFS(files, func(rootDir string) {
+		_, err := NewFileLoader().All([]string{filepath.Join(rootDir, "data.yaml")})
+		if err == nil {
+			t.Fatal("expected failure")
+		}
+		if exp := "did not find expected <document start>"; !strings.Contains(err.Error(), exp) {
+			t.Fatalf("expected error to contain %v but got:\n%v", exp, err)
+		}
+	})
+}
+
 func TestLoadFileURL(t *testing.T) {
 	files := map[string]string{
 		"/a/a/1.json": `1`,        // this will load as a directory (e.g., file://a/a)
@@ -1247,7 +1281,7 @@ func TestLoadFileURL(t *testing.T) {
 		"c.json":      `3`,        // this will loas as rooted file
 	}
 	test.WithTempFS(files, func(rootDir string) {
-		paths := util.Sorted(mustListPaths(rootDir, false)[1:])
+		paths := util.Sorted(mustListPaths(rootDir)[1:])
 		for i := range paths {
 			paths[i] = "file://" + paths[i]
 		}
@@ -1274,7 +1308,6 @@ func TestUnsupportedURLScheme(t *testing.T) {
 }
 
 func TestSplitPrefix(t *testing.T) {
-
 	tests := []struct {
 		input     string
 		goos      string
@@ -1452,7 +1485,7 @@ func TestLoadRegos(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		result, err := AllRegos(util.Sorted(mustListPaths(rootDir, false)[1:]))
+		result, err := AllRegos(util.Sorted(mustListPaths(rootDir)[1:]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1466,8 +1499,8 @@ func parseJSON(x string) any {
 	return util.MustUnmarshalJSON([]byte(x))
 }
 
-func mustListPaths(path string, recurse bool) (paths []string) {
-	paths, err := Paths(path, recurse)
+func mustListPaths(path string) (paths []string) {
+	paths, err := Paths(path, false)
 	if err != nil {
 		panic(err)
 	}
@@ -1487,7 +1520,6 @@ func TestDirs(t *testing.T) {
 }
 
 func TestSchemas(t *testing.T) {
-
 	tests := []struct {
 		note   string
 		path   string

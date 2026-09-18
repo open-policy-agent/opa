@@ -109,16 +109,8 @@ test_run_all_tests_expect if {
 	not pr_check.changes.yaml with input as example_all_checks_root_changelist
 }
 
-test_bench_ast_only if {
-	pr_check.changes.bench == {"./v1/ast"} with input as example_bench_ast_changelist
-}
-
-test_bench_topdown_only if {
-	pr_check.changes.bench == {"./v1/topdown"} with input as example_bench_topdown_changelist
-}
-
-test_bench_rego_only if {
-	pr_check.changes.bench == {"./v1/rego"} with input as example_bench_rego_changelist
+test_bench_compiler_related if {
+	pr_check.changes.bench == {"./v1/topdown", "./v1/compile", "./v1/rego"} with input as example_bench_topdown_changelist
 }
 
 test_bench_no_match if {

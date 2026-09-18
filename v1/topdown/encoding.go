@@ -12,8 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"sigs.k8s.io/yaml"
-
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/util"

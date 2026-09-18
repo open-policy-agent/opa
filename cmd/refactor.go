@@ -40,7 +40,7 @@ func (m *moveCommandParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func initRefactor(root *cobra.Command, brand string) {
+func initRefactor(root *cobra.Command) {
 	executable := root.Name()
 
 	var moveCommandParams moveCommandParams
@@ -106,8 +106,8 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 	moveCommand.Flags().BoolVarP(&moveCommandParams.overwrite, "write", "w", false, "overwrite the original source file")
 	addIgnoreFlag(moveCommand.Flags(), &moveCommandParams.ignore)
 	refactorCommand.AddCommand(moveCommand)
-	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible, false)
-	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible, false)
+	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible)
+	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible)
 	root.AddCommand(refactorCommand)
 }
 

@@ -30,10 +30,10 @@ func TestParse(t *testing.T) {
 			t.Fatalf("return values should have been nil passing a file path with no matching extension, got val: %v; err: %s", val, err.Error())
 		}
 		if _, err := parse(filepath.Join(rootDir, "nonexistent.json")); err == nil {
-			t.Fatalf("should have received an error for passing a file path that does not exist")
+			t.Fatal("should have received an error for passing a file path that does not exist")
 		}
 		if _, err := parse(filepath.Join(rootDir, "invalid.json")); err == nil {
-			t.Fatalf("should have received an error for passing a file with invalid json")
+			t.Fatal("should have received an error for passing a file with invalid json")
 		}
 		if val, err := parse(filepath.Join(rootDir, "valid.json")); err != nil {
 			t.Fatalf("unexpected error when passing file wiith valid json: %q", err.Error())
@@ -65,7 +65,7 @@ func TestListAllPaths(t *testing.T) {
 				}
 			} else if strings.Contains(item.Path, notFound) {
 				if item.Error == nil {
-					t.Errorf("expected error for tempDir, found none")
+					t.Error("expected error for tempDir, found none")
 				}
 			}
 		}
@@ -118,7 +118,7 @@ func TestExec(t *testing.T) {
 			},
 			assertion: func(t *testing.T, _ string, err error) {
 				if err == nil {
-					t.Fatalf("expected error, found none")
+					t.Fatal("expected error, found none")
 				}
 				if r.errorCount != 1 {
 					t.Fatalf("expected r.errorCount to be 1, got %d", r.errorCount)

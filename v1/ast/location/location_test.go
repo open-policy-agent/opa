@@ -89,11 +89,11 @@ func TestLocationCompare(t *testing.T) {
 	loc1 := &Location{File: "file1.rego", Row: 10, Col: 5}
 	loc2 := loc1
 	if loc1.Compare(loc2) != 0 {
-		t.Fatalf("Expected loc1 to be equal to loc2 (pointer equality)")
+		t.Fatal("Expected loc1 to be equal to loc2 (pointer equality)")
 	}
 	loc1, loc2 = nil, nil
 	if loc1.Compare(loc2) != 0 {
-		t.Fatalf("Expected loc1 to be equal to loc2 (both nil)")
+		t.Fatal("Expected loc1 to be equal to loc2 (both nil)")
 	}
 }
 

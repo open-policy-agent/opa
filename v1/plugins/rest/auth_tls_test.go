@@ -174,7 +174,7 @@ func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
 	}{
 		{
 			name: "system_ca_required true",
-			buildConfig: func(cert, key, ca string) string {
+			buildConfig: func(cert, key, _ string) string {
 				return fmt.Sprintf(`{
 					"name": "test",
 					"url": "https://example.com",
@@ -191,7 +191,7 @@ func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
 		},
 		{
 			name: "system_ca_required false",
-			buildConfig: func(cert, key, ca string) string {
+			buildConfig: func(cert, key, _ string) string {
 				return fmt.Sprintf(`{
 					"name": "test",
 					"url": "https://example.com",

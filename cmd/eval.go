@@ -384,8 +384,8 @@ access.
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
-	addV0CompatibleFlag(evalCommand.Flags(), &params.v0Compatible, false)
-	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible, false)
+	addV0CompatibleFlag(evalCommand.Flags(), &params.v0Compatible)
+	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible)
 	addReadAstValuesFromStoreFlag(evalCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
 	root.AddCommand(evalCommand)

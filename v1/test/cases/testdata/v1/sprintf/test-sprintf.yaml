@@ -22,3 +22,25 @@ cases:
         }
     want_result:
       - x: "1208925819614629174706175"
+  - note: sprintf/float/zero_fraction
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x = sprintf("%f, %3.1f, %.3f", [0.0, 100.0, .0])
+        }
+    want_result:
+      - x: "0.000000, 100.0, 0.000"
+  - note: sprintf/float/exponent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x = sprintf("%f", [1e2])
+        }
+    want_result:
+      - x: "100.000000"

@@ -7,12 +7,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/format"
+	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -175,7 +177,7 @@ func TestFmtFormatFileFailToReadFile(t *testing.T) {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, &stdout, notThere, info, err)
 		if err == nil {
-			t.Fatalf("Expected error, found none")
+			t.Fatal("Expected error, found none")
 		}
 
 		actual := err.Error()
@@ -365,7 +367,7 @@ func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
 				info, err := os.Stat(policyFile)
 				err = formatFile(&tc.params, &stdout, policyFile, info, err)
 				if err == nil {
-					t.Fatalf("Expected error, found none")
+					t.Fatal("Expected error, found none")
 				}
 
 				actual := err.Error()
@@ -636,7 +638,7 @@ func TestFmtFailFileNoChanges(t *testing.T) {
 				info, err := os.Stat(policyFile)
 				err = formatFile(&tc.params, io.Discard, policyFile, info, err)
 				if err != nil {
-					t.Fatalf("Expected error but did not receive one")
+					t.Fatal("Expected error but did not receive one")
 				}
 			})
 		})
@@ -747,7 +749,7 @@ func TestFmtSingleWrongArityError(t *testing.T) {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, &stdout, policyFile, info, err)
 		if err == nil {
-			t.Fatalf("Expected error but did not receive one")
+			t.Fatal("Expected error but did not receive one")
 		}
 
 		loc := ast.Location{File: policyFile, Row: 7}
@@ -779,7 +781,7 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, &stdout, policyFile, info, err)
 		if err == nil {
-			t.Fatalf("Expected error but did not receive one")
+			t.Fatal("Expected error but did not receive one")
 		}
 
 		locations := []ast.Location{
@@ -1249,8 +1251,7 @@ foo.if.else = true
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
 				params.v0Compatible = true
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1297,8 +1298,7 @@ foo.if.else := true
 			note: "v1, no capability",
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1326,22 +1326,13 @@ foo["if"]["else"] := true
 			var stdout bytes.Buffer
 
 			stdin := bytes.NewBufferString(tc.unformatted)
-
-			files := map[string]string{
-				"policy.rego": tc.unformatted,
+			if err := formatStdin(&tc.params, stdin, &stdout); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
 			}
 
-			test.WithTempFS(files, func(path string) {
-				err := formatStdin(&tc.params, stdin, &stdout)
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-
-				actual := stdout.String()
-				if actual != tc.formatted {
-					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
-				}
-			})
+			if actual := stdout.String(); actual != tc.formatted {
+				t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+			}
 		})
 	}
 }
@@ -1452,8 +1443,7 @@ foo.if.else = true
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
 				params.v0Compatible = true
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1500,8 +1490,7 @@ foo.if.else := true
 			note: "v1, no capability",
 			params: func() fmtCommandParams {
 				params := newFmtCommandParams()
-				params.capabilitiesFlag.C = dropCapabilityFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)),
-					ast.FeatureKeywordsInRefs)
+				params.capabilitiesFlag.C = dropKeywordsInRefsFeature(ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0)))
 				return *params
 			}(),
 			unformatted: `package test.package.import
@@ -1549,13 +1538,7 @@ foo["if"]["else"] := true
 	}
 }
 
-func dropCapabilityFeature(caps *ast.Capabilities, feature string) *ast.Capabilities {
-	feats := make([]string, 0, len(caps.Features))
-	for _, f := range caps.Features {
-		if f != feature {
-			feats = append(feats, f)
-		}
-	}
-	caps.Features = feats
+func dropKeywordsInRefsFeature(caps *ast.Capabilities) *ast.Capabilities {
+	caps.Features = slices.DeleteFunc(caps.Features, util.CmpEqual(ast.FeatureKeywordsInRefs))
 	return caps
 }

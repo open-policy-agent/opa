@@ -133,18 +133,13 @@ func (p *Planner) WithUnplannedRules(yes bool) *Planner {
 
 // Plan returns a IR plan for the policy query.
 func (p *Planner) Plan() (*ir.Policy, error) {
-
-	if err := p.buildFunctrie(); err != nil {
-		return nil, err
-	}
+	p.buildFunctrie()
 
 	if err := p.planQueries(); err != nil {
 		return nil, err
 	}
 
-	if err := p.planExterns(); err != nil {
-		return nil, err
-	}
+	p.planExterns()
 
 	if p.unplannedRules {
 		p.buildUnplannedRules()
@@ -172,8 +167,7 @@ func (p *Planner) buildUnplannedRules() {
 	})
 }
 
-func (p *Planner) buildFunctrie() error {
-
+func (p *Planner) buildFunctrie() {
 	for _, module := range p.modules {
 
 		// Create functrie node for empty packages so that extent queries return
@@ -200,7 +194,6 @@ func (p *Planner) buildFunctrie() error {
 			val.children = nil
 		}
 	}
-	return nil
 }
 
 func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
@@ -580,7 +573,6 @@ func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter
 }
 
 func (p *Planner) planQueries() error {
-
 	for _, qs := range p.queries {
 
 		// Initialize the plan with a block that prepares the query result.
@@ -663,7 +655,6 @@ func (p *Planner) planQueries() error {
 }
 
 func (p *Planner) planQuery(q ast.Body, index int, iter planiter) error {
-
 	if index >= len(q) {
 		return iter()
 	}
@@ -2487,7 +2478,7 @@ func (p *Planner) planTermSliceRec(terms []*ast.Term, locals []ir.Operand, index
 	})
 }
 
-func (p *Planner) planExterns() error {
+func (p *Planner) planExterns() {
 	p.policy.Static.BuiltinFuncs = make([]*ir.BuiltinFunc, 0, len(p.externs))
 
 	for name, decl := range p.externs {
@@ -2497,8 +2488,6 @@ func (p *Planner) planExterns() error {
 	slices.SortFunc(p.policy.Static.BuiltinFuncs, func(a, b *ir.BuiltinFunc) int {
 		return strings.Compare(a.Name, b.Name)
 	})
-
-	return nil
 }
 
 func (p *Planner) getStringConst(s string) int {

@@ -6,6 +6,7 @@ package ast
 
 import (
 	"errors"
+	"math/bits"
 	"slices"
 	"strconv"
 	"testing"
@@ -1590,10 +1591,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			index := newBaseDocEqIndex(isVirtual)
 
 			if !index.Build(rules) {
-				t.Fatalf("Expected index build to succeed")
+				t.Fatal("Expected index build to succeed")
 			}
 
-			t.Log(index.root.mermaid())
+			t.Log(index.mermaid())
 			var unknownRefs Set
 
 			if len(tc.unknowns) > 0 {
@@ -1617,7 +1618,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			}
 
 			if result.Default == nil && tc.expectedDR != nil {
-				t.Fatalf("Expected default rule but got nil")
+				t.Fatal("Expected default rule but got nil")
 			} else if result.Default != nil && tc.expectedDR == nil {
 				t.Fatalf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
@@ -1661,7 +1662,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	input := MustParseTerm(`{"x": "x1", "y": "y1", "z": "z1"}`)
@@ -1684,7 +1685,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 	}
 
 	if result.Default != nil {
-		t.Fatalf("Expected default rule to be nil")
+		t.Fatal("Expected default rule to be nil")
 	}
 
 	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
@@ -1709,7 +1710,7 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	p if { input.raise_error = 1 }`)
 
 	if !index.Build(module.Rules) {
-		t.Fatalf("Expected index to build")
+		t.Fatal("Expected index to build")
 	}
 
 	_, err := index.Lookup(testResolver{
@@ -1722,17 +1723,16 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 
 	index = newBaseDocEqIndex(func(Ref) bool { return true })
 	if index.Build(nil) {
-		t.Fatalf("Expected index build to fail")
+		t.Fatal("Expected index build to fail")
 	}
 }
 
 func TestRefIndicesInsert(t *testing.T) {
-	ref := MustParseRef("input.x")
-
 	// values as they reach insert(): a var stands for "any value" (see anyValue
-	// and the "naked ref" case in Update), anything else for that value.
-	anyIndex := func() *refindex { return &refindex{Ref: ref, Value: Var("x")} }
-	valIndex := func(v int) *refindex { return &refindex{Ref: ref, Value: Number(strconv.Itoa(v))} }
+	// and the "naked ref" case in Update), anything else for that value. They
+	// all constrain the one reference, which every table numbers 0.
+	anyIndex := func() *refindex { return &refindex{Value: Var("x")} }
+	valIndex := func(v int) *refindex { return &refindex{Value: Number(strconv.Itoa(v))} }
 
 	tests := []struct {
 		note   string
@@ -1763,8 +1763,12 @@ func TestRefIndicesInsert(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ri := newrefindices(func(Ref) bool { return false })
+			ri := newrefindices(func(Ref) bool { return false }, newRefTable())
 			rule := MustParseRule(`p if input.x = 1`)
+
+			if id := ri.table.intern(MustParseRef("input.x")); id != 0 {
+				t.Fatalf("expected the first ref interned to be 0, got %d", id)
+			}
 
 			for _, index := range tc.insert {
 				ri.insert(rule, index)
@@ -1783,7 +1787,7 @@ func TestRefIndicesInsert(t *testing.T) {
 }
 
 func TestRefIndicesSorted(t *testing.T) {
-	ri := newrefindices(func(Ref) bool { return false })
+	ri := newrefindices(func(Ref) bool { return false }, newRefTable())
 
 	// Insert refs with distinct frequencies in an order that doesn't match
 	// the expected (frequency-descending) output, so that a sort which
@@ -1799,10 +1803,9 @@ func TestRefIndicesSorted(t *testing.T) {
 	}
 
 	for ref, n := range freqs {
-		r := MustParseRef(ref)
+		id := ri.table.intern(MustParseRef(ref))
 		for range n {
-			count, _ := ri.frequency.Get(r)
-			ri.frequency.Put(r, count+1)
+			ri.count(id)
 		}
 	}
 
@@ -1813,13 +1816,26 @@ func TestRefIndicesSorted(t *testing.T) {
 	}
 
 	prevCount := -1
-	for _, ref := range sorted {
-		count := freqs[ref.String()]
+	for _, id := range sorted {
+		count := freqs[ri.table.ref(id).String()]
 		if prevCount != -1 && count > prevCount {
 			t.Fatalf("expected refs sorted by descending frequency, but got %v with count %d after count %d", sorted, count, prevCount)
 		}
 		prevCount = count
 	}
+}
+
+// collected returns the rule ids a traversal reached, in the order gather reads
+// them back.
+func collected(tr *trieTraversalResult) []int32 {
+	var ids []int32
+	slices.Sort(tr.touched)
+	for _, w := range tr.touched {
+		for word := tr.hits[w]; word != 0; word &= word - 1 {
+			ids = append(ids, w<<6|int32(bits.TrailingZeros64(word)))
+		}
+	}
+	return ids
 }
 
 func TestSplitStringEscaped(t *testing.T) {
@@ -1894,7 +1910,7 @@ func TestGetAllRules(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
@@ -1938,7 +1954,7 @@ func TestGetAllRulesInternalMember2(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
@@ -2393,7 +2409,7 @@ r = local0 if {
 			})
 
 			if !index.Build(rules) {
-				t.Fatalf("Expected index build to succeed")
+				t.Fatal("Expected index build to succeed")
 			}
 
 			var unknownRefs Set
@@ -2413,7 +2429,7 @@ r = local0 if {
 			}
 
 			if result.Default == nil && tc.expectedDR != nil {
-				t.Errorf("Expected default rule but got nil")
+				t.Error("Expected default rule but got nil")
 			} else if result.Default != nil && tc.expectedDR == nil {
 				t.Errorf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
@@ -2425,4 +2441,246 @@ r = local0 if {
 			}
 		})
 	}
+}
+
+// TestBaseDocEqIndexingAlternatingRefs covers a rule that reaches two
+// references by several scalar values each. The first of them converges --
+// every alternative keys to one node, which the rest of the path is built from
+// -- so the second is indexed too. Ranking such references last is no help
+// here: both are ranked last, and one is still first of the two.
+//
+// Only scalars converge. Affixes and composite values end the rule's path, so
+// only the first of two such references is indexed; see oneAffixEnd and
+// isComposite.
+func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
+	lookup := func(t *testing.T, index *baseDocEqIndex, resolver testResolver) int {
+		t.Helper()
+		result, err := index.Lookup(resolver)
+		if err != nil {
+			t.Fatalf("unexpected error during index lookup: %v", err)
+		}
+		return len(result.Rules)
+	}
+
+	// `x in <collection>` reaches the indexer as internal.member_2, which is
+	// the compiler's doing, so these go through it rather than the parser.
+	build := func(t *testing.T, module string) *baseDocEqIndex {
+		t.Helper()
+		c := MustCompileModules(map[string]string{"test.rego": module})
+		index := newBaseDocEqIndex(func(Ref) bool { return false })
+		if !index.Build(c.Modules["test.rego"].Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+		return index
+	}
+
+	t.Run("both references prune", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.subject in ["alice", "bob"]
+			input.action in ["read", "list"]
+		}
+		p if {
+			input.subject in ["alice", "carol"]
+			input.action in ["write", "delete"]
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice", "action": "read"}`, 1},
+			{`{"subject": "alice", "action": "write"}`, 1},
+			{`{"subject": "bob", "action": "read"}`, 1},
+			{`{"subject": "bob", "action": "write"}`, 0},  // bob is not in the second rule
+			{`{"subject": "carol", "action": "read"}`, 0}, // carol is not in the first
+			{`{"subject": "alice", "action": "nope"}`, 0}, // neither action matches
+			{`{"subject": "dave", "action": "read"}`, 0},  // neither subject matches
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	t.Run("three references prune", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.a in [1, 2]
+			input.b in [3, 4]
+			input.c in [5, 6]
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"a": 1, "b": 3, "c": 5}`, 1},
+			{`{"a": 2, "b": 4, "c": 6}`, 1},
+			{`{"a": 1, "b": 3, "c": 7}`, 0},
+			{`{"a": 1, "b": 9, "c": 5}`, 0},
+			{`{"a": 9, "b": 3, "c": 5}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// An affix's alternatives are leaves of the prefix trie, which cannot point
+	// several of them at one node, so a rule that reaches a reference by several
+	// of them still stops there. Two such references and the second is unindexed,
+	// so the lookup over-approximates -- it must never miss a rule that can hold.
+	t.Run("two references reached by affixes still stop the path", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			strings.any_prefix_match(input.path, ["/a", "/b"])
+			strings.any_suffix_match(input.name, [".go", ".rego"])
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"path": "/a/x", "name": "q.go"}`, 1},
+			{`{"path": "/c/x", "name": "q.go"}`, 0},
+			// The suffixes are not indexed below the prefixes, so the rule is
+			// still a candidate. Over-approximating is sound; missing it is not.
+			{`{"path": "/a/x", "name": "q.txt"}`, 1},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// Both ends of one reference are a conjunction the level cannot test: the
+	// tries hold leaves, so hanging the rule off both would admit it on either,
+	// which is looser than the rule. One end is indexed and the other left to
+	// evaluation -- the end whose shortest base string is longest, since that is
+	// the one admitting least. See oneAffixEnd.
+	t.Run("one reference reached by affixes at both ends indexes one end", func(t *testing.T) {
+		for _, tc := range []struct {
+			note   string
+			module string
+			// indexed names the end the lookups below expect to be tested.
+			cases map[string]int
+		}{
+			{
+				note: "suffixes are longer, so the suffixes are indexed",
+				module: `package test
+				p if {
+					strings.any_prefix_match(input.path, ["/a", "/b"])
+					strings.any_suffix_match(input.path, [".go", ".rego"])
+				}`,
+				cases: map[string]int{
+					`{"path": "/a/x.go"}`:  1,
+					`{"path": "/c/x.go"}`:  1,
+					`{"path": "/a/x.txt"}`: 0,
+					`{"path": "/c/x.txt"}`: 0,
+				},
+			},
+			{
+				// Counting the base strings would keep the single prefix here,
+				// and every absolute path matches "/".
+				note: "one short prefix loses to several longer suffixes",
+				module: `package test
+				p if {
+					strings.any_prefix_match(input.path, ["/"])
+					strings.any_suffix_match(input.path, [".go", ".rego"])
+				}`,
+				cases: map[string]int{
+					`{"path": "/x.go"}`:  1,
+					`{"path": "/x.txt"}`: 0,
+				},
+			},
+		} {
+			t.Run(tc.note, func(t *testing.T) {
+				index := build(t, tc.module)
+				for input, exp := range tc.cases {
+					if act := lookup(t, index, testResolver{input: MustParseTerm(input)}); exp != act {
+						t.Errorf("%s: expected %d rule(s), got %d", input, exp, act)
+					}
+				}
+			})
+		}
+	})
+
+	// A terminal reference is ranked after a converging one, so the `in` gets to
+	// converge and the affixes end the path once everything else is on it. Which
+	// the author wrote first does not decide it.
+	t.Run("an affix and an in collection are both indexed, either order", func(t *testing.T) {
+		for _, module := range []string{
+			`package test
+			p if {
+				strings.any_prefix_match(input.path, ["/a", "/b"])
+				input.x in {1, 2}
+			}`,
+			`package test
+			p if {
+				input.x in {1, 2}
+				strings.any_prefix_match(input.path, ["/a", "/b"])
+			}`,
+		} {
+			index := build(t, module)
+
+			for _, tc := range []struct {
+				input string
+				exp   int
+			}{
+				{`{"path": "/a/z", "x": 1}`, 1},
+				{`{"path": "/a/z", "x": 9}`, 0}, // the `in` prunes
+				{`{"path": "/c/z", "x": 1}`, 0}, // the prefixes prune
+			} {
+				if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+					t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+				}
+			}
+		}
+	})
+
+	// One affix is a single value, so it stays on the path and the alternatives
+	// that follow it are the ones that stop it.
+	t.Run("a single affix is indexed alongside the alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.subject in ["alice", "bob"]
+			startswith(input.path, "/v1/")
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice", "path": "/v1/things"}`, 1},
+			{`{"subject": "dave", "path": "/v1/things"}`, 0},
+			{`{"subject": "alice", "path": "/v2/things"}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// The membership is the only thing the rule constrains, so there is no path
+	// to continue and the alternatives stay separate children -- which rules
+	// with overlapping collections share.
+	t.Run("nothing below the alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if input.subject in ["alice", "bob"]
+		p if input.subject in ["alice", "carol"]`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice"}`, 2},
+			{`{"subject": "bob"}`, 1},
+			{`{"subject": "dave"}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
 }

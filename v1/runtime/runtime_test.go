@@ -36,6 +36,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
 	"github.com/open-policy-agent/opa/v1/server/authorizer"
+	"github.com/open-policy-agent/opa/v1/storage/disk"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tracing"
 
@@ -696,7 +697,7 @@ func TestCheckOPAUpdateWithNewUpdate(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp)
 	defer teardown()
 
 	exp := &versioncheck.DataResponse{Latest: versioncheck.ReleaseDetails{
@@ -734,7 +735,7 @@ func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(srvResp, http.StatusOK)
+	baseURL, teardown := getTestServer(srvResp)
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is up to date.")
@@ -746,7 +747,7 @@ func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp)
 	defer teardown()
 
 	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
@@ -793,7 +794,7 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	}
 
 	// test server
-	baseURL, teardown := getTestServer(resp, http.StatusOK)
+	baseURL, teardown := getTestServer(resp)
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
@@ -1481,6 +1482,79 @@ func TestGracefulTracerShutdown(t *testing.T) {
 	})
 }
 
+// TestTracingExcludePaths asserts that distributed_tracing.exclude_paths keeps
+// the server from emitting spans for the matching endpoints, so that noisy
+// liveness probes don't drown out the interesting traces.
+func TestTracingExcludePaths(t *testing.T) {
+	ctx := t.Context()
+
+	cfg := filepath.Join(t.TempDir(), "opa.yaml")
+	config := `distributed_tracing:
+  type: grpc
+  exclude_paths:
+    - /health**
+    - /v1/data/secret/**
+`
+	if err := os.WriteFile(cfg, []byte(config), 0o644); err != nil {
+		t.Fatalf("write config %s: %v", cfg, err)
+	}
+
+	params := NewParams()
+	params.Logger = testLog.New()
+	params.Addrs = &[]string{"localhost:0"}
+	params.ConfigFile = cfg
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	// The config above makes the runtime build a tracer provider that exports to
+	// an (unreachable) OTLP collector. Appending a second provider here redirects
+	// the server's spans into an in-memory exporter instead: otelhttp applies its
+	// options in order, so the last one set wins.
+	spanExporter := tracetest.NewInMemoryExporter()
+	rt.Params.DistributedTracingOpts = append(rt.Params.DistributedTracingOpts,
+		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))))
+
+	go rt.StartServer(ctx)
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+	}) {
+		t.Fatal("Timed out waiting for server to start")
+	}
+	base := "http://" + rt.Addrs()[0]
+
+	for _, tc := range []struct {
+		path      string
+		spanNames []string
+	}{
+		{path: "/health", spanNames: nil},
+		{path: "/health/live", spanNames: nil},
+		{path: "/v1/data/secret/key", spanNames: nil},
+		{path: "/v1/data", spanNames: []string{"GET /v1/data"}},
+		{path: "/v1/data/other", spanNames: []string{"GET /v1/data/{path...}"}},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Cleanup(spanExporter.Reset)
+
+			resp, err := http.Get(base + tc.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+
+			var got []string
+			for _, s := range spanExporter.GetSpans() {
+				got = append(got, s.Name)
+			}
+			if !slices.Equal(got, tc.spanNames) {
+				t.Errorf("got spans %v, expected %v", got, tc.spanNames)
+			}
+		})
+	}
+}
+
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
@@ -1539,12 +1613,12 @@ func TestUrlPathToConfigOverride(t *testing.T) {
 	}
 }
 
-func getTestServer(update any, statusCode int) (string, func()) {
+func getTestServer(update any) (string, func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
 	mux.HandleFunc("/repos/open-policy-agent/opa/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(statusCode)
+		w.WriteHeader(http.StatusOK)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(bs) // ignore error
@@ -1686,11 +1760,11 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 
 		_, err := NewRuntime(t.Context(), params)
 		if err == nil {
-			t.Fatalf("Expected error to be thrown on malformed metrics config")
+			t.Fatal("Expected error to be thrown on malformed metrics config")
 		}
 
 		if !strings.HasPrefix(err.Error(), "server metrics configuration parse error") {
-			t.Fatalf("Expected specific error to be thrown on malformed metrics config")
+			t.Fatal("Expected specific error to be thrown on malformed metrics config")
 		}
 	})
 }
@@ -1994,10 +2068,10 @@ func TestCacheHooksOnServer(t *testing.T) {
 		t.Fatal("expected ServerInitializedChannel to be closed")
 	}
 	if h1.c == nil {
-		t.Errorf("expected non-nil inter-query cache")
+		t.Error("expected non-nil inter-query cache")
 	}
 	if h2.c == nil {
-		t.Errorf("expected non-nil inter-query value cache")
+		t.Error("expected non-nil inter-query value cache")
 	}
 
 	for _, e := range testLogger.Entries() {
@@ -2336,4 +2410,67 @@ decision_logs.console := true
 	if h.onDiscover.DecisionLogs == nil {
 		t.Error("expected discovered decision_logs config to be visible to the hook")
 	}
+}
+
+func TestInitDiskStoreLargeBundle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	ctx := t.Context()
+
+	const users = 5000
+
+	data := map[string]any{}
+	for i := range users {
+		data[fmt.Sprintf("user%d", i)] = map[string]string{
+			"role": fmt.Sprintf("role%d", i%7),
+		}
+	}
+
+	bs, err := json.Marshal(map[string]any{"users": data})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := archive.MustWriteTarGz([][2]string{
+		{"/data.json", string(bs)},
+		{"/policy.rego", "package example\n\nroles := object.keys(data.users)\n"},
+	})
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundlePath := filepath.Join(rootDir, "bundle.tar.gz")
+		if err := os.WriteFile(bundlePath, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		params := NewParams()
+		params.Paths = []string{bundlePath}
+		params.BundleMode = true
+		params.BundleLazyLoadingMode = true
+		params.DiskStorage = &disk.Options{
+			Dir:        filepath.Join(rootDir, "disk"),
+			Partitions: []storage.Path{storage.MustParsePath("/users/*")},
+			Badger:     "memtablesize=100000;valuethreshold=600",
+		}
+
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, rt.Store)
+		defer rt.Store.Abort(ctx, txn)
+
+		for _, i := range []int{0, users / 2, users - 1} {
+			path := storage.MustParsePath(fmt.Sprintf("/users/user%d/role", i))
+			act, err := rt.Store.Read(ctx, txn, path)
+			if err != nil {
+				t.Fatalf("read %v: %v", path, err)
+			}
+			if exp := fmt.Sprintf("role%d", i%7); act != exp {
+				t.Fatalf("read %v: expected %v, got %v", path, exp, act)
+			}
+		}
+	})
 }

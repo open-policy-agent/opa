@@ -120,7 +120,7 @@ func (d *OCIDownloader) Trigger(ctx context.Context) error {
 	d.triggerWG.Add(1)
 	d.stateMtx.Unlock()
 
-	done := make(chan error)
+	done := make(chan error, 1)
 
 	go func() {
 		defer d.triggerWG.Done()
@@ -128,11 +128,8 @@ func (d *OCIDownloader) Trigger(ctx context.Context) error {
 		err := d.oneShot(ctx)
 		if err != nil {
 			d.logger.Error("OCI - Bundle download failed: %v.", err)
-			if ctx.Err() == nil {
-				done <- err
-			}
 		}
-		close(done)
+		done <- err
 	}()
 
 	select {
@@ -260,6 +257,8 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	d.client = d.client.WithHeader("Prefer", preferValue)
 
 	m.Timer(metrics.BundleRequest).Start()
+	defer m.Timer(metrics.BundleRequest).Stop()
+
 	desc, err := d.pull(ctx, d.path)
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("failed to pull %s: %w", d.path, err)
@@ -325,8 +324,6 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)
 	}
-
-	m.Timer(metrics.BundleRequest).Stop()
 
 	return &downloaderResponse{
 		b:        &bundleInfo,
@@ -497,6 +494,9 @@ func (t *ociTarget) Fetch(ctx context.Context, target ocispec.Descriptor) (io.Re
 	return resp.Body, nil
 }
 
+// Exists is required by oraslib.ReadOnlyTarget, through content.ReadOnlyStorage,
+// but nothing calls it: oraslib.Copy only probes the destination, and
+// cas.Proxy.Exists, the one path that would reach a source, is unused in oras-go.
 func (t *ociTarget) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
 	rc, err := t.Fetch(ctx, target)
 	if err != nil {

@@ -78,7 +78,7 @@ func TestRoundtripOPA(t *testing.T) {
 		t.Errorf("expected %d 'producers' custom sections, found %d", expected, actual)
 	}
 	if len(module1.Names.Functions) == 0 {
-		t.Errorf("expected non-zero function names in 'name' custom sections")
+		t.Error("expected non-zero function names in 'name' custom sections")
 	}
 
 	// Note(sr): We don't have this set by any other means, so manually set it, and

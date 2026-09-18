@@ -36,11 +36,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Check out OCP ${{ steps.ocp_release.outputs.tag }}
+      - name: Check out OCP main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-policy-agent/opa-control-plane
-          ref: "61213c778cd937822cfdfed0f8914649a8381954" # ${{ steps.ocp_release.outputs.tag }}
+          ref: main # ${{ steps.ocp_release.outputs.tag }}
           persist-credentials: false
           path: ocp
 

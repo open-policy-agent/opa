@@ -43,7 +43,7 @@ func TestMarshalValueToTextAppenderError(t *testing.T) {
 	enc := jsontext.NewEncoder(new(bytes.Buffer))
 	err := marshalValueTo(enc, v)
 	if err == nil {
-		t.Fatalf("expected error from AppendText to be propagated, got nil")
+		t.Fatal("expected error from AppendText to be propagated, got nil")
 	}
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected wrapped error %v, got %v", wantErr, err)

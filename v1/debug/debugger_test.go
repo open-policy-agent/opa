@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/logging"
+	tlog "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -791,7 +792,7 @@ func TestDebuggerAutomaticStop(t *testing.T) {
 
 			stk := newTestStack(testEvents...)
 			eh := newTestEventHandler()
-			_, s, _ := setupDebuggerSession(ctx, stk, tc.props, eh.HandleEvent, nil, nil, nil)
+			s, _ := setupDebuggerSession(ctx, stk, tc.props, eh.HandleEvent, nil, nil, nil)
 
 			if err := s.start(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -971,7 +972,7 @@ func TestDebuggerStopOnBreakpoint(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, _ := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
+			s, _ := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			bp, err := s.AddBreakpoint(tc.breakpoint)
 			if err != nil {
@@ -1117,7 +1118,7 @@ func TestDebuggerStepIn(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
+			s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			var stoppedAt []int
 			doneCh := make(chan struct{})
@@ -1294,7 +1295,7 @@ func TestDebuggerStepOver(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
+			s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			var stoppedAt []int
 			doneCh := make(chan struct{})
@@ -1455,7 +1456,7 @@ func TestDebuggerStepOut(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
+			s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			var stoppedAt []int
 			doneCh := make(chan struct{})
@@ -1897,7 +1898,7 @@ q if true
 
 				stk := newTestStack(tc.events...)
 				eh := newTestEventHandler()
-				_, s, thr := setupDebuggerSession(ctx, stk, props, eh.HandleEvent, nil, nil, nil)
+				s, thr := setupDebuggerSession(ctx, stk, props, eh.HandleEvent, nil, nil, nil)
 
 				if err := s.start(); err != nil {
 					t.Fatalf("Unexpected error: %v", err)
@@ -2476,7 +2477,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				store = inmem.NewFromObject(tc.data)
 			}
 
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, vc, store, nil)
+			s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, vc, store, nil)
 
 			trace, err := s.StackTrace(thr.id)
 			if err != nil {
@@ -2511,7 +2512,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				}
 
 				if scope.NamedVariables() > 0 && scope.VariablesReference() == 0 {
-					t.Errorf("Expected non-zero variables reference")
+					t.Error("Expected non-zero variables reference")
 				}
 
 				if expScope.namedVariables > 0 {
@@ -2528,6 +2529,26 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDebuggerBasicLogging(t *testing.T) {
+	log := tlog.New()
+	log.SetLevel(logging.Debug)
+
+	ses, _ := setupDebuggerSession(
+		t.Context(),
+		newTestStack(),
+		LaunchProperties{},
+		newTestEventHandler().HandleEvent,
+		topdown.NewVirtualCache(),
+		inmem.New(),
+		log,
+	)
+	_ = ses.start()
+
+	if len(log.Entries()) == 0 {
+		t.Error("Expected log entries, got none")
 	}
 }
 
@@ -2561,7 +2582,7 @@ func assertVariables(t *testing.T, s Session, variables []Variable, exp map[stri
 
 		if len(expVar.children) != 0 {
 			if v.VariablesReference() == 0 {
-				t.Errorf("Expected non-zero variables reference")
+				t.Error("Expected non-zero variables reference")
 			}
 
 			vars, err := s.Variables(v.VariablesReference())
@@ -2570,13 +2591,13 @@ func assertVariables(t *testing.T, s Session, variables []Variable, exp map[stri
 			}
 			assertVariables(t, s, vars, expVar.children)
 		} else if v.VariablesReference() != 0 {
-			t.Errorf("Expected zero variables reference")
+			t.Error("Expected zero variables reference")
 		}
 	}
 }
 
 func setupDebuggerSession(ctx context.Context, stk stack, launchProperties LaunchProperties, eh EventHandler,
-	vc topdown.VirtualCache, store storage.Store, l logging.Logger) (*debugger, *session, *thread) {
+	vc topdown.VirtualCache, store storage.Store, l logging.Logger) (*session, *thread) {
 	if l == nil {
 		l = logging.NewNoOpLogger()
 	}
@@ -2591,7 +2612,7 @@ func setupDebuggerSession(ctx context.Context, stk stack, launchProperties Launc
 	t := newThread(1, "test", stk, varManager, vc, store, l)
 	s := newSession(ctx, d, varManager, launchProperties, []*thread{t})
 
-	return d, s, t
+	return s, t
 }
 
 type testEventHandler struct {

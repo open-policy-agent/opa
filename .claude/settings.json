@@ -11,6 +11,10 @@
           {
             "type": "command",
             "command": "bash -c 'if [ -f \"$CLAUDE_PROJECT_DIR/docs/docs/contrib-code.md\" ]; then cat \"$CLAUDE_PROJECT_DIR/docs/docs/contrib-code.md\"; fi'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'if [ -f \"$CLAUDE_PROJECT_DIR/.github/PULL_REQUEST_TEMPLATE.md\" ]; then cat \"$CLAUDE_PROJECT_DIR/.github/PULL_REQUEST_TEMPLATE.md\"; fi'"
           }
         ]
       }

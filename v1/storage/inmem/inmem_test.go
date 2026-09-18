@@ -1161,7 +1161,7 @@ func TestASTInMemoryTriggersDataConversion(t *testing.T) {
 	err := storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
 		_, err := store.Register(ctx, txn, storage.TriggerConfig{
 			SkipDataConversion: true,
-			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			OnCommit: func(_ context.Context, _ storage.Transaction, event storage.TriggerEvent) {
 				if event.DataChanged() {
 					if _, ok := event.Data[0].Data.(ast.Value); !ok {
 						t.Fatalf("Expected ast.Value data but got: %T", event.Data[0].Data)
@@ -1179,7 +1179,7 @@ func TestASTInMemoryTriggersDataConversion(t *testing.T) {
 	// Register a trigger that wants data conversion (skip data conversion not set, as is the default)
 	err = storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
 		_, err := store.Register(ctx, txn, storage.TriggerConfig{
-			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			OnCommit: func(_ context.Context, _ storage.Transaction, event storage.TriggerEvent) {
 				if event.DataChanged() {
 					if _, ok := event.Data[0].Data.(ast.Value); ok {
 						t.Fatalf("Expected non-ast.Value data but got: %T", event.Data[0].Data)
@@ -1232,7 +1232,7 @@ func TestInMemoryTriggersUnregister(t *testing.T) {
 	handle, err := store.Register(ctx, writeTxn, storage.TriggerConfig{
 		OnCommit: func(_ context.Context, _ storage.Transaction, evt storage.TriggerEvent) {
 			if !evt.IsZero() {
-				t.Fatalf("Callback should have been unregistered")
+				t.Fatal("Callback should have been unregistered")
 			}
 		},
 	})
@@ -1657,7 +1657,7 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 			if tt.wantErr && err == nil {
 				t.Fatal("got Write error = nil, want error")
 			} else if !tt.wantErr && err != nil {
-				t.Fatalf("got Write error, want nil")
+				t.Fatal("got Write error, want nil")
 			}
 		})
 	}

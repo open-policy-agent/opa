@@ -312,7 +312,7 @@ func TestCustomVerifier(t *testing.T) {
 	custom := &CustomVerifier{}
 	err := RegisterVerifier(defaultVerifierID, custom)
 	if err == nil {
-		t.Fatalf("Expected error when registering with default ID")
+		t.Fatal("Expected error when registering with default ID")
 	}
 	if err := RegisterVerifier("_test", custom); err != nil {
 		t.Fatal(err)
@@ -329,9 +329,9 @@ func TestCustomVerifier(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	if _, isCustom := customVerifier.(*CustomVerifier); !isCustom {
-		t.Fatalf("Expected CustomVerifier to be registered at key _test")
+		t.Fatal("Expected CustomVerifier to be registered at key _test")
 	}
 	if _, err = GetVerifier("_unregistered"); err == nil {
-		t.Fatalf("Expected error when no Verifier exists at provided key")
+		t.Fatal("Expected error when no Verifier exists at provided key")
 	}
 }

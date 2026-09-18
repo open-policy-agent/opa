@@ -54,7 +54,7 @@ func TestFSLoaderWithFilter(t *testing.T) {
 	}
 
 	loader.WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
-		return getFilter("*_test.rego", 1)(abspath, info, depth)
+		return getFilter("*_test.rego")(abspath, info, depth)
 	})
 
 	testLoader(t, loader, "", expectedFiles)

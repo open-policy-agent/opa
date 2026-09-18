@@ -226,7 +226,7 @@ func (c *captureLogger) Error(format string, args ...any) {
 	c.mu.Unlock()
 }
 
-func (c *captureLogger) WithFields(fields map[string]any) Logger {
+func (c *captureLogger) WithFields(map[string]any) Logger {
 	return c
 }
 

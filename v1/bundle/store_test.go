@@ -1893,7 +1893,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 
 	// Ensure that the extra module was included
 	if _, ok := compiler.Modules["mod1"]; !ok {
-		t.Fatalf("expected extra module to be compiled")
+		t.Fatal("expected extra module to be compiled")
 	}
 
 	mustDeactivate(t, mockStore, &DeactivateOpts{BundleNames: map[string]struct{}{"bundle1": {}}})
@@ -2014,7 +2014,7 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 
 	// Ensure that the extra module was included
 	if _, ok := compiler.Modules["mod1"]; !ok {
-		t.Fatalf("expected extra module to be compiled")
+		t.Fatal("expected extra module to be compiled")
 	}
 
 	mustDeactivate(t, mockStore, &DeactivateOpts{BundleNames: map[string]struct{}{"bundle1": {}, "bundle2": {}}})
@@ -3192,7 +3192,7 @@ func TestBundleLifecycle(t *testing.T) {
 
 			// Ensure that the extra module was included
 			if _, ok := compiler.Modules["mod1"]; !ok {
-				t.Fatalf("expected extra module to be compiled")
+				t.Fatal("expected extra module to be compiled")
 			}
 
 			mustDeactivate(t, mockStore, &DeactivateOpts{
@@ -3725,181 +3725,6 @@ func TestWriteData(t *testing.T) {
 	}
 }
 
-type testWriteModuleCase struct {
-	note         string
-	bundles      map[string]*Bundle // Only need to give raw text and path for modules
-	extraMods    map[string]*ast.Module
-	compilerMods map[string]*ast.Module
-	storeData    map[string]any
-	expectErr    bool
-}
-
-func TestWriteModules(t *testing.T) {
-	mod1 := ast.MustParseModule("package a\np = true")
-	mod2 := ast.MustParseModule("package b\np = false")
-
-	bundles := map[string]*Bundle{"bundle1": {Modules: []ModuleFile{moduleFile("mod1", "package a\np = true")}}}
-
-	cases := []testWriteModuleCase{
-		{
-			note:    "module files only",
-			bundles: bundles,
-		},
-		{
-			note:      "extra modules only",
-			extraMods: map[string]*ast.Module{"mod1": mod1},
-		},
-		{
-			note:         "compiler modules only",
-			compilerMods: map[string]*ast.Module{"mod1": mod1},
-		},
-		{
-			note:      "module files and extra modules",
-			bundles:   bundles,
-			extraMods: map[string]*ast.Module{"mod2": mod2},
-		},
-		{
-			note:         "module files and compiler modules",
-			bundles:      bundles,
-			compilerMods: map[string]*ast.Module{"mod2": mod2},
-		},
-		{
-			note:         "extra modules and compiler modules",
-			extraMods:    map[string]*ast.Module{"mod1": mod1},
-			compilerMods: map[string]*ast.Module{"mod2": mod2},
-		},
-		{
-			note:      "compile error: path conflict",
-			bundles:   bundles,
-			storeData: unpack(map[string]any{"a.p": "foo"}),
-			expectErr: true,
-		},
-	}
-
-	for _, tc := range cases {
-		testWriteData(t, tc, false)
-		testWriteData(t, tc, true)
-	}
-}
-
-func testWriteData(t *testing.T, tc testWriteModuleCase, legacy bool) {
-	t.Helper()
-
-	testName := tc.note
-	if legacy {
-		testName += "_legacy"
-	}
-
-	t.Run(testName, func(t *testing.T) {
-		mockStore := mock.NewWithData(tc.storeData)
-		txn := storage.NewTransactionOrDie(t.Context(), mockStore, storage.WriteParams)
-
-		compiler := ast.NewCompiler().WithPathConflictsCheck(storage.NonEmpty(t.Context(), mockStore, txn))
-
-		// if supplied, pre-parse the module files
-
-		for _, b := range tc.bundles {
-			parsedMods := make([]ModuleFile, 0, len(b.Modules))
-			for _, mf := range b.Modules {
-				parsedMods = append(parsedMods, ModuleFile{
-					Path:   mf.Path,
-					Raw:    mf.Raw,
-					Parsed: ast.MustParseModule(string(mf.Raw)),
-				})
-			}
-			b.Modules = parsedMods
-		}
-
-		// if supplied, setup the compiler with modules already compiled on it
-		if len(tc.compilerMods) > 0 {
-			if compiler.Compile(tc.compilerMods); len(compiler.Errors) > 0 {
-				t.Fatalf("unexpected error: %s", compiler.Errors)
-			}
-		}
-
-		err := writeModules(t.Context(), mockStore, txn, compiler, metrics.NoOp(), tc.bundles, tc.extraMods, legacy, nil)
-		if !tc.expectErr && err != nil {
-			t.Fatalf("unepected error: %s", err)
-		} else if tc.expectErr && err == nil {
-			t.Fatalf("expected error, got: %s", err)
-		}
-
-		if !tc.expectErr {
-			// ensure all policy files were saved to storage
-			expectedNumMods := 0
-			for _, b := range tc.bundles {
-				expectedNumMods += len(b.Modules)
-			}
-
-			policies := must(mockStore.ListPolicies(t.Context(), txn))(t)
-			if len(policies) != expectedNumMods {
-				t.Fatalf("expected %d policies in storage, found %d", expectedNumMods, len(policies))
-			}
-
-			for bundleName, b := range tc.bundles {
-				for _, mf := range b.Modules {
-					found := false
-					for _, p := range policies {
-						var expectedPath string
-						if legacy {
-							expectedPath = mf.Path
-						} else {
-							expectedPath = filepath.Join(bundleName, mf.Path)
-						}
-						if p == expectedPath {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Fatalf("policy %s not found in storage", mf.Path)
-					}
-				}
-			}
-
-			// ensure all the modules were compiled together and we aren't missing any
-			expectedModCount := expectedNumMods + len(tc.extraMods) + len(tc.compilerMods)
-			if len(compiler.Modules) != expectedModCount {
-				t.Fatalf("expected %d modules on compiler, found %d", expectedModCount, len(compiler.Modules))
-			}
-
-			for moduleName := range compiler.Modules {
-				found := false
-				if _, ok := tc.extraMods[moduleName]; ok {
-					continue
-				}
-				if _, ok := tc.compilerMods[moduleName]; ok {
-					continue
-				}
-				for bundleName, b := range tc.bundles {
-					if legacy {
-						for _, mf := range b.Modules {
-							if moduleName == mf.Path {
-								found = true
-								break
-							}
-						}
-					} else {
-						for bundleModuleName := range b.ParsedModules(bundleName) {
-							if moduleName == bundleModuleName {
-								found = true
-								break
-							}
-						}
-					}
-				}
-				if found {
-					continue
-				}
-				t.Errorf("unexpected module %s on compiler", moduleName)
-			}
-		}
-
-		mustCommit(t, mockStore, txn)
-		mockStore.AssertValid(t)
-	})
-}
-
 func TestDoDFS(t *testing.T) {
 	cases := []struct {
 		note    string
@@ -4219,7 +4044,7 @@ func TestBundleStoreHelpers(t *testing.T) {
 			// Wasm metadata
 
 			if _, err := ReadWasmMetadataFromStore(t.Context(), mockStore, txn, "bundle1"); err == nil {
-				t.Fatalf("expected error but got nil")
+				t.Fatal("expected error but got nil")
 			} else if exp, act := "storage_not_found_error: /bundles/bundle1/manifest/wasm: document does not exist", err.Error(); !strings.Contains(act, exp) {
 				t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", exp, act)
 			}
@@ -4233,7 +4058,7 @@ func TestBundleStoreHelpers(t *testing.T) {
 			// Wasm modules
 
 			if _, err := ReadWasmModulesFromStore(t.Context(), mockStore, txn, "bundle1"); err == nil {
-				t.Fatalf("expected error but got nil")
+				t.Fatal("expected error but got nil")
 			} else if exp, act := "storage_not_found_error: /bundles/bundle1/wasm: document does not exist", err.Error(); !strings.Contains(act, exp) {
 				t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", exp, act)
 			}

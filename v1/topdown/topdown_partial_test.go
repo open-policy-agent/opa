@@ -305,8 +305,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantSupport: []string{
 				`package partial.test
-				p[a2].q = {"foo": 1} if { a2 = input.a }
-				p[a1].q = {"bar": 2} if { a1 = input.b }`,
+				p[a1].q = {"foo": 1} if { a1 = input.a }
+				p[a2].q = {"bar": 2} if { a2 = input.b }`,
 			},
 		},
 		{
@@ -337,11 +337,11 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantSupport: []string{
 				`package partial.test
-				p[a4].q = {"foo": 1} if { a4 = input.a }
-				p[a3].q = {"bar": 2} if { a3 = input.b }`,
+				p[a1].q = {"foo": 1} if { a1 = input.a }
+				p[a2].q = {"bar": 2} if { a2 = input.b }`,
 				`package partial.test.p.foo
 				r = "baz" if { true }
-				s = a2 if { a2 = input.c }`,
+				s = a4 if { a4 = input.c }`,
 			},
 		},
 		{
@@ -1431,8 +1431,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{`package partial.test
 
 			q if { __local6__2 = input; data.partial.test.mock_concat(["foo"], __local6__2, __local5__2); __local4__2 = __local5__2 }
-			mock_concat(__local0__4, __local1__4) = ["foo", "bar"] if { input.foo = x_term_4_04; x_term_4_04 }
-			mock_concat(__local2__3, __local3__3) = ["bar", "baz"] if { input.bar = x_term_3_03; x_term_3_03 }`,
+			mock_concat(__local0__3, __local1__3) = ["foo", "bar"] if { input.foo = x_term_3_03; x_term_3_03 }
+			mock_concat(__local2__4, __local3__4) = ["bar", "baz"] if { input.bar = x_term_4_04; x_term_4_04 }`,
 			},
 		},
 		{
@@ -1454,8 +1454,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{`package partial.test
 
 			q if { __local9__2 = input; data.partial.test.mock_concat(",", __local9__2, __local8__2); __local6__2 = __local8__2 }
-			mock_concat(__local2__4, __local3__4) = "foo,bar" if { input.foo = x_term_4_04; x_term_4_04 }
-			mock_concat(__local4__3, __local5__3) = "bar,baz" if { input.bar = x_term_3_03; x_term_3_03 }`,
+			mock_concat(__local2__3, __local3__3) = "foo,bar" if { input.foo = x_term_3_03; x_term_3_03 }
+			mock_concat(__local4__4, __local5__4) = "bar,baz" if { input.bar = x_term_4_04; x_term_4_04 }`,
 			},
 		},
 		{
@@ -1519,8 +1519,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`data.partial.test.p = x`},
 			wantSupport: []string{`
 				package partial.test
-				p contains x1 if { input.y = x1 }
-				p contains x2 if { input.x = x2 }
+				p contains x1 if { input.x = x1 }
+				p contains x2 if { input.y = x2 }
 			`},
 		},
 		{
@@ -1549,8 +1549,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`data.partial.test.p = x`},
 			wantSupport: []string{`
 				package partial.test
-				p[x1] = y1 if { x1 = input.z; y1 = input.a }
-				p[x2] = y2 if { x2 = input.x; y2 = input.y }
+				p[x1] = y1 if { x1 = input.x; y1 = input.y }
+				p[x2] = y2 if { x2 = input.z; y2 = input.a }
 			`},
 		},
 		{
@@ -1564,8 +1564,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`data.partial.test.p.q = x`},
 			wantSupport: []string{`
 				package partial.test.p
-				q[x2] = y2 if { x2 = input.x; y2 = input.y }
-				q[r1].s[t1] = y1 if { r1 = input.r; t1 = input.t; y1 = input.y }
+				q[r2].s[t2] = y2 if { r2 = input.r; t2 = input.t; y2 = input.y }
+				q[x1] = y1 if { x1 = input.x; y1 = input.y }
 			`},
 		},
 		{
@@ -1812,9 +1812,9 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantSupport: []string{
 				`package partial.test
-				p = 1 if { input.x = 1 }
-				p = x1 if { input.x = x1 }
 				default p = 0
+				p = 1 if { input.x = 1 }
+				p = x2 if { input.x = x2 }
 				`,
 			},
 		},
@@ -2571,8 +2571,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`data.partial.test.f(1, x)`},
 			wantSupport: []string{
 				`package partial.test
-				f(__local0__2) = true if { input.x = __local0__2 }
-				f(__local1__1) = false if { input.y = __local1__1 }`,
+				f(__local0__1) = true if { input.x = __local0__1 }
+				f(__local1__2) = false if { input.y = __local1__2 }`,
 			},
 		},
 		{
@@ -3469,6 +3469,21 @@ func TestTopDownPartialEval(t *testing.T) {
 			p if time.now_ns() > 0`,
 			},
 			wantQueries: []string{""}, // unconditional true
+		},
+		{
+			// $ref is dereferenced at evaluation time, so folding this during PE
+			// would bake a remote answer into the residual. The URL is the local
+			// test server so a regression fails here instead of hitting the network.
+			note:     "nondeterministic builtin json.match_schema saved during PE",
+			query:    "data.test.p",
+			unknowns: []string{"input.x"},
+			modules: []string{fmt.Sprintf(`package test
+			p if {
+				input.x == 1
+				json.match_schema({"user": "jsmith"}, {"$ref": "%s"})
+			}`, testserver.URL),
+			},
+			wantQueries: []string{fmt.Sprintf(`input.x = 1; json.match_schema({"user": "jsmith"}, {"$ref": "%s"})`, testserver.URL)},
 		},
 
 		{
@@ -4824,6 +4839,212 @@ q if { input.x = 7 }`},
 				`x1 = input.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
 			},
 		},
+		{
+			note:     "unknown sub-path: enumerating input may hit the unknown key",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k] == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x = 1`},
+		},
+		{
+			// Control for the case above: a known key already satisfies the body, so
+			// p holds whatever input.x is -- an empty (true) disjunct beside the saved one.
+			note:     "unknown sub-path: known key satisfies the body",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k] > 0
+				}
+				`,
+			},
+			wantQueries: []string{``, `input.x > 0`},
+		},
+		{
+			// The unknown key is present in the concrete input: its value must be
+			// ignored, and the branch saved once, not twice.
+			note:     "unknown sub-path: concrete input carries the unknown key",
+			query:    `data.test.p = true`,
+			input:    `{"x": 5, "y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k] == 5
+				}
+				`,
+			},
+			wantQueries: []string{`input.x = 5`},
+		},
+		{
+			// Two unknowns below the same key contribute "x" once, not twice.
+			note:     "unknown sub-path: two unknowns share a parent key",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x.a`, `input.x.b`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k].a == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x.a = 1`},
+		},
+		{
+			note:     "unknown sub-path: ground key that misses the unknown is still evaluated",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if input.y == 2
+				`,
+			},
+			wantQueries: []string{``},
+		},
+		{
+			// A bound key is as good as a constant: k = "y" cannot hit input.x.
+			note:     "unknown sub-path: key bound to a constant that misses the unknown",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  k := "y"
+				  input[k] == 2
+				}
+				`,
+			},
+			wantQueries: []string{``},
+		},
+		{
+			// Wildcard at position 1 matches, but ground "b" and "a" at position 2 differ.
+			note:     "unknown sub-path: ground position past the wildcard rules out the overlap",
+			query:    `data.test.p = true`,
+			input:    `{"y": {"b": 2}}`,
+			unknowns: []string{`input.x.a`},
+			modules: []string{
+				`package test
+
+				p if input[k].b == 1
+				`,
+			},
+			wantQueries: []string{},
+		},
+		{
+			// Nested unknown, wildcard at the same depth as the unknown leaf.
+			note:     "unknown sub-path: nested, wildcard at the depth of the unknown leaf",
+			query:    `data.test.p = true`,
+			input:    `{"x": {"z": 3}}`,
+			unknowns: []string{`input.x.y`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input.x[k] == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x.y = 1`},
+		},
+		{
+			// Wildcard above the unknown: the walk must continue past it to decide.
+			note:     "unknown sub-path: nested, wildcard above a matching ground position",
+			query:    `data.test.p = true`,
+			input:    `{"x": {"z": 3}}`,
+			unknowns: []string{`input.x.y`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k].y == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x.y = 1`},
+		},
+		{
+			// Ground sibling of the unknown leaf: input.x.z is fully known.
+			note:     "unknown sub-path: nested, ground sibling of the unknown leaf",
+			query:    `data.test.p = true`,
+			input:    `{"x": {"z": 3}}`,
+			unknowns: []string{`input.x.y`},
+			modules: []string{
+				`package test
+
+				p if input.x.z == 1
+				`,
+			},
+			wantQueries: []string{},
+		},
+		{
+			note:     "unknown sub-path: enumerating data may hit the unknown key",
+			query:    `data.test.p = true`,
+			data:     `{"foo": {"y": 2}}`,
+			unknowns: []string{`data.foo.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  data.foo[k] == 1
+				}
+				`,
+			},
+			wantQueries: []string{`data.foo[__local0__1] = 1`},
+		},
+		{
+			// The with value rebuilds input by iterating it, so it cannot be evaluated
+			// to a document here: input_copy becomes a support module instead.
+			note:     "unknown sub-path: with value reconstructed by enumeration",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				input_copy[k] := v if some k, v in input
+
+				p if data.inner.q == true with input as input_copy
+				`,
+				`package inner
+
+				q if input.x == 1
+				`,
+			},
+			wantQueries: []string{`data.inner.q = true with input as data.partial.test.input_copy`},
+			wantSupport: []string{
+				`package partial.test.input_copy
+
+				x = __local1__2 if input.x = __local1__2
+
+				y = 2
+				`,
+			},
+		},
 	}
 
 	ctx := t.Context()
@@ -4907,6 +5128,9 @@ q if { input.x = 7 }`},
 				missing := queriesB.Diff(queriesA, tc.ignoreOrder)
 				extra := queriesA.Diff(queriesB, tc.ignoreOrder)
 				t.Errorf("Partial evaluation results differ. Expected %d queries but got %d queries:\nMissing:\n%v\nExtra:\n%v", len(queriesB), len(queriesA), missing, extra)
+			} else if len(partials) != len(expectedQueries) {
+				// Equal() compares as sets, so it cannot see a query emitted twice.
+				t.Errorf("Expected %d queries but got %d:\n%v", len(expectedQueries), len(partials), bodySet(partials))
 			}
 
 			var expectedSupport []*ast.Module
@@ -5111,8 +5335,8 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				package partial.test
 
 				q if { data.partial.test.mock_count([1], __local2__3); __local2__3 = input.x }
-				mock_count(__local0__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
-				mock_count(__local1__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
+				mock_count(__local0__4) = 100 if { input.y = x_term_4_04; x_term_4_04 }
+				mock_count(__local1__5) = 101 if { input.z = x_term_5_05; x_term_5_05 }
 			`},
 		},
 		{
@@ -5136,8 +5360,8 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				package partial.test
 
 				q if { data.partial.test.mock_count([1], __local4__3); __local4__3 = input.x }
-				mock_count(__local1__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
-				mock_count(__local2__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
+				mock_count(__local1__4) = 100 if { input.y = x_term_4_04; x_term_4_04 }
+				mock_count(__local2__5) = 101 if { input.z = x_term_5_05; x_term_5_05 }
 			`},
 		},
 

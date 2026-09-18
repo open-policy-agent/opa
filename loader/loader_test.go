@@ -61,7 +61,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -134,7 +134,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -203,7 +203,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -272,7 +272,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -341,7 +341,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {

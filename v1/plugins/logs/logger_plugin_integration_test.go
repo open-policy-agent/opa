@@ -270,10 +270,10 @@ func TestDecisionLogsWithBothConsoleAndLoggerPlugin(t *testing.T) {
 		}
 
 		if !strings.Contains(pluginLogged, "test-decision-456") {
-			t.Errorf("expected decision_id in logger plugin output")
+			t.Error("expected decision_id in logger plugin output")
 		}
 		if !strings.Contains(consoleLogged, "test-decision-456") {
-			t.Errorf("expected decision_id in console logger output")
+			t.Error("expected decision_id in console logger output")
 		}
 
 		manager.Stop(ctx)
@@ -340,7 +340,7 @@ func (l *mockLogger) SetLevel(level logging.Level) {
 	l.level = level
 }
 
-func (l *mockLogger) log(level string, format string, args []any) {
+func (l *mockLogger) log(level string, format string, _ []any) {
 	entry := make(map[string]any, 2+len(l.fields))
 	entry["level"] = level
 	maps.Copy(entry, l.fields)

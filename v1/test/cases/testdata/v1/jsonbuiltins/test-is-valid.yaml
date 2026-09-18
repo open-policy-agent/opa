@@ -70,3 +70,22 @@ cases:
     want_result:
       - x: false
     strict_error: true
+  - note: jsonbuiltins/yaml is_valid unreachable content
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        documents := [
+        	"  test:\ntest1: hello\n",
+        	"a: 1\n---\n\tb: 2\n",
+        	"a: 1\n---\nb: 2\n",
+        ]
+
+        p := [x | doc = documents[_]; yaml.is_valid(doc, x)]
+    want_result:
+      - x:
+          - false
+          - false
+          - true
+    strict_error: true

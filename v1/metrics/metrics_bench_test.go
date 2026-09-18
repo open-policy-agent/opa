@@ -41,7 +41,7 @@ func BenchmarkMetricsMarshaling(b *testing.B) {
 			b.Fatalf("Unexpected error: %v", err)
 		}
 		if len(bs) == 0 {
-			b.Fatalf("No output")
+			b.Fatal("No output")
 		}
 	}
 }

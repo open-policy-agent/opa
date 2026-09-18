@@ -81,6 +81,54 @@ under `/system`. Partitions for that part of the data store are managed by
 OPA, and providing any overlapping partitions in the config will raise an
 error.
 
+#### Partitioned values must be objects
+
+A partition splits the value it points at into one key per member, so that
+value has to be an object. In the example above, `/users` works because
+`data.users` is an object keyed by user name, and `/users/*` works because
+each user is an object keyed by attribute name.
+
+Had `data.users.alice` been an array instead, `/users/*` would be rejected:
+
+```
+value at /users/alice cannot be partitioned: expected object, found array
+```
+
+The fix is to partition one level higher — `/users` rather than `/users/*` —
+so that the array is stored whole, under the key `/users/alice`. Arrays
+_inside_ a partitioned value are fine; only the level that a partition splits
+has to be an object.
+
+### Large bundles
+
+Badger, the embedded key-value store, caps how much a single transaction can
+hold. Since `opa build` merges all of a bundle's data files into one
+`data.json`, a bundle can easily carry more data than fits into one
+transaction.
+
+OPA splits such a bundle across as many transactions as it needs, so bundles
+served by a [bundle service](./management-bundles/) are not limited by the
+transaction size. Note that this means activating a large bundle is not
+atomic: if OPA is killed part way through, the store is left holding part of
+the new bundle.
+
+Bundles passed to `opa run` on the command line are written in a single
+transaction instead, so a bundle larger than one transaction still fails to
+load that way. Serve it from a bundle service, or raise Badger's
+`memtablesize` (see below).
+
+The one thing that cannot be split is a single key: if the value stored under
+one key is larger than a transaction can hold, OPA reports
+
+```
+value at /users/alice is too large to store: Txn is too big to fit into one request
+```
+
+Adding a partition below that path, so the value is spread over more keys, is
+usually the right answer. Raising Badger's `memtablesize`
+[super flag](#fine-tuning-badger-settings-super-flags) also raises the
+transaction size limit.
+
 ### Metrics
 
 Using the [REST API](./rest-api/), you can include the `?metrics` query string

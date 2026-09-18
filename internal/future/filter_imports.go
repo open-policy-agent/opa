@@ -4,46 +4,36 @@
 
 package future
 
-import "github.com/open-policy-agent/opa/v1/ast"
+import (
+	"slices"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
 
 // FilterFutureImports filters OUT any future imports from the passed slice of
 // `*ast.Import`s.
 func FilterFutureImports(imps []*ast.Import) []*ast.Import {
-	ret := []*ast.Import{}
-	for _, imp := range imps {
-		path := imp.Path.Value.(ast.Ref)
-		if !ast.FutureRootDocument.Equal(path[0]) {
-			ret = append(ret, imp)
-		}
-	}
-	return ret
+	return slices.DeleteFunc(slices.Clone(imps), isFutureKeywordImport)
 }
 
 // IsAllFutureKeywords returns true if the passed *ast.Import is `future.keywords`
 func IsAllFutureKeywords(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
-	return len(path) == 2 &&
-		ast.FutureRootDocument.Equal(path[0]) &&
-		path[1].Equal(ast.InternedTerm("keywords"))
+	return len(path) == 2 && path.HasPrefix(ast.FutureKeywordsRef)
 }
 
 // IsFutureKeyword returns true if the passed *ast.Import is `future.keywords.{kw}`
 func IsFutureKeyword(imp *ast.Import, kw string) bool {
 	path := imp.Path.Value.(ast.Ref)
-	return len(path) == 3 &&
-		ast.FutureRootDocument.Equal(path[0]) &&
-		path[1].Equal(ast.InternedTerm("keywords")) &&
-		path[2].Equal(ast.StringTerm(kw))
+	return len(path) == 3 && path.HasPrefix(ast.FutureKeywordsRef) && path[2].Equal(ast.InternedTerm(kw))
 }
 
 func WhichFutureKeyword(imp *ast.Import) (string, bool) {
+	name := imp.Name().String()
+	return name, imp.Alias == "" && IsFutureKeyword(imp, name)
+}
+
+func isFutureKeywordImport(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
-	if len(path) == 3 &&
-		ast.FutureRootDocument.Equal(path[0]) &&
-		path[1].Equal(ast.InternedTerm("keywords")) {
-		if str, ok := path[2].Value.(ast.String); ok {
-			return string(str), true
-		}
-	}
-	return "", false
+	return len(path) > 0 && path.HasPrefix(ast.FutureKeywordsRef[:1])
 }

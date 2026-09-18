@@ -11,8 +11,7 @@ import (
 	"reflect"
 	"testing"
 
-	"sigs.k8s.io/yaml"
-
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -330,7 +329,7 @@ discovery:
 		config := map[string]any{}
 		err = yaml.Unmarshal(configBytes, &config)
 		if err != nil {
-			t.Errorf("unexpected error unmarshalling config")
+			t.Error("unexpected error unmarshalling config")
 		}
 
 		expected := map[string]any{
@@ -386,7 +385,7 @@ discovery:
 		config := map[string]any{}
 		err = yaml.Unmarshal(configBytes, &config)
 		if err != nil {
-			t.Errorf("unexpected error unmarshalling config")
+			t.Error("unexpected error unmarshalling config")
 		}
 
 		expected := map[string]any{
@@ -428,7 +427,7 @@ func TestLoadConfigWithParamOverrideNoConfigFile(t *testing.T) {
 	config := map[string]any{}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
-		t.Errorf("unexpected error unmarshalling config")
+		t.Error("unexpected error unmarshalling config")
 	}
 
 	expected := map[string]any{
@@ -470,7 +469,7 @@ func TestLoadConfigWithParamOverrideNoConfigFileWithEmptyObject(t *testing.T) {
 	config := map[string]any{}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
-		t.Errorf("unexpected error unmarshalling config")
+		t.Error("unexpected error unmarshalling config")
 	}
 
 	expected := map[string]any{

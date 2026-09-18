@@ -149,7 +149,7 @@ func TestFormatV0Source(t *testing.T) {
 
 			formatted, err = SourceWithOpts(rego, formatted, opts)
 			if err != nil {
-				t.Fatalf("Failed to double format file")
+				t.Fatal("Failed to double format file")
 			}
 
 			if ln, at := differsAt(formatted, expected); ln != 0 {
@@ -209,7 +209,7 @@ func TestFormatV1Source(t *testing.T) {
 
 			formatted, err = SourceWithOpts(rego, formatted, opts)
 			if err != nil {
-				t.Fatalf("Failed to double format file")
+				t.Fatal("Failed to double format file")
 			}
 
 			if ln, at := differsAt(formatted, expected); ln != 0 {
@@ -1085,7 +1085,7 @@ func TestFormatAST_Error(t *testing.T) {
 				},
 			})
 			if err == nil {
-				t.Fatalf("Expected error, got nil")
+				t.Fatal("Expected error, got nil")
 			}
 			if !strings.Contains(err.Error(), tc.expErr) {
 				t.Fatalf("Expected error to contain:\n\n%q\n\ngot:\n\n%q", tc.expErr, err.Error())
@@ -1229,7 +1229,7 @@ p contains x if {
 			formatted, err := Source("test.rego", []byte(tc.module))
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("expected errors but got nil")
+					t.Fatal("expected errors but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -1307,7 +1307,7 @@ p contains x if {
 			formatted, err := SourceWithOpts("test.rego", []byte(tc.module), Opts{RegoVersion: tc.toRegoVersion})
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("expected errors but got nil")
+					t.Fatal("expected errors but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -1419,7 +1419,7 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 
 					formatted, err = SourceWithOpts(original_rego, formatted, opts)
 					if err != nil {
-						t.Fatalf("Failed to double format file")
+						t.Fatal("Failed to double format file")
 					}
 
 					if ln, at := differsAt(formatted, expected); ln != 0 {

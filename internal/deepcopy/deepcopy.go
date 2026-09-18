@@ -4,17 +4,15 @@
 
 package deepcopy
 
+import "github.com/open-policy-agent/opa/v1/util"
+
 // DeepCopy performs a recursive deep copy for nested slices/maps and
 // returns the copied object. Supports []any
 // and map[string]any only
 func DeepCopy(val any) any {
 	switch val := val.(type) {
 	case []any:
-		cpy := make([]any, len(val))
-		for i := range cpy {
-			cpy[i] = DeepCopy(val[i])
-		}
-		return cpy
+		return util.Map(val, DeepCopy)
 	case map[string]any:
 		return Map(val)
 	default:

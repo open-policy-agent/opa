@@ -126,7 +126,7 @@ a contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected error but got nil")
+						t.Fatal("Expected error but got nil")
 					}
 					for _, expErr := range tc.expErrs {
 						if !strings.Contains(err.Error(), expErr) {
@@ -303,7 +303,7 @@ p contains 3 if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected error but got nil")
+						t.Fatal("Expected error but got nil")
 					}
 					for _, expErr := range tc.expErrs {
 						if !strings.Contains(err.Error(), expErr) {
@@ -616,7 +616,7 @@ p contains 4 if {
 
 						if len(tc.expErrs) > 0 {
 							if err == nil {
-								t.Fatalf("Expected error but got nil")
+								t.Fatal("Expected error but got nil")
 							}
 							for _, expErr := range tc.expErrs {
 								if !strings.Contains(err.Error(), expErr) {

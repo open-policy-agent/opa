@@ -5,6 +5,103 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Data and Query APIs can return rule labels in the response
+
+`# METADATA` `labels` for evaluated rules were only available in decision log
+events. The Data API (`GET`/`POST /v1/data`) and Query API (`GET`/`POST
+/v1/query`) now accept a `rule_labels` query parameter to include the same
+merged labels in the response payload, under a `rule_labels` key.
+
+Authored by @srenatus
+
+### Behavior change: response gzip compression now bounds its buffer to `min_length`
+
+The server's gzip response compression (`server.encoding.gzip`) buffered an entire
+incoming `Write` call before deciding whether to compress, so a single large write could
+grow the buffer well past `min_length` before that decision was made. The handler is now
+built on [`klauspost/compress/gzhttp`](https://github.com/klauspost/compress/tree/master/gzhttp)
+instead of a hand-rolled buffer and `gzip.Writer` pool, which caps what it buffers to
+`min_length` (floored at 512 bytes) before streaming the remainder through the chosen
+path. `min_length` and `compression_level` behave the same as before; only gzip is
+negotiated, not zstd.
+
+Authored by @srenatus
+
+### YAML is now parsed against the 1.2 core schema ([#5754](https://github.com/open-policy-agent/opa/issues/5754))
+
+OPA parsed YAML with a library pinned to go-yaml v2, which implements YAML 1.1. Under
+1.1, the bare words `y`, `n`, `yes`, `no`, `on` and `off` resolve to booleans, so a
+GitHub Actions workflow loaded with `--data` came back with `true` where it should have
+had `on`:
+
+```yaml
+on: push
+```
+
+```json
+{ "true": "push" }
+```
+
+These words are now plain strings, as the YAML 1.2 core schema specifies. `true` and
+`false` are unaffected. This applies everywhere OPA reads YAML: `--data`, bundles,
+config files, and the `yaml.unmarshal` builtin.
+
+If you were relying on `yes`/`no`/`on`/`off` being read as booleans, quote the value and
+use `true`/`false` instead.
+
+### Empty composite literals are now typed as empty ([#7275](https://github.com/open-policy-agent/opa/issues/7275))
+
+The type checker used to give the empty object literal `{}` the type
+`object[any: any]`, the empty array literal `[]` the type `array[any]`, and the
+empty set literal `set()` the type `set[any]`, i.e. the types of a collection
+that may hold anything. Every other literal is typed by its contents, so
+referencing a key that isn't there is caught at compile time — but only for
+non-empty literals:
+
+```rego
+obj := {"foo": "bar"}
+obj.bar # rego_type_error: undefined ref: obj.bar
+
+obj := {}
+obj.bar # compiles
+```
+
+Empty literals are now typed as what they are: an object with no properties, an
+array with no items, and a set with no members. Both examples above now fail to
+compile, and so does every other way of selecting from an empty literal,
+including iterating one (`some x in []`).
+
+Comparing an empty object or array literal against a value whose type says it
+can't be empty (`{"foo": "bar"} == {}`) is now a match error too, the same way
+`{"foo": "bar"} == {"bar": "foo"}` already was. Use `count(x) == 0` to test a
+collection for emptiness without asserting its type. Sets are unaffected here:
+`set[string]` describes any set of strings, the empty one included, so
+`{"foo"} == set()` still compiles.
+
+### Rule index candidates are returned in declaration order
+
+The rule index returned a ruleset's definitions in whatever order its trie happened to
+reach them. It now returns them in the order they were declared, which is what it
+documented but did not do. Numbering the rules once, rather than sorting the candidates
+of every lookup, also makes building an index and reading a lookup's result
+cheaper.
+
+Two things follow from the order. A `complete rules must not produce multiple outputs`
+error now points at the first of the conflicting definitions rather than the second:
+
+```rego
+package example
+
+p := 1 if input.x # reported here now
+
+p := 2 if input.y # reported here before
+```
+
+And partial evaluation numbers the local variables of its support rules in evaluation
+order, so `opa eval --partial` and `opa build --optimize` emit the same rules under
+different generated names, and in a different order. What a policy evaluates to is
+unaffected either way.
+
 ### Behavior change: `semver.is_valid` and `semver.compare` reject versions the SemVer 2.0.0 spec forbids
 
 OPA's SemVer parser read the major, minor and patch numbers straight through
@@ -28,6 +125,63 @@ alphanumeric identifier starting with zero (`1.2.3-0a`), and build metadata with
 leading zero (`1.2.3+01`) all still parse.
 
 Authored by @sueun-dev
+
+## 1.20.2
+
+This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency
+updates.
+
+### Fix stale parse errors on statements starting with `{` ([#9140](https://github.com/open-policy-agent/opa/pull/9140))
+
+When the `and`/`or` keywords added in v1.20.0 are imported, a statement that starts with `{` is
+first read as an explicit operand body, and re-read as a term (a comprehension, for example) if no
+`and` or `or` follows. Errors recorded during the abandoned first attempt stayed in the parser's
+term cache and were reported against the successful re-read, rejecting policies that parse fine:
+
+```rego
+package example
+
+import future.keywords
+
+xs := [1, 2, 3]
+
+allow if {
+	{
+	y |
+		some y in xs # rego_parse_error: unexpected some keyword
+	} == {1, 2, 3}
+}
+```
+
+The term cache is now restored along with the rest of the parser state when the operand-body guess
+is abandoned. Only policies importing `and` or `or` — directly or via `import future.keywords` —
+were affected; policies that don't import them parse unchanged.
+
+Authored by @sspaink
+
+### Miscellaneous
+
+- build(go): Bump to 1.27.1 ([`3652eeb`](https://github.com/open-policy-agent/opa/commit/3652eeb404c7d1aead99e831a1c418cfbd362784)) authored by @srenatus
+- Dependency updates; notably:
+  - build(deps): Bump github.com/dgraph-io/badger/v4 from 4.9.5 to 4.9.6
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.1.1 to 3.2.0
+  - build(deps): Bump github.com/santhosh-tekuri/jsonschema/v6 from 6.0.2 to 6.0.3
+  - build(deps): Bump github.com/sirupsen/logrus from 1.9.4 to 1.10.2
+  - build(deps): Bump go.opentelemetry.io/contrib/bridges/prometheus from 0.69.0 to 0.71.0
+  - build(deps): Bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.69.0 to 0.71.0
+  - build(deps): Bump go.opentelemetry.io/otel from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk/metric from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/trace from 1.44.0 to 1.46.0
+  - build(deps): Bump go.yaml.in/yaml/v3 from 3.0.4 to 3.0.5
+  - build(deps): Bump golang.org/x/text from 0.40.0 to 0.41.0
+  - build(deps): Bump google.golang.org/grpc from 1.82.1 to 1.83.2
+  - build(deps): Bump google.golang.org/protobuf from 1.36.11 to 1.36.12
 
 ## 1.20.1
 

@@ -94,13 +94,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 }
 
 func (o *Oracle) compileUpto(stage ast.StageID, q DefinitionQuery) (*ast.Compiler, *ast.Module, error) {
-	var compiler *ast.Compiler
-	if o.compiler != nil {
-		compiler = o.compiler
-	} else {
-		compiler = ast.NewCompiler()
-	}
-
+	compiler := util.Or(o.compiler, ast.NewCompiler)
 	if stage != "" {
 		compiler = compiler.WithOnlyStagesUpTo(stage)
 	}

@@ -111,7 +111,7 @@ func TestDFS(t *testing.T) {
 
 	stopped := DFS(t1, t1.Iter, 1)
 	if stopped {
-		t.Fatalf("Did not expect traversal to stop")
+		t.Fatal("Did not expect traversal to stop")
 	}
 
 	expected := []int{1, 3, 7, 6, 2, 5, 4}
@@ -133,7 +133,7 @@ func TestBFS(t *testing.T) {
 
 	stopped := BFS(t1, t1.Iter, 1)
 	if stopped {
-		t.Fatalf("Did not expect traversal to stop")
+		t.Fatal("Did not expect traversal to stop")
 	}
 
 	expected := []int{1, 2, 3, 4, 5, 6, 7}

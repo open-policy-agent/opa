@@ -23,7 +23,7 @@ func TestReplWasmTarget(t *testing.T) {
 
 	err := repl.OneShot(ctx, "target foo bar")
 
-	expected := "code bad arguments: target <mode>: expects exactly one argument"
+	expected := "code bad arguments: target <mode>: expects exactly one argument, got 2"
 	if err == nil || err.Error() != expected {
 		t.Fatalf("Expected error %s, got %s", expected, err)
 	}

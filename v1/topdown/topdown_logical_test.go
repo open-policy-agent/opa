@@ -288,7 +288,7 @@ func runLogicalCase(t *testing.T, module string, expectedNotes []string, expectF
 
 	if !expectFail {
 		if len(res) == 0 {
-			t.Errorf("unexpected failure, empty query result set")
+			t.Error("unexpected failure, empty query result set")
 		}
 	} else {
 		if len(res) > 0 {

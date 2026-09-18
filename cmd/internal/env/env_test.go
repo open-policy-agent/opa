@@ -128,7 +128,7 @@ func TestCmdFlagsImpl_CheckEnvironmentVariables_ChildCommandReturnsSingleErr(t *
 	t.Setenv("OPA_CHILD_SECOND_BOOL", "7")
 	err := child.PreRunE(child, []string{})
 	if err == nil {
-		t.Fatalf("expected error, found none")
+		t.Fatal("expected error, found none")
 	}
 	expectedString := "invalid argument \"7\""
 	if !strings.Contains(err.Error(), expectedString) {
@@ -145,16 +145,16 @@ func TestCmdFlagsImpl_CheckEnvironmentVariables_ChildCommandReturnsMultipleErr(t
 	err := child.PreRunE(child, []string{"child"})
 	expectedString := "invalid argument"
 	if err == nil {
-		t.Fatalf("expected error, found none")
+		t.Fatal("expected error, found none")
 	}
 	if !strings.Contains(err.Error(), expectedString) {
 		t.Fatalf("expected error to include %q, instead got %q", expectedString, err.Error())
 	}
 	if !strings.Contains(err.Error(), "7") {
-		t.Fatalf("expected error for invalid int 7 as argument for boolean flag")
+		t.Fatal("expected error for invalid int 7 as argument for boolean flag")
 	}
 	if !strings.Contains(err.Error(), "true") {
-		t.Fatalf("expected error for invalid int 7 as argument for int flag")
+		t.Fatal("expected error for invalid int 7 as argument for int flag")
 	}
 }
 

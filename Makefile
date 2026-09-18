@@ -158,6 +158,46 @@ perf: generate
 perf-noisy: generate
 	$(GO) test $(GO_TAGS),slow,noisy $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
 
+# Compare two commits over one package's curated benchlab set
+# (build/bench-nightly/set.json), with the tool the nightly job and the
+# per-merge PR comment both use, so a local read and a published one are the
+# same measurement. Lighter than either -- fewer reps, shorter benchtime -- to
+# answer "did I move this" in minutes rather than precisely; the nightly run is
+# the precise one.
+#
+#   make benchlab BENCHLAB_PKG=./v1/ast
+#   make benchlab BENCHLAB_PKG=./v1/rego BENCHLAB_COMMITS=HEAD~2,HEAD
+#
+# benchlab builds each commit in its own worktree, so this measures committed
+# work, not the working copy.
+#
+# Six reps is a floor, not a preference: benchstat needs six samples per arm
+# before it will report a verdict, and below that the run finishes having told
+# you nothing.
+BENCHLAB_PKG ?=
+BENCHLAB_COMMITS ?= main,HEAD
+BENCHLAB_REPS ?= 6
+BENCHLAB_BENCHTIME ?= 300ms
+
+.PHONY: benchlab
+benchlab:
+ifeq ($(strip $(BENCHLAB_PKG)),)
+	@echo "BENCHLAB_PKG is required, e.g. make benchlab BENCHLAB_PKG=./v1/ast" >&2
+	@echo "packages carrying a curated set:" >&2
+	@grep -o '"pkg": "[^"]*"' build/bench-nightly/set.json | cut -d'"' -f4 | sed 's/^/  /' >&2
+	@exit 1
+else
+	go tool -modfile=build/tools/go.mod benchlab \
+		-commit $(BENCHLAB_COMMITS) \
+		-pkg $(BENCHLAB_PKG) \
+		-host local:tags=opa_wasm \
+		-bench '^BenchmarkBenchlab' \
+		-run '^$$' \
+		-reps $(BENCHLAB_REPS) \
+		-count 1 \
+		-benchtime $(BENCHLAB_BENCHTIME)
+endif
+
 .PHONY: wasm-sdk-e2e-test
 wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) ./internal/wasm/sdk/test/e2e

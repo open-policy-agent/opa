@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/format"
-	"sigs.k8s.io/yaml"
 
 	iCache "github.com/open-policy-agent/opa/v1/topdown/cache"
 
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 		return iter(ast.NullTerm())
 	})
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestTopDownQueryIDsUnique(t *testing.T) {
@@ -344,7 +344,7 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 			notes := strings.Split(buf.String(), "\n")
 			notes = notes[:len(notes)-1] // last one is empty-string because each line ends in "\n"
 			if len(notes) == 0 {
-				t.Errorf("expected prints, got nothing")
+				t.Error("expected prints, got nothing")
 			}
 			if len(notes) == len(arr) {
 				t.Errorf("expected less than %d prints, got %d", len(arr), len(notes))
@@ -1730,7 +1730,7 @@ func TestTopDownEvery(t *testing.T) {
 			}
 			if !tc.fail {
 				if len(res) == 0 {
-					t.Errorf("unexpected failure, empty query result set")
+					t.Error("unexpected failure, empty query result set")
 				}
 			} else {
 				if len(res) > 0 {

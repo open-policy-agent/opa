@@ -178,7 +178,8 @@ func TestObjectSetOperations(t *testing.T) {
 	MustParseTerm(`["c", "d", "q"]`).Value.(*Array).Foreach(func(t *Term) {
 		expectedTerms = append(expectedTerms, t)
 	})
-	if len(r2) != 1 || !termSliceEqual(r2[0][:], expectedTerms) {
+
+	if len(r2) != 1 || !slices.EqualFunc(r2[0][:], expectedTerms, (*Term).Equal) {
 		t.Errorf(`Expected a.Intersect(b) to equal [["a", "d", "q"]] but got: %v`, r2)
 	}
 
@@ -369,7 +370,7 @@ func TestHashObject(t *testing.T) {
 	obj2 := stmt2.(Body)[0].Terms.(*Term).Value.(Object)
 
 	if obj1.Hash() != obj2.Hash() {
-		t.Errorf("Expected hash codes to be equal")
+		t.Error("Expected hash codes to be equal")
 	}
 
 	// Calculate hash like we did before moving the caching to create/update:
@@ -397,7 +398,7 @@ func TestHashArray(t *testing.T) {
 	arr2 := stmt2.(Body)[0].Terms.(*Term).Value.(*Array)
 
 	if arr1.Hash() != arr2.Hash() {
-		t.Errorf("Expected hash codes to be equal")
+		t.Error("Expected hash codes to be equal")
 	}
 
 	// Calculate hash like we did before moving the caching to create/update:
@@ -428,7 +429,7 @@ func TestHashSet(t *testing.T) {
 	set2 := stmt2.(Body)[0].Terms.(*Term).Value.(Set)
 
 	if set1.Hash() != set2.Hash() {
-		t.Errorf("Expected hash codes to be equal")
+		t.Error("Expected hash codes to be equal")
 	}
 
 	// Calculate hash like we did before moving the caching to create/update:
@@ -726,14 +727,14 @@ func TestRefInsert(t *testing.T) {
 func TestRefDynamic(t *testing.T) {
 	a := MustParseRef("foo.bar[baz.qux].corge")
 	if a.Dynamic() != 2 {
-		t.Fatalf("Expected dynamic offset to be baz.qux for foo.bar[baz.qux].corge")
+		t.Fatal("Expected dynamic offset to be baz.qux for foo.bar[baz.qux].corge")
 	}
 	if a[:a.Dynamic()].Dynamic() != -1 {
-		t.Fatalf("Expected dynamic offset to be -1 for foo.bar")
+		t.Fatal("Expected dynamic offset to be -1 for foo.bar")
 	}
 
 	if MustParseRef("f(x)[0]").Dynamic() != 0 {
-		t.Fatalf("Expected dynamic offset to be f(x) for foo.bar[baz.qux].corge")
+		t.Fatal("Expected dynamic offset to be f(x) for foo.bar[baz.qux].corge")
 	}
 }
 
@@ -1166,7 +1167,7 @@ func TestArrayOperations(t *testing.T) {
 			results = nil
 			tc.iterator(arr)
 
-			if !termSliceEqual(results, expected) {
+			if !slices.EqualFunc(results, expected, (*Term).Equal) {
 				t.Errorf("Expected iteration to return %v but got %v", expected, results)
 			}
 		})
@@ -1471,11 +1472,11 @@ func TestLazyObjectGetCache(t *testing.T) {
 	y := x.Get(StringTerm("a"))
 
 	if x.(*lazyObj).cache["a"].Compare(y.Value) != 0 {
-		t.Errorf("expected cache to be populated with retreived value")
+		t.Error("expected cache to be populated with retreived value")
 	}
 
 	if x.(*lazyObj).cache["b"] != nil {
-		t.Errorf("expected cache to not be populated with non-retrieved value")
+		t.Error("expected cache to not be populated with non-retrieved value")
 	}
 
 	// Assert that objects are cached as lazy objects
@@ -1652,7 +1653,7 @@ func TestLazyObjectKeys(t *testing.T) {
 	})
 	act := x.Keys()
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !termSliceEqual(exp, act) {
+	if !slices.EqualFunc(exp, act, (*Term).Equal) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)
@@ -1670,7 +1671,7 @@ func TestLazyObjectKeysIterator(t *testing.T) {
 		act = append(act, k)
 	}
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !termSliceEqual(exp, act) {
+	if !slices.EqualFunc(exp, act, (*Term).Equal) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)

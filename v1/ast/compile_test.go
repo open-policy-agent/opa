@@ -290,19 +290,19 @@ func TestModuleTree(t *testing.T) {
 	}
 
 	if !tree.Children[Var("data")].Children[String("system")].Hide {
-		t.Fatalf("Expected system node to be hidden")
+		t.Fatal("Expected system node to be hidden")
 	}
 
 	if tree.Children[Var("data")].Children[String("system")].Children[String("foo")].Hide {
-		t.Fatalf("Expected system.foo node to be visible")
+		t.Fatal("Expected system.foo node to be visible")
 	}
 
 	if tree.Children[Var("data")].Children[String("user")].Children[String("system")].Hide {
-		t.Fatalf("Expected user.system node to be visible")
+		t.Fatal("Expected user.system node to be visible")
 	}
 }
 
-func TestCompilerGetExports(t *testing.T) {
+func TestCompilerGetExport(t *testing.T) {
 	tests := []struct {
 		note    string
 		modules []*Module
@@ -409,16 +409,14 @@ func TestCompilerGetExports(t *testing.T) {
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
 	}
 
-	hashMap := func(ms map[string][]string) *util.HasherMap[Ref, []Ref] {
-		rules := util.NewHasherMap[Ref, []Ref](RefEqual)
-		for r, rs := range ms {
-			refs := make([]Ref, len(rs))
-			for i := range rs {
-				refs[i] = toRef(rs[i])
-			}
-			rules.Put(MustParseRef(r), refs)
+	toRef := func(s string) Ref {
+		switch x := MustParseTerm(s).Value.(type) {
+		case Var:
+			return Ref{NewTerm(x)}
+		case Ref:
+			return x
 		}
-		return rules
+		panic("unreachable")
 	}
 
 	for _, tc := range tests {
@@ -428,31 +426,15 @@ func TestCompilerGetExports(t *testing.T) {
 				c.Modules[strconv.Itoa(i)] = m
 				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
-			if exp, act := hashMap(tc.exports), c.getExports(); !refMapEqual(exp, act) {
-				t.Errorf("expected %v, got %v", exp, act)
+			for path, exports := range tc.exports {
+				got := c.getExport(toRef(path))
+				exp := util.Map(exports, toRef)
+
+				if !slices.EqualFunc(exp, got, RefEqual) {
+					t.Errorf("expected %v, got %v", exp, got)
+				}
 			}
 		})
-	}
-}
-
-func refMapEqual(a, b *util.HasherMap[Ref, []Ref]) bool {
-	if a.Len() != b.Len() {
-		return false
-	}
-	return !a.Iter(func(k Ref, v []Ref) bool {
-		v2, ok := b.Get(k)
-		return !ok || !slices.EqualFunc(v, v2, RefEqual)
-	})
-}
-
-func toRef(s string) Ref {
-	switch t := MustParseTerm(s).Value.(type) {
-	case Var:
-		return Ref{NewTerm(t)}
-	case Ref:
-		return t
-	default:
-		panic("unreachable")
 	}
 }
 
@@ -821,8 +803,8 @@ func TestRuleIndices(t *testing.T) {
 				index := i.(*baseDocEqIndex)
 				for _, expRef := range expIndex {
 					found := false
-					for _, r := range index.root.rules {
-						if r.rule.Head.Ref().Equal(expRef) {
+					for _, id := range index.root.rules {
+						if index.rules[id].Head.Ref().Equal(expRef) {
 							found = true
 							break
 						}
@@ -1182,12 +1164,12 @@ func TestRuleTree(t *testing.T) {
 	}
 
 	if system.Child(String("foo")).Hide {
-		t.Fatalf("Expected system.foo node to be visible")
+		t.Fatal("Expected system.foo node to be visible")
 	}
 
 	user := tree.Child(Var("data")).Child(String("user")).Child(String("system"))
 	if user.Hide {
-		t.Fatalf("Expected user.system node to be visible")
+		t.Fatal("Expected user.system node to be visible")
 	}
 
 	if !tree.isVirtual(MustParseRef("data.a.b.empty")) {
@@ -1232,7 +1214,7 @@ func TestCompilerWithStageAfter(t *testing.T) {
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
-			t.Errorf("Expected compilation error")
+			t.Error("Expected compilation error")
 		}
 	})
 
@@ -1251,7 +1233,7 @@ q := true`)
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
-			t.Errorf("Expected compilation error")
+			t.Error("Expected compilation error")
 		}
 		if exp, act := 1, len(c.Errors); exp != act {
 			t.Errorf("expected %d errors, got %d: %v", exp, act, c.Errors)
@@ -1273,7 +1255,7 @@ q if {
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
-			t.Errorf("Expected compilation error")
+			t.Error("Expected compilation error")
 		}
 		if exp, act := 1, len(c.Errors); exp != act {
 			t.Errorf("expected %d errors, got %d: %v", exp, act, c.Errors)
@@ -1474,7 +1456,7 @@ func TestCompilerFunctions(t *testing.T) {
 			c := NewCompiler()
 			c.Compile(modules)
 			if tc.wantErr && !c.Failed() {
-				t.Errorf("Expected compilation error")
+				t.Error("Expected compilation error")
 			} else if !tc.wantErr && c.Failed() {
 				t.Errorf("Unexpected compilation error(s): %v", c.Errors)
 			}
@@ -1510,6 +1492,120 @@ func TestCompilerErrorLimit(t *testing.T) {
 
 	if !slices.Equal(exp, result) {
 		t.Errorf("Expected errors %v, got %v", exp, result)
+	}
+}
+
+func TestCompilerReportsViolationsFromMultipleStages(t *testing.T) {
+	tests := []struct {
+		note       string
+		module     string
+		errorLimit int
+		expected   []string
+	}{
+		{
+			note: "shadowed import, deprecated built-ins, unused argument",
+			module: `package p
+
+import data.foo
+import data.foo
+
+a := any([foo])
+b := all([true])
+
+f(x) if {
+	input.bar
+}`,
+			expected: []string{
+				"4:1: rego_compile_error: import must not shadow import data.foo",
+				"6:6: rego_type_error: deprecated built-in function calls in expression: any",
+				"7:6: rego_type_error: deprecated built-in function calls in expression: all",
+				"9:1: rego_compile_error: unused argument x. (hint: use _ (wildcard variable) instead)",
+			},
+		},
+		{
+			note: "unused import, unused var, keyword override, deprecated built-in",
+			module: `package p
+
+import data.foo
+
+a if {
+	input := 1
+	any([true])
+}`,
+			expected: []string{
+				"3:1: rego_compile_error: import data.foo unused",
+				"6:2: rego_compile_error: assigned var input unused",
+				"6:2: rego_compile_error: variables must not shadow input (use a different variable name)",
+				"7:2: rego_type_error: deprecated built-in function calls in expression: any",
+			},
+		},
+		{
+			note: "unsafe var stops compilation",
+			module: `package p
+
+a := any([x])`,
+			expected: []string{
+				"3:6: rego_unsafe_var_error: var x is unsafe",
+			},
+		},
+		{
+			note: "error limit applies across stages",
+			module: `package p
+
+import data.foo
+import data.foo
+
+a := any([foo])
+b := all([true])`,
+			errorLimit: 2,
+			expected: []string{
+				"4:1: rego_compile_error: import must not shadow import data.foo",
+				"6:6: rego_type_error: deprecated built-in function calls in expression: any",
+				"rego_compile_error: error limit reached",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithStrict(true)
+			if tc.errorLimit > 0 {
+				c.SetErrorLimit(tc.errorLimit)
+			}
+			c.Compile(map[string]*Module{"test.rego": MustParseModule(tc.module)})
+
+			if !c.Failed() {
+				t.Fatal("expected compilation to fail")
+			}
+
+			result := util.Map(c.Errors, (*Error).Error)
+			if !slices.Equal(tc.expected, result) {
+				t.Errorf("expected errors:\n\n%v\n\ngot:\n\n%v", strings.Join(tc.expected, "\n"), strings.Join(result, "\n"))
+			}
+		})
+	}
+}
+
+func TestCompilerSortErrorsKeepsErrorLimitMarkerLast(t *testing.T) {
+	c := NewCompiler()
+	c.Errors = Errors{
+		errLimitReached,
+		NewError(CompileErr, NewLocation(nil, "b.rego", 1, 1), "later file"),
+		newErrorString(CompileErr, nil, "failed to load module"),
+		NewError(CompileErr, NewLocation(nil, "a.rego", 9, 1), "earlier file"),
+	}
+
+	c.sortErrors()
+
+	expected := []string{
+		"a.rego:9: rego_compile_error: earlier file",
+		"b.rego:1: rego_compile_error: later file",
+		"rego_compile_error: failed to load module",
+		"rego_compile_error: error limit reached",
+	}
+
+	if result := util.Map(c.Errors, (*Error).Error); !slices.Equal(expected, result) {
+		t.Errorf("expected errors:\n\n%v\n\ngot:\n\n%v", strings.Join(expected, "\n"), strings.Join(result, "\n"))
 	}
 }
 
@@ -1979,7 +2075,7 @@ p := z if { y := f([v | v = x][0]); z := f(y); x := 2 }`,
 			})
 			failed := c.Failed()
 			if tc.wantErr && !failed {
-				t.Fatalf("expected compile error, got success")
+				t.Fatal("expected compile error, got success")
 			}
 			if !tc.wantErr && failed {
 				t.Fatalf("unexpected compile errors: %v", c.Errors)
@@ -3085,6 +3181,133 @@ func TestCompilerQueryCompilerCheckUndefinedFuncs(t *testing.T) {
 	}
 }
 
+func TestCompilerAllowUndefinedFunctionCalls(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules map[string]string
+	}{
+		{
+			note: "call in rule body",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p if { custom_func() }`,
+			},
+		},
+		{
+			note: "call in array comprehension body (regression: GH#6946)",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p if {
+					res := [r |
+						some r in input
+						custom_func()
+					]
+					count(res) > 0
+				}`,
+			},
+		},
+		{
+			note: "call in set comprehension body",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p := {r | some r in input; custom_func()}`,
+			},
+		},
+		{
+			note: "call in object comprehension body",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p := {r: 1 | some r in input; custom_func()}`,
+			},
+		},
+		{
+			note: "comprehension term bound by call",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p if {
+					res := [r | r := custom_func()]
+					count(res) > 0
+				}`,
+			},
+		},
+		{
+			note: "function returning call result (regression: GH#6946)",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				f(x) := custom_func(x)
+
+				p if { f("foo") == 1 }`,
+			},
+		},
+		{
+			note: "function returning call result passed to builtin",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				f(x) := custom_func(x)
+
+				p := count(f("foo"))`,
+			},
+		},
+		{
+			note: "function chain returning call result",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				f(x) := custom_func(x)
+
+				g(x) := f(x)
+
+				p if { g("foo") }`,
+			},
+		},
+		{
+			note: "function returning result of undefined rule in another package",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				import data.lib
+
+				dispatcher(arg) := dispatcher_impl(arg.type, arg)
+
+				dispatcher_impl("type1", arg) := lib.f1(arg)`,
+			},
+		},
+		{
+			note: "rule value bound by call",
+			modules: map[string]string{
+				"test.rego": `package test
+
+				p := custom_func(1)
+
+				q if { p == 1 }`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			modules := map[string]*Module{}
+			for name, src := range tc.modules {
+				modules[name] = MustParseModule(src)
+			}
+
+			c := NewCompiler().WithAllowUndefinedFunctionCalls(true)
+			c.Compile(modules)
+
+			if c.Failed() {
+				t.Fatalf("unexpected compilation error: %v", c.Errors)
+			}
+		})
+	}
+}
+
 func TestCompilerImportsResolved(t *testing.T) {
 
 	modules := map[string]*Module{
@@ -3806,7 +4029,7 @@ func TestCompilerCheckUnusedImports(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 func TestCompilerCheckDuplicateImports(t *testing.T) {
@@ -3851,7 +4074,7 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 func TestCompilerCheckKeywordOverrides(t *testing.T) {
@@ -3972,6 +4195,22 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("input := 4"), "", 9, 6),
 					Message:  "variables must not shadow input (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("x := 2"), "", 4, 6),
+					Message:  "assigned var x unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 6),
+					Message:  "assigned var data unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 4"), "", 9, 6),
+					Message:  "assigned var input unused",
+				},
 			},
 		},
 		{
@@ -3991,6 +4230,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 3"), "", 5, 6),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "assigned var data unused",
 				},
 			},
 		},
@@ -4012,6 +4259,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 3"), "", 5, 6),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "assigned var data unused",
+				},
 			},
 		},
 		{
@@ -4032,6 +4287,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 3"), "", 5, 6),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "assigned var data unused",
+				},
 			},
 		},
 		{
@@ -4050,6 +4313,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 2"), "", 4, 24),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 12),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 2"), "", 4, 24),
+					Message:  "assigned var data unused",
 				},
 			},
 		},
@@ -4070,6 +4341,10 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 2"), "", 4, 27),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 8),
+					Message:  "assigned var input unused",
+				},
 			},
 		},
 		{
@@ -4088,6 +4363,10 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 2"), "", 4, 26),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 8),
+					Message:  "assigned var input unused",
 				},
 			},
 		},
@@ -4111,11 +4390,19 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 3"), "", 6, 7),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 7),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 7),
+					Message:  "assigned var data unused",
+				},
 			},
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 func TestCompilerCheckDeprecatedMethods(t *testing.T) {
@@ -4174,7 +4461,7 @@ func TestCompilerCheckDeprecatedMethods(t *testing.T) {
 		},
 	}
 
-	runStrictnessTestCase(t, cases, true)
+	runStrictnessTestCase(t, cases)
 }
 
 type strictnessTestCase struct {
@@ -4183,7 +4470,7 @@ type strictnessTestCase struct {
 	expectedErrors Errors
 }
 
-func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocation bool) {
+func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase) {
 	t.Helper()
 	makeTestRunner := func(tc strictnessTestCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -4196,7 +4483,7 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 			compileStages(compiler, "")
 
 			if strict {
-				assertErrors(t, compiler.Errors, tc.expectedErrors, assertLocation)
+				assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 			} else {
 				assertNotFailed(t, compiler)
 			}
@@ -10523,7 +10810,7 @@ func TestCompilerSetGraph(t *testing.T) {
 
 	sorted, ok := c.Graph.Sort()
 	if !ok {
-		t.Fatalf("Expected sort to succeed.")
+		t.Fatal("Expected sort to succeed.")
 	}
 
 	numRules := 0
@@ -10593,7 +10880,7 @@ func TestGraphCycle(t *testing.T) {
 
 	_, ok := c.Graph.Sort()
 	if ok {
-		t.Fatalf("Expected to find cycle in rule graph")
+		t.Fatal("Expected to find cycle in rule graph")
 	}
 
 	elsekw := `package elsekw
@@ -10625,7 +10912,7 @@ func TestGraphCycle(t *testing.T) {
 
 	_, ok = c.Graph.Sort()
 	if ok {
-		t.Fatalf("Expected to find cycle in rule graph")
+		t.Fatal("Expected to find cycle in rule graph")
 	}
 
 }
@@ -11355,7 +11642,7 @@ grault = deadbeef if { true }`)
 
 	// Check the original modules are still untouched.
 	if !mod1.Equal(orig1) || !mod2.Equal(orig2) || !mod3.Equal(orig3) || !mod4.Equal(orig4) || !mod5.Equal(orig5) {
-		t.Errorf("Compiler lazy loading modified the original modules")
+		t.Error("Compiler lazy loading modified the original modules")
 	}
 }
 
@@ -13147,7 +13434,7 @@ func TestCompilerWithUnsafeBuiltins(t *testing.T) {
 	// longer available.
 	_, err := compiler.QueryCompiler().Compile(MustParseBody(`re_match("a", "a")`))
 	if err == nil {
-		t.Fatalf("Expected error for unsafe built-in")
+		t.Fatal("Expected error for unsafe built-in")
 	} else if !strings.Contains(err.Error(), "unsafe built-in function") {
 		t.Fatalf("Expected error for unsafe built-in but got %v", err)
 	}
@@ -13159,9 +13446,9 @@ deny if {
 }`)}
 	compiler.Compile(modules)
 	if !compiler.Failed() {
-		t.Fatalf("Expected error for unsafe built-in")
-	} else if !strings.Contains(compiler.Errors[0].Error(), "unsafe built-in function") {
-		t.Fatalf("Expected error for unsafe built-in but got %v", err)
+		t.Fatal("Expected error for unsafe built-in")
+	} else if !strings.Contains(compiler.Errors.Error(), "unsafe built-in function") {
+		t.Fatalf("Expected error for unsafe built-in but got %v", compiler.Errors)
 	}
 }
 
@@ -13592,7 +13879,7 @@ deny if {
 	})
 	c.Compile(map[string]*Module{"testMod": m})
 	if !c.Failed() {
-		t.Errorf("Expected compilation to fail, but it succeeded")
+		t.Error("Expected compilation to fail, but it succeeded")
 	} else if !strings.HasPrefix(c.Errors.Error(), "1 error occurred: 7:2: rego_type_error: undefined ref: input.Something.Y.X.ThisDoesNotExist") {
 		t.Errorf("unexpected error: %v", c.Errors.Error())
 	}
@@ -14048,7 +14335,7 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 	}
 
 	if !mod.Equal(cpy) {
-		t.Fatalf("expected module to be unchanged after compilation")
+		t.Fatal("expected module to be unchanged after compilation")
 	}
 }
 

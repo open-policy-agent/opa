@@ -97,7 +97,7 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 		"timestamp":   {},
 		"type": {match: func(t *testing.T, actual string) {
 			if actual != "openpolicyagent.org/decision_logs" {
-				t.Fatalf("Expected field 'type' to be 'openpolicyagent.org/decision_logs'")
+				t.Fatal("Expected field 'type' to be 'openpolicyagent.org/decision_logs'")
 			}
 		}},
 	}
@@ -112,7 +112,7 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 	}
 
 	if !found {
-		t.Fatalf("Did not find 'Decision Log' event in captured log entries")
+		t.Fatal("Did not find 'Decision Log' event in captured log entries")
 	}
 
 	// Ensure expected fields exist

@@ -8,6 +8,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func TestOracleFindDefinitionErrors(t *testing.T) {
@@ -1028,7 +1029,7 @@ func showLocationContext(t *testing.T, modules map[string]string, loc *ast.Locat
 	t.Helper()
 	if content, exists := modules[loc.File]; exists {
 		if strings.Contains(content, "\t") {
-			t.Fatalf("rego contains tabs - please use spaces for ^ position")
+			t.Fatal("rego contains tabs - please use spaces for ^ position")
 		}
 
 		lines := strings.Split(content, "\n")
@@ -1098,6 +1099,26 @@ q = true`
 func TestCompileUptoNoModules(t *testing.T) {
 	t.Parallel()
 	compiler, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
+		Buffer:   []byte("package test\np=1"),
+		Filename: "test.rego",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rules := compiler.GetRulesExact(ast.MustParseRef("data.test.p"))
+	if len(rules) != 1 {
+		t.Fatal("unexpected rules:", rules)
+	}
+
+	if module == nil {
+		t.Fatal("expected parsed module")
+	}
+}
+
+func TestCompileUptoInvalidStageNoError(t *testing.T) {
+	t.Parallel()
+	compiler, module, err := New().compileUpto("INVALID", DefinitionQuery{
 		Buffer:   []byte("package test\np=1"),
 		Filename: "test.rego",
 	})
@@ -1204,9 +1225,7 @@ r := 2`
 
 		// The compiler's capabilities gate the keywords available to the buffer.
 		capabilities := ast.CapabilitiesForThisVersion()
-		capabilities.FutureKeywords = slices.DeleteFunc(capabilities.FutureKeywords, func(kw string) bool {
-			return kw == "and"
-		})
+		capabilities.FutureKeywords = slices.DeleteFunc(capabilities.FutureKeywords, util.CmpEqual("and"))
 		o := New().WithCompiler(ast.NewCompiler().WithCapabilities(capabilities))
 
 		if _, _, err := o.compileUpto("SetRuleTree", DefinitionQuery{

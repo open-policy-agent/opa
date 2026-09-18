@@ -172,7 +172,7 @@ As we covered in the TL;DR section, we're providing a number of tools to help wi
 - Use opa fmt --rego-v1 to have your Rego code updated for 1.0 compliance
 - Run the OPA server with the --v1-compatible flag for OPA 1.0 compliance
 
-Also worth pointing out — following guides like the [Rego Style Guide](https://docs.styra.com/opa/rego-style-guide), and using tools like [Regal](https://docs.styra.com/regal), is an excellent way to ensure not just compliance with future changes to Rego, but that your current policy repo is continuously kept in the best possible condition.
+Also worth pointing out — following guides like the [Rego Style Guide](https://docs.styra.com/opa/rego-style-guide), and using tools like [Regal](https://www.openpolicyagent.org/projects/regal), is an excellent way to ensure not just compliance with future changes to Rego, but that your current policy repo is continuously kept in the best possible condition.
 
 If you have any questions, concerns or would like to provide feedback around the upcoming 1.0 release, or the tools made available to help you transition smoothly — don't hesitate to reach out using any of the below channels:
 

@@ -430,8 +430,7 @@ func logTransforms(logs []changelog.TransformLog) {
 	if len(logs) == 0 {
 		return
 	}
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "release: transformations:\n")
+	fmt.Fprint(os.Stderr, "\nrelease: transformations:\n")
 	for _, l := range logs {
 		marker := "—"
 		if l.IsDependency {
@@ -465,8 +464,7 @@ func logFilters(logs []changelog.FilterLog) {
 	if len(noisy) == 0 {
 		return
 	}
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "release: filters:\n")
+	fmt.Fprint(os.Stderr, "\nrelease: filters:\n")
 	for _, n := range noisy {
 		fmt.Fprintf(os.Stderr, "release: [%s]\n", n.action)
 		fmt.Fprint(os.Stderr, n.line)
@@ -478,8 +476,7 @@ func logSyntheses(logs []changelog.SynthesisLog) {
 	if len(logs) == 0 {
 		return
 	}
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "release: go.mod require changes:\n")
+	fmt.Fprint(os.Stderr, "\nrelease: go.mod require changes:\n")
 	for _, l := range logs {
 		ver := versionLabel(l.Change)
 		switch l.Action {

@@ -36,6 +36,8 @@ var FunctionArgRootDocument = VarTerm("args")
 // features.
 var FutureRootDocument = VarTerm("future")
 
+var FutureKeywordsRef = Ref{FutureRootDocument, InternedTerm("keywords")}
+
 // RegoRootDocument names the document containing new, to-become-default,
 // features in a future versioned release.
 var RegoRootDocument = VarTerm("rego")
@@ -225,7 +227,6 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Default     bool           `json:"default,omitempty"`
 		Head        *Head          `json:"head"`
 		Body        Body           `json:"body"`
 		Else        *Rule          `json:"else,omitempty"`
@@ -238,6 +239,7 @@ type (
 		// on the rule (e.g., printing, comparison, visiting, etc.)
 		Module *Module `json:"-"`
 
+		Default       bool `json:"default,omitempty"`
 		generatedBody bool
 	}
 
@@ -345,7 +347,7 @@ func (mod *Module) Compare(other *Module) int {
 	if cmp := slices.CompareFunc(mod.Annotations, other.Annotations, (*Annotations).Compare); cmp != 0 {
 		return cmp
 	}
-	return rulesCompare(mod.Rules, other.Rules)
+	return slices.CompareFunc(mod.Rules, other.Rules, (*Rule).Compare)
 }
 
 // Copy returns a deep copy of mod.
@@ -451,8 +453,7 @@ func (c *Comment) String() string {
 // Copy returns a deep copy of c.
 func (c *Comment) Copy() *Comment {
 	cpy := *c
-	cpy.Text = make([]byte, len(c.Text))
-	copy(cpy.Text, c.Text)
+	cpy.Text = slices.Clone(c.Text)
 	return &cpy
 }
 
@@ -466,7 +467,7 @@ func (c *Comment) Equal(other *Comment) bool {
 // Compare returns an integer indicating whether pkg is less than, equal to,
 // or greater than other.
 func (pkg *Package) Compare(other *Package) int {
-	return termSliceCompare(pkg.Path, other.Path)
+	return slices.CompareFunc(pkg.Path, other.Path, TermValueCompare)
 }
 
 // Copy returns a deep copy of pkg.
@@ -821,19 +822,19 @@ func (head *Head) Compare(other *Head) int {
 	} else if !head.Assign && other.Assign {
 		return 1
 	}
-	if cmp := termSliceCompare(head.Args, other.Args); cmp != 0 {
+	if cmp := slices.CompareFunc(head.Args, other.Args, TermValueCompare); cmp != 0 {
 		return cmp
 	}
-	if cmp := termSliceCompare(head.Reference, other.Reference); cmp != 0 {
+	if cmp := slices.CompareFunc(head.Reference, other.Reference, TermValueCompare); cmp != 0 {
 		return cmp
 	}
 	if cmp := VarCompare(head.Name, other.Name); cmp != 0 {
 		return cmp
 	}
-	if cmp := Compare(head.Key, other.Key); cmp != 0 {
+	if cmp := TermValueCompare(head.Key, other.Key); cmp != 0 {
 		return cmp
 	}
-	return Compare(head.Value, other.Value)
+	return TermValueCompare(head.Value, other.Value)
 }
 
 // Copy returns a deep copy of head.
@@ -1075,7 +1076,7 @@ func (expr *Expr) Equal(other *Expr) bool {
 //
 // Otherwise, the expression terms are compared normally. If both expressions
 // have the same terms, the modifiers are compared.
-func (expr *Expr) Compare(other *Expr) int {
+func (expr *Expr) Compare(other *Expr) (c int) {
 	switch {
 	case expr == other:
 		return 0
@@ -1109,36 +1110,25 @@ func (expr *Expr) Compare(other *Expr) int {
 
 	switch t := expr.Terms.(type) {
 	case *Term:
-		if cmp := t.Value.Compare(other.Terms.(*Term).Value); cmp != 0 {
-			return cmp
-		}
+		c = TermValueCompare(t, other.Terms.(*Term))
 	case []*Term:
-		if cmp := termSliceCompare(t, other.Terms.([]*Term)); cmp != 0 {
-			return cmp
-		}
+		c = slices.CompareFunc(t, other.Terms.([]*Term), TermValueCompare)
 	case *SomeDecl:
-		if cmp := Compare(t, other.Terms.(*SomeDecl)); cmp != 0 {
-			return cmp
-		}
+		c = t.Compare(other.Terms.(*SomeDecl))
 	case *Every:
-		if cmp := Compare(t, other.Terms.(*Every)); cmp != 0 {
-			return cmp
-		}
+		c = t.Compare(other.Terms.(*Every))
 	case *Not:
-		if cmp := t.Compare(other.Terms.(*Not)); cmp != 0 {
-			return cmp
-		}
+		c = t.Compare(other.Terms.(*Not))
 	case *LogicalAnd:
-		if cmp := Compare(t, other.Terms.(*LogicalAnd)); cmp != 0 {
-			return cmp
-		}
+		c = t.Compare(other.Terms.(*LogicalAnd))
 	case *LogicalOr:
-		if cmp := Compare(t, other.Terms.(*LogicalOr)); cmp != 0 {
-			return cmp
-		}
+		c = t.Compare(other.Terms.(*LogicalOr))
 	}
 
-	return withSliceCompare(expr.With, other.With)
+	if c == 0 {
+		c = slices.CompareFunc(expr.With, other.With, (*With).Compare)
+	}
+	return c
 }
 
 func (expr *Expr) sortOrder() int {
@@ -1206,9 +1196,7 @@ func (expr *Expr) Hash() int {
 	case *SomeDecl:
 		s += ts.Hash()
 	case []*Term:
-		for _, t := range ts {
-			s += t.Value.Hash()
-		}
+		s += termSliceHash(ts)
 	case *Term:
 		s += ts.Value.Hash()
 	case *LogicalAnd:
@@ -1467,7 +1455,7 @@ func (d *SomeDecl) Copy() *SomeDecl {
 // Compare returns an integer indicating whether d is less than, equal to, or
 // greater than other.
 func (d *SomeDecl) Compare(other *SomeDecl) int {
-	return termSliceCompare(d.Symbols, other.Symbols)
+	return slices.CompareFunc(d.Symbols, other.Symbols, TermValueCompare)
 }
 
 // Hash returns a hash code of d.
@@ -1515,7 +1503,7 @@ func (q *Every) Compare(other *Every) int {
 		{q.Value, other.Value},
 		{q.Domain, other.Domain},
 	} {
-		if d := Compare(terms[0], terms[1]); d != 0 {
+		if d := TermValueCompare(terms[0], terms[1]); d != 0 {
 			return d
 		}
 	}
@@ -1695,18 +1683,19 @@ func (w *With) Equal(other *With) bool {
 // Compare returns an integer indicating whether w is less than, equal to, or
 // greater than other.
 func (w *With) Compare(other *With) int {
+	if w == other {
+		return 0
+	}
 	if w == nil {
-		if other == nil {
-			return 0
-		}
 		return -1
-	} else if other == nil {
+	}
+	if other == nil {
 		return 1
 	}
-	if cmp := w.Target.Value.Compare(other.Target.Value); cmp != 0 {
+	if cmp := TermValueCompare(w.Target, other.Target); cmp != 0 {
 		return cmp
 	}
-	return w.Value.Value.Compare(other.Value.Value)
+	return TermValueCompare(w.Value, other.Value)
 }
 
 // Copy returns a deep copy of w.
@@ -1776,6 +1765,12 @@ func Copy(x any) any {
 		return x.Copy()
 	case *ObjectComprehension:
 		return x.Copy()
+	case *LogicalAnd:
+		return x.Copy()
+	case *LogicalOr:
+		return x.Copy()
+	case *TemplateString:
+		return x.Copy()
 	case Set:
 		return x.Copy()
 	case *object:
@@ -1816,12 +1811,7 @@ func (rs *RuleSet) Add(rule *Rule) {
 
 // Contains returns true if rs contains rule.
 func (rs RuleSet) Contains(rule *Rule) bool {
-	for i := range rs {
-		if rs[i].Equal(rule) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rs, rule.Equal)
 }
 
 // Diff returns a new RuleSet containing rules in rs that are not in other.
@@ -1842,10 +1832,7 @@ func (rs RuleSet) Equal(other RuleSet) bool {
 
 // Merge returns a ruleset containing the union of rules from rs an other.
 func (rs RuleSet) Merge(other RuleSet) RuleSet {
-	result := NewRuleSet()
-	for i := range rs {
-		result.Add(rs[i])
-	}
+	result := NewRuleSet(rs...)
 	for i := range other {
 		result.Add(other[i])
 	}

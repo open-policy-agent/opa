@@ -10,6 +10,14 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
+var boolSlice []bool
+
+func BenchmarkSizeClasses(b *testing.B) {
+	for b.Loop() {
+		boolSlice = make([]bool, 0, 6)
+	}
+}
+
 func TestFiltersToObject(t *testing.T) {
 	t.Parallel()
 

@@ -66,31 +66,6 @@ jobs:
               "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
-  go-perf:
-    name: Go Perf
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Benchmark Test Golang
-        run: make ci-go-perf
-        timeout-minutes: 45
-        env:
-          DOCKER_RUNNING: 0
-
-      - name: Slack Notification
-        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
-        if: failure() && env.SLACK_WEBHOOK_URL != ''
-        with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
-            }
   govulncheck:
     name: Go vulnerability check
     runs-on: ubuntu-24.04

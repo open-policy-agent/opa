@@ -4,6 +4,7 @@ go 1.25.7
 
 tool (
 	github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+	github.com/mna/pigeon
 	github.com/rogpeppe/go-internal/cmd/testscript
 	golang.org/x/perf/cmd/benchstat
 	golang.org/x/vuln/cmd/govulncheck
@@ -19,6 +20,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/josephspurrier/goversioninfo v1.7.0 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mna/pigeon v1.3.0 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/vbauerster/mpb/v8 v8.12.1 // indirect
 	golang.org/x/mod v0.35.0 // indirect

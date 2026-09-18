@@ -84,6 +84,8 @@ distributed_tracing:
   service_name: opa
   sample_percentage: 50
   encryption: "off"
+  exclude_paths:
+    - /health**
   resource:
     service_namespace: "my-namespace"
     service_version: "1.1"
@@ -934,26 +936,27 @@ that requires GraphQL schemas.
 
 Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 
-| Field                                                                    | Type      | Required                                                                                   | Description                                                                                                |
-| ------------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `distributed_tracing.type`                                               | `string`  | No                                                                                         | Setting this to "grpc" enables distributed tracing with an gRPC endpoint; or "http" with an HTTP endpoint. |
-| `distributed_tracing.address`                                            | `string`  | No (default: `localhost:4317` if `type` is `grpc` or `localhost:4318` if `type` is `http`) | Address of the OpenTelemetry Collector gRPC or HTTP endpoint.                                              |
-| `distributed_tracing.service_name`                                       | `string`  | No (default: `opa`)                                                                        | Logical name of the service.                                                                               |
-| `distributed_tracing.sample_percentage`                                  | `float64` | No (default: `100`)                                                                        | Percentage of traces that are sampled and exported.                                                        |
-| `distributed_tracing.encryption`                                         | `string`  | No (default: `off`)                                                                        | Configures TLS.                                                                                            |
-| `distributed_tracing.allow_insecure_tls`                                 | `bool`    | No (default: `false`)                                                                      | Allow insecure TLS.                                                                                        |
-| `distributed_tracing.tls_ca_cert_file`                                   | `string`  | No                                                                                         | The path to the root CA certificate.                                                                       |
-| `distributed_tracing.tls_cert_file`                                      | `string`  | No (unless `encryption` equals `mtls`)                                                     | The path to the client certificate to authenticate with.                                                   |
-| `distributed_tracing.tls_private_key_file`                               | `string`  | No (unless `tls_cert_file` provided)                                                       | The path to the private key of the client certificate.                                                     |
-| `distributed_tracing.resource.service_version`                           | `string`  | No                                                                                         | Service version                                                                                            |
-| `distributed_tracing.resource.service_instance_id`                       | `string`  | No                                                                                         | Service instance id                                                                                        |
-| `distributed_tracing.resource.service_namespace`                         | `string`  | No                                                                                         | Service namespace                                                                                          |
-| `distributed_tracing.resource.deployment_environment`                    | `string`  | No                                                                                         | Deployment environment name                                                                                |
-| `distributed_tracing.batch_span_processor_options.blocking`              | `bool`    | No (default: `false`)                                                                      | Wait for span batch enqueue operations to succeed instead of dropping data when the queue is full.         |
-| `distributed_tracing.batch_span_processor_options.batch_timeout_ms`      | `int`     | No (default: `5000`)                                                                       | The maximum duration for constructing a batch in milliseconds.                                             |
-| `distributed_tracing.batch_span_processor_options.export_timeout_ms`     | `int`     | No (default: `30000`)                                                                      | The maximum duration for exporting spans in milliseconds.                                                  |
-| `distributed_tracing.batch_span_processor_options.max_export_batch_size` | `int`     | No (default: `512`)                                                                        | The maximum number of spans to process in a single batch.                                                  |
-| `distributed_tracing.batch_span_processor_options.max_queue_size`        | `int`     | No (default: `2048`)                                                                       | The maximum queue size to buffer spans for delayed processing.                                             |
+| Field                                                                    | Type       | Required                                                                                   | Description                                                                                                |
+| ------------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `distributed_tracing.type`                                               | `string`   | No                                                                                         | Setting this to "grpc" enables distributed tracing with an gRPC endpoint; or "http" with an HTTP endpoint. |
+| `distributed_tracing.address`                                            | `string`   | No (default: `localhost:4317` if `type` is `grpc` or `localhost:4318` if `type` is `http`) | Address of the OpenTelemetry Collector gRPC or HTTP endpoint.                                              |
+| `distributed_tracing.service_name`                                       | `string`   | No (default: `opa`)                                                                        | Logical name of the service.                                                                               |
+| `distributed_tracing.sample_percentage`                                  | `float64`  | No (default: `100`)                                                                        | Percentage of traces that are sampled and exported.                                                        |
+| `distributed_tracing.encryption`                                         | `string`   | No (default: `off`)                                                                        | Configures TLS.                                                                                            |
+| `distributed_tracing.allow_insecure_tls`                                 | `bool`     | No (default: `false`)                                                                      | Allow insecure TLS.                                                                                        |
+| `distributed_tracing.tls_ca_cert_file`                                   | `string`   | No                                                                                         | The path to the root CA certificate.                                                                       |
+| `distributed_tracing.tls_cert_file`                                      | `string`   | No (unless `encryption` equals `mtls`)                                                     | The path to the client certificate to authenticate with.                                                   |
+| `distributed_tracing.tls_private_key_file`                               | `string`   | No (unless `tls_cert_file` provided)                                                       | The path to the private key of the client certificate.                                                     |
+| `distributed_tracing.exclude_paths`                                      | `[]string` | No                                                                                         | Glob patterns matching the paths of incoming server requests that should not be traced.                    |
+| `distributed_tracing.resource.service_version`                           | `string`   | No                                                                                         | Service version                                                                                            |
+| `distributed_tracing.resource.service_instance_id`                       | `string`   | No                                                                                         | Service instance id                                                                                        |
+| `distributed_tracing.resource.service_namespace`                         | `string`   | No                                                                                         | Service namespace                                                                                          |
+| `distributed_tracing.resource.deployment_environment`                    | `string`   | No                                                                                         | Deployment environment name                                                                                |
+| `distributed_tracing.batch_span_processor_options.blocking`              | `bool`     | No (default: `false`)                                                                      | Wait for span batch enqueue operations to succeed instead of dropping data when the queue is full.         |
+| `distributed_tracing.batch_span_processor_options.batch_timeout_ms`      | `int`      | No (default: `5000`)                                                                       | The maximum duration for constructing a batch in milliseconds.                                             |
+| `distributed_tracing.batch_span_processor_options.export_timeout_ms`     | `int`      | No (default: `30000`)                                                                      | The maximum duration for exporting spans in milliseconds.                                                  |
+| `distributed_tracing.batch_span_processor_options.max_export_batch_size` | `int`      | No (default: `512`)                                                                        | The maximum number of spans to process in a single batch.                                                  |
+| `distributed_tracing.batch_span_processor_options.max_queue_size`        | `int`      | No (default: `2048`)                                                                       | The maximum queue size to buffer spans for delayed processing.                                             |
 
 The following encryption methods are supported:
 
@@ -962,6 +965,30 @@ The following encryption methods are supported:
 | `off`  | Disable TLS       |
 | `tls`  | Enable TLS        |
 | `mtls` | Enable mutual TLS |
+
+### Excluding endpoints from tracing
+
+Frequently polled endpoints such as the health check can make up the bulk of the
+spans OPA emits without saying much about how policy is being evaluated. List
+them under `exclude_paths` to keep OPA from creating a span for them:
+
+```yaml
+distributed_tracing:
+  type: grpc
+  exclude_paths:
+    - /health**
+    - /metrics
+```
+
+Patterns are [globs](https://github.com/gobwas/glob) matched against the path of
+the incoming request, with `/` as the separator: `*` stays within a single path
+segment, and `**` spans segments. `/health` on its own excludes only the
+`/health` endpoint; `/health**` also covers `/health/live`, `/health/ready`, and
+any other health policy endpoint.
+
+`exclude_paths` applies to OPA's own HTTP server. The requests OPA makes to
+other services — bundle downloads, status and decision log uploads, and
+`http.send` calls during evaluation — are unaffected.
 
 ## Metrics Export
 

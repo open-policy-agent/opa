@@ -476,13 +476,13 @@ func TestDevCmd_RefusesExistingUnreleased(t *testing.T) {
 }
 
 func TestDevCmd_DryRun(t *testing.T) {
-	root := devRepo(t, "1.19.0")
+	root := devRepo(t, "1.18.0")
 	before, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := devCmd([]string{"--version", "1.19.1", "--repo-root", root, "--dry-run"}); err != nil {
+	if err := devCmd([]string{"--version", "1.18.1", "--repo-root", root, "--dry-run"}); err != nil {
 		t.Fatalf("devCmd: %v", err)
 	}
 
@@ -497,7 +497,7 @@ func TestDevCmd_DryRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(version), `var Version = "1.19.0"`) {
+	if !strings.Contains(string(version), `var Version = "1.18.0"`) {
 		t.Errorf("--dry-run modified version.go:\n%s", version)
 	}
 }

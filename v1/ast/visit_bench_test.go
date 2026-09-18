@@ -79,7 +79,7 @@ a.b.c.this["this"] = d if { d := "this" }
 `)
 
 	b.Run("GenericVisitor", func(b *testing.B) {
-		vis := NewGenericVisitor(func(x any) bool {
+		vis := NewGenericVisitor(func(any) bool {
 			return false
 		})
 
@@ -90,7 +90,7 @@ a.b.c.this["this"] = d if { d := "this" }
 
 	b.Run("TypeVisitor term", func(b *testing.B) {
 		for b.Loop() {
-			termTypeVisitor.walk(mod, func(x *Term) bool {
+			termTypeVisitor.walk(mod, func(*Term) bool {
 				return false
 			})
 		}
@@ -98,7 +98,7 @@ a.b.c.this["this"] = d if { d := "this" }
 
 	b.Run("TypeVisitor via WalkRules", func(b *testing.B) {
 		for b.Loop() {
-			WalkRules(mod, func(r *Rule) bool {
+			WalkRules(mod, func(*Rule) bool {
 				return false
 			})
 		}

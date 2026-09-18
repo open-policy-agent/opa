@@ -99,7 +99,7 @@ p contains x if {
 			).PrepareForEval(t.Context())
 			if tc.expErrs != nil {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -346,7 +346,7 @@ p contains x if {
 
 			if tc.expErrs != nil {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -549,7 +549,7 @@ c := z if {
 				t.Fatalf("eval: %v", err)
 			}
 			if len(rs) == 0 {
-				t.Fatalf("expected a result, got empty ResultSet (issue #8302 silent-drop symptom)")
+				t.Fatal("expected a result, got empty ResultSet (issue #8302 silent-drop symptom)")
 			}
 			got := fmt.Sprint(rs[0].Expressions[0].Value)
 			if got != tc.want {
@@ -1026,7 +1026,9 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 		t.Context(),
 		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
-		EvalInput(map[string]any{"x": 1}),
+		// The match is on the last definition, so early exit stopping there still
+		// leaves the one before evaluated -- which is what this test shows.
+		EvalInput(map[string]any{"y": 1}),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
@@ -1249,7 +1251,7 @@ func TestPrepareAndEvalNewMetrics(t *testing.T) {
 	}
 
 	if len(originalMetrics.All()) == 0 {
-		t.Errorf("Expected metrics stored on 'originalMetrics' after Prepare()")
+		t.Error("Expected metrics stored on 'originalMetrics' after Prepare()")
 	}
 
 	// Reset the original ones (for testing)
@@ -1268,7 +1270,7 @@ func TestPrepareAndEvalNewMetrics(t *testing.T) {
 	}
 
 	if len(newMetrics.All()) == 0 {
-		t.Errorf("Expected metrics stored on 'newMetrics' after Prepare()")
+		t.Error("Expected metrics stored on 'newMetrics' after Prepare()")
 	}
 }
 
@@ -1283,7 +1285,7 @@ func TestPrepareAndEvalTransaction(t *testing.T) {
 
 	path, ok := storage.ParsePath("/foo")
 	if !ok {
-		t.Fatalf("Unexpected error parsing path")
+		t.Fatal("Unexpected error parsing path")
 	}
 
 	err := storage.MakeDir(ctx, store, txn, path)
@@ -1447,7 +1449,7 @@ func TestPrepareAndEvalOnlyOneErrorOccurredPrintOnce(t *testing.T) {
 		t.Fatal("Expected error but got nil")
 	}
 	if strings.Count(err.Error(), "1 error occurred") > 1 {
-		t.Fatalf("Expected to print '1 error occurred' only once")
+		t.Fatal("Expected to print '1 error occurred' only once")
 	}
 }
 
@@ -1857,7 +1859,7 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 	}
 
 	if len(*tracer) == 0 {
-		t.Errorf("Expected buffer tracer to contain > 0 traces")
+		t.Error("Expected buffer tracer to contain > 0 traces")
 	}
 }
 
@@ -1899,7 +1901,7 @@ func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
 	}
 
 	if len(*tracer) == 0 {
-		t.Errorf("Expected buffer tracer to contain > 0 traces")
+		t.Error("Expected buffer tracer to contain > 0 traces")
 	}
 }
 
@@ -2872,10 +2874,10 @@ func TestEvalWithNDCache(t *testing.T) {
 	if cachedResults, ok := ndBC["http.send"]; ok {
 		err := cachedResults.Iter(func(k, v *ast.Term) error {
 			if _, ok := k.Value.(*ast.Array); !ok {
-				t.Fatalf("http.send failed to store Object key in the ND builtins cache")
+				t.Fatal("http.send failed to store Object key in the ND builtins cache")
 			}
 			if _, ok := v.Value.(ast.Object); !ok {
-				t.Fatalf("http.send failed to store Object value in the ND builtins cache")
+				t.Fatal("http.send failed to store Object value in the ND builtins cache")
 			}
 			return nil
 		})
@@ -2938,7 +2940,7 @@ p if {
 	}
 	_, ok := ndBC["http.send"]
 	if !ok {
-		t.Fatalf("expected http.send cache entry")
+		t.Fatal("expected http.send cache entry")
 	}
 }
 
@@ -2979,7 +2981,7 @@ results contains response if {
 	// Ensure that the cache exists, and has exactly 3 entries.
 	entries, ok := ndBC["http.send"]
 	if !ok {
-		t.Fatalf("expected http.send cache entry")
+		t.Fatal("expected http.send cache entry")
 	}
 	if entries.Len() != 3 {
 		t.Fatalf("expected 3 http.send cache entries, received:\n%v", ndBC)
@@ -3084,6 +3086,68 @@ func TestTimeSeedingOptions(t *testing.T) {
 		t.Fatal("expected old wall clock value")
 	}
 
+	// Check that Partial() also gets the configured time, like Eval() does.
+	// time.now_ns is nondeterministic and stays unresolved through partial
+	// eval, so use a custom builtin to observe the wall clock directly.
+	var captured *ast.Term
+	fn := Function1(
+		&Function{
+			Name: "test.capturetime",
+			Decl: types.NewFunction(types.Args(types.N), types.N),
+		},
+		func(bctx BuiltinContext, _ *ast.Term) (*ast.Term, error) {
+			captured = bctx.Time
+			return ast.NumberTerm("1"), nil
+		},
+	)
+
+	_, err = New(Query("test.capturetime(1, x)"), fn, Time(clock), Unknowns([]string{"input.x"})).Partial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantNS := ast.Number(int64ToJSONNumber(clock.UnixNano()))
+	if !reflect.DeepEqual(captured.Value, wantNS) {
+		t.Fatalf("expected Partial() to use configured time, got %v want %v", captured, wantNS)
+	}
+
+}
+
+// EvalDisableInlining is threaded through the same EvalContext defaults that
+// disableInlining set on the Rego object populates; verify the per-call
+// option actually takes effect instead of being overwritten by the default.
+func TestEvalDisableInliningOption(t *testing.T) {
+	ctx := t.Context()
+	module := `
+package test
+
+p if { q; r }
+q if { s[input] }
+q if { t[input] }
+r if { s[input] }
+s contains 1
+s contains 2
+t contains 3
+`
+	pq, err := New(
+		Query("data.test.p = true"),
+		Module("test.rego", module),
+		Unknowns([]string{"input"}),
+	).PrepareForPartial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pqs, err := pq.Partial(ctx, EvalDisableInlining([]ast.Ref{ast.MustParseRef("data.test.q")}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, q := range pqs.Queries {
+		if strings.Contains(q.String(), "data.partial.test.q") {
+			return
+		}
+	}
+	t.Fatalf("expected EvalDisableInlining to prevent inlining of data.test.q, got queries %v", pqs.Queries)
 }
 
 func int64ToJSONNumber(i int64) json.Number {
@@ -3316,7 +3380,7 @@ func TestDescriptionRegisterBuiltin1(t *testing.T) {
 	description := "custom-arity-1"
 
 	decl := &Function{
-		Name:        "foo",
+		Name:        "baz",
 		Description: description,
 		Decl: types.NewFunction(
 			types.Args(types.S),
@@ -3327,7 +3391,7 @@ func TestDescriptionRegisterBuiltin1(t *testing.T) {
 	RegisterBuiltin1(decl, func(_ BuiltinContext, _ *ast.Term) (*ast.Term, error) {
 		return ast.StringTerm("bar"), nil
 	})
-	defer unregisterBuiltin("foo")
+	defer unregisterBuiltin("baz")
 
 	got := ast.Builtins[len(ast.Builtins)-1].Description
 	if got != description {
@@ -3468,7 +3532,7 @@ result := test.module("policy.rego")
 			t.Fatalf("rego Eval error: %v", err)
 		}
 		if len(rs) == 0 || len(rs[0].Expressions) == 0 {
-			t.Fatalf("No results")
+			t.Fatal("No results")
 		}
 		got := rs[0].Expressions[0].Value
 		want := "package test\n\nresult := __local0__ if { test.module(\"policy.rego\", __local0__) }"

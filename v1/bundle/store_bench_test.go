@@ -42,9 +42,9 @@ func BenchmarkHasRootsOverlap(b *testing.B) {
 		{"chain/100", func() map[string]*Bundle { return makeChainBundles(100) }, true},
 		{"chain/500", func() map[string]*Bundle { return makeChainBundles(500) }, true},
 
-		{"multi-root/10x10", func() map[string]*Bundle { return makeMultiRootBundles(10, 10) }, false},
-		{"multi-root/100x10", func() map[string]*Bundle { return makeMultiRootBundles(100, 10) }, false},
-		{"multi-root/1000x10", func() map[string]*Bundle { return makeMultiRootBundles(1000, 10) }, false},
+		{"multi-root/10x10", func() map[string]*Bundle { return makeMultiRootBundles(10) }, false},
+		{"multi-root/100x10", func() map[string]*Bundle { return makeMultiRootBundles(100) }, false},
+		{"multi-root/1000x10", func() map[string]*Bundle { return makeMultiRootBundles(1000) }, false},
 
 		{"wide-fanout/10", func() map[string]*Bundle { return makeWideFanoutBundles(10) }, true},
 		{"wide-fanout/100", func() map[string]*Bundle { return makeWideFanoutBundles(100) }, true},
@@ -165,9 +165,11 @@ func makeChainBundles(n int) map[string]*Bundle {
 	return out
 }
 
-// makeMultiRootBundles builds N bundles each declaring M disjoint
+// makeMultiRootBundles builds N bundles each declaring rootsPerBundle disjoint
 // roots. This exercises per-root scaling independent of bundle count.
-func makeMultiRootBundles(bundleCount, rootsPerBundle int) map[string]*Bundle {
+func makeMultiRootBundles(bundleCount int) map[string]*Bundle {
+	const rootsPerBundle = 10
+
 	out := make(map[string]*Bundle, bundleCount)
 	for i := range bundleCount {
 		roots := make([]string, rootsPerBundle)

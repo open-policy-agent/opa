@@ -410,12 +410,12 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	if register.Collectors[counter] != true {
-		t.Fatalf("Counter metric was not registered on prometheus")
+		t.Fatal("Counter metric was not registered on prometheus")
 	}
 }
 
 func TestPluginManagerTracerProvider(t *testing.T) {
-	_, tracerProvider, _, err := internal_tracing.Init(t.Context(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
+	_, tracerProvider, _, _, err := internal_tracing.Init(t.Context(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
 	if err != nil {
 		t.Fatal(err)
 	}

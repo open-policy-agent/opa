@@ -160,9 +160,9 @@ func callToNode(e *ast.Expr, f ast.Ref, flip bool, opts *Opts) *ucast.UCASTNode 
 		ast.GreaterThan.Name,
 		ast.GreaterThanEq.Name:
 		refOK = true
-	case ast.StartsWith.Name:
-	case ast.EndsWith.Name:
-	case ast.Contains.Name:
+	case ast.StartsWith.Name,
+		ast.EndsWith.Name,
+		ast.Contains.Name:
 	case ast.Member.Name:
 		op = "in"
 	default:

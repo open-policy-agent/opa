@@ -66,7 +66,7 @@ func TestRunBenchmark(t *testing.T) {
 	}
 
 	if float64(br.N) != br.Extra["histogram_timer_rego_query_eval_ns_count"] {
-		t.Fatalf("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
+		t.Fatal("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
 	}
 }
 
@@ -110,7 +110,7 @@ func TestRunBenchmarkWithQueryImport(t *testing.T) {
 	}
 
 	if float64(br.N) != br.Extra["histogram_timer_rego_query_eval_ns_count"] {
-		t.Fatalf("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
+		t.Fatal("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
 	}
 }
 
@@ -152,7 +152,7 @@ func TestRunBenchmarkE2E(t *testing.T) {
 	}
 
 	if float64(br.N) != br.Extra["histogram_timer_rego_query_eval_ns_count"] {
-		t.Fatalf("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
+		t.Fatal("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
 	}
 
 	if _, ok := br.Extra["histogram_timer_server_handler_ns_count"]; !ok {
@@ -160,7 +160,7 @@ func TestRunBenchmarkE2E(t *testing.T) {
 	}
 
 	if float64(br.N) != br.Extra["histogram_timer_server_handler_ns_count"] {
-		t.Fatalf("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
+		t.Fatal("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
 	}
 }
 
@@ -209,7 +209,7 @@ func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
 		}
 
 		if float64(br.N) != br.Extra["histogram_timer_rego_query_eval_ns_count"] {
-			t.Fatalf("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
+			t.Fatal("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
 		}
 
 		if _, ok := br.Extra["histogram_timer_server_handler_ns_count"]; !ok {
@@ -217,7 +217,7 @@ func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
 		}
 
 		if float64(br.N) != br.Extra["histogram_timer_server_handler_ns_count"] {
-			t.Fatalf("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
+			t.Fatal("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
 		}
 	})
 }
@@ -296,7 +296,7 @@ func TestBenchPartialE2E(t *testing.T) {
 	}
 
 	if float64(br.N) != br.Extra["histogram_timer_rego_partial_eval_ns_count"] {
-		t.Fatalf("Expected 'histogram_timer_rego_partial_eval_ns_count' to be equal to N")
+		t.Fatal("Expected 'histogram_timer_rego_partial_eval_ns_count' to be equal to N")
 	}
 
 	if _, ok := br.Extra["histogram_timer_server_handler_ns_count"]; !ok {
@@ -304,7 +304,7 @@ func TestBenchPartialE2E(t *testing.T) {
 	}
 
 	if float64(br.N) != br.Extra["histogram_timer_server_handler_ns_count"] {
-		t.Fatalf("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
+		t.Fatal("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
 	}
 }
 
@@ -906,7 +906,7 @@ a contains x if {
 
 					if len(tc.expErrs) > 0 {
 						if rc == 0 {
-							t.Fatalf("Expected non-zero return code")
+							t.Fatal("Expected non-zero return code")
 						}
 
 						output := errBuf.String()
@@ -1044,7 +1044,7 @@ a[4] {
 
 					if len(tc.expErrs) > 0 {
 						if rc == 0 {
-							t.Fatalf("Expected non-zero return code")
+							t.Fatal("Expected non-zero return code")
 						}
 
 						output := errBuf.String()
@@ -1248,7 +1248,7 @@ a contains 4 if {
 
 						if len(tc.expErrs) > 0 {
 							if rc == 0 {
-								t.Fatalf("Expected non-zero return code")
+								t.Fatal("Expected non-zero return code")
 							}
 
 							output := errBuf.String()
@@ -1417,7 +1417,7 @@ func TestRenderBenchmarkResultGoBenchOutputShowAllocs(t *testing.T) {
 	}
 
 	if len(strings.Split(strings.TrimSpace(actual), "\n")) != 1 {
-		t.Fatalf("Expected only a single line of output")
+		t.Fatal("Expected only a single line of output")
 	}
 }
 

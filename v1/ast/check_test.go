@@ -146,30 +146,20 @@ func TestCheckInference(t *testing.T) {
 		{"empty-composites", `
 				obj = {};
 				arr = [];
-				set = set();
-				obj[i] = v1;
-				arr[j] = v2;
-				set[v3];
-				obj = {"foo": "bar"};
-				arr = [1];
-				set = {1,2,3}
+				set = set()
 				`, map[Var]types.Type{
-			Var("obj"): types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			Var("i"):   types.A,
-			Var("v1"):  types.A,
-			Var("arr"): types.NewArray(nil, types.A),
-			Var("j"):   types.N,
-			Var("v2"):  types.A,
-			Var("set"): types.NewSet(types.A),
-			Var("v3"):  types.A,
+			Var("obj"): types.NewObject(nil, nil),
+			Var("arr"): types.NewArray(nil, nil),
+			Var("set"): types.NewSet(nil),
 		}},
-		{"empty-composite-property", `
-			obj = {};
-			obj.foo = x;
-			obj[i].foo = y
+		{"dynamic-composite-property", `
+			k = "foo";
+			obj = {k: {"deadbeef": true}};
+			obj.bar = x;
+			obj[i].deadbeef = y
 		`, map[Var]types.Type{
-			Var("x"): types.A,
-			Var("y"): types.A,
+			Var("x"): types.NewObject([]*types.StaticProperty{types.NewStaticProperty("deadbeef", types.B)}, nil),
+			Var("y"): types.B,
 		}},
 		{"local-reference", `
 			a = [
@@ -219,11 +209,13 @@ func TestCheckInference(t *testing.T) {
 			Var("k"): types.NewAny(types.S, types.N, types.B),
 			Var("x"): types.NewAny(types.S, types.N, types.B),
 		}},
-		{"local-reference-var-any", `
+		{"local-reference-var-empty-composites", `
 			a = [[], {}];
 			a[_][i]
 		`, map[Var]types.Type{
-			Var("i"): types.A,
+			// Neither [] nor {} has keys to enumerate, so the only key type
+			// left to infer is the array's.
+			Var("i"): types.N,
 		}},
 		{"local-reference-nested", `
 			a = [["foo"], 0, {"bar": "baz"}, 2];
@@ -590,7 +582,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.NewAny(), types.A), types.A}, nil),
-					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+					types.NewObject(nil, nil)),
 			)},
 		{
 			note:     "ref-rules single value, full ref to known leaf",
@@ -1276,8 +1268,44 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			query: `a = [1,2,3]; a[{}] = b`,
 			ref:   `a[{}]`,
 			pos:   1,
-			have:  types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			have:  types.NewObject(nil, nil),
 			want:  types.N,
+		},
+		{
+			note:  "missing key of empty object",
+			query: `obj = {}; obj.bar`,
+			ref:   `obj.bar`,
+			pos:   1,
+		},
+		{
+			note:  "missing key of empty object, var operand",
+			query: `obj = {}; obj[i]`,
+			ref:   `obj[i]`,
+			pos:   1,
+		},
+		{
+			note:  "out of range index of empty array",
+			query: `arr = []; arr[0]`,
+			ref:   `arr[0]`,
+			pos:   1,
+		},
+		{
+			note:  "out of range index of empty array, var operand",
+			query: `arr = []; arr[i]`,
+			ref:   `arr[i]`,
+			pos:   1,
+		},
+		{
+			note:  "member of empty set",
+			query: `s = set(); s.foo`,
+			ref:   `s.foo`,
+			pos:   1,
+		},
+		{
+			note:  "member of empty set, var operand",
+			query: `s = set(); s[x]`,
+			ref:   `s[x]`,
+			pos:   1,
 		},
 	}
 
@@ -1393,7 +1421,7 @@ func TestFunctionsTypeInference(t *testing.T) {
 			c := NewCompiler()
 			c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts), "mod": mod})
 			if test.wantErr && !c.Failed() {
-				t.Errorf("Expected error but got success")
+				t.Error("Expected error but got success")
 			} else if !test.wantErr && c.Failed() {
 				t.Errorf("Expected success but got error: %v", c.Errors)
 			}
@@ -1497,7 +1525,7 @@ func TestCheckValidErrors(t *testing.T) {
 			c.Compile(map[string]*Module{"test": tc.module})
 
 			if !c.Failed() {
-				t.Errorf("Expected error but got success")
+				t.Error("Expected error but got success")
 			}
 
 			if len(c.Errors) != tc.numErr {
@@ -1563,6 +1591,18 @@ func TestCheckErrorDetails(t *testing.T) {
 				"         ^",
 				"         have: 100",
 				`         want (one of): ["a" "b"]`,
+			},
+		},
+		{
+			detail: &RefErrInvalidDetail{
+				Ref: MustParseRef("obj.foo"),
+				Pos: 1,
+			},
+			expected: []string{
+				"obj.foo",
+				"    ^",
+				`    have: "foo"`,
+				"    want (one of): []",
 			},
 		},
 		{
@@ -2430,7 +2470,7 @@ p { input = "foo" }`}},
 			}
 
 			if oldTypeEnv.tree.children != nil && typeenv.next.tree.children != nil && (typeenv.next.tree.children.Len() != oldTypeEnv.tree.children.Len()) {
-				t.Fatalf("Unexpected type env")
+				t.Fatal("Unexpected type env")
 			}
 
 		})
@@ -2754,6 +2794,102 @@ obj["b"] := input.b
 
 test_obj2 if {
 	{"a":"1"} == obj with input as {"a": "1"}
+}`,
+		},
+		// this policy verifies this issue: https://github.com/open-policy-agent/opa/issues/7275
+		{
+			name: "missing key of empty object literal",
+			policy: `package p
+
+p if {
+	obj := {}
+	obj.bar
+}`,
+			expectedError: "policy.rego:5: rego_type_error: undefined ref: obj.bar",
+		},
+		{
+			name: "missing key of non-empty object literal",
+			policy: `package p
+
+p if {
+	obj := {"foo": "bar"}
+	obj.bar
+}`,
+			expectedError: "policy.rego:5: rego_type_error: undefined ref: obj.bar",
+		},
+		{
+			name: "out of range index of empty array literal",
+			policy: `package p
+
+p if {
+	arr := []
+	arr[0]
+}`,
+			expectedError: "policy.rego:5: rego_type_error: undefined ref: arr[0]",
+		},
+		{
+			name: "member of empty set literal",
+			policy: `package p
+
+p if {
+	s := set()
+	s.foo
+}`,
+			expectedError: "policy.rego:5: rego_type_error: undefined ref: s.foo",
+		},
+		{
+			name: "member of non-empty set literal",
+			policy: `package p
+
+p if {
+	s := {"foo"}
+	s.foo
+}`,
+		},
+		{
+			name: "empty set literal passed to a builtin expecting a set",
+			policy: `package p
+
+p if {
+	s := set()
+	count(s | {1}) == 1
+}`,
+		},
+		{
+			name: "iterating an empty object literal",
+			policy: `package p
+
+p contains v if {
+	some v in {}
+}`,
+			expectedError: "policy.rego:4: rego_type_error: undefined ref: {}[__local2__]",
+		},
+		{
+			name: "iterating an empty array literal",
+			policy: `package p
+
+p contains v if {
+	some v in []
+}`,
+			expectedError: "policy.rego:4: rego_type_error: undefined ref: [][__local2__]",
+		},
+		{
+			name: "iterating an empty set literal",
+			policy: `package p
+
+p contains v if {
+	some v in set()
+}`,
+			expectedError: "policy.rego:4: rego_type_error: undefined ref: set()[__local2__]",
+		},
+		{
+			name: "key of object literal with dynamic properties",
+			policy: `package p
+
+p if {
+	k := "foo"
+	obj := {k: 1}
+	obj.bar == 1
 }`,
 		},
 		// this policy verifies this issue: https://github.com/open-policy-agent/opa/issues/6751
