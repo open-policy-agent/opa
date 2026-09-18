@@ -1,0 +1,607 @@
+---
+# Generated externalized tests from TestStringTerms
+cases:
+  - note: terms/string-terms/empty (module)
+    module: |
+      package test
+
+      p := ""
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": ""
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/empty (body)
+    body: |
+      ""
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": ""
+          }
+        }
+      ]
+  - note: terms/string-terms/whitespace (module)
+    module: |
+      package test
+
+      p := " "
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": " "
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/whitespace (body)
+    body: |
+      " "
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": " "
+          }
+        }
+      ]
+  - note: terms/string-terms/escaped quote (module)
+    module: |
+      package test
+
+      p := "\""
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "\""
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/escaped quote (body)
+    body: |
+      "\""
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "\""
+          }
+        }
+      ]
+  - note: terms/string-terms/escaped solidus (module)
+    module: |
+      package test
+
+      p := "http:\/\/"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "http://"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/escaped solidus (body)
+    body: |
+      "http:\/\/"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "http://"
+          }
+        }
+      ]
+  - note: terms/string-terms/control code (module)
+    module: |
+      package test
+
+      p := "\u0001"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "\u0001"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/control code (body)
+    body: |
+      "\u0001"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "\u0001"
+          }
+        }
+      ]
+  - note: terms/string-terms/unicode (upper hex) (module)
+    module: |
+      package test
+
+      p := "foo\u005C"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "foo\\"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/unicode (upper hex) (body)
+    body: |
+      "foo\u005C"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "foo\\"
+          }
+        }
+      ]
+  - note: terms/string-terms/unicode (lower hex) (module)
+    module: |
+      package test
+
+      p := "foo\u005c"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "foo\\"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/unicode (lower hex) (body)
+    body: |
+      "foo\u005c"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "foo\\"
+          }
+        }
+      ]
+  - note: terms/string-terms/g-clef (module)
+    module: |
+      package test
+
+      p := "\uD834\uDD1E"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "\ud834\udd1e"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/g-clef (body)
+    body: |
+      "\uD834\uDD1E"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "\ud834\udd1e"
+          }
+        }
+      ]
+  - note: terms/string-terms/basic raw string (module)
+    module: |
+      package test
+
+      p := `hi\there`
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "hi\\there"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/basic raw string (body)
+    body: |
+      `hi\there`
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "hi\\there"
+          }
+        }
+      ]
+  - note: terms/string-terms/multi-line raw string (module)
+    module: |
+      package test
+
+      p := `foo
+      bar
+          baz`
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "foo\nbar\n    baz"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-terms/multi-line raw string (body)
+    body: |
+      `foo
+      bar
+          baz`
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "string",
+            "value": "foo\nbar\n    baz"
+          }
+        }
+      ]

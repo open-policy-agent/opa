@@ -1,0 +1,2103 @@
+---
+# Generated externalized tests from TestRuleBodyContainingRefKeywords
+cases:
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (module)
+    module: |
+      package test
+
+      p if {
+      	not.foo == 1
+      	foo.not == 2
+      	foo.not.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "not"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "not"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "not"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (2) (module)
+    module: |
+      package test
+
+      p if {
+      	package.foo == 1
+      	foo.package == 2
+      	foo.package.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "package"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "package"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "package"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (3) (module)
+    module: |
+      package test
+
+      p if {
+      	import.foo == 1
+      	foo.import == 2
+      	foo.import.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "import"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "import"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "import"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (4) (module)
+    module: |
+      package test
+
+      p if {
+      	as.foo == 1
+      	foo.as == 2
+      	foo.as.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "as"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "as"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "as"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (5) (module)
+    module: |
+      package test
+
+      p if {
+      	default.foo == 1
+      	foo.default == 2
+      	foo.default.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "default"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "default"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "default"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (6) (module)
+    module: |
+      package test
+
+      p if {
+      	else.foo == 1
+      	foo.else == 2
+      	foo.else.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "else"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "else"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "else"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (7) (module)
+    module: |
+      package test
+
+      p if {
+      	with.foo == 1
+      	foo.with == 2
+      	foo.with.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "with"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "with"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "with"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (8) (module)
+    module: |
+      package test
+
+      p if {
+      	null.foo == 1
+      	foo.null == 2
+      	foo.null.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "null"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "null"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (9) (module)
+    module: |
+      package test
+
+      p if {
+      	true.foo == 1
+      	foo.true == 2
+      	foo.true.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "true"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "true"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "true"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (10) (module)
+    module: |
+      package test
+
+      p if {
+      	false.foo == 1
+      	foo.false == 2
+      	foo.false.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "false"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "false"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "false"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (11) (module)
+    module: |
+      package test
+
+      p if {
+      	some.foo == 1
+      	foo.some == 2
+      	foo.some.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "some"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "some"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "some"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (12) (module)
+    module: |
+      package test
+
+      p if {
+      	if.foo == 1
+      	foo.if == 2
+      	foo.if.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "if"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "if"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "if"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (13) (module)
+    module: |
+      package test
+
+      p if {
+      	contains.foo == 1
+      	foo.contains == 2
+      	foo.contains.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "contains"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "contains"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "contains"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (14) (module)
+    module: |
+      package test
+
+      p if {
+      	in.foo == 1
+      	foo.in == 2
+      	foo.in.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "in"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "in"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "in"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-body-containing-ref-keywords/rule with ref in body (15) (module)
+    module: |
+      package test
+
+      p if {
+      	every.foo == 1
+      	foo.every == 2
+      	foo.every.bar == 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "every"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "every"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "every"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

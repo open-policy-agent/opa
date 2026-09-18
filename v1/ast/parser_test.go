@@ -137,33 +137,26 @@ func TestNumberTerms(t *testing.T) {
 
 func TestStringTerms(t *testing.T) {
 	tests := []struct {
+		note     string
 		input    string
 		expected string
 	}{
-		{`""`, ""},                   // empty
-		{`" "`, " "},                 // whitespace
-		{`"\""`, `"`},                // escaped quote
-		{`"http:\/\/"`, `http://`},   // escaped solidus
-		{`"\u0001"`, "\x01"},         // control code
-		{`"foo\u005C"`, "foo\u005c"}, // unicode (upper hex)
-		{`"foo\u005c"`, "foo\u005C"}, // unicode (lower hex)
-		{`"\uD834\uDD1E"`, `𝄞`},      // g-clef
-		{"`hi\\there`", `hi\there`},  // basic raw string
-		{"`foo\nbar\n    baz`", `foo
+		{"empty", `""`, ""},
+		{"whitespace", `" "`, " "},
+		{"escaped quote", `"\""`, `"`},
+		{"escaped solidus", `"http:\/\/"`, `http://`},
+		{"control code", `"\u0001"`, "\x01"},
+		{"unicode (upper hex)", `"foo\u005C"`, "foo\u005c"},
+		{"unicode (lower hex)", `"foo\u005c"`, "foo\u005C"},
+		{"g-clef", `"\uD834\uDD1E"`, `𝄞`},
+		{"basic raw string", "`hi\\there`", `hi\there`},
+		{"multi-line raw string", "`foo\nbar\n    baz`", `foo
 bar
-    baz`}, // multi-line raw string
+    baz`},
 	}
 
 	for _, tc := range tests {
-		result, err := ParseTerm(tc.input)
-		if err != nil {
-			t.Errorf("Unexpected error for %v: %v", tc.input, err)
-		} else {
-			s := StringTerm(tc.expected)
-			if !result.Equal(s) {
-				t.Errorf("Expected %v for %v but got: %v", s, tc.input, result)
-			}
-		}
+		assertParseOneTerm(t, tc.note, tc.input, StringTerm(tc.expected))
 	}
 }
 

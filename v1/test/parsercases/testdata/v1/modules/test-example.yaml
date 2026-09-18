@@ -1,0 +1,382 @@
+---
+# Generated externalized tests from TestExample
+cases:
+  - note: modules/example/example module
+    module: |
+      # This policy module belongs the opa.example package.
+      package opa.examples
+
+      # Refer to data.servers as servers.
+      import data.servers
+      # Refer to the data.networks as networks.
+      import data.networks
+      # Refer to the data.ports as ports.
+      import data.ports
+
+      # A server exists in the violations set if...
+      violations contains server if {
+          # ...the server exists
+          server = servers[i]
+          # ...and any of the server’s protocols is HTTP
+          server.protocols[j] = "http"
+          # ...and the server is public.
+          public_servers[server]
+      }
+
+      # A server exists in the public_servers set if...
+      public_servers contains server if {
+      	# Semicolons are optional. Can group expressions onto one line.
+          server = servers[i]; server.ports[j] = ports[k].id 	# ...and the server is connected to a port
+          ports[k].networks[l] = networks[m].id; 				# ...and the port is connected to a network
+          networks[m].public = true							# ...and the network is public.
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "servers"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "networks"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "ports"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "opa"
+            },
+            {
+              "type": "string",
+              "value": "examples"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "server"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "servers"
+                      },
+                      {
+                        "type": "var",
+                        "value": "i"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "server"
+                      },
+                      {
+                        "type": "string",
+                        "value": "protocols"
+                      },
+                      {
+                        "type": "var",
+                        "value": "j"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "http"
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "public_servers"
+                    },
+                    {
+                      "type": "var",
+                      "value": "server"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "server"
+              },
+              "name": "violations",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "violations"
+                }
+              ]
+            }
+          },
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "server"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "servers"
+                      },
+                      {
+                        "type": "var",
+                        "value": "i"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "server"
+                      },
+                      {
+                        "type": "string",
+                        "value": "ports"
+                      },
+                      {
+                        "type": "var",
+                        "value": "j"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "ports"
+                      },
+                      {
+                        "type": "var",
+                        "value": "k"
+                      },
+                      {
+                        "type": "string",
+                        "value": "id"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "ports"
+                      },
+                      {
+                        "type": "var",
+                        "value": "k"
+                      },
+                      {
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "l"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "m"
+                      },
+                      {
+                        "type": "string",
+                        "value": "id"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 3,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "m"
+                      },
+                      {
+                        "type": "string",
+                        "value": "public"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "server"
+              },
+              "name": "public_servers",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "public_servers"
+                }
+              ]
+            }
+          }
+        ]
+      }
