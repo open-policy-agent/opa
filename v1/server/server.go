@@ -39,13 +39,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/v1/plugins/bundle"
-	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
-	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/server/authorizer"
-	"github.com/open-policy-agent/opa/v1/server/handlers"
-	"github.com/open-policy-agent/opa/v1/server/identifier"
 	"github.com/open-policy-agent/opa/v1/server/types"
 	"github.com/open-policy-agent/opa/v1/server/writer"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -192,7 +188,14 @@ func New() *Server {
 // Init initializes the server. This function MUST be called before starting any loops
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
-	s.initRouters(ctx)
+	// The hooks below and the authorization middleware both read these.
+	cacheConfig := s.manager.InterQueryBuiltinCacheConfig()
+	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, cacheConfig)
+	s.interQueryBuiltinValueCache = iCache.NewInterQueryValueCache(ctx, cacheConfig)
+	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
+
+	mainRouter, diagRouter := s.initRouters()
+
 	var err error
 	s.hooks.Each(func(h hooks.Hook) {
 		switch h := h.(type) {
@@ -229,19 +232,27 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
 	s.manager.RegisterNDCacheTrigger(s.updateNDCache)
 
-	s.Handler = s.initHandlerAuthn(s.Handler)
-
-	// compression handler
-	s.Handler, err = s.initHandlerCompression(ctx, s.Handler)
+	compression, err := s.compressionMiddleware(ctx)
 	if err != nil {
 		return nil, err
 	}
-	s.DiagnosticHandler = s.initHandlerAuthn(s.DiagnosticHandler)
 
-	s.Handler, err = s.initHandlerDecodingLimits(ctx, s.Handler)
+	decodingLimits, err := s.decodingLimitsMiddleware(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	s.Handler = chain(
+		decodingLimits,
+		compression,
+		s.authnMiddleware(),
+		s.authzMiddleware(),
+	)(mainRouter)
+
+	s.DiagnosticHandler = chain(
+		s.authnMiddleware(),
+		s.authzMiddleware(),
+	)(diagRouter)
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -779,94 +790,13 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 	return domainSocketLoop, l, nil
 }
 
-func (s *Server) initHandlerAuthn(handler http.Handler) http.Handler {
-	switch s.authentication {
-	case AuthenticationToken:
-		handler = identifier.NewTokenBased(handler)
-	case AuthenticationTLS:
-		handler = identifier.NewTLSBased(handler)
-	}
-
-	return handler
-}
-
-func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
-	if s.authorization == AuthorizationBasic {
-		handler = authorizer.NewBasic(
-			handler,
-			s.getCompiler,
-			s.store,
-			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.GetConfig().DefaultAuthorizationDecisionRef),
-			authorizer.PrintHook(s.manager.PrintHook()),
-			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
-			authorizer.InterQueryCache(s.interQueryBuiltinCache),
-			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache),
-			authorizer.URLPathExpectsBodyFunc(s.manager.ExtraAuthorizerRoutes()),
-		)
-		if s.metrics != nil {
-			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
-		}
-	}
-
-	return handler
-}
-
-// Enforces request body size limits on incoming requests. For gzipped requests,
-// it passes the size limit down the body-reading method via the request
-// context.
-func (s *Server) initHandlerDecodingLimits(ctx context.Context, handler http.Handler) (http.Handler, error) {
-	cfg := s.manager.GetConfig()
-	var decodingRawConfig []byte
-	if cfg.Server != nil {
-		decodingRawConfig = []byte(cfg.Server.Decoding)
-	}
-	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).ParseWithContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	decodingHandler := handlers.DecodingLimitsHandler(handler, *decodingConfig.MaxLength, *decodingConfig.Gzip.MaxLength)
-
-	return decodingHandler, nil
-}
-
-func (s *Server) initHandlerCompression(ctx context.Context, handler http.Handler) (http.Handler, error) {
-	cfg := s.manager.GetConfig()
-	var encodingRawConfig []byte
-	if cfg.Server != nil {
-		encodingRawConfig = []byte(cfg.Server.Encoding)
-	}
-	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).ParseWithContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	compressHandler := handlers.CompressHandler(handler, *encodingConfig.Gzip.MinLength, *encodingConfig.Gzip.CompressionLevel)
-
-	return compressHandler, nil
-}
-
-func (s *Server) initRouters(ctx context.Context) {
+func (s *Server) initRouters() (*http.ServeMux, *http.ServeMux) {
 	mainRouter := s.router
 	if mainRouter == nil {
 		mainRouter = http.NewServeMux()
 	}
 
 	diagRouter := http.NewServeMux()
-
-	// authorizer, if configured, needs the iCache to be set up already
-
-	cacheConfig := s.manager.InterQueryBuiltinCacheConfig()
-
-	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, cacheConfig)
-	s.interQueryBuiltinValueCache = iCache.NewInterQueryValueCache(ctx, cacheConfig)
-
-	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
-
-	// Add authorization handler. This must come BEFORE authentication handler
-	// so that the latter can run first.
-	handlerAuthz := s.initHandlerAuthz(mainRouter)
-
-	handlerAuthzDiag := s.initHandlerAuthz(diagRouter)
 
 	// All routers get the same base configuration *and* diagnostic API's
 	for _, router := range []*http.ServeMux{mainRouter, diagRouter} {
@@ -935,32 +865,7 @@ func (s *Server) initRouters(ctx context.Context) {
 	mainRouter.Handle("/v1/query/{path...}", s.methodNotAllowedHandler())
 	mainRouter.Handle("/v1/query", s.methodNotAllowedHandler())
 
-	// Add authorization handler in the end so that it can run first
-	s.Handler = handlerAuthz
-	s.DiagnosticHandler = handlerAuthzDiag
-}
-
-func createMiddleware(mw ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
-	return func(hnd http.Handler) http.Handler {
-		next := hnd
-		for _, m := range slices.Backward(mw) {
-			next = m(next)
-		}
-		return next
-	}
-}
-
-func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
-	httpHandler := handlers.DefaultHandler(createMiddleware(
-		s.manager.ExtraMiddlewares()...,
-	)(http.HandlerFunc(handler)))
-	if len(s.distributedTracingOpts) > 0 {
-		httpHandler = tracing.NewHandler(httpHandler, label, s.distributedTracingOpts)
-	}
-	if s.metrics != nil {
-		return s.metrics.InstrumentHandler(httpHandler, label)
-	}
-	return httpHandler
+	return mainRouter, diagRouter
 }
 
 func (s *Server) methodNotAllowedHandler() http.Handler {
