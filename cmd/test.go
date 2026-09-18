@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -415,12 +416,9 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		coverageRuns = append(coverageRuns, cover.Kind(r))
 	}
 
-	timeout := testParams.timeout
-	if timeout == 0 { // unset
-		timeout = 5 * time.Second
-		if testParams.benchmark {
-			timeout = 30 * time.Second
-		}
+	timeout := cmp.Or(testParams.timeout, 5*time.Second)
+	if testParams.benchmark {
+		timeout = 30 * time.Second
 	}
 
 	runner := tester.NewRunner().

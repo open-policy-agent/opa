@@ -28,6 +28,7 @@ const defaultLocationFile = "__format_default__"
 var (
 	expandedConst     = ast.NewBody(ast.NewExpr(ast.InternedTerm(true)))
 	commentsSlicePool = util.NewSlicePool[*ast.Comment](50)
+	negativeRow       = &ast.Location{Row: -1}
 )
 
 // Opts lets you control the code formatting via `AstWithOpts()`.
@@ -282,7 +283,7 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 	switch x := x.(type) {
 	case *ast.Module:
 		if regoVersion == ast.RegoV1 && opts.DropV0Imports {
-			x.Imports = filterRegoV1Import(x.Imports)
+			x.Imports = slices.DeleteFunc(x.Imports, regoV1Import)
 		} else if regoVersion == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
@@ -878,10 +879,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool,
 
 	if len(head.Args) > 0 {
 		w.write("(")
-		var args []any
-		for _, arg := range head.Args {
-			args = append(args, arg)
-		}
+		args := util.ToSliceOf[any](head.Args)
 		var err error
 		comments, err = w.writeIterable(args, head.Location, closingLoc(0, 0, '(', ')', head.Location), comments, w.listWriter(false))
 		w.write(")")
@@ -1593,7 +1591,7 @@ func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comme
 	w.write("(")
 	defer w.write(")")
 
-	args := util.ToSliceOfAny(terms[1:])
+	args := util.ToSliceOf[any](terms[1:])
 	loc := terms[0].Location
 	var err error
 	comments, err = w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter(false))
@@ -2065,7 +2063,7 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 	w.write("{")
 	defer w.write("}")
 
-	var s []any
+	s := make([]any, 0, obj.Len())
 	obj.Foreach(func(k, v *ast.Term) {
 		s = append(s, ast.Item(k, v))
 	})
@@ -2076,7 +2074,7 @@ func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.C
 	w.write("[")
 	defer w.write("]")
 
-	var s []any
+	s := make([]any, 0, arr.Len())
 	arr.Foreach(func(t *ast.Term) {
 		s = append(s, t)
 	})
@@ -2089,10 +2087,9 @@ func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.C
 }
 
 func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
-
+	var err error
 	if set.Len() == 0 {
 		w.write("set()")
-		var err error
 		comments, err = w.insertComments(comments, closingLoc(0, 0, '(', ')', loc))
 		if err != nil {
 			return nil, err
@@ -2103,11 +2100,7 @@ func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Commen
 	w.write("{")
 	defer w.write("}")
 
-	var s []any
-	set.Foreach(func(t *ast.Term) {
-		s = append(s, t)
-	})
-	var err error
+	s := util.ToSliceOf[any](set.Slice())
 	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.listWriter(true))
 	if err != nil {
 		return nil, err
@@ -2182,7 +2175,7 @@ func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, bo
 }
 
 func (w *writer) writeComprehensionBody(openChar, closeChar byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
-	lines, err := w.groupIterable(util.ToSliceOfAny(body), term)
+	lines, err := w.groupIterable(util.ToSliceOf[any](body), term)
 	if err != nil {
 		return nil, err
 	}
@@ -2749,8 +2742,6 @@ func getLocs(a, b any) (*ast.Location, *ast.Location, error) {
 	return al, bl, errors.Join(err1, err2)
 }
 
-var negativeRow = &ast.Location{Row: -1}
-
 func closingLoc(skipOpen, skipClose, openChar, closeChar byte, loc *ast.Location) *ast.Location {
 	i, offset := 0, 0
 
@@ -2939,10 +2930,9 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 			return imps
 		}
 	}
-	imp := &ast.Import{
-		Path: ast.MustParseTerm("future.keywords." + kw),
-	}
+	imp := &ast.Import{Path: ast.MustParseTerm("future.keywords." + kw)}
 	imp.Location = nextImportLoc(imps, imp)
+
 	return append(imps, imp)
 }
 
@@ -2952,7 +2942,7 @@ func nextImportLoc(imps []*ast.Import, node ast.Node) *ast.Location {
 		if imp.Loc() == nil {
 			continue
 		}
-		if isFutureKeywordsImport(imp) || isRegoV1Compatible(imp) {
+		if imp.Path.Value.(ast.Ref).HasPrefix(ast.FutureKeywordsRef[:1]) || isRegoV1Compatible(imp) {
 			if imp.Loc().Row > maxRow {
 				maxRow = imp.Loc().Row
 			}
@@ -2962,11 +2952,6 @@ func nextImportLoc(imps []*ast.Import, node ast.Node) *ast.Location {
 		return defaultLocation(node)
 	}
 	return ast.NewLocation([]byte(node.String()), defaultLocationFile, maxRow+1, 1)
-}
-
-func isFutureKeywordsImport(imp *ast.Import) bool {
-	path := imp.Path.Value.(ast.Ref)
-	return len(path) >= 2 && ast.FutureRootDocument.Equal(path[0])
 }
 
 func isAddedImport(imp *ast.Import) bool {
@@ -2996,32 +2981,19 @@ func addedImportFollowsRule(others []any) bool {
 }
 
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
-	return ensureImport(imps, ast.RegoV1CompatibleRef)
-}
-
-func filterRegoV1Import(imps []*ast.Import) []*ast.Import {
-	var ret []*ast.Import
 	for _, imp := range imps {
-		path := imp.Path.Value.(ast.Ref)
-		if !ast.RegoV1CompatibleRef.Equal(path) {
-			ret = append(ret, imp)
-		}
-	}
-	return ret
-}
-
-func ensureImport(imps []*ast.Import, path ast.Ref) []*ast.Import {
-	for _, imp := range imps {
-		p := imp.Path.Value.(ast.Ref)
-		if p.Equal(path) {
+		if ast.RegoV1CompatibleRef.Equal(imp.Path.Value) {
 			return imps
 		}
 	}
-	imp := &ast.Import{
-		Path: ast.NewTerm(path),
-	}
+	imp := &ast.Import{Path: ast.NewTerm(ast.RegoV1CompatibleRef)}
 	imp.Location = nextImportLoc(imps, imp)
+
 	return append(imps, imp)
+}
+
+func regoV1Import(imp *ast.Import) bool {
+	return ast.RegoV1CompatibleRef.Equal(imp.Path.Value)
 }
 
 // ArityFormatErrDetail but for `fmt` checks since compiler has not run yet.

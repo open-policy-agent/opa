@@ -62,7 +62,7 @@ var (
 	// recursion exceeds the maximum allowed depth
 	ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
 
-	RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
+	RegoV1CompatibleRef = Ref{RegoRootDocument, InternedTerm("v1")}
 
 	// this is the name to use for instantiating an empty set, e.g., `set()`.
 	setConstructor = RefTerm(VarTerm("set"))
@@ -73,6 +73,7 @@ var (
 	}
 	metadataBytes      = []byte("METADATA")
 	metadataParserPool = util.NewSyncPool[metadataParser]()
+	noScanOptions      []scanner.ScanOption
 )
 
 func (v RegoVersion) Int() int {
@@ -3459,8 +3460,6 @@ func (p *Parser) illegal(note string, a ...any) {
 func (p *Parser) illegalToken() {
 	p.illegal("")
 }
-
-var noScanOptions []scanner.ScanOption
 
 func (p *Parser) scan() {
 	p.doScan(true, noScanOptions...)

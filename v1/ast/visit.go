@@ -192,9 +192,9 @@ func walk(v Visitor, x any) {
 			Walk(w, t)
 		})
 	case Set:
-		x.Foreach(func(t *Term) {
+		for _, t := range x.Slice() {
 			Walk(w, t)
-		})
+		}
 	case *ArrayComprehension:
 		Walk(w, x.Term)
 		Walk(w, x.Body)
@@ -426,10 +426,10 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 			tv.walk(x[i], visit)
 		}
 	case *object:
-		x.Foreach(func(k, v *Term) {
-			tv.walk(k, visit)
-			tv.walk(v, visit)
-		})
+		for _, node := range x.sortedKeys() {
+			tv.walk(node.key, visit)
+			tv.walk(node.value, visit)
+		}
 	case Object:
 		for _, k := range x.Keys() {
 			tv.walk(k, visit)
@@ -571,10 +571,10 @@ func (vis *GenericVisitor) Walk(x any) {
 			vis.Walk(x[i])
 		}
 	case *object:
-		x.Foreach(func(k, _ *Term) {
-			vis.Walk(k)
-			vis.Walk(x.Get(k))
-		})
+		for _, node := range x.sortedKeys() {
+			vis.Walk(node.key)
+			vis.Walk(node.value)
+		}
 	case Object:
 		for _, k := range x.Keys() {
 			vis.Walk(k)
@@ -823,6 +823,13 @@ func (vis *VarVisitor) Vars() VarSet {
 // the visitor will _skip_ that branch of the AST
 func (vis *VarVisitor) visit(v any) bool {
 	if vis.params.SkipObjectKeys {
+		if o, ok := v.(*object); ok {
+			// doesn't allocate / escape
+			for _, node := range o.sortedKeys() {
+				vis.Walk(node.value)
+			}
+			return true
+		}
 		if o, ok := v.(Object); ok {
 			o.Foreach(func(_, v *Term) {
 				vis.Walk(v)
@@ -1036,7 +1043,7 @@ func (vis *VarVisitor) Walk(x any) {
 			vis.Walk(x.Parts[i])
 		}
 	case *Not:
-		vis.Walk(x.Body)
+		vis.WalkBody(x.Body)
 	case *LogicalAnd:
 		vis.WalkBody(x.Lhs)
 		vis.WalkBody(x.Rhs)

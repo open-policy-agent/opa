@@ -25,8 +25,7 @@ const (
 )
 
 // Unmarshal deserializes bs and returns the resulting type.
-func Unmarshal(bs []byte) (result Type, err error) {
-
+func Unmarshal[T byte, BS ~[]byte](bs BS) (result Type, err error) {
 	var hint rawtype
 
 	if err = util.UnmarshalJSON(bs, &hint); err == nil {
@@ -45,7 +44,7 @@ func Unmarshal(bs []byte) (result Type, err error) {
 				var err error
 				var static []Type
 				var dynamic Type
-				if static, err = unmarshalSlice(arr.Static); err != nil {
+				if static, err = util.TryMap(arr.Static, Unmarshal); err != nil {
 					return nil, err
 				}
 				if len(arr.Dynamic) != 0 {
@@ -81,14 +80,14 @@ func Unmarshal(bs []byte) (result Type, err error) {
 			var union rawunion
 			if err = util.UnmarshalJSON(bs, &union); err == nil {
 				var of []Type
-				if of, err = unmarshalSlice(union.Of); err == nil {
+				if of, err = util.TryMap(union.Of, Unmarshal); err == nil {
 					result = NewAny(of...)
 				}
 			}
 		case typeFunction:
 			var decl rawdecl
 			if err = util.UnmarshalJSON(bs, &decl); err == nil {
-				args, err := unmarshalSlice(decl.Args)
+				args, err := util.TryMap(decl.Args, Unmarshal)
 				if err != nil {
 					return nil, err
 				}
@@ -153,16 +152,6 @@ type rawdecl struct {
 	Args     []json.RawMessage `json:"args"`
 	Result   json.RawMessage   `json:"result"`
 	Variadic json.RawMessage   `json:"variadic"`
-}
-
-func unmarshalSlice(elems []json.RawMessage) (result []Type, err error) {
-	result = make([]Type, len(elems))
-	for i := range elems {
-		if result[i], err = Unmarshal(elems[i]); err != nil {
-			return nil, err
-		}
-	}
-	return result, err
 }
 
 func unmarshalStaticPropertySlice(elems []rawstaticproperty) (result []*StaticProperty, err error) {

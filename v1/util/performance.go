@@ -12,6 +12,8 @@ import (
 	"unsafe"
 )
 
+var emptyByteSlice = []byte{}
+
 // SyncPool is a generic sync.Pool for type T, providing some convenience
 // over sync.Pool directly: [SyncPool.Put] ensures that nil values are not
 // put into the pool, and [SyncPool.Get] returns a pointer to T without having
@@ -112,7 +114,7 @@ func StringToByteSlice[T ~string](s T) []byte {
 		// unsafe.StringData's return value is unspecified for the empty string,
 		// so don't build a slice on top of it. Doing so currently yields a nil
 		// slice, which callers may treat differently from an empty one.
-		return []byte{}
+		return emptyByteSlice
 	}
 	return unsafe.Slice(unsafe.StringData(string(s)), len(s))
 }

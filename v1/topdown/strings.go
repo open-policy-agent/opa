@@ -71,10 +71,7 @@ func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		if err != nil {
 			return err
 		}
-		strsReversed = make([]string, len(strs))
-		for i := range strs {
-			strsReversed[i] = reverseString(strs[i])
-		}
+		strsReversed = util.Map(strs, reverseString)
 	default:
 		return builtins.NewOperandTypeErr(1, a, "string", "set", "array")
 	}
@@ -88,10 +85,7 @@ func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		if err != nil {
 			return err
 		}
-		suffixesReversed = make([]string, len(suffixes))
-		for i := range suffixes {
-			suffixesReversed[i] = reverseString(suffixes[i])
-		}
+		suffixesReversed = util.Map(suffixes, reverseString)
 	default:
 		return builtins.NewOperandTypeErr(2, b, "string", "set", "array")
 	}

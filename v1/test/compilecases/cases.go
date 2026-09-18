@@ -22,12 +22,9 @@ type Set struct {
 
 // Sorted returns a sorted copy of s.
 func (s Set) Sorted() Set {
-	cpy := make([]TestCase, len(s.Cases))
-	copy(cpy, s.Cases)
-	slices.SortFunc(cpy, func(a, b TestCase) int {
+	return Set{Cases: util.SortedFunc(slices.Clone(s.Cases), func(a, b TestCase) int {
 		return strings.Compare(a.Note, b.Note)
-	})
-	return Set{Cases: cpy}
+	})}
 }
 
 // TestCase represents a single test case: a set of modules that must fail to

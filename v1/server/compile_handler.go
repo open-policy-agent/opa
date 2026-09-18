@@ -376,16 +376,11 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 
 	fin(w, result, contentType, m, includeMetrics(r), includeInstrumentation, pretty(r))
 
-	unk := make([]string, len(unknowns))
-	for i := range unknowns {
-		unk[i] = unknowns[i].String()
-	}
-
 	br, _ := getRevisions(ctx, s.store, txn)
 	ctx, logger := s.getDecisionLogger(ctx, br)
 	custom := map[string]any{
 		"options":   orig.Options,
-		"unknowns":  unk,
+		"unknowns":  util.Map(unknowns, ast.Ref.String),
 		"type":      decisionLogType,
 		"mask_rule": maskingRule.String(),
 	}

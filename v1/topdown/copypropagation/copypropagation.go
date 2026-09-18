@@ -77,9 +77,6 @@ func (p *CopyPropagator) WithCompiler(c *ast.Compiler) *CopyPropagator {
 
 // Apply executes the copy propagation optimization and returns a new query.
 func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
-
-	result := ast.NewBody()
-
 	uf, ok := makeDisjointSets(p.livevars, query)
 	if !ok {
 		return query
@@ -102,6 +99,7 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 		return false
 	})
 
+	result := ast.NewBody()
 	removedEqs := ast.NewValueMap()
 
 	for _, expr := range query {

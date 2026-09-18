@@ -31,6 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var (
@@ -649,11 +650,7 @@ func printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Resu
 		buf = append(buf, checkStrLimit(string(js), prettyLimit))
 	}
 
-	cells := make([]any, len(buf))
-	for i, s := range buf {
-		cells[i] = s
-	}
-	_ = table.Append(cells...)
+	_ = table.Append(util.ToSliceOf[any](buf)...)
 }
 
 func generateTableMetrics(writer io.Writer) *tablewriter.Table {

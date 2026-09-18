@@ -822,9 +822,7 @@ func tokenHeaderString(name string, where *string, value ast.Value) error {
 
 // parseTokenHeader parses the JWT header.
 func parseTokenHeader(token *JSONWebToken) (*tokenHeader, error) {
-	header := tokenHeader{
-		unknown: []string{},
-	}
+	header := tokenHeader{}
 	if err := token.decodedHeader.Iter(func(k *ast.Term, v *ast.Term) error {
 		ks := string(k.Value.(ast.String))
 		handler, ok := tokenHeaderTypes[ks]

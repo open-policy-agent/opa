@@ -872,8 +872,18 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		forEach, n = rcol.Foreach, rcol.Len()
 	case Object:
 		n = rcol.Len()
-		forEach = func(f func(*Term)) {
-			rcol.Foreach(func(_, v *Term) { f(v) })
+		// Function literal does not escape / allocate
+		if o, ok := rcol.(*object); ok {
+			forEach = func(f func(*Term)) {
+				for _, node := range o.sortedKeys() {
+					f(node.value)
+				}
+			}
+			// Function literal escapes
+		} else {
+			forEach = func(f func(*Term)) {
+				rcol.Foreach(func(_, v *Term) { f(v) })
+			}
 		}
 	default:
 		return
@@ -1718,6 +1728,13 @@ func (d *levelDetail) traverseCollectionMembership(resolver ValueResolver, tr *t
 	case Set:
 		return col.Iter(checkMember)
 	case Object:
+		// Function literal does not escape
+		if o, ok := col.(*object); ok {
+			return o.Iter(func(_, v *Term) error {
+				return checkMember(v)
+			})
+		}
+		// Function literal escapes
 		return col.Iter(func(_, v *Term) error {
 			return checkMember(v)
 		})

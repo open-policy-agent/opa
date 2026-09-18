@@ -1376,8 +1376,8 @@ func eventToFields(event EventV1) map[string]any {
 			fields["nd_builtin_cache"] = v
 		}
 	}
-	addIfSliceNotEmpty(fields, "erased", util.ToSliceOfAny(event.Erased))
-	addIfSliceNotEmpty(fields, "masked", util.ToSliceOfAny(event.Masked))
+	addIfSliceNotEmpty(fields, "erased", util.ToSliceOf[any](event.Erased))
+	addIfSliceNotEmpty(fields, "masked", util.ToSliceOf[any](event.Masked))
 
 	if event.Error != nil {
 		fields["error"] = event.Error.Error()
