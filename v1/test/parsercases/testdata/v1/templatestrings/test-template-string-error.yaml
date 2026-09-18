@@ -1,0 +1,163 @@
+---
+# Generated externalized tests from TestTemplateStringError
+cases:
+  - note: templatestrings/template-string-error/unification in template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{x = 1}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: unexpected unification ('=') in template-string expression
+  - note: templatestrings/template-string-error/unification in template expression (body)
+    body: |
+      $"{x = 1}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected unification ('=') in template-string expression
+  - note: templatestrings/template-string-error/assignment in template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{x := 1}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: unexpected assignment (':=') in template-string expression
+  - note: templatestrings/template-string-error/assignment in template expression (body)
+    body: |
+      $"{x := 1}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected assignment (':=') in template-string expression
+  - note: templatestrings/template-string-error/not in template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{not false}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: unexpected negation ('not') in template-string expression
+  - note: templatestrings/template-string-error/not in template expression (body)
+    body: |
+      $"{not false}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected negation ('not') in template-string expression
+  - note: templatestrings/template-string-error/some in template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{some 2 in [1, 2]}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: unexpected 'some' in template-string expression
+  - note: templatestrings/template-string-error/some in template expression (body)
+    body: |
+      $"{some 2 in [1, 2]}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected 'some' in template-string expression
+  - note: templatestrings/template-string-error/every in template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{every x in [1, 2] {x > 0}}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: unexpected 'every' in template-string expression
+  - note: templatestrings/template-string-error/every in template expression (body)
+    body: |
+      $"{every x in [1, 2] {x > 0}}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 4
+        message: unexpected 'every' in template-string expression
+  - note: templatestrings/template-string-error/multiple expressions in template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"{true; false}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 9
+        message: expected } to end template string expression
+  - note: templatestrings/template-string-error/multiple expressions in template expression (body)
+    body: |
+      $"{true; false}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 8
+        message: expected } to end template string expression
+  - note: templatestrings/template-string-error/single-line start terminator, multi-line end terminator (module)
+    module: |
+      package test
+
+      p if {
+      	$"{x}`
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 7
+        message: non-terminated string
+  - note: templatestrings/template-string-error/single-line start terminator, multi-line end terminator (body)
+    body: |
+      $"{x}`
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: non-terminated string
+  - note: templatestrings/template-string-error/multi-line start terminator, single-line end terminator (module)
+    module: |
+      package test
+
+      p if {
+      	$`{x}"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 7
+        message: non-terminated string
+  - note: templatestrings/template-string-error/multi-line start terminator, single-line end terminator (body)
+    body: |
+      $`{x}"
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 6
+        message: non-terminated string

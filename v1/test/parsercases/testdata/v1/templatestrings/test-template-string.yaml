@@ -1,0 +1,1675 @@
+---
+# Generated externalized tests from TestTemplateString
+cases:
+  - note: templatestrings/template-string/simple template string (module)
+    module: |
+      package test
+
+      p if {
+      	$"foo"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/simple template string (body)
+    body: |
+      $"foo"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/with template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"foo {x}"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "foo "
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/with template expression (body)
+    body: |
+      $"foo {x}"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "foo "
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "var",
+                    "value": "x"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/escapes (module)
+    module: |
+      package test
+
+      p if {
+      	$"\t\n\"\{"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "\t\n\"{"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/escapes (body)
+    body: |
+      $"\t\n\"\{"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "\t\n\"{"
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/JSON-specific escapes (module)
+    module: |
+      package test
+
+      p if {
+      	$"\/\uD834\uDD1E"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "/\ud834\udd1e"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/JSON-specific escapes (body)
+    body: |
+      $"\/\uD834\uDD1E"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "/\ud834\udd1e"
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/escapes, multi-line (module)
+    module: |
+      package test
+
+      p if {
+      	$`\{`
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": true,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "{"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/escapes, multi-line (body)
+    body: |
+      $`\{`
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": true,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "{"
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/with modifier, global (module)
+    module: |
+      package test
+
+      p if {
+      	$"foo {input}" with input as 42
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "foo "
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "number",
+                      "value": 42
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/with modifier, global (body)
+    body: |
+      $"foo {input}" with input as 42
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "foo "
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "number",
+                "value": 42
+              }
+            }
+          ]
+        }
+      ]
+  - note: templatestrings/template-string/with modifier, global, multiple (module)
+    module: |
+      package test
+
+      p if {
+      	$"foo {input} {x}" with input as 42 with x as "bar"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "foo "
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "string",
+                        "value": " "
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "number",
+                      "value": 42
+                    }
+                  },
+                  {
+                    "target": {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    "value": {
+                      "type": "string",
+                      "value": "bar"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/with modifier, global, multiple (body)
+    body: |
+      $"foo {input} {x}" with input as 42 with x as "bar"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "foo "
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "string",
+                  "value": " "
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "var",
+                    "value": "x"
+                  }
+                }
+              ]
+            }
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  }
+                ]
+              },
+              "value": {
+                "type": "number",
+                "value": 42
+              }
+            },
+            {
+              "target": {
+                "type": "var",
+                "value": "x"
+              },
+              "value": {
+                "type": "string",
+                "value": "bar"
+              }
+            }
+          ]
+        }
+      ]
+  - note: templatestrings/template-string/with modifier, inside template expression (module)
+    module: |
+      package test
+
+      p if {
+      	$"foo {x with input as 42}"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "foo "
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        "with": [
+                          {
+                            "target": {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "input"
+                                }
+                              ]
+                            },
+                            "value": {
+                              "type": "number",
+                              "value": 42
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/with modifier, inside template expression (body)
+    body: |
+      $"foo {x with input as 42}"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "foo "
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  "with": [
+                    {
+                      "target": {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          }
+                        ]
+                      },
+                      "value": {
+                        "type": "number",
+                        "value": 42
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/template-string inside with value (module)
+    module: |
+      package test
+
+      p if {
+      	allow with input.x as $"<{x}>"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "allow"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        },
+                        {
+                          "type": "string",
+                          "value": "x"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "templatestring",
+                      "value": {
+                        "multi_line": false,
+                        "parts": [
+                          {
+                            "type": "string",
+                            "value": "\u003c"
+                          },
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "x"
+                            }
+                          },
+                          {
+                            "type": "string",
+                            "value": "\u003e"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/template-string inside with value (body)
+    body: |
+      allow with input.x as $"<{x}>"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "var",
+            "value": "allow"
+          },
+          "with": [
+            {
+              "target": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  },
+                  {
+                    "type": "string",
+                    "value": "x"
+                  }
+                ]
+              },
+              "value": {
+                "type": "templatestring",
+                "value": {
+                  "multi_line": false,
+                  "parts": [
+                    {
+                      "type": "string",
+                      "value": "\u003c"
+                    },
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "value": "\u003e"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+  - note: templatestrings/template-string/template-string inside some symbols (module)
+    module: |
+      package test
+
+      p if {
+      	some $"user_{id}" in users
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_2"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "templatestring",
+                          "value": {
+                            "multi_line": false,
+                            "parts": [
+                              {
+                                "type": "string",
+                                "value": "user_"
+                              },
+                              {
+                                "index": 0,
+                                "terms": {
+                                  "type": "var",
+                                  "value": "id"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "var",
+                          "value": "users"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/template-string inside some symbols (body)
+    body: |
+      some $"user_{id}" in users
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "symbols": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_2"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "templatestring",
+                    "value": {
+                      "multi_line": false,
+                      "parts": [
+                        {
+                          "type": "string",
+                          "value": "user_"
+                        },
+                        {
+                          "index": 0,
+                          "terms": {
+                            "type": "var",
+                            "value": "id"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "var",
+                    "value": "users"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: templatestrings/template-string/multi-line expression in single-line template-string (module)
+    module: |
+      package test
+
+      p if {
+      	$"{[x |
+      x := 42]}"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": false,
+                    "parts": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "arraycomprehension",
+                          "value": {
+                            "body": [
+                              {
+                                "index": 0,
+                                "terms": [
+                                  {
+                                    "type": "ref",
+                                    "value": [
+                                      {
+                                        "type": "var",
+                                        "value": "assign"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "x"
+                                  },
+                                  {
+                                    "type": "number",
+                                    "value": 42
+                                  }
+                                ]
+                              }
+                            ],
+                            "term": {
+                              "type": "var",
+                              "value": "x"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/multi-line expression in single-line template-string (body)
+    body: |
+      $"{[x |
+      x := 42]}"
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": false,
+              "parts": [
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "arraycomprehension",
+                    "value": {
+                      "body": [
+                        {
+                          "index": 0,
+                          "terms": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "assign"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "var",
+                              "value": "x"
+                            },
+                            {
+                              "type": "number",
+                              "value": 42
+                            }
+                          ]
+                        }
+                      ],
+                      "term": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/multi-line template string (module)
+    module: |
+      package test
+
+      p if {
+      	$`<foo>
+        <bar>{x}</bar>
+        <baz>{y}</baz>
+      </foo>`
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": true,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "\u003cfoo\u003e\n  \u003cbar\u003e"
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      },
+                      {
+                        "type": "string",
+                        "value": "\u003c/bar\u003e\n  \u003cbaz\u003e"
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "y"
+                        }
+                      },
+                      {
+                        "type": "string",
+                        "value": "\u003c/baz\u003e\n\u003c/foo\u003e"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/multi-line template string (body)
+    body: |
+      $`<foo>
+        <bar>{x}</bar>
+        <baz>{y}</baz>
+      </foo>`
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": true,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "\u003cfoo\u003e\n  \u003cbar\u003e"
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "var",
+                    "value": "x"
+                  }
+                },
+                {
+                  "type": "string",
+                  "value": "\u003c/bar\u003e\n  \u003cbaz\u003e"
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "var",
+                    "value": "y"
+                  }
+                },
+                {
+                  "type": "string",
+                  "value": "\u003c/baz\u003e\n\u003c/foo\u003e"
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/multi-line template string, nested single-line template string (module)
+    module: |
+      package test
+
+      p if {
+      	$`<foo>
+        <bar>{$"a {x} b"}</bar>
+      </foo>`
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": true,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "\u003cfoo\u003e\n  \u003cbar\u003e"
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "templatestring",
+                          "value": {
+                            "multi_line": false,
+                            "parts": [
+                              {
+                                "type": "string",
+                                "value": "a "
+                              },
+                              {
+                                "index": 0,
+                                "terms": {
+                                  "type": "var",
+                                  "value": "x"
+                                }
+                              },
+                              {
+                                "type": "string",
+                                "value": " b"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "string",
+                        "value": "\u003c/bar\u003e\n\u003c/foo\u003e"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/multi-line template string, nested single-line template string (body)
+    body: |
+      $`<foo>
+        <bar>{$"a {x} b"}</bar>
+      </foo>`
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": true,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "\u003cfoo\u003e\n  \u003cbar\u003e"
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "templatestring",
+                    "value": {
+                      "multi_line": false,
+                      "parts": [
+                        {
+                          "type": "string",
+                          "value": "a "
+                        },
+                        {
+                          "index": 0,
+                          "terms": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        },
+                        {
+                          "type": "string",
+                          "value": " b"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "string",
+                  "value": "\u003c/bar\u003e\n\u003c/foo\u003e"
+                }
+              ]
+            }
+          }
+        }
+      ]
+  - note: templatestrings/template-string/multi-line template string, nested multi-line template string (module)
+    module: |
+      package test
+
+      p if {
+      	$`<foo>
+        <bar>{$`a {x} b`}</bar>
+      </foo>`
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "templatestring",
+                  "value": {
+                    "multi_line": true,
+                    "parts": [
+                      {
+                        "type": "string",
+                        "value": "\u003cfoo\u003e\n  \u003cbar\u003e"
+                      },
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "templatestring",
+                          "value": {
+                            "multi_line": true,
+                            "parts": [
+                              {
+                                "type": "string",
+                                "value": "a "
+                              },
+                              {
+                                "index": 0,
+                                "terms": {
+                                  "type": "var",
+                                  "value": "x"
+                                }
+                              },
+                              {
+                                "type": "string",
+                                "value": " b"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "string",
+                        "value": "\u003c/bar\u003e\n\u003c/foo\u003e"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: templatestrings/template-string/multi-line template string, nested multi-line template string (body)
+    body: |
+      $`<foo>
+        <bar>{$`a {x} b`}</bar>
+      </foo>`
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "templatestring",
+            "value": {
+              "multi_line": true,
+              "parts": [
+                {
+                  "type": "string",
+                  "value": "\u003cfoo\u003e\n  \u003cbar\u003e"
+                },
+                {
+                  "index": 0,
+                  "terms": {
+                    "type": "templatestring",
+                    "value": {
+                      "multi_line": true,
+                      "parts": [
+                        {
+                          "type": "string",
+                          "value": "a "
+                        },
+                        {
+                          "index": 0,
+                          "terms": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        },
+                        {
+                          "type": "string",
+                          "value": " b"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "string",
+                  "value": "\u003c/bar\u003e\n\u003c/foo\u003e"
+                }
+              ]
+            }
+          }
+        }
+      ]

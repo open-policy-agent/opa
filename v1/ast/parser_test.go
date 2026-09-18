@@ -9170,30 +9170,7 @@ func TestTemplateString(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			stmts, _, err := ParseStatements("", tc.expr)
-
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if len(stmts) != 1 {
-				t.Fatalf("Expected exactly one statement, got %d: %v", len(stmts), stmts)
-			}
-
-			body, ok := stmts[0].(Body)
-			if !ok {
-				t.Fatalf("Expected body, got %T", stmts[0])
-			}
-
-			if len(body) != 1 {
-				t.Fatalf("Expected exactly one expression, got %d: %v", len(body), body)
-			}
-
-			if !tc.exp.Equal(body[0]) {
-				t.Errorf("Expressions not equal:\n%v (parsed)\n%v (correct)", body[0], tc.exp)
-			}
-		})
+		assertParseOneExpr(t, tc.note, tc.expr, tc.exp)
 	}
 }
 
@@ -9372,16 +9349,7 @@ func TestTemplateStringError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			_, _, err := ParseStatements("", tc.expr)
-			if err == nil {
-				t.Fatalf("Expected error, got nil")
-			}
-
-			if !strings.Contains(err.Error(), tc.expError) {
-				t.Fatalf("Expected error to contain %q, but got: %v", tc.expError, err)
-			}
-		})
+		assertParseErrorContains(t, tc.note, tc.expr, tc.expError)
 	}
 }
 
