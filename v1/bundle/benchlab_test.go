@@ -35,7 +35,7 @@ func BenchmarkBenchlabHasRootsOverlap(b *testing.B) {
 		{"disjoint/10000", func() map[string]*Bundle { return makeDisjointBundles(10000) }, false},
 		{"identical/1000", func() map[string]*Bundle { return makeIdenticalBundles(1000) }, true},
 		{"chain/100", func() map[string]*Bundle { return makeChainBundles(100) }, true},
-		{"multi-root/1000x10", func() map[string]*Bundle { return makeMultiRootBundles(1000, 10) }, false},
+		{"multi-root/1000x10", func() map[string]*Bundle { return makeMultiRootBundles(1000) }, false},
 		{"wide-fanout/1000", func() map[string]*Bundle { return makeWideFanoutBundles(1000) }, true},
 	} {
 		bundles := s.build()

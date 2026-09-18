@@ -380,7 +380,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	q.metrics = util.Or(q.metrics, metrics.New)
 
 	f := &queryIDFactory{}
-	b := newBindings(0, q.instr)
+	b := newBindings(q.instr)
 
 	var vc VirtualCache
 	if q.virtualCache != nil {
@@ -601,7 +601,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		queryCompiler:               q.queryCompiler,
 		queryIDFact:                 f,
 		queryID:                     f.Next(),
-		bindings:                    newBindings(0, q.instr),
+		bindings:                    newBindings(q.instr),
 		compiler:                    q.compiler,
 		store:                       q.store,
 		baseCache:                   bc,

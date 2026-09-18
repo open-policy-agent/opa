@@ -35,9 +35,9 @@ type bindings struct {
 	instr  *Instrumentation
 }
 
-func newBindings(id uint64, instr *Instrumentation) *bindings {
+func newBindings(instr *Instrumentation) *bindings {
 	values := newBindingsArrayHashmap()
-	return &bindings{id, values, instr}
+	return &bindings{0, values, instr}
 }
 
 // newBindingsWithSize creates bindings pre-sized for the expected number of entries.
