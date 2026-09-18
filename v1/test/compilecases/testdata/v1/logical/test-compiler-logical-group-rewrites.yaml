@@ -1,0 +1,93 @@
+---
+# Generated externalized tests from TestCompilerLogicalGroupRewrites
+cases:
+  - note: logical/group operand rewritten to multi-expr body (lhs)
+    modules:
+      - |
+        package logic
+
+        import future.keywords.or
+
+        p if {
+        	(startswith(lower(input.x), "a") or input.b)
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local1__ = input.x
+          		lower(__local1__, __local0__)
+          		startswith(__local0__, "a")
+          	} or input.b
+          }
+  - note: logical/group operand rewritten to multi-expr body (rhs)
+    modules:
+      - |
+        package logic
+
+        import future.keywords.or
+
+        p if {
+        	input.b or (contains(lower(input.x), "z"))
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	input.b or {
+          		__local1__ = input.x
+          		lower(__local1__, __local0__)
+          		contains(__local0__, "z")
+          	}
+          }
+  - note: logical/with on group operand survives, value hoisted
+    modules:
+      - |
+        package logic
+
+        import future.keywords.or
+
+        p if {
+        	(input.ok with input as {"x": count(input.items)}) or input.b
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	{
+          		__local1__ = input.items
+          		count(__local1__, __local0__)
+          		input.ok with input as {"x": __local0__}
+          	} or input.b
+          }
+  - note: logical/with on whole group survives, value hoisted to outer body
+    modules:
+      - |
+        package logic
+
+        import future.keywords.or
+
+        p if {
+        	(input.a or input.b with input as {"x": count(input.items)})
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local1__ = input.items
+          	count(__local1__, __local0__)
+          	input.a or input.b with input as {"x": __local0__}
+          }

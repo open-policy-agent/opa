@@ -1,0 +1,29 @@
+---
+# Generated externalized tests from TestCompilerAndOrRegoVersionParity
+cases:
+  - note: 'logical/`and` with `or` compiles to the same body, v1 spelling'
+    modules:
+      - |
+        package logic
+
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+        	x := 1
+        	y := 2
+        	z := 3
+        	x and y or z
+        }
+    want:
+      # The compiler drops directive imports; a consumer must put them in effect.
+      - imports: [future.keywords.and, future.keywords.or]
+        module: |
+          package logic
+
+          p = true if {
+          	__local0__ = 1
+          	__local1__ = 2
+          	__local2__ = 3
+          	__local0__ and __local1__ or __local2__
+          }
