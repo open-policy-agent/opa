@@ -158,13 +158,19 @@ jobs:
       - name: commit if changed
         working-directory: docs/
         run: |
-          if ! git diff-index --quiet HEAD -- .; then
-            git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-            git config --local user.name "${GITHUB_ACTOR}"
-            git add -f .
-            git diff --staged --name-only
-            git commit -m "benchmarks: update notebook for ${GITHUB_SHA}"
-            git push origin benchmarks
-          else
+          set -euo pipefail
+          # Stage first, then diff the index. diff-index against the worktree
+          # answers on stat information, so a page regenerated with identical
+          # content but a newer mtime counts as changed -- which is every page,
+          # since the previous output is deleted and rebuilt above. Asking it
+          # first is how this reached git commit with nothing staged.
+          git add -f .
+          if git diff --cached --quiet -- .; then
             echo "no changes, no commit"
+            exit 0
           fi
+          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --local user.name "${GITHUB_ACTOR}"
+          git diff --cached --name-only
+          git commit -m "benchmarks: update notebook for ${GITHUB_SHA}"
+          git push origin benchmarks
