@@ -1,0 +1,30 @@
+---
+# Resolution errors. Hand-authored: the Go tests are not table-driven, and each is one
+# module whose substance is the diagnostic.
+cases:
+  - note: refs/a function argument must not shadow input
+    # A function arg named after a root document would make `input` mean the argument
+    # inside the body, so it is rejected instead.
+    modules:
+      - |
+        package shadow_globals
+
+        f([input]) if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: args must not shadow input (use a different variable name)
+    exhaustive: true
+  - note: refs/a function argument must not shadow data
+    modules:
+      - |
+        package shadow_globals
+
+        f([data]) if { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: args must not shadow data (use a different variable name)
+    exhaustive: true

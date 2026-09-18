@@ -1,0 +1,542 @@
+---
+# Ref resolution: what a reference means once the compiler has resolved it against the
+# package, the imports and whatever is in scope. Hand-authored: TestCompilerResolveAllRefs
+# builds sixteen modules and then navigates the compiled ASTs in Go — `mod5.Rules[0].
+# Body[0].Terms.(*Term).Value.(*ArrayComprehension)` — so there is no table to read, and a
+# case per scenario says which resolution broke where one case of sixteen modules would
+# not.
+#
+# The `want` module is the whole compiled form, so each case states more than the Go test:
+# the term it navigated to is in there, alongside everything else resolution did. No case
+# carries `want_errors`, which is itself the assertion that resolution reports nothing.
+cases:
+  - note: refs/globals resolve within a package, across its modules
+    # q is defined here, r in the second module of the same package, and both resolve to
+    # their full paths. The alias foo resolves to what it names.
+    strict: disabled
+    modules:
+      - |
+        package a.b.c
+
+        import data.g.h.k
+        import data.x.y.z as foo
+
+        p contains x if {
+        	q[x]
+        	not r[x]
+        }
+
+        q contains x if {
+        	foo[i] = x
+        }
+
+        z = 400 if {
+        	true
+        }
+      - |
+        package a.b.c
+
+        import data.bar
+        import data.x.y.p
+
+        r contains x if {
+        	bar[x] = 100
+        	p = 101
+        }
+    want:
+      - module: |
+          package a.b.c
+
+          p contains x if {
+          	data.a.b.c.q[x]
+          	not data.a.b.c.r[x]
+          }
+
+          q contains x if {
+          	data.x.y.z[i] = x
+          }
+
+          z = 400 if {
+          	true
+          }
+      - module: |
+          package a.b.c
+
+          r contains x if {
+          	data.bar[x] = 100
+          	data.x.y.p = 101
+          }
+  - note: refs/an input alias resolves inside a nested composite
+    modules:
+      - |
+        package a.b.d
+
+        import input.x as y
+
+        t = true if {
+        	input = {y.secret: [{y.keyid}]}
+        }
+
+        x = false if {
+        	true
+        }
+    want:
+      - module: |
+          package a.b.d
+
+          t = true if {
+          	__local0__ = input.x.secret
+          	__local1__ = input.x.keyid
+          	input = {__local0__: [{__local1__}]}
+          }
+
+          x = false if {
+          	true
+          }
+  - note: refs/refs resolve inside comprehensions, at every depth
+    modules:
+      - |
+        package a.b.compr
+
+        import data.a.b.c.q
+        import input.x as y
+
+        p = true if {
+        	[y.a | true]
+        }
+
+        r = true if {
+        	[q.a | true]
+        }
+
+        s = true if {
+        	[true | y.a = 0]
+        }
+
+        t = true if {
+        	[true | q[i] = 1]
+        }
+
+        u = true if {
+        	[true | _ = [y.a | true]]
+        }
+
+        v = true if {
+        	[true | _ = [true | q[i] = 1]]
+        }
+    want:
+      - module: |
+          package a.b.compr
+
+          p = true if {
+          	[__local0__ | __local0__ = input.x.a]
+          }
+
+          r = true if {
+          	[__local1__ | __local1__ = data.a.b.c.q.a]
+          }
+
+          s = true if {
+          	[true | input.x.a = 0]
+          }
+
+          t = true if {
+          	[true | data.a.b.c.q[i] = 1]
+          }
+
+          u = true if {
+          	[true | _ = [__local2__ | __local2__ = input.x.a]]
+          }
+
+          v = true if {
+          	[true | _ = [true | data.a.b.c.q[i] = 1]]
+          }
+  - note: refs/a ref nested in another ref's key resolves
+    modules:
+      - |
+        package a.b.nested
+
+        import data.x
+        import data.z
+        import input.x as y
+
+        p = true if {
+        	x[y[i].a[z.b[j]]]
+        }
+
+        q = true if {
+        	x = v
+        	v[y[i]]
+        }
+
+        r = 1 if {
+        	true
+        }
+
+        s = true if {
+        	x[r]
+        }
+    want:
+      - module: |
+          package a.b.nested
+
+          p = true if {
+          	__local0__ = data.z.b[j]
+          	__local1__ = input.x[i].a[__local0__]
+          	data.x[__local1__]
+          }
+
+          q = true if {
+          	data.x = v
+          	__local2__ = input.x[i]
+          	v[__local2__]
+          }
+
+          r = 1 if {
+          	true
+          }
+
+          s = true if {
+          	__local3__ = data.a.b.nested.r
+          	data.x[__local3__]
+          }
+  - note: refs/refs in a rule head resolve
+    # The head's key and value are hoisted into the body by a later stage, so the resolved
+    # refs end up there — input.x.y.foo[data.doc1[i]] and {"baz": input.qux}.
+    modules:
+      - |
+        package head
+
+        import data.doc1 as bar
+        import input.qux as baz
+        import input.x.y.foo
+
+        p[foo[bar[i]]] := {"baz": baz} if {
+        	true
+        }
+    want:
+      - module: |
+          package head
+
+          p[__local0__] := __local1__ if {
+          	__local2__ = data.doc1[i]
+          	__local0__ = input.x.y.foo[__local2__]
+          	__local3__ = input.qux
+          	__local1__ = {"baz": __local3__}
+          }
+  - note: refs/refs in an else head and body resolve
+    modules:
+      - |
+        package elsekw
+
+        import data.doc1 as bar
+        import input.baz
+        import input.x.y.foo
+
+        p if {
+        	false
+        } else = foo if {
+        	bar
+        } else = baz if {
+        	true
+        }
+    want:
+      - module: |
+          package elsekw
+
+          p = true if {
+          	false
+          } else = __local0__ if {
+          	data.doc1
+          	__local0__ = input.x.y.foo
+          } else = __local1__ if {
+          	__local1__ = input.baz
+          }
+  - note: refs/a call and its arguments resolve against the package
+    modules:
+      - |
+        package nestedexprs
+
+        x = 1
+
+        f(_) = true
+
+        g(_) = true
+
+        p if {
+        	f(g(x))
+        }
+    want:
+      - module: |
+          package nestedexprs
+
+          x = 1 if {
+          	true
+          }
+
+          f(__local0__) = true if {
+          	true
+          }
+
+          g(__local1__) = true if {
+          	true
+          }
+
+          p = true if {
+          	__local3__ = data.nestedexprs.x
+          	data.nestedexprs.g(__local3__, __local2__)
+          	data.nestedexprs.f(__local2__)
+          }
+  - note: refs/an assigned var is not resolved, the value it is assigned is
+    # x is a rule in this package and a local in p, and the local wins; y is not local, so
+    # it resolves. The comprehension repeats the pair to state that its own scope behaves
+    # the same way.
+    strict: disabled
+    modules:
+      - |
+        package assign
+
+        x = 1
+
+        y = 1
+
+        p if {
+        	x := y
+        	[true | x := y]
+        }
+    want:
+      - module: |
+          package assign
+
+          x = 1 if {
+          	true
+          }
+
+          y = 1 if {
+          	true
+          }
+
+          p = true if {
+          	__local0__ = data.assign.y
+          	[true | __local1__ = data.assign.y]
+          }
+  - note: refs/a function argument is not resolved
+    # x names a rule in the package, but inside f it is the argument.
+    modules:
+      - |
+        package donotresolve
+
+        x = 1
+
+        f(x) if {
+        	x = 2
+        }
+    want:
+      - module: |
+          package donotresolve
+
+          x = 1 if {
+          	true
+          }
+
+          f(__local0__) = true if {
+          	__local0__ = 2
+          }
+  - note: refs/a ref into a call's result resolves
+    modules:
+      - |
+        package indirectrefs
+
+        f(x) = [x] if {
+        	true
+        }
+
+        p if {
+        	f(1)[0]
+        }
+    want:
+      - module: |
+          package indirectrefs
+
+          f(__local0__) = [__local0__] if {
+          	true
+          }
+
+          p = true if {
+          	data.indirectrefs.f(1, __local1__)
+          	__local1__[0]
+          }
+  - note: refs/refs resolve inside a comprehension in a ref key and in a rule value
+    modules:
+      - |
+        package comprehensions
+
+        nums = [1, 2, 3]
+
+        f(x) = [x] if {
+        	true
+        }
+
+        p contains [1] if {
+        	true
+        }
+
+        q if {
+        	p[[x | x = nums[_]]]
+        }
+
+        r = [y | y = f(1)[0]]
+    want:
+      - module: |
+          package comprehensions
+
+          nums = [1, 2, 3] if {
+          	true
+          }
+
+          f(__local0__) = [__local0__] if {
+          	true
+          }
+
+          p contains [1] if {
+          	true
+          }
+
+          q = true if {
+          	__local3__ = [x | x = data.comprehensions.nums[_]]
+          	data.comprehensions.p[__local3__]
+          }
+
+          r = __local2__ if {
+          	__local2__ = [y | data.comprehensions.f(1, __local1__); y = __local1__[0]]
+          }
+  - note: refs/a var declared by some-in is not resolved, the domain is
+    # Written as a set rule so the compiled form has a Rego spelling: `p[x]` with a var key
+    # compiles to something OPA's printer cannot write back.
+    modules:
+      - |
+        package someinassign
+
+        x = 1
+
+        y = 1
+
+        p contains x if {
+        	some x in [1, 2, y]
+        }
+    want:
+      - module: |
+          package someinassign
+
+          x = 1 if {
+          	true
+          }
+
+          y = 1 if {
+          	true
+          }
+
+          p contains __local2__ if {
+          	__local4__ = data.someinassign.y
+          	__local3__ = [1, 2, __local4__]
+          	__local2__ = __local3__[__local1__]
+          }
+  - note: refs/the key and value declared by some-in are not resolved
+    # The head's own x is not declared by anything, so it resolves — the last line of the
+    # compiled body against the first three is the contrast.
+    modules:
+      - |
+        package someinassignwithkey
+
+        x = 1
+
+        y = 1
+
+        p contains x if {
+        	some k, v in [1, 2, y]
+        }
+    want:
+      - module: |
+          package someinassignwithkey
+
+          x = 1 if {
+          	true
+          }
+
+          y = 1 if {
+          	true
+          }
+
+          p contains __local3__ if {
+          	__local4__ = data.someinassignwithkey.y
+          	__local2__ = [1, 2, __local4__]
+          	__local1__ = __local2__[__local0__]
+          	__local3__ = data.someinassignwithkey.x
+          }
+  - note: refs/an every domain and body resolve, its key and value do not
+    modules:
+      - |
+        package everykw
+
+        nums = {1, 2, 3}
+
+        f(_) = true
+
+        x = 100
+
+        xs = [1, 2, 3]
+
+        p if {
+        	every x in xs {
+        		nums[x]
+        		x > 10
+        	}
+        }
+    want:
+      - module: |
+          package everykw
+
+          nums = {1, 2, 3} if {
+          	true
+          }
+
+          f(__local0__) = true if {
+          	true
+          }
+
+          x = 100 if {
+          	true
+          }
+
+          xs = [1, 2, 3] if {
+          	true
+          }
+
+          p = true if {
+          	__local3__ = data.everykw.xs
+          	every __local1__, __local2__ in __local3__ {
+          		data.everykw.nums[__local2__]
+          		gt(__local2__, 10)
+          	}
+          }
+  - note: refs/a dotted rule head is left alone while its body resolves
+    modules:
+      - |
+        package heads_with_dots
+
+        this_is_not = true
+
+        this.is.dotted if {
+        	this_is_not
+        }
+    want:
+      - module: |
+          package heads_with_dots
+
+          this_is_not = true if {
+          	true
+          }
+
+          this.is.dotted = true if {
+          	data.heads_with_dots.this_is_not
+          }

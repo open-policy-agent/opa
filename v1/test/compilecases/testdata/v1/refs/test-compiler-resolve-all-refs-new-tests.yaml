@@ -1,0 +1,199 @@
+---
+# Generated externalized tests from TestCompilerResolveAllRefsNewTests
+cases:
+  - note: refs/ref-rules referenced in body
+    modules:
+      - |
+        package test
+
+        a.b.c = 1
+        q if a.b.c == 1
+    want:
+      - module: |
+          package test
+
+          a.b.c = 1 if {
+          	true
+          }
+
+          q = true if {
+          	data.test.a.b.c = 1
+          }
+  - note: refs/ref-rules from other module referenced in body
+    modules:
+      - |
+        package test
+
+        q if a.b.c == 1
+      - |
+        package test
+
+        a.b.c = 1
+    want:
+      - module: |
+          package test
+
+          q = true if {
+          	data.test.a.b.c = 1
+          }
+      - module: |
+          package test
+
+          a.b.c = 1 if {
+          	true
+          }
+  - note: refs/single-value rule in comprehension in call
+    modules:
+      - |
+        package test
+
+        p := count([x | q[x]])
+        q[1] = 1
+    want:
+      # ast rather than module: comparing the compiled module against its own
+      # printed form panics in Head.Compare, which dereferences a nil rule-head
+      # key.
+      - ast: |
+          {
+            "package": {
+              "path": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "test"
+                }
+              ]
+            },
+            "rules": [
+              {
+                "body": [
+                  {
+                    "generated": true,
+                    "index": 0,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "eq"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      },
+                      {
+                        "type": "arraycomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "data"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "value": "test"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "value": "q"
+                                  },
+                                  {
+                                    "type": "var",
+                                    "value": "x"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "term": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "generated": true,
+                    "index": 1,
+                    "terms": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "count"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local1__"
+                      },
+                      {
+                        "type": "var",
+                        "value": "__local0__"
+                      }
+                    ]
+                  }
+                ],
+                "head": {
+                  "assign": true,
+                  "name": "p",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "p"
+                    }
+                  ],
+                  "value": {
+                    "type": "var",
+                    "value": "__local0__"
+                  }
+                }
+              },
+              {
+                "body": [
+                  {
+                    "index": 0,
+                    "terms": {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  }
+                ],
+                "head": {
+                  "key": {
+                    "type": "number",
+                    "value": 1
+                  },
+                  "name": "q",
+                  "ref": [
+                    {
+                      "type": "var",
+                      "value": "q"
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ],
+                  "value": {
+                    "type": "number",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }

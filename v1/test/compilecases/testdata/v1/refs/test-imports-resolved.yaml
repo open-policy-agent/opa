@@ -1,0 +1,22 @@
+---
+# Imports are resolved away. Hand-authored: TestCompilerImportsResolved is not
+# table-driven, and what it asserts is that the compiled module has no imports left —
+# which here is simply what `want` shows.
+cases:
+  - note: refs/every kind of import is resolved away
+    # `data` and `input` bare, a path under each, and an alias of each. None of them is
+    # used, so strict mode would reject the module rather than compile it.
+    strict: disabled
+    modules:
+      - |
+        package ex
+
+        import data
+        import input
+        import data.foo
+        import input.bar
+        import data.abc as baz
+        import input.abc as qux
+    want:
+      - module: |
+          package ex
