@@ -538,7 +538,7 @@ func BenchmarkBenchlabBindingsAllocation(b *testing.B) {
 	} {
 		b.Run(tt.name+"_without_hint", func(b *testing.B) {
 			for b.Loop() {
-				bi := newBindings(0, nil)
+				bi := newBindings(nil)
 				for j := range tt.bindings {
 					bi.bind(keys[j], vals[j], nil, u)
 				}
