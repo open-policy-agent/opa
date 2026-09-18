@@ -1005,19 +1005,23 @@ metrics_export:
   tls_ca_cert_file: /path/to/ca.pem
   tls_cert_file: /path/to/cert.pem
   tls_private_key_file: /path/to/key.pem
+  headers:
+    some-other: fancy-header
+    x-custom-header: custom-value
 ```
 
-| Field                                 | Type     | Required                                                                                           | Description                                                               |
-| ------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `metrics_export.type`                 | `string` | No                                                                                                 | `"otlp/grpc"` or `"otlp/http"`. Omit (or `""`) to disable metrics export. |
-| `metrics_export.address`              | `string` | No (default: `localhost:4317` if `type` is `otlp/grpc`, `localhost:4318` if `type` is `otlp/http`) | Address of the OpenTelemetry Collector endpoint.                          |
-| `metrics_export.export_interval_ms`   | `int`    | No (default: `60000`)                                                                              | Interval between metric exports in milliseconds. Must be > 0.             |
-| `metrics_export.service_name`         | `string` | No (default: `opa`)                                                                                | Logical name of the service reported in exported metrics.                 |
-| `metrics_export.encryption`           | `string` | No (default: `off`)                                                                                | Configures TLS: `off`, `tls`, or `mtls`.                                  |
-| `metrics_export.allow_insecure_tls`   | `bool`   | No (default: `false`)                                                                              | Allow insecure TLS.                                                       |
-| `metrics_export.tls_ca_cert_file`     | `string` | No                                                                                                 | The path to the root CA certificate.                                      |
-| `metrics_export.tls_cert_file`        | `string` | No (unless `encryption` equals `mtls`)                                                             | The path to the client certificate to authenticate with.                  |
-| `metrics_export.tls_private_key_file` | `string` | No (unless `tls_cert_file` provided)                                                               | The path to the private key of the client certificate.                    |
+| Field                                 | Type                | Required                                                                                           | Description                                                                                                                             |
+| ------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `metrics_export.type`                 | `string`            | No                                                                                                 | `"otlp/grpc"` or `"otlp/http"`. Omit (or `""`) to disable metrics export.                                                               |
+| `metrics_export.address`              | `string`            | No (default: `localhost:4317` if `type` is `otlp/grpc`, `localhost:4318` if `type` is `otlp/http`) | Address of the OpenTelemetry Collector endpoint.                                                                                        |
+| `metrics_export.export_interval_ms`   | `int`               | No (default: `60000`)                                                                              | Interval between metric exports in milliseconds. Must be > 0.                                                                           |
+| `metrics_export.service_name`         | `string`            | No (default: `opa`)                                                                                | Logical name of the service reported in exported metrics.                                                                               |
+| `metrics_export.encryption`           | `string`            | No (default: `off`)                                                                                | Configures TLS: `off`, `tls`, or `mtls`.                                                                                                |
+| `metrics_export.allow_insecure_tls`   | `bool`              | No (default: `false`)                                                                              | Allow insecure TLS.                                                                                                                     |
+| `metrics_export.tls_ca_cert_file`     | `string`            | No                                                                                                 | The path to the root CA certificate.                                                                                                    |
+| `metrics_export.tls_cert_file`        | `string`            | No (unless `encryption` equals `mtls`)                                                             | The path to the client certificate to authenticate with.                                                                                |
+| `metrics_export.tls_private_key_file` | `string`            | No (unless `tls_cert_file` provided)                                                               | The path to the private key of the client certificate.                                                                                  |
+| `metrics_export.headers`              | `map[string]string` | No                                                                                                 | Additional headers (OTLP/gRPC metadata, or OTLP/HTTP headers) sent with every export request, e.g. for collectors that route by header. |
 
 ## Disk Storage
 
