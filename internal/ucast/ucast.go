@@ -43,8 +43,6 @@ func dialectToFlavor(dialect string) sqlbuilder.Flavor {
 	switch dialect {
 	case "mysql":
 		return sqlbuilder.MySQL
-	case "sqlite", "sqlite-internal":
-		return sqlbuilder.SQLite
 	case "postgres", "postgresql":
 		return sqlbuilder.PostgreSQL
 	case "sqlserver":

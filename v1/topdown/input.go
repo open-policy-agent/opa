@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 )
@@ -13,12 +14,10 @@ import (
 var errBadPath = errors.New("bad document path")
 
 func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
-
 	var result *ast.Term
 	var init bool
 
 	for i, pair := range pairs {
-
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
 			return nil, errBadPath
 		}
@@ -43,19 +42,19 @@ func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, erro
 				init = true
 			}
 			if result == nil {
-				result = ast.NewTerm(makeTree(target[1:], pair[1]))
+				result = makeTree(target[1:], pair[1])
 			} else {
 				node := result
 				done := false
 				for i := 1; i < len(target)-1 && !done; i++ {
 					obj, ok := node.Value.(ast.Object)
 					if !ok {
-						result = ast.NewTerm(makeTree(target[i:], pair[1]))
+						result = makeTree(target[i:], pair[1])
 						done = true
 						continue
 					}
 					if child := obj.Get(target[i]); !isObject(child) {
-						obj.Insert(target[i], ast.NewTerm(makeTree(target[i+1:], pair[1])))
+						obj.Insert(target[i], makeTree(target[i+1:], pair[1]))
 						done = true
 					} else { // child is object
 						node = child
@@ -65,7 +64,7 @@ func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, erro
 					if obj, ok := node.Value.(ast.Object); ok {
 						obj.Insert(target[len(target)-1], pair[1])
 					} else {
-						result = ast.NewTerm(makeTree(target[len(target)-1:], pair[1]))
+						result = makeTree(target[len(target)-1:], pair[1])
 					}
 				}
 			}
@@ -81,14 +80,11 @@ func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, erro
 
 // makeTree returns an object that represents a document where the value v is
 // the leaf and elements in k represent intermediate objects.
-func makeTree(k ast.Ref, v *ast.Term) ast.Object {
-	var obj ast.Object
-	for i := len(k) - 1; i >= 1; i-- {
-		obj = ast.NewObject(ast.Item(k[i], v))
-		v = &ast.Term{Value: obj}
+func makeTree(k ast.Ref, v *ast.Term) *ast.Term {
+	for _, v0 := range slices.Backward(k) {
+		v = ast.ObjectTerm(ast.Item(v0, v))
 	}
-	obj = ast.NewObject(ast.Item(k[0], v))
-	return obj
+	return v
 }
 
 func isObject(x *ast.Term) bool {

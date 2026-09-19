@@ -155,7 +155,6 @@ func gcpMetadataServiceRequest(endpoint string) ([]byte, error) {
 
 	switch s := response.StatusCode; s {
 	case 200:
-		break
 	case 400:
 		return nil, &gcpMetadataError{errGCPMetadataInvalidRequest, endpoint, s}
 	case 404:

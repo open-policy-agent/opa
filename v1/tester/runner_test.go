@@ -208,9 +208,7 @@ func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.R
 		if !ok {
 			t.Errorf("Unexpected result for %v", k)
 			continue
-		} else if exp.wantSkip != r.Skip {
-			t.Errorf("Expected %+v for %v but got: %v", exp, k, r)
-		} else if exp.wantErr != (r.Error != nil) || exp.wantFail != r.Fail {
+		} else if exp.wantSkip != r.Skip || exp.wantErr != (r.Error != nil) || exp.wantFail != r.Fail {
 			t.Errorf("Expected %+v for %v but got: %v", exp, k, r)
 		} else {
 			// Test passed

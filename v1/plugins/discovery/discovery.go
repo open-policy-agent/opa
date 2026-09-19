@@ -704,7 +704,7 @@ func getPluginSet(
 
 	result := &pluginSet{Start: starts, Reconfig: reconfigs}
 
-	getCustomPlugins(manager, pluginFactories, result)
+	configureCustomPlugins(manager, pluginFactories, result)
 
 	return result, nil
 }
@@ -743,7 +743,7 @@ func getStatusPlugin(m *plugins.Manager, config *status.Config, metrics metrics.
 	return plugin, created
 }
 
-func getCustomPlugins(manager *plugins.Manager, factories []pluginfactory, result *pluginSet) {
+func configureCustomPlugins(manager *plugins.Manager, factories []pluginfactory, result *pluginSet) {
 	for _, pf := range factories {
 		if plugin := manager.Plugin(pf.name); plugin != nil {
 			result.Reconfig = append(result.Reconfig, pluginreconfig{Config: pf.config, Plugin: plugin})

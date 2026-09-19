@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/refactor"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type moveCommandParams struct {
@@ -150,24 +151,26 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 			return newError("failed to parse Rego source file: %v", err)
 		}
 
+		var outfile *os.File
+
 		if params.overwrite {
 			info, err := os.Stat(filename)
 			if err != nil {
 				return err
 			}
 
-			outfile, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, info.Mode())
+			outfile, err = os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, info.Mode())
 			if err != nil {
 				return newError("failed to open file for writing: %v", err)
 			}
-			defer outfile.Close()
 			out = outfile
 		}
 
-		_, err = out.Write(formatted)
-		if err != nil {
+		if _, err = out.Write(formatted); err != nil {
+			util.CloseIgnore(outfile)
 			return newError("failed writing formatted contents: %v", err)
 		}
+		util.CloseIgnore(outfile)
 	}
 
 	return nil

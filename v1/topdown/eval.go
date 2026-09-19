@@ -1632,13 +1632,15 @@ func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term,
 		elements = append(elements, child.bindings.Plug(x.Term))
 		return nil
 	})
-	if err == nil {
-		if len(elements) == 0 {
-			return e.biunify(ast.InternedEmptyArray, b, b1, b2, iter)
-		}
-		return e.biunify(ast.ArrayTerm(elements...), b, b1, b2, iter)
+	if err != nil {
+		return err
 	}
-	return err
+
+	if len(elements) == 0 {
+		return e.biunify(ast.InternedEmptyArray, b, b1, b2, iter)
+	}
+
+	return e.biunify(ast.ArrayTerm(elements...), b, b1, b2, iter)
 }
 
 func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
@@ -2410,7 +2412,7 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 func (e *evalFunc) evalCache(argCount int, iter unifyIterator) (bool, error) {
 	plen := len(e.terms)
 	if plen == argCount+2 { // func name + output = 2
-		plen -= 1
+		plen--
 	}
 
 	e.cacheKey = slices.Grow(e.cacheKey, plen)[:plen]

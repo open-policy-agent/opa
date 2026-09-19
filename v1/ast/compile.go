@@ -2843,7 +2843,6 @@ func checkVoidCalls(env *TypeEnv, x any) Errors {
 //
 //	print({__local0__ | __local0__ = "the value of x is:"}, {__local1__ | __local1__ = input.x})
 func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, rewritten map[Var]Var, body Body) (bool, Errors) {
-
 	var errs Errors
 	var modified bool
 
@@ -2895,8 +2894,10 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 		}
 	}
 
-	for i := range body {
+	vis := varVisitorPool.Get()
+	defer varVisitorPool.Put(vis)
 
+	for i := range body {
 		if !isPrintCall(body[i]) {
 			continue
 		}
@@ -2916,12 +2917,6 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 		})
 
 		args := body[i].Operands()
-
-		var vis *VarVisitor
-		if len(args) > 0 {
-			vis = varVisitorPool.Get()
-			defer varVisitorPool.Put(vis)
-		}
 
 		for j := range args {
 			// Note: we don't care about not exprs here

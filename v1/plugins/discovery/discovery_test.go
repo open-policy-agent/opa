@@ -3883,7 +3883,7 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 	}
 
 	// Verify NDBuiltinCache is triggered with initial config
-	if config1 == nil || config1.v != true {
+	if config1 == nil || !config1.v {
 		t.Fatalf("Expected ND builtin cache to be enabled after initial discovery, got: %v", config1.v)
 	}
 
@@ -3899,7 +3899,7 @@ func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if config2 == nil || config2.v != false {
+	if config2 == nil || config2.v {
 		t.Fatalf("Expected ND builtin cache to be disabled after discovery reconfigure, got: %v", config2.v)
 	}
 }

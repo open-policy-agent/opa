@@ -82,17 +82,93 @@ linters:
       # only rule disabled by default, but it's a good one
       err-error: true
     revive:
-      # this mainly complains about us using min/max for variable names,
-      # which seems like an unlikely source of actual issues
+      enable-all-rules: true
       rules:
+        # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unused-parameter
+        - name: unused-parameter
+          arguments:
+            - allowRegex: ^_
+          severity: warning
+        # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unused-receiver
+        - name: unused-receiver
+          arguments:
+            - allowRegex: ^_
+          severity: warning
+        # covered by lll linter
+        - name: line-length-limit
+          disabled: true
+        # covered by errcheck linter
+        - name: unhandled-error
+          disabled: true
+        # covered by forcetypeassert linter
+        - name: unchecked-type-assertion
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: cognitive-complexity
+          disabled: true
+        - name: add-constant
+          disabled: true
+        - name: max-public-structs
+          disabled: true
+        - name: flag-parameter
+          disabled: true
+        - name: blank-imports
+          disabled: true
+        - name: deep-exit
+          disabled: true
+        - name: function-length
+          disabled: true
+        - name: nested-structs
+          disabled: true
+        - name: import-shadowing
+          disabled: true
+        - name: package-naming
+          disabled: true
+        - name: var-naming
+          disabled: true
+        - name: unexported-return
+          disabled: true
+        - name: comment-spacings
+          arguments:
+            - "nolint"
+        - name: import-alias-naming
+          disabled: true
+        - name: function-result-limit
+          disabled: true
+        - name: confusing-naming
+          disabled: true
+        - name: modifies-value-receiver
+          disabled: true
+        - name: enforce-switch-style
+          disabled: true
+        - name: unexported-naming
+          disabled: true
+        - name: max-control-nesting
+          disabled: true
+        - name: exported
+          disabled: true
+        - name: indent-error-flow
+          disabled: true
+        # for now — enbable 'whitespace' linter later
+        - name: empty-lines
+          disabled: true
         - name: redefines-builtin-id
           disabled: true
-        - name: unused-parameter
-          disabled: false
-        - name: unused-receiver
-          disabled: false
-        - name: unnecessary-format
-          disabled: false
+        - name: bare-return
+          disabled: true
+        - name: confusing-results
+          disabled: true
+        - name: argument-limit
+          disabled: true
+        - name: package-directory-mismatch
+          disabled: true
+        - name: redundant-test-main-exit
+          disabled: true
+        - name: context-as-argument
+          disabled: true
+        - name: early-return
+          disabled: true # sometimes valid, but too noisy
     staticcheck:
       checks:
         # https://staticcheck.dev/docs/checks/#<check-id> for more details on these rules
@@ -121,6 +197,8 @@ linters:
       - legacy
       - std-error-handling
     rules:
+      - linters: revive
+        path: internal/lcss
       - linters:
           - gocritic
         text: hugeParam
@@ -132,7 +210,11 @@ linters:
       - linters:
           - prealloc
           - errcheck
-        path: _test\.go # Using a deprecated function, variable, constant or field
+          - revive
+        path: _test\.go
+      - linters: revive
+        path: v1/plugins/rest
+        text: unsecure-url-scheme
     paths:
       # v0 - ^ needed to avoid matching name in any path
       - ^ast|^bundle|^cover|^compile|^debug|^dependencies|^download|^format|^loader|^server

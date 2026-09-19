@@ -3071,7 +3071,7 @@ loopback = input
 
 	registeredMetrics := toMetricMap(m)
 
-	if registeredMetrics["opa_info"] == false {
+	if !registeredMetrics["opa_info"] {
 		t.Error("expected metric 'opa_info' to be registered but it was not")
 	}
 }

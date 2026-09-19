@@ -141,11 +141,7 @@ func GetPreviousIP(ip net.IP) net.IP {
 			previousIP[i]--
 		}
 		// Track if we have overflowed and thus need to continue subtracting.
-		if ip[i] == 0 && previousIP[i] == 255 {
-			overflow = true
-		} else {
-			overflow = false
-		}
+		overflow = ip[i] == 0 && previousIP[i] == 255
 	}
 	return previousIP
 }

@@ -48,7 +48,7 @@ func TestManagerCacheTriggers(t *testing.T) {
 		t.Fatal("Second listener failed to register")
 	}
 
-	if l1Called == true || l2Called == true {
+	if l1Called || l2Called {
 		t.Fatal("Listeners should not be called yet")
 	}
 
@@ -57,8 +57,8 @@ func TestManagerCacheTriggers(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	if l1Called == false || l2Called == false {
-		t.Fatal("Listeners should hav been called")
+	if !l1Called || !l2Called {
+		t.Fatal("Listeners should have been called")
 	}
 }
 
@@ -86,7 +86,7 @@ func TestManagerNDCacheTriggers(t *testing.T) {
 		t.Fatal("Second listener failed to register")
 	}
 
-	if l1Called == true || l2Called == true {
+	if l1Called || l2Called {
 		t.Fatal("Listeners should not be called yet")
 	}
 
@@ -95,7 +95,7 @@ func TestManagerNDCacheTriggers(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	if l1Called == false || l2Called == false {
+	if !l1Called || !l2Called {
 		t.Fatal("Listeners should hav been called")
 	}
 }
@@ -409,7 +409,7 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 	if err := mgr.PrometheusRegister().Register(counter); err != nil {
 		t.Fatal(err)
 	}
-	if register.Collectors[counter] != true {
+	if !register.Collectors[counter] {
 		t.Fatal("Counter metric was not registered on prometheus")
 	}
 }

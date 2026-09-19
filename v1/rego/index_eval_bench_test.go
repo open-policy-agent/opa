@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
-	inmem "github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 )
 
 // BenchmarkIndexedRulesetEval evaluates a ruleset of the shape a "one rule per

@@ -40,10 +40,8 @@ func (str String) StringLength() int {
 	for i := 0; i < len(bs); {
 		r, size := utf8.DecodeRune(bs[i:])
 		switch r {
-		case '\\', '"':
-			n += 2 // escaped backslash or quote
-		case '\b', '\f', '\n', '\r', '\t':
-			n += 2 // escaped control characters
+		case '\\', '"', '\b', '\f', '\n', '\r', '\t':
+			n += 2 // escaped backslash, quote or control character
 		default:
 			if r < 0x20 {
 				n += 6 // unicode escape for other control characters

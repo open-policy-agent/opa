@@ -1089,7 +1089,7 @@ func TestRegoRuleIndexMemberWithCompositeValues(t *testing.T) {
 				t.Fatalf("unexpected error (this is the panic path if the fix regresses): %s", err)
 			}
 
-			allowed := len(rs) == 1 && len(rs[0].Expressions) == 1 && rs[0].Expressions[0].Value == true
+			allowed := len(rs) == 1 && len(rs[0].Expressions) == 1 && rs[0].Expressions[0].Value.(bool)
 			if allowed != tc.allowed {
 				t.Fatalf("expected allowed=%v, got %v (result: %v)", tc.allowed, allowed, rs)
 			}

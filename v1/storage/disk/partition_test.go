@@ -114,5 +114,4 @@ func TestPartitionTrie(t *testing.T) {
 			}
 		})
 	}
-
 }

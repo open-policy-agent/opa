@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	// TODO(anders): revive linter says redundant alias, goimports adds it back — not sure why.
+	//nolint:revive
 	v4 "github.com/open-policy-agent/opa/internal/providers/aws/v4"
 
 	"github.com/open-policy-agent/opa/v1/ast"
