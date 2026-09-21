@@ -307,9 +307,12 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 
 	filters, err := preparedCompile.Compile(ctx, evalOpts...)
 	if err != nil {
-		switch err := err.(type) {
-		case ast.Errors:
-			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeEvaluation, types.MsgEvaluationError).WithASTErrors(err))
+		astErrs, isASTErrs := errors.AsType[ast.Errors](err)
+		switch {
+		case errors.Is(err, rego_compile.ErrInvalidMappings):
+			writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		case isASTErrs:
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeEvaluation, types.MsgEvaluationError).WithASTErrors(astErrs))
 		default:
 			writer.ErrorAuto(w, err)
 		}

@@ -208,8 +208,8 @@ func translateField(field string, translations map[string]any) string {
 	if tableMapping := translations[before]; tableMapping != nil {
 		if tableMapping, ok := tableMapping.(map[string]any); ok {
 			// See if there's a $table ref for the short unknown, and remap.
-			if tableName, ok := tableMapping["$table"]; ok {
-				outTable = tableName.(string)
+			if tableName, ok := tableMapping["$table"].(string); ok {
+				outTable = tableName
 				// swap, make believe we picked up '<outTable>.name', not 'name'
 				before, after, found = outTable, before, true
 				outColumn = after
@@ -220,13 +220,13 @@ func translateField(field string, translations map[string]any) string {
 	if tableMapping, ok := translations[before]; ok {
 		if tableMapping, ok := tableMapping.(map[string]any); ok {
 			// See if there's a mapping for the table name, and remap.
-			if tableName, ok := tableMapping["$self"]; ok {
-				outTable = tableName.(string) // XXX: be more cautious about the type
+			if tableName, ok := tableMapping["$self"].(string); ok {
+				outTable = tableName
 			}
 			// If we have a column name, try remapping it.
 			if found {
-				if columnName, ok := tableMapping[after]; ok {
-					outColumn = columnName.(string)
+				if columnName, ok := tableMapping[after].(string); ok {
+					outColumn = columnName
 				}
 			}
 		}
