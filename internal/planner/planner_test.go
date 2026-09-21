@@ -502,6 +502,25 @@ p.b := y if { y := p.a + 1 }`,
 			query:  "data.test.p = x",
 			expErr: "reference to data.test.p is not supported: rules sharing that path prefix are planned as a single function",
 		},
+		{
+			note: "sibling leaf reached through a function mock",
+			module: `package test
+f(_) := 1
+
+g(_) := 2
+
+p[x].foo.bar if {
+	x := "a"
+	not p[x].foo.baz with f as g
+}
+
+p[x].foo.baz if {
+	x := "a"
+	f(1) == 1
+}`,
+			query:  "data.test.p = x",
+			expErr: "reference to data.test.p is not supported: rules sharing that path prefix are planned as a single function",
+		},
 	}
 
 	for _, tc := range tests {

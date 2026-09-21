@@ -52,7 +52,7 @@ type Planner struct {
 
 	allRules     map[*ast.Rule]bool // all rules parsed from input modules, used to track unplanned rules for additional reporting (e.g. coverage)
 	plannedRules map[*ast.Rule]bool
-	planning     map[string]struct{} // functions currently being planned, keyed by generated name
+	planning     map[string]struct{} // ground path prefixes currently being planned
 
 	unplannedRules bool // whether to populate policy.UnplannedRules
 }
@@ -251,17 +251,18 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	// differ past a variable share a function. A reference from one of those
 	// rule bodies back into the same prefix is not recursion the compiler would
 	// reject, but the planner has no way to evaluate part of a function that is
-	// still being planned.
-	name := fmt.Sprintf("g%d.%s", p.funcs.gen(), path)
-	if _, ok := p.planning[name]; ok {
+	// still being planned. The generation is left out of the key on purpose: a
+	// 'with' statement that shadows planned functions bumps it, and keying on
+	// it would let the same prefix re-enter planning forever.
+	if _, ok := p.planning[path]; ok {
 		err := fmt.Errorf("reference to %v is not supported: rules sharing that path prefix are planned as a single function", path)
 		if p.loc != nil {
 			return "", fmt.Errorf("%v: %w", p.loc, err)
 		}
 		return "", err
 	}
-	p.planning[name] = struct{}{}
-	defer delete(p.planning, name)
+	p.planning[path] = struct{}{}
+	defer delete(p.planning, path)
 
 	// Save current state of planner.
 	//
@@ -287,7 +288,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	}
 	// Create function definition for rules.
 	fn := &ir.Func{
-		Name:   name,
+		Name:   fmt.Sprintf("g%d.%s", p.funcs.gen(), path),
 		Params: params,
 		Return: p.newLocal(),
 		Path:   append([]string{fmt.Sprintf("g%d", p.funcs.gen())}, pathPieces...),
