@@ -839,7 +839,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Listener failed.")
-			os.Exit(1)
+			return err
 		}
 	}
 }

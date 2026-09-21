@@ -1694,7 +1694,7 @@ func TestAddrWarningMessage(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Millisecond)
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			params := NewParams()
@@ -1703,7 +1703,7 @@ func TestAddrWarningMessage(t *testing.T) {
 			logLevel := logging.Info
 
 			params.Logger = logger
-			params.Addrs = &[]string{"localhost:8181"}
+			params.Addrs = &[]string{"localhost:0"}
 			params.AddrSetByUser = tc.addrSetByUser
 			params.GracefulShutdownPeriod = 1
 			params.V0Compatible = tc.v0Compatible
@@ -1712,12 +1712,9 @@ func TestAddrWarningMessage(t *testing.T) {
 				t.Fatalf("Unexpected error %v", err)
 			}
 
-			done := make(chan struct{})
-			go func() {
-				rt.StartServer(ctx)
-				close(done)
-			}()
-			<-done
+			// Serve logs the message under test before it binds anything.
+			cancel()
+			_ = rt.Serve(ctx)
 
 			warning := " OPA is running on a public (0.0.0.0) network interface. Unless you intend to expose OPA outside of the host, binding to the localhost interface (--addr localhost:8181) is recommended. See https://www.openpolicyagent.org/docs/latest/security/#interface-binding"
 			containsWarning := strings.Contains(logger.Entries()[0].Message, warning)
