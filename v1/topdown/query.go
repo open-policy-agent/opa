@@ -57,6 +57,7 @@ type Query struct {
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	ndBuiltinCache              builtins.NDBCache
 	strictBuiltinErrors         bool
+	stackTraces                 bool
 	builtinErrorList            *[]Error
 	strictObjects               bool
 	roundTripper                CustomizeRoundTripper
@@ -272,6 +273,15 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
+// WithStackTraces tells the evaluator to record the stack of queries being
+// evaluated when an error occurred on the returned *Error. The stack is exposed
+// as Error.StackTrace and left out of the error message, so callers render it
+// themselves. Off by default: tracebacks quote the policy source.
+func (q *Query) WithStackTraces(yes bool) *Query {
+	q.stackTraces = yes
+	return q
+}
+
 // WithBuiltinErrorList supplies a pointer to an Error slice to store built-in function errors
 // encountered during evaluation. This error slice can be inspected after evaluation to determine
 // which built-in function errors occurred.
@@ -415,6 +425,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		external:                    q.external,
 		tracers:                     q.tracers,
 		traceEnabled:                len(q.tracers) > 0,
+		stackTraces:                 q.stackTraces,
+		reportBuiltinErrors:         q.strictBuiltinErrors || q.builtinErrorList != nil,
 		plugTraceVars:               q.plugTraceVars,
 		instr:                       q.instr,
 		builtins:                    q.builtins,
@@ -610,6 +622,8 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		external:                    q.external,
 		tracers:                     q.tracers,
 		traceEnabled:                len(q.tracers) > 0,
+		stackTraces:                 q.stackTraces,
+		reportBuiltinErrors:         q.strictBuiltinErrors || q.builtinErrorList != nil,
 		plugTraceVars:               q.plugTraceVars,
 		instr:                       q.instr,
 		builtins:                    q.builtins,

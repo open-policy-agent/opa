@@ -66,6 +66,7 @@ type testCommandParams struct {
 	v0Compatible bool
 	v1Compatible bool
 	varValues    bool
+	stackTrace   bool
 	parallel     int
 	failOnEmpty  bool
 }
@@ -428,6 +429,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetStore(store).
 		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose || testParams.varValues).
+		StackTraces(testParams.stackTrace).
 		SetCoverageRuns(coverageRuns).
 		SetCoverageQueryTracer(coverTracer).
 		SetRuntime(runtimeInfo).
@@ -607,6 +609,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression")
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
+	testCommand.Flags().BoolVar(&testParams.stackTrace, "stack-trace", false, "include the evaluation stack of each error in the output")
 	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.NumCPU(), "the number of tests that can run in parallel, defaulting to the number of CPUs (explicitly set with 0). Benchmarks are always run sequentially.")
 	testCommand.Flags().BoolVar(&testParams.failOnEmpty, "fail-on-empty", false, "Whether to fail the test when no test was run")
 	testCommand.Flags().Var(testParams.sortTests, "sort", "sort the JSON formatted test output")

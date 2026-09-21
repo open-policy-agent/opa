@@ -3050,6 +3050,83 @@ func TestBuiltinErrorList(t *testing.T) {
 	}
 }
 
+func TestStackTraces(t *testing.T) {
+	module := `package test
+
+p if {
+	q
+}
+
+q if {
+	1 / 0
+}
+`
+	newRego := func(opts ...func(*Rego)) *Rego {
+		return New(append([]func(*Rego){
+			Query("data.test.p"),
+			Module("test.rego", module),
+			StrictBuiltinErrors(true),
+		}, opts...)...)
+	}
+
+	_, err := newRego().Eval(t.Context())
+	topdownErr, ok := err.(*topdown.Error)
+	if !ok {
+		t.Fatal("expected topdown error but got:", err)
+	}
+	if topdownErr.StackTrace != nil {
+		t.Fatal("expected no stack trace by default but got:", topdownErr.StackTrace)
+	}
+
+	_, err = newRego(StackTraces(true)).Eval(t.Context())
+	topdownErr, ok = err.(*topdown.Error)
+	if !ok {
+		t.Fatal("expected topdown error but got:", err)
+	}
+
+	expected := `  test.rego:8: 1 / 0
+  test.rego:4: q
+  1:1: data.test.p`
+
+	if actual := topdownErr.StackTrace.String(); actual != expected {
+		t.Fatalf("expected stack trace\n%s\n\ngot\n%s", expected, actual)
+	}
+}
+
+func TestStackTracesPartial(t *testing.T) {
+	module := `package test
+
+p if {
+	q
+	input.x
+}
+
+q if {
+	1 / 0
+}
+`
+	_, err := New(
+		Query("data.test.p"),
+		Module("test.rego", module),
+		Unknowns([]string{"input"}),
+		StrictBuiltinErrors(true),
+		StackTraces(true),
+	).Partial(t.Context())
+
+	topdownErr, ok := err.(*topdown.Error)
+	if !ok {
+		t.Fatal("expected topdown error but got:", err)
+	}
+
+	if len(topdownErr.StackTrace) == 0 {
+		t.Fatal("expected stack trace on partial evaluation error")
+	}
+
+	if first := topdownErr.StackTrace[0].String(); first != "test.rego:9: 1 / 0" {
+		t.Fatal("unexpected innermost frame:", first)
+	}
+}
+
 func TestTimeSeedingOptions(t *testing.T) {
 
 	ctx := t.Context()

@@ -152,10 +152,11 @@ func NewOutputErrors(err error) []OutputError {
 
 		case *topdown.Error:
 			errs = []OutputError{{
-				Code:     typedErr.Code,
-				Message:  typedErr.Message,
-				Location: typedErr.Location,
-				err:      typedErr,
+				Code:       typedErr.Code,
+				Message:    typedErr.Message,
+				Location:   typedErr.Location,
+				StackTrace: typedErr.StackTrace,
+				err:        typedErr,
 			}}
 		case *storage.Error:
 			errs = []OutputError{{
@@ -234,6 +235,9 @@ func (e OutputErrors) Error() string {
 		if l, ok := err.Details.(string); ok {
 			s = append(s, l)
 		}
+		if len(err.StackTrace) > 0 {
+			s = append(s, "\nTraceback:\n"+err.StackTrace.String())
+		}
 	}
 
 	return prefix + strings.Join(s, "\n")
@@ -247,7 +251,9 @@ type OutputError struct {
 	Code     string        `json:"code,omitempty"`
 	Location *ast.Location `json:"location,omitempty"`
 	Details  any           `json:"details,omitempty"`
-	err      error
+	// StackTrace is set for topdown errors when stack traces are enabled.
+	StackTrace topdown.StackTrace `json:"stack_trace,omitempty"`
+	err        error
 }
 
 func (j OutputError) Error() string {

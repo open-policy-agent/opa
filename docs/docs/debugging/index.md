@@ -48,6 +48,73 @@ during policy evaluation as well as seeing how many times a particular line of c
 See the [print function documentation](./policy-reference/builtins/opa#debugging) for more details on how to use
 the `print` built-in function in different contexts.
 
+## Evaluation Stack Traces
+
+When evaluation fails, the error reports the line the failure happened on, but not how evaluation
+got there. A rule that divides by zero, or a conflict between two rules, is often only surprising
+because of the path that reached it.
+
+Pass `--stack-trace` to `opa eval` to have each evaluation error carry the stack of queries that
+were being evaluated when it was raised, innermost query first:
+
+```shell
+opa eval --strict-builtin-errors --stack-trace -d policy.rego 'data.ex.p'
+```
+
+```txt
+1 error occurred: policy.rego:12: eval_builtin_error: div: divide by zero
+
+Traceback:
+  policy.rego:12: 1 / 0
+  policy.rego:8: r[x]
+  policy.rego:4: q[x]
+  1:1: data.ex.p
+```
+
+`opa test --stack-trace` does the same for the errors a failing test raises.
+
+In the REPL, the `traceback` command toggles the same output:
+
+```txt
+> traceback
+> strict-builtin-errors
+> data.ex.p
+```
+
+Pairing the flag with strict built-in errors above is deliberate. By default a
+failing built-in leaves the expression undefined rather than raising, so there
+is no error for `--stack-trace` to annotate. Conflict and type errors need no
+second flag, and `opa test` does not surface built-in errors at all today.
+
+Unlike `--explain`, a traceback only describes the state at the point of failure, so it stays
+short even for policies that evaluate a lot of expressions.
+
+When embedding OPA as a library tracebacks are off by default; `rego.StackTraces(true)` enables
+them, and the frames are then available on `topdown.Error.StackTrace`.
+
+`opa run -s` turns them on for itself. An evaluation error is answered with a 500 and the handlers
+drop the explain buffer on that path, so without a traceback the response carries a single line and
+`?explain=full` has nothing to add. The frames are the same file, row and column the error's
+`location` already reports — no policy source is included:
+
+```json
+{
+  "code": "internal_error",
+  "message": "error(s) occurred while evaluating query",
+  "errors": [
+    {
+      "code": "eval_conflict_error",
+      "message": "complete rules must not produce multiple outputs",
+      "location": { "file": "policy.rego", "row": 5, "col": 1 },
+      "stack_trace": [
+        { "query_id": 2, "location": { "file": "policy.rego", "row": 5, "col": 16 } },
+        { "query_id": 0, "location": { "file": "", "row": 1, "col": 1 } }
+      ]
+    }
+  ]
+}
+```
+
 ## Performance Profiling
 
 Sometimes the issue isn't the correctness of the policy but rather the performance. The

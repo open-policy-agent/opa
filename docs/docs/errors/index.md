@@ -147,6 +147,11 @@ an error from a built-in function halt evaluation and have the error reported. A
 `--show-builtin-errors` flag may be used to collect _all_ errors from calling built-in functions and have them
 reported. Both of these flags can be very useful for debugging!
 
+**Tip:** Evaluation errors report the line they were raised on, but not the chain of rules that led there. The
+`--stack-trace` flag on `opa eval` and `opa test` (and the `traceback` command in the REPL) adds that chain to each
+error. For built-in errors, combine it with one of the flags above, which is what makes the error surface in the
+first place. See [Evaluation Stack Traces](./debugging#evaluation-stack-traces) for an example.
+
 ### How To Fix It
 
 This section provides guidance on how to fix the error.

@@ -219,6 +219,68 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 	validateJSONOutput(t, err, expected)
 }
 
+func TestOutputErrorsStructuredTopdownErrWithStackTrace(t *testing.T) {
+	mod := `package test
+
+p if {
+	q
+}
+
+q if {
+	1 / 0
+}
+`
+
+	_, err := rego.New(
+		rego.Module("test.rego", mod),
+		rego.Query("data.test.p"),
+		rego.StrictBuiltinErrors(true),
+		rego.StackTraces(true),
+	).Eval(t.Context())
+
+	expected := `{
+  "errors": [
+    {
+      "message": "div: divide by zero",
+      "code": "eval_builtin_error",
+      "location": {
+        "file": "test.rego",
+        "row": 8,
+        "col": 2
+      },
+      "stack_trace": [
+        {
+          "query_id": 2,
+          "location": {"file": "test.rego", "row": 8, "col": 2}
+        },
+        {
+          "query_id": 1,
+          "location": {"file": "test.rego", "row": 4, "col": 2}
+        },
+        {
+          "query_id": 0,
+          "location": {"file": "", "row": 1, "col": 1}
+        }
+      ]
+    }
+  ]
+}
+`
+
+	validateJSONOutput(t, err, expected)
+
+	expectedPretty := `1 error occurred: test.rego:8: eval_builtin_error: div: divide by zero
+
+Traceback:
+  test.rego:8: 1 / 0
+  test.rego:4: q
+  1:1: data.test.p`
+
+	if actual := OutputErrors(NewOutputErrors(err)).Error(); actual != expectedPretty {
+		t.Fatalf("expected\n%s\n\ngot\n%s", expectedPretty, actual)
+	}
+}
+
 func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 	_, err := rego.New(rego.Query("count(0)")).Eval(t.Context())
 	expected := `{

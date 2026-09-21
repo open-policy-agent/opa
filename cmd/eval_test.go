@@ -1715,6 +1715,55 @@ func TestEvalWithStrictBuiltinErrors(t *testing.T) {
 	}
 }
 
+func TestEvalWithStackTrace(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+p if {
+	q
+}
+
+q if {
+	1 / 0
+}
+`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		run := func(stackTrace bool) string {
+			params := newEvalCommandParams()
+			params.dataPaths = newrepeatedStringFlag([]string{path})
+			params.strictBuiltinErrors = true
+			params.stackTrace = stackTrace
+			if err := params.outputFormat.Set(formats.Pretty); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			var buf, errBuf bytes.Buffer
+			if _, err := eval([]string{"data.test.p"}, params, &buf, &errBuf); err == nil {
+				t.Fatal("expected error")
+			}
+			return errBuf.String()
+		}
+
+		if out := run(false); strings.Contains(out, "Traceback:") {
+			t.Fatal("expected no traceback without --stack-trace, got:", out)
+		}
+
+		out := run(true)
+		for _, expected := range []string{
+			"Traceback:",
+			filepath.Join(path, "test.rego") + ":8: 1 / 0",
+			filepath.Join(path, "test.rego") + ":4: q",
+			"1:1: data.test.p",
+		} {
+			if !strings.Contains(out, expected) {
+				t.Fatalf("expected output to contain %q, got:\n%s", expected, out)
+			}
+		}
+	})
+}
+
 func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 	t.Helper()
 	result := make([]any, 0, len(rs))

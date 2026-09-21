@@ -719,6 +719,123 @@ func testTimeout(t *testing.T, bench bool) {
 	}
 }
 
+func TestRunnerStackTraces(t *testing.T) {
+	files := map[string]string{
+		"/test.rego": `package test
+
+conflicting := 1
+
+conflicting := 2
+
+test_conflict if { conflicting }`,
+	}
+
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(stackTraces bool) *topdown.Error {
+		ctx := t.Context()
+		txn := storage.NewTransactionOrDie(ctx, store)
+		defer store.Abort(ctx, txn)
+
+		ch, err := tester.NewRunner().
+			SetStore(store).
+			SetModules(modules).
+			StackTraces(stackTraces).
+			RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var results []*tester.Result
+		for r := range ch {
+			results = append(results, r)
+		}
+		if len(results) != 1 {
+			t.Fatalf("expected 1 result, got %d", len(results))
+		}
+
+		tdErr, ok := errors.AsType[*topdown.Error](results[0].Error)
+		if !ok {
+			t.Fatalf("expected *topdown.Error, got %v (%[1]T)", results[0].Error)
+		}
+		return tdErr
+	}
+
+	if trace := run(false).StackTrace; trace != nil {
+		t.Fatal("expected no stack trace by default, got:", trace)
+	}
+
+	// Frames carry the temp dir the fixture was written to, so match suffixes.
+	trace := run(true).StackTrace
+	expected := []string{"test.rego:5: 2", "test.rego:7: conflicting", "1:1: data.test.test_conflict"}
+
+	if len(trace) != len(expected) {
+		t.Fatalf("expected %d frames, got %d: %v", len(expected), len(trace), trace)
+	}
+	for i, suffix := range expected {
+		if frame := trace[i].String(); !strings.HasSuffix(frame, suffix) {
+			t.Fatalf("frame %d: expected suffix %q, got %q", i, suffix, frame)
+		}
+	}
+}
+
+func TestRunnerStackTracesOnRaisedBuiltinErrors(t *testing.T) {
+	files := map[string]string{
+		"/test.rego": `package test
+
+bad if { to_number("not a number") }
+
+test_bad if { bad }`,
+	}
+
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	ch, err := tester.NewRunner().
+		SetStore(store).
+		SetModules(modules).
+		RaiseBuiltinErrors(true).
+		StackTraces(true).
+		RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var results []*tester.Result
+	for r := range ch {
+		results = append(results, r)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	tdErr, ok := errors.AsType[*topdown.Error](results[0].Error)
+	if !ok {
+		t.Fatalf("expected *topdown.Error, got %v (%[1]T)", results[0].Error)
+	}
+
+	// Frames carry the temp dir the fixture was written to, so match suffixes.
+	expected := []string{`test.rego:3: to_number("not a number")`, "test.rego:5: bad", "1:1: data.test.test_bad"}
+
+	if len(tdErr.StackTrace) != len(expected) {
+		t.Fatalf("expected %d frames, got %d: %v", len(expected), len(tdErr.StackTrace), tdErr.StackTrace)
+	}
+	for i, suffix := range expected {
+		if frame := tdErr.StackTrace[i].String(); !strings.HasSuffix(frame, suffix) {
+			t.Fatalf("frame %d: expected suffix %q, got %q", i, suffix, frame)
+		}
+	}
+}
+
 func TestRunnerPrintOutput(t *testing.T) {
 	files := map[string]string{
 		"/test.rego": `package test
@@ -1296,6 +1413,42 @@ func TestResultUnmarshalJSONEvalError(t *testing.T) {
 
 	if exp := "context deadline exceeded"; tdErr.Message != exp {
 		t.Errorf("Expected message %q, got %q", exp, tdErr.Message)
+	}
+}
+
+func TestResultUnmarshalJSONStackTrace(t *testing.T) {
+	// Payload as emitted by `opa test --format json --stack-trace`.
+	bs := []byte(`{
+		"location": {"file": "test.rego", "row": 8, "col": 1},
+		"package": "data.test",
+		"name": "test_conflict",
+		"error": {
+			"code": "eval_conflict_error",
+			"message": "complete rules must not produce multiple outputs",
+			"location": {"file": "test.rego", "row": 5, "col": 1},
+			"stack_trace": [
+				{"query_id": 2, "location": {"file": "test.rego", "row": 5, "col": 16}},
+				{"query_id": 1, "location": {"file": "test.rego", "row": 8, "col": 2}}
+			]
+		},
+		"duration": 1000
+	}`)
+
+	var result tester.Result
+	if err := util.UnmarshalJSON(bs, &result); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	tdErr, ok := errors.AsType[*topdown.Error](result.Error)
+	if !ok {
+		t.Fatalf("Expected *topdown.Error, got %T", result.Error)
+	}
+
+	// Location.Text is json:"-", so round-tripped frames carry no source snippet.
+	exp := "  test.rego:5\n  test.rego:8"
+
+	if act := tdErr.StackTrace.String(); act != exp {
+		t.Errorf("Expected stack trace\n%s\n\ngot\n%s", exp, act)
 	}
 }
 

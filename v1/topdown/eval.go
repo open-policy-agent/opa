@@ -120,6 +120,8 @@ type eval struct {
 	indexing                    bool
 	earlyExit                   bool
 	traceEnabled                bool
+	stackTraces                 bool
+	reportBuiltinErrors         bool
 	plugTraceVars               bool
 	skipSaveNamespace           bool
 	findOne                     bool
@@ -415,9 +417,13 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return e.evalWith(iter)
 	}
 
-	return e.evalStep(func(e *eval) error {
+	err := e.evalStep(func(e *eval) error {
 		return e.next(iter)
 	})
+
+	// The innermost point an error passes through with every enclosing query's
+	// expression index still intact.
+	return e.withStackTrace(err)
 }
 
 func (e *eval) evalStep(iter evalIterator) (err error) {
@@ -736,20 +742,20 @@ func (e *eval) evalWith(iter evalIterator) error {
 
 	input, err := mergeTermWithValues(e.input, pairsInput)
 	if err != nil {
-		return &Error{
+		return e.withStackTrace(&Error{
 			Code:     ConflictErr,
 			Location: expr.Location,
 			Message:  err.Error(),
-		}
+		})
 	}
 
 	data, err := mergeTermWithValues(e.data, pairsData)
 	if err != nil {
-		return &Error{
+		return e.withStackTrace(&Error{
 			Code:     ConflictErr,
 			Location: expr.Location,
 			Message:  err.Error(),
-		}
+		})
 	}
 
 	oldInput, oldData, pushedFrame := e.evalWithPush(input, data, functionMocks, targets, disable)
@@ -760,6 +766,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		oldInput, oldData, pushedFrame = e.evalWithPush(input, data, functionMocks, targets, disable)
 		return err
 	})
+	err = e.withStackTrace(err)
 
 	e.evalWithPop(oldInput, oldData, pushedFrame)
 
@@ -2152,6 +2159,13 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 		if t, ok := err.(Halt); ok {
 			err = t.Err
 		} else {
+			// Built-in errors are collected here rather than unwinding through
+			// evalExpr, so the stack has to be recorded now. Skip it when the
+			// collected errors have no consumer: query.go drops them, and a
+			// policy over messy data reaches this for every row.
+			if e.e.reportBuiltinErrors {
+				err = e.e.withStackTrace(err)
+			}
 			e.e.builtinErrors.errs = append(e.e.builtinErrors.errs, err)
 			err = nil
 		}

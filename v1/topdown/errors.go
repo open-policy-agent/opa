@@ -32,7 +32,13 @@ type Error struct {
 	Code     string        `json:"code"`
 	Message  string        `json:"message"`
 	Location *ast.Location `json:"location,omitempty"`
-	err      error         `json:"-"`
+
+	// StackTrace is the stack of queries being evaluated when the error occurred.
+	// Only populated when enabled (see Query.WithStackTraces), and left out of
+	// Error() so enabling it doesn't change the messages callers display.
+	StackTrace StackTrace `json:"stack_trace,omitempty"`
+
+	err error `json:"-"`
 }
 
 const (

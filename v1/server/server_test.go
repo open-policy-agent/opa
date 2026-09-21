@@ -1708,7 +1708,11 @@ p = true if { false }`
     		        "file": "test",
     		        "row": 5
     		      },
-    		      "message": "complete rules must not produce multiple outputs"
+    		      "message": "complete rules must not produce multiple outputs",
+    		      "stack_trace": [
+    		        {"query_id": 2, "location": {"col": 16, "file": "test", "row": 5}},
+    		        {"query_id": 0, "location": {"col": 1, "file": "", "row": 1}}
+    		      ]
     		    }
     		  ],
     		  "message": "error(s) occurred while evaluating query"
@@ -1788,7 +1792,11 @@ p = true if { false }`
 					  "file": "test",
 					  "row": 7,
 					  "col": 12
-					}
+					},
+					"stack_trace": [
+					  {"query_id": 1, "location": {"file": "test", "row": 7, "col": 12}},
+					  {"query_id": 0, "location": {"file": "", "row": 1, "col": 1}}
+					]
 				  }
 				]
 			  }`},
@@ -1810,7 +1818,11 @@ p = true if { false }`
 					  "file": "test",
 					  "row": 7,
 					  "col": 12
-					}
+					},
+					"stack_trace": [
+					  {"query_id": 1, "location": {"file": "test", "row": 7, "col": 12}},
+					  {"query_id": 0, "location": {"file": "", "row": 1, "col": 1}}
+					]
 				  }
 				]
 			  }`},
