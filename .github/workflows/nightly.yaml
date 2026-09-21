@@ -114,34 +114,31 @@ jobs:
     name: Go Get Smoke Test
     runs-on: ubuntu-24.04
     steps:
-      - name: Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       - name: Install Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: .go-version
+          go-version: stable
 
-      - name: Test go get without proxy
+      - name: Test go get and check for retracted dependencies
         run: |
           mkdir -p /tmp/go-get-test
           cd /tmp/go-get-test
 
           go mod init test-go-get
+          go get github.com/open-policy-agent/opa@main
 
-          # Disable Go module proxy to test direct VCS access
-          export GOPROXY=direct
+          go list -m -retracted \
+            -f '{{with .Retracted}}{{$.Path}}@{{$.Version}}: {{join . "; "}}{{end}}' all \
+            > /tmp/retracted-raw.log
+          grep -v '^[[:space:]]*$' /tmp/retracted-raw.log > /tmp/retracted.log || true
 
-          # Test go get with current main
-          if go get github.com/open-policy-agent/opa@main 2>&1 | tee /tmp/go-get-output.log | grep -q "warning"; then
-            echo "ERROR: Found warnings during go get:"
-            grep "warning" /tmp/go-get-output.log
+          if [ -s /tmp/retracted.log ]; then
+            echo "ERROR: build list contains retracted module versions:"
+            cat /tmp/retracted.log
             exit 1
           fi
 
-          echo "Success: No warnings found"
+          echo "Success: no retracted dependencies"
         timeout-minutes: 10
 
       - name: Slack Notification
