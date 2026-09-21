@@ -16,9 +16,9 @@ export default function KapaSearchNavbarItem() {
 
   return (
     <div className={styles.searchContainer}>
-      <button onClick={openKapaSearch} className={styles.searchButton} aria-label="Search">
+      <button onClick={openKapaSearch} className={styles.searchButton} aria-label="Search and Chat">
         <Icon icon="mdi:magnify" className={styles.searchIcon} aria-hidden="true" />
-        <span>Search</span>
+        <span>Search and Chat</span>
         <span className={styles.searchHints}>
           <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>
           <kbd>K</kbd>
