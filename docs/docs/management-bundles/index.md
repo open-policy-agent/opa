@@ -1340,6 +1340,30 @@ The OCI Downloader plugin used by OPA has a couple of limitation:
   - `application/vnd.oci.image.layer.v1.tar+gzip`
   - `application/vnd.oci.image.manifest.v1+json`
   - `application/vnd.oci.image.config.v1+json`
+  - `application/vnd.oci.image.index.v1+json`
+  - `application/vnd.docker.distribution.manifest.list.v2+json`
+
+**Image indexes**
+A tag may also resolve to an image index
+(`application/vnd.oci.image.index.v1+json`) or a Docker manifest list
+(`application/vnd.docker.distribution.manifest.list.v2+json`) rather than
+directly to an image manifest. Build tooling produces one routinely — `docker
+buildx` wraps even a single-platform push in an index. OPA descends into the
+index and uses the first referenced manifest that has an
+`application/vnd.oci.image.layer.v1.tar+gzip` layer, skipping the
+`unknown`/`unknown` platform entries that build tools attach for provenance and
+SBOM attestations.
+
+Note that the bundle layer itself must always use the OCI media type above.
+Traversing a Docker manifest list only gets OPA as far as the manifests it
+references; a bundle stored under the Docker layer type
+(`application/vnd.docker.image.rootfs.diff.tar.gzip`) is still not recognized.
+
+Because the bundle is identified by that layer media type alone, and because
+OCI container images use the same media type for their filesystem layers, OPA
+cannot tell a bundle tarball apart from a container filesystem layer. Publish
+bundles as their own image, as described below, rather than adding one to an
+image that also ships a filesystem.
 
 #### Building and Publishing Policy Containers
 
