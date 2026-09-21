@@ -1,0 +1,132 @@
+---
+# Generated externalized tests from TestNestedExpressions
+cases:
+  - note: exprs/nested-expressions/associativity - or (module)
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	z | x | y
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "z"
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/nested-expressions/associativity - or (body)
+    rego_version: v0
+    body: |
+      z | x | y
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "or"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "value": [
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    }
+                  ]
+                },
+                {
+                  "type": "var",
+                  "value": "z"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ]
+            },
+            {
+              "type": "var",
+              "value": "y"
+            }
+          ]
+        }
+      ]

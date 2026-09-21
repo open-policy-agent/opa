@@ -1,0 +1,1927 @@
+---
+# Generated externalized tests from TestAmbiguousUnionBodyIsRejected
+cases:
+  - note: logical/ambiguous-union-body-is-rejected/no import, comprehension, braced rule
+    module: |
+      package test
+
+      p if { not {x | x} }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "setcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      }
+                    ],
+                    "term": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/union body, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {x | x} }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/no import, comprehension, one-line rule
+    module: |
+      package test
+
+      p if not {x | x}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "setcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      }
+                    ],
+                    "term": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/union body, one-line rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if not {x | x}
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 10
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/union body, 'and' operand
+    module: |
+      package test
+
+      import future.keywords.or
+
+      import future.keywords.and
+      p if { x and {a | b} }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 14
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/union body, 'or' operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      import future.keywords.or
+      p if { {a | b} or x }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/union body, operand inside a negated group
+    module: |
+      package test
+
+      import future.keywords.not
+      import future.keywords.and
+      import future.keywords.or
+      p if { not ({a | b} or y) }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 13
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/explicit union call is not the '|' form
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not or(a, b) }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/explicit union call is not the '|' form, inside parens
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not (or(a, b)) }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/explicit union call is not the '|' form, inside parenthesized braces
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not ({ or(a, b) }) }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "call",
+                            "value": [
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "or"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "var",
+                                "value": "a"
+                              },
+                              {
+                                "type": "var",
+                                "value": "b"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/explicit union call is not the '|' form, inside explicit body
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not { or(a, b) } }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/parenthesized union, 'not' operand body
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {(x | x)} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/parenthesized union, 'and' operand body
+    module: |
+      package test
+
+      import future.keywords.or
+
+      import future.keywords.and
+      p if { x and {(a | b)} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_rhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/parenthesized union, 'or' operand body, lhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      import future.keywords.or
+      p if { {(a | b)} or x }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_lhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/multiple expressions, union last
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {1 == 1; x | x} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    {
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/multiple expressions, union first
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {x | x; 1 == 1} }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x; 1 == 1})` for the comprehension, or `not {(x | x); 1 == 1}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/multiple expressions, union first, parenthesized
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {(x | x); 1 == 1} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        }
+                      ]
+                    },
+                    {
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/multiple expressions, 'and' operand body
+    module: |
+      package test
+
+      import future.keywords.or
+
+      import future.keywords.and
+      p if { x and {1 == 1; a | b} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_rhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    {
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/multiple expressions, union first, 'or' operand body, lhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      import future.keywords.or
+      p if { {a | b; 1 == 1} or x }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b; 1 == 1})` for the comprehension, or `{(a | b); 1 == 1}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/multiple expressions, union first, operand body inside a negated group
+    module: |
+      package test
+
+      import future.keywords.not
+      import future.keywords.and
+      import future.keywords.or
+      p if { not ({a | b; c} or y) }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 13
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b; c})` for the comprehension, or `{(a | b); c}` for the set union)'
+  - note: logical/ambiguous-union-body-is-rejected/parenthesized comprehension, 'not' operand
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not ({x | x}) }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "setcomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": {
+                                "type": "var",
+                                "value": "x"
+                              }
+                            }
+                          ],
+                          "term": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/parenthesized comprehension, 'and' operand
+    module: |
+      package test
+
+      import future.keywords.or
+
+      import future.keywords.and
+      p if { x and ({a | b}) }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "setcomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": {
+                                "type": "var",
+                                "value": "b"
+                              }
+                            }
+                          ],
+                          "term": {
+                            "type": "var",
+                            "value": "a"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/union in a plain rule body
+    module: |
+      package test
+
+      p if { a := {1}; b := {2}; a | b }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/comprehension at body start
+    module: |
+      package test
+
+      p if { {1} | {2} }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "setcomprehension",
+                  "value": {
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "set",
+                          "value": [
+                            {
+                              "type": "number",
+                              "value": 2
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "term": {
+                      "type": "set",
+                      "value": [
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/double-braced comprehension
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {{x | x}} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "setcomprehension",
+                        "value": {
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": {
+                                "type": "var",
+                                "value": "x"
+                              }
+                            }
+                          ],
+                          "term": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: logical/ambiguous-union-body-is-rejected/comprehension bound inside the body
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {y := {x | x}; y == {1}} }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "assign"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "setcomprehension",
+                          "value": {
+                            "body": [
+                              {
+                                "index": 0,
+                                "terms": {
+                                  "type": "var",
+                                  "value": "x"
+                                }
+                              }
+                            ],
+                            "term": {
+                              "type": "var",
+                              "value": "x"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "index": 1,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "set",
+                          "value": [
+                            {
+                              "type": "number",
+                              "value": 1
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

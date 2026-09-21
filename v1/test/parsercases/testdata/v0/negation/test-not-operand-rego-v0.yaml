@@ -1,0 +1,395 @@
+---
+# Generated externalized tests from TestNotOperandRegoV0
+cases:
+  - note: negation/not-operand-rego-v0/parens hold a value
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not ({x})
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: negation/not-operand-rego-v0/parens hold an object value
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not ({"a": 1})
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "object",
+                        "value": [
+                          [
+                            {
+                              "type": "string",
+                              "value": "a"
+                            },
+                            {
+                              "type": "number",
+                              "value": 1
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: negation/not-operand-rego-v0/braces are a body
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not {x}
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: negation/not-operand-rego-v0/braces are a body, multiple expressions
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not {x; y}
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    },
+                    {
+                      "index": 1,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "explicit_body": true,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: negation/not-operand-rego-v0/parens cannot wrap a body
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not ({x; y})
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `not {x; y}`)'
+  - note: negation/not-operand-rego-v0/comprehension read as a union is rejected
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not {x | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)'
+  - note: negation/not-operand-rego-v0/braces cannot hold an object
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p {
+      	not {"a": 1}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: '`{...}` in an operand position must contain expression(s), got: object (hint: write `not ({"a": 1})` to negate the value, or `not {{"a": 1}}` for a body holding it)'

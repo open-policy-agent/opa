@@ -1,0 +1,1171 @@
+---
+# Generated externalized tests from TestBitwiseOrVsComprehension
+cases:
+  - note: terms/bitwise-or-vs-comprehension/array containing bitwise or (module)
+    module: |
+      package test
+
+      p := [x|y,z]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/array containing bitwise or (body)
+    body: |
+      [x|y,z]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              },
+              {
+                "type": "var",
+                "value": "z"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/array containing bitwise or - last element (module)
+    module: |
+      package test
+
+      p := [z,x|y]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/array containing bitwise or - last element (body)
+    body: |
+      [z,x|y]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "var",
+                "value": "z"
+              },
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/array containing bitwise or - middle (module)
+    module: |
+      package test
+
+      p := [z,x|y,a]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/array containing bitwise or - middle (body)
+    body: |
+      [z,x|y,a]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "var",
+                "value": "z"
+              },
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              },
+              {
+                "type": "var",
+                "value": "a"
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/array containing single bitwise or (module)
+    module: |
+      package test
+
+      p := [x|y,]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/array containing single bitwise or (body)
+    body: |
+      [x|y,]
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "array",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/set containing bitwise or (module)
+    module: |
+      package test
+
+      p := {x|y,z}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/set containing bitwise or (body)
+    body: |
+      {x|y,z}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "var",
+                "value": "z"
+              },
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/set containing bitwise or - last element (module)
+    module: |
+      package test
+
+      p := {z,x|y}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/set containing bitwise or - last element (body)
+    body: |
+      {z,x|y}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "var",
+                "value": "z"
+              },
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/set containing bitwise or - middle (module)
+    module: |
+      package test
+
+      p := {z,x|y,a}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/set containing bitwise or - middle (body)
+    body: |
+      {z,x|y,a}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "var",
+                "value": "a"
+              },
+              {
+                "type": "var",
+                "value": "z"
+              },
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/set containing single bitwise or (module)
+    module: |
+      package test
+
+      p := {x|y,}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/set containing single bitwise or (body)
+    body: |
+      {x|y,}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "set",
+            "value": [
+              {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/object containing bitwise or (module)
+    module: |
+      package test
+
+      p := {x:y|z,a:b}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    },
+                    {
+                      "type": "var",
+                      "value": "b"
+                    }
+                  ],
+                  [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "var",
+                          "value": "z"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/object containing bitwise or (body)
+    body: |
+      {x:y|z,a:b}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "var",
+                  "value": "a"
+                },
+                {
+                  "type": "var",
+                  "value": "b"
+                }
+              ],
+              [
+                {
+                  "type": "var",
+                  "value": "x"
+                },
+                {
+                  "type": "call",
+                  "value": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "or"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    },
+                    {
+                      "type": "var",
+                      "value": "z"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        }
+      ]
+  - note: terms/bitwise-or-vs-comprehension/object containing single bitwise or (module)
+    module: |
+      package test
+
+      p := {x:y|z,}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "var",
+                          "value": "z"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/bitwise-or-vs-comprehension/object containing single bitwise or (body)
+    body: |
+      {x:y|z,}
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": {
+            "type": "object",
+            "value": [
+              [
+                {
+                  "type": "var",
+                  "value": "x"
+                },
+                {
+                  "type": "call",
+                  "value": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "or"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    },
+                    {
+                      "type": "var",
+                      "value": "z"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        }
+      ]

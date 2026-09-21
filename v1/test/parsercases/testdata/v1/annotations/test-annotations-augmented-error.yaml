@@ -1,0 +1,151 @@
+---
+# Generated externalized tests from TestAnnotationsAugmentedError
+cases:
+  - note: annotations/annotations-augmented-error/no whitespace after key/value separator
+    module: |
+      package opa.examples
+
+      # METADATA
+      # description:p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: |-
+          yaml: unmarshal errors:
+            line 1: cannot unmarshal !!str `descrip...` into ast.rawAnnotation
+            Hint: on line 4, symbol(s) ['p'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/non-breaking whitespace (\u00A0) after key/value separator
+    module: |
+      package opa.examples
+
+      # METADATA
+      # description: p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: |-
+          yaml: unmarshal errors:
+            line 1: cannot unmarshal !!str `descrip...` into ast.rawAnnotation
+            Hint: on line 4, symbol(s) ['\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/non-breaking whitespace (\u00A0) after key/value separator (different line)
+    module: |
+      package opa.examples
+
+      # METADATA
+      # title: P
+      # description: p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: |-
+          yaml: line 2: could not find expected ':'
+            Hint: on line 5, symbol(s) ['\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/non-breaking whitespace (\u00A0) after key/value separator (different line) (2)
+    module: |
+      package opa.examples
+
+      # METADATA
+      # title:
+      #   P
+      # description: p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 1
+        message: |-
+          yaml: line 3: could not find expected ':'
+            Hint: on line 6, symbol(s) ['\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/non-breaking whitespace (\u00A0) after key/value separator (different line) (3)
+    module: |
+      package opa.examples
+
+      # METADATA
+      # title: P
+      # description: p is true
+      # scope: rule
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 1
+        message: |-
+          yaml: line 2: mapping values are not allowed in this context
+            Hint: on line 4, symbol(s) ['\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/thin whitespace (\u2009) after key/value separator
+    module: |
+      package opa.examples
+
+      # METADATA
+      # description: p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: |-
+          yaml: unmarshal errors:
+            line 1: cannot unmarshal !!str `descrip...` into ast.rawAnnotation
+            Hint: on line 4, symbol(s) ['\u2009'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/ideographic whitespace (\u3000) after key/value separator
+    module: |
+      package opa.examples
+
+      # METADATA
+      # description:　p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: |-
+          yaml: unmarshal errors:
+            line 1: cannot unmarshal !!str `descrip...` into ast.rawAnnotation
+            Hint: on line 4, symbol(s) ['\u3000'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/several offending runes after key/value separator on single line
+    module: |
+      package opa.examples
+
+      # METADATA
+      # descr:iption:　p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: |-
+          yaml: unmarshal errors:
+            line 1: cannot unmarshal !!str `descr:i...` into ast.rawAnnotation
+            Hint: on line 4, symbol(s) ['i' '\u3000'] immediately following a key/value separator ':' is not a legal yaml space character
+  - note: annotations/annotations-augmented-error/several offending runes after key/value separator on single line (2)
+    module: |
+      package opa.examples
+
+      # METADATA
+      # title:　p
+      # scope: rule
+      # description: p is true
+      p := true
+    annotations: true
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 1
+        message: |-
+          yaml: line 2: mapping values are not allowed in this context
+            Hint: on line 4, symbol(s) ['\u3000'] immediately following a key/value separator ':' is not a legal yaml space character
+            Hint: on line 6, symbol(s) ['\u2009'] immediately following a key/value separator ':' is not a legal yaml space character

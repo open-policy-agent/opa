@@ -1,0 +1,43 @@
+---
+# Generated externalized tests from TestInfixKeywordImportHint
+cases:
+  - note: exprs/infix-keyword-import-hint/`and` is a future keyword in v1
+    module: |
+      package test
+
+      p if { x and y }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 10
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.and` for `x and y` expressions)'
+  - note: exprs/infix-keyword-import-hint/`or` is a future keyword in v1
+    module: |
+      package test
+
+      p if { x or y }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 10
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.or` for `x or y` expressions)'
+  - note: exprs/infix-keyword-import-hint/`and` after a braced operand
+    module: |
+      package test
+
+      p if { {x} and y }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 12
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.and` for `x and y` expressions)'
+  - note: exprs/infix-keyword-import-hint/`and` is importable in v0 too
+    module: |
+      package test
+
+      p { x and y }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.and` for `x and y` expressions)'

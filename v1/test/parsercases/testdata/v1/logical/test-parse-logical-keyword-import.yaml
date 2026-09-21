@@ -1,0 +1,51 @@
+---
+# Generated externalized tests from TestParseLogical_KeywordImport
+cases:
+  - note: logical/parse-logical-keyword-import/and, only future.keywords.not imported
+    module: |
+      package x
+
+      import future.keywords.not
+
+      p if input.a and input.b
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 14
+        message: var cannot be used for rule name
+  - note: logical/parse-logical-keyword-import/or, only future.keywords.not imported
+    module: |
+      package x
+
+      import future.keywords.not
+
+      p if input.a or input.b
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 14
+        message: var cannot be used for rule name
+  - note: logical/parse-logical-keyword-import/and, only future.keywords.in imported
+    module: |
+      package x
+
+      import future.keywords.in
+
+      p if input.a and input.b
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 14
+        message: var cannot be used for rule name
+  - note: logical/parse-logical-keyword-import/or, only future.keywords.in imported
+    module: |
+      package x
+
+      import future.keywords.in
+
+      p if input.a or input.b
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 14
+        message: var cannot be used for rule name

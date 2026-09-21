@@ -1,0 +1,973 @@
+---
+# Generated externalized tests from TestAnnotationsAttachedToRule
+cases:
+  - note: annotations/annotations-attached-to-rule/single metadata block for rule (implied rule scope)
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # title: p
+      # description: p
+      p := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "description": "p",
+            "scope": "rule",
+            "title": "p"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "description": "p",
+                "scope": "rule",
+                "title": "p"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/single metadata block for rule (explicit rule scope)
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # title: p
+      # description: p
+      # scope: rule
+      p := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "description": "p",
+            "scope": "rule",
+            "title": "p"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "description": "p",
+                "scope": "rule",
+                "title": "p"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/multiple metadata blocks for single rule
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # title: One
+
+      # METADATA
+      # title: Two
+
+      # METADATA
+      # title: Three
+
+      # METADATA
+      # title: Four
+      p := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "scope": "rule",
+            "title": "One"
+          },
+          {
+            "scope": "rule",
+            "title": "Two"
+          },
+          {
+            "scope": "rule",
+            "title": "Three"
+          },
+          {
+            "scope": "rule",
+            "title": "Four"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "One"
+              },
+              {
+                "scope": "rule",
+                "title": "Two"
+              },
+              {
+                "scope": "rule",
+                "title": "Three"
+              },
+              {
+                "scope": "rule",
+                "title": "Four"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/document scope
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # scope: document
+      # title: doc
+      # description: doc
+
+      p := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "description": "doc",
+            "scope": "document",
+            "title": "doc"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "description": "doc",
+                "scope": "document",
+                "title": "doc"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/document and rule scope (single rule)
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # scope: document
+      # title: doc
+      # description: doc
+
+      # METADATA
+      # title: p
+      # description: p
+      p := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "description": "doc",
+            "scope": "document",
+            "title": "doc"
+          },
+          {
+            "description": "p",
+            "scope": "rule",
+            "title": "p"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "description": "doc",
+                "scope": "document",
+                "title": "doc"
+              },
+              {
+                "description": "p",
+                "scope": "rule",
+                "title": "p"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/document and rule scope (multiple rules)
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # scope: document
+      # title: doc
+      # description: doc
+
+      # METADATA
+      # title: p
+      # description: p
+      p := 1
+
+      # METADATA
+      # title: q
+      # description: q
+      q := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "description": "doc",
+            "scope": "document",
+            "title": "doc"
+          },
+          {
+            "description": "p",
+            "scope": "rule",
+            "title": "p"
+          },
+          {
+            "description": "q",
+            "scope": "rule",
+            "title": "q"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "description": "doc",
+                "scope": "document",
+                "title": "doc"
+              },
+              {
+                "description": "p",
+                "scope": "rule",
+                "title": "p"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          },
+          {
+            "annotations": [
+              {
+                "description": "q",
+                "scope": "rule",
+                "title": "q"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "q",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "q"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/document and rule scope (unordered annotations, multiple rules)
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # scope: document
+      # title: p-rules
+
+      # METADATA
+      # title: p-1
+      # description: p-1
+      p contains 1
+
+      # METADATA
+      # title: p-2
+      # description: p-2
+      p contains 2
+
+      # METADATA
+      # title: q
+      # description: q
+      q := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "scope": "document",
+            "title": "p-rules"
+          },
+          {
+            "description": "p-1",
+            "scope": "rule",
+            "title": "p-1"
+          },
+          {
+            "description": "p-2",
+            "scope": "rule",
+            "title": "p-2"
+          },
+          {
+            "description": "q",
+            "scope": "rule",
+            "title": "q"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "p-rules"
+              },
+              {
+                "description": "p-1",
+                "scope": "rule",
+                "title": "p-1"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "number",
+                "value": 1
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          },
+          {
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "p-rules"
+              },
+              {
+                "description": "p-2",
+                "scope": "rule",
+                "title": "p-2"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "number",
+                "value": 2
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          },
+          {
+            "annotations": [
+              {
+                "description": "q",
+                "scope": "rule",
+                "title": "q"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "q",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "q"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/document and rule scope (unordered annotations, multiple unordered rules)
+    module: |
+      # METADATA
+      # title: pkg
+      # description: pkg
+      package test
+
+      # METADATA
+      # scope: document
+      # title: p-rules
+
+      # METADATA
+      # title: p-1
+      # description: p-1
+      p contains 1
+
+      # METADATA
+      # title: q
+      # description: q
+      q := 1
+
+      # METADATA
+      # title: p-2
+      # description: p-2
+      p contains 2
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "description": "pkg",
+            "scope": "package",
+            "title": "pkg"
+          },
+          {
+            "scope": "document",
+            "title": "p-rules"
+          },
+          {
+            "description": "p-1",
+            "scope": "rule",
+            "title": "p-1"
+          },
+          {
+            "description": "q",
+            "scope": "rule",
+            "title": "q"
+          },
+          {
+            "description": "p-2",
+            "scope": "rule",
+            "title": "p-2"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "p-rules"
+              },
+              {
+                "description": "p-1",
+                "scope": "rule",
+                "title": "p-1"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "number",
+                "value": 1
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          },
+          {
+            "annotations": [
+              {
+                "description": "q",
+                "scope": "rule",
+                "title": "q"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "q",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "q"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          },
+          {
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "p-rules"
+              },
+              {
+                "description": "p-2",
+                "scope": "rule",
+                "title": "p-2"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "number",
+                "value": 2
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: annotations/annotations-attached-to-rule/rule with variable in ref head
+    module: |
+      package test
+
+      # METADATA
+      # title: foo
+      rule[x] := true if x := 1
+    annotations: true
+    want_ast: |
+      {
+        "annotations": [
+          {
+            "scope": "rule",
+            "title": "foo"
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "foo"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "assign": true,
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "rule",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "rule"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

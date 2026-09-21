@@ -1,0 +1,161 @@
+---
+# Generated externalized tests from TestNotOperandErrorMessages
+cases:
+  - note: negation/not-operand-error-messages/object contents, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {"a": 1} }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: '`{...}` in an operand position must contain expression(s), got: object (hint: write `not ({"a": 1})` to negate the value, or `not {{"a": 1}}` for a body holding it)'
+  - note: negation/not-operand-error-messages/object contents, one-line rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if not {"a": 1}
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 10
+        message: '`{...}` in an operand position must contain expression(s), got: object (hint: write `not ({"a": 1})` to negate the value, or `not {{"a": 1}}` for a body holding it)'
+  - note: negation/not-operand-error-messages/set contents, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {1, 2} }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: '`{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2})` to negate the value, or `not {{1, 2}}` for a body holding it)'
+  - note: negation/not-operand-error-messages/set contents, one-line rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if not {1, 2}
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 10
+        message: '`{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2})` to negate the value, or `not {{1, 2}}` for a body holding it)'
+  - note: negation/not-operand-error-messages/ref into a literal, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {"a": 1}["a"] }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: '`{...}` in an operand position must contain expression(s), got: ref (hint: write `not ({"a": 1}["a"])` to negate the value, or `not {{"a": 1}["a"]}` for a body holding it)'
+  - note: negation/not-operand-error-messages/comprehension read as a union, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {a | b} }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({a | b})` for the comprehension, or `not {(a | b)}` for the set union)'
+  - note: negation/not-operand-error-messages/comprehension read as a union, one-line rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if not {a | b}
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 10
+        message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({a | b})` for the comprehension, or `not {(a | b)}` for the set union)'
+  - note: negation/not-operand-error-messages/empty body, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not {} }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 13
+        message: found empty body
+  - note: negation/not-operand-error-messages/empty body, one-line rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if not {}
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 11
+        message: found empty body
+  - note: negation/not-operand-error-messages/parens wrapping a body, braced rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not ({x; y}) }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `not {x; y}`)'
+  - note: negation/not-operand-error-messages/parens wrapping a body, one-line rule
+    module: |
+      package test
+
+      import future.keywords.not
+      p if not ({x; y})
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 10
+        message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `not {x; y}`)'
+  - note: negation/not-operand-error-messages/parens wrapping a body holding a disjunction
+    module: |
+      package test
+
+      import future.keywords.not
+      import future.keywords.and
+      import future.keywords.or
+      p if { not ({ x or y }) }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 12
+        message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `not { x or y }`)'
+  - note: negation/not-operand-error-messages/empty parens
+    module: |
+      package test
+
+      import future.keywords.not
+      p if { not () }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 12
+        message: empty parenthesized group
+  - note: negation/not-operand-error-messages/empty parens, 'and'/'or' imported
+    module: |
+      package test
+
+      import future.keywords.not
+      import future.keywords.and
+      import future.keywords.or
+      p if { not () }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 12
+        message: empty parenthesized group

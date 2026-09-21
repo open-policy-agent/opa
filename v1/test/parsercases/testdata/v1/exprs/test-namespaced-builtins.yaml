@@ -1,0 +1,148 @@
+---
+# Generated externalized tests from TestNamespacedBuiltins
+cases:
+  - note: exprs/namespaced-builtins/foo.bar.baz(1, 2) (module)
+    module: |
+      package test
+
+      p if {
+      	foo.bar.baz(1, 2)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "string",
+                        "value": "bar"
+                      },
+                      {
+                        "type": "string",
+                        "value": "baz"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/namespaced-builtins/foo.bar.baz(1, 2) (body)
+    body: |
+      foo.bar.baz(1, 2)
+    want_ast: |
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 1
+            },
+            {
+              "type": "number",
+              "value": 2
+            }
+          ]
+        }
+      ]
+  - note: exprs/namespaced-builtins/foo.(1,2) (module)
+    module: |
+      package test
+
+      p if {
+      	foo.(1,2)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected ( token: expected identifier'
+  - note: exprs/namespaced-builtins/foo.(1,2) (body)
+    body: |
+      foo.(1,2)
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 5
+        message: 'unexpected ( token: expected identifier'
+  - note: exprs/namespaced-builtins/foo.#.bar(1,2) (module)
+    module: |
+      package test
+
+      p if {
+      	foo.#.bar(1,2)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        message: 'unexpected whitespace token: expected identifier'
+  - note: exprs/namespaced-builtins/foo.#.bar(1,2) (body)
+    body: |
+      foo.#.bar(1,2)
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected whitespace token: expected identifier'

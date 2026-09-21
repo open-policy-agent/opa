@@ -1,0 +1,35 @@
+---
+# Generated externalized tests from TestParseLogical_KeywordImport
+cases:
+  - note: logical/parse-logical-keyword-import/and
+    rego_version: v0
+    module: |
+      package x
+
+      import future.keywords.not
+
+      p if {
+      	and := 1
+      	and == 1
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'
+  - note: logical/parse-logical-keyword-import/or
+    rego_version: v0
+    module: |
+      package x
+
+      import future.keywords.not
+
+      p if {
+      	or := 1
+      	or == 1
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'

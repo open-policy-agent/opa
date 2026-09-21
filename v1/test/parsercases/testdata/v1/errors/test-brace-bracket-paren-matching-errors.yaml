@@ -1,0 +1,68 @@
+---
+# Generated externalized tests from TestBraceBracketParenMatchingErrors
+cases:
+  - note: errors/brace-bracket-paren-matching-errors/Unmatched ')' case
+    module: |
+      package test
+
+      p {
+      	x := 5
+      	y := contains("a"), "b")
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 20
+        message: 'unexpected , token: expected \n or ; or }'
+  - note: errors/brace-bracket-paren-matching-errors/Unmatched '}' case
+    module: |
+      package test
+
+      p {
+      	x := 5
+      	y := {"a", "b", "c"}, "a"}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 22
+        message: 'unexpected , token: expected \n or ; or }'
+  - note: errors/brace-bracket-paren-matching-errors/Unmatched ']' case
+    module: |
+      package test
+
+      p {
+      	x := 5
+      	y := ["a", "b", "c"], "a"]
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 22
+        message: 'unexpected , token: expected \n or ; or }'
+  - note: errors/brace-bracket-paren-matching-errors/Unmatched '(' case
+    module: |
+      package test
+
+      p {
+      	x := 5
+      	y := contains("a", "b"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 1
+        message: 'unexpected } token: expected "," or ")"'
+  - note: errors/brace-bracket-paren-matching-errors/Unmatched '[' case
+    module: |
+      package test
+
+      p {
+      	x := 5
+      	y := [["a", "b", "c"], "a"
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 1
+        message: 'unexpected } token: expected "," or "]"'

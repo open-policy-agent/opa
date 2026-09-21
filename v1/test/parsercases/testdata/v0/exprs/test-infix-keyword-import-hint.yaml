@@ -1,0 +1,14 @@
+---
+# Generated externalized tests from TestInfixKeywordImportHint
+cases:
+  - note: exprs/infix-keyword-import-hint/`in` is a future keyword in v0
+    rego_version: v0
+    module: |
+      package test
+
+      p { x in xs }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'

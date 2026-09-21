@@ -1,0 +1,154 @@
+---
+# Generated externalized tests from TestRuleHeadKeywordImportHint
+cases:
+  - note: rules/rule-head-keyword-import-hint/if, braced body
+    rego_version: v0
+    module: |
+      package test
+
+      p if { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'
+  - note: rules/rule-head-keyword-import-hint/if, one-line body
+    rego_version: v0
+    module: |
+      package test
+
+      p if true
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'
+  - note: rules/rule-head-keyword-import-hint/contains
+    rego_version: v0
+    module: |
+      package test
+
+      p contains x { x := 1 }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.contains` for `p contains x` rules)'
+  - note: rules/rule-head-keyword-import-hint/contains and if
+    rego_version: v0
+    module: |
+      package test
+
+      p contains x if { x := 1 }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.contains` for `p contains x` rules)'
+  - note: rules/rule-head-keyword-import-hint/rule named if
+    rego_version: v0
+    module: |
+      package test
+
+      if := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "if",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "if"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-head-keyword-import-hint/rule named contains
+    rego_version: v0
+    module: |
+      package test
+
+      contains := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "contains",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "contains"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-head-keyword-import-hint/genuinely bad rule head
+    rego_version: v0
+    module: |
+      package test
+
+      1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: number cannot be used for rule name
