@@ -7,11 +7,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Rules with general refs no longer collide in the recursion check ([#6813](https://github.com/open-policy-agent/opa/issues/6813))
 
-Rules whose heads contain a variable are stored in the compiler's rule tree under the
-ground prefix of their ref, so `p[x].foo.bar` and `p[x].foo.baz` both sit at `p`. The
-dependency graph was built from that lookup without comparing the parts after the
-variable, so every rule under `p` looked like a dependency of every other one and this
-policy was rejected as recursive:
+Before, this was a recursion error:
 
 ```rego
 package play
@@ -27,14 +23,13 @@ p[x].foo.baz if {
 }
 ```
 
-`Compiler.GetRulesDynamicWithOpts` now compares the ref parts past the ground prefix and
-drops rules that cannot match, so the two leaves are independent and the policy compiles.
-Genuine cycles — a rule referring to itself, to an ancestor, or to a dynamic position that
-could be itself — are still reported.
+Rules with a variable in their head are all stored at the ground prefix of their ref, so
+`p[x].foo.bar` and `p[x].foo.baz` looked like dependencies of each other. The compiler is
+now less conservative and compares the ref parts past the prefix. Genuine cycles are still
+reported.
 
-Note that the Wasm and IR targets plan one function per ground path prefix and cannot
-evaluate part of a function that is still being planned. Policies of this shape are now
-rejected by the planner with a clear error instead of overflowing the stack.
+The IR and Wasm targets however still return an error: they plan one function per ground
+path prefix, and cannot evaluate part of a function that is still being planned.
 
 Authored by @sspaink
 

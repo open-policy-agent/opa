@@ -983,10 +983,8 @@ func insertRulesIntersecting(set map[*Rule]struct{}, rules []*Rule, ref Ref, i i
 	}
 }
 
-// refsMayIntersect reports whether a and b could refer to overlapping data,
-// comparing the parts from position i onwards. Parts that aren't statically
-// known match anything, and a ref that runs out of parts matches whatever the
-// longer ref has left.
+// refsMayIntersect compares a and b from position i onwards, treating parts
+// that aren't statically known as matching anything.
 func refsMayIntersect(a, b Ref, i int) bool {
 	for ; i < len(a) && i < len(b); i++ {
 		x, y := a[i].Value, b[i].Value
