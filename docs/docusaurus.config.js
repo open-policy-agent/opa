@@ -696,7 +696,6 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     clientModules: [
       require.resolve("./src/lib/gtagFallback.js"),
       require.resolve("./src/lib/playground.js"),
-      require.resolve("./src/lib/kapa.js"),
     ],
     stylesheets: [
       {
@@ -733,6 +732,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         "data-deep-thinking-button-enabled-hover-color-dark": "#c8e6c9",
         "data-modal-title": "OPA Chat and Search",
         "data-color-scheme-selector": "[data-theme='dark']",
+        "data-launcher-button-hidden": "true",
 
         async: true,
       },
