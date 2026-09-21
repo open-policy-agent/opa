@@ -126,8 +126,8 @@ func TestRunServerBaseListenOnLocalhost(t *testing.T) {
 		t.Fatalf("Expected 1 listening address but got %v", len(rt.Addrs()))
 	}
 
-	expected := "127.0.0.1:8181"
-	if rt.Addrs()[0] != expected {
+	expected := "127.0.0.1:"
+	if !strings.HasPrefix(rt.Addrs()[0], expected) {
 		t.Fatalf("Expected listening address %v but got %v", expected, rt.Addrs()[0])
 	}
 
@@ -482,7 +482,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 func newTestRunParams() runCmdParams {
 	params := newRunParams()
 	params.rt.GracefulShutdownPeriod = 1
-	params.rt.Addrs = &[]string{"localhost:8181"}
+	params.rt.Addrs = &[]string{"localhost:0"}
 	params.rt.DiagnosticAddrs = &[]string{}
 	params.serverMode = true
 	return params
