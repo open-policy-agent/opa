@@ -1,6 +1,7 @@
 package topdown_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -112,6 +113,58 @@ func TestErrorWrapping(t *testing.T) {
 
 			if !tc.check(tc.err) {
 				t.Error("unexpected 'false'")
+			}
+		})
+	}
+}
+
+func TestErrorMarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	loc := &location.Location{File: "b.rego", Row: 12, Col: 10}
+
+	tests := []struct {
+		note string
+		err  *topdown.Error
+		exp  string
+	}{
+		{
+			note: "no stack trace",
+			err:  &topdown.Error{Code: topdown.BuiltinErr, Message: "div: divide by zero", Location: loc},
+			exp:  `{"code":"eval_builtin_error","message":"div: divide by zero","location":{"file":"b.rego","row":12,"col":10}}`,
+		},
+		{
+			note: "no location",
+			err:  &topdown.Error{Code: topdown.BuiltinErr, Message: "div: divide by zero"},
+			exp:  `{"code":"eval_builtin_error","message":"div: divide by zero"}`,
+		},
+		{
+			note: "stack trace",
+			err: &topdown.Error{
+				Code:     topdown.BuiltinErr,
+				Message:  "div: divide by zero",
+				Location: loc,
+				StackTrace: topdown.StackTrace{
+					{QueryID: 1, Location: loc},
+					{QueryID: 0},
+				},
+			},
+			exp: `{"code":"eval_builtin_error","message":"div: divide by zero","location":{"file":"b.rego","row":12,"col":10},` +
+				`"stack_trace":[{"query_id":1,"location":{"file":"b.rego","row":12,"col":10}},{"query_id":0}]}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			bs, err := json.Marshal(tc.err)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got := string(bs); got != tc.exp {
+				t.Errorf("expected %s, got %s", tc.exp, got)
 			}
 		})
 	}

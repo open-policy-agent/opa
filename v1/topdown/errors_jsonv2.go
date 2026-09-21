@@ -20,5 +20,9 @@ func (e *Error) MarshalJSONTo(enc *jsontext.Encoder) (err error) {
 		err = jsonv2.WriteField(enc, "location", e.Location)
 	}
 
+	if len(e.StackTrace) > 0 {
+		err = errors.Join(err, jsonv2.WriteFieldValue(enc, "stack_trace", e.StackTrace))
+	}
+
 	return errors.Join(err, enc.WriteToken(jsontext.EndObject))
 }
