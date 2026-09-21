@@ -6,6 +6,7 @@ package compiler
 
 import (
 	"errors"
+	"slices"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -70,9 +71,18 @@ func VerifyAuthorizationPolicySchema(compiler *ast.Compiler, ref ast.Ref) error 
 	return nil
 }
 
-// getRulesWithDependencies returns a slice of rules that are referred to by ref along with their dependencies
+// getRulesWithDependencies returns a slice of rules that are referred to by ref along with the
+// subset of their dependencies that are declared in the authorization policy's own package, or a
+// sub-package of it. Dependencies outside of that scope are left out: helper rules shared with
+// ordinary policies legitimately reference input fields the authorization policy input document
+// doesn't have, and type checking them against its schema would reject valid policies.
 func getRulesWithDependencies(compiler *ast.Compiler, ref ast.Ref) []*ast.Rule {
 	allRules := compiler.GetRules(ref)
+
+	scopes := make([]ast.Ref, 0, len(allRules))
+	for _, rule := range allRules {
+		scopes = append(scopes, rule.Module.Package.Path)
+	}
 
 	deps := map[*ast.Rule]struct{}{}
 	for _, rule := range allRules {
@@ -80,10 +90,17 @@ func getRulesWithDependencies(compiler *ast.Compiler, ref ast.Ref) []*ast.Rule {
 	}
 
 	for dep := range deps {
-		allRules = append(allRules, dep)
+		if inScope(dep, scopes) {
+			allRules = append(allRules, dep)
+		}
 	}
 
 	return allRules
+}
+
+func inScope(rule *ast.Rule, scopes []ast.Ref) bool {
+	path := rule.Module.Package.Path
+	return slices.ContainsFunc(scopes, path.HasPrefix)
 }
 
 func transitiveDependencies(compiler *ast.Compiler, rule *ast.Rule, deps map[*ast.Rule]struct{}) {
