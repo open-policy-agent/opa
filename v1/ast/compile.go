@@ -1339,18 +1339,19 @@ func (c *Compiler) checkRecursion() {
 func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
 	tr := NewGraphTraversal(c.Graph)
 	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
+		rw := rewriteVarsInRef(c.RewrittenVars)
 		n := make([]string, 0, len(p))
 		for _, x := range p {
-			n = append(n, astNodeToString(x))
+			n = append(n, astNodeToString(rw, x))
 		}
-		if !c.err(NewError(RecursionErr, loc, "rule %v is recursive: %v", astNodeToString(a), strings.Join(n, " -> "))) {
+		if !c.err(NewError(RecursionErr, loc, "rule %v is recursive: %v", astNodeToString(rw, a), strings.Join(n, " -> "))) {
 			return
 		}
 	}
 }
 
-func astNodeToString(x any) string {
-	return x.(*Rule).Ref().String()
+func astNodeToString(rw varRewriter, x any) string {
+	return rw(x.(*Rule).Ref().CopyNonGround()).String() // varRewriter operates in-place
 }
 
 // checkRuleConflicts ensures that rules definitions are not in conflict.

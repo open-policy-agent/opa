@@ -11059,7 +11059,7 @@ p[x].foo.bar if {
 	x := "a"
 	p[x].foo.bar
 }`,
-			expected: []string{"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.p[__local0__].foo.bar"},
+			expected: []string{"rule data.test.p[x].foo.bar is recursive: data.test.p[x].foo.bar -> data.test.p[x].foo.bar"},
 		},
 		{
 			note: "leaf depending on an ancestor is recursive",
@@ -11069,7 +11069,7 @@ p[x].foo.bar if {
 	x := "a"
 	p[x].foo
 }`,
-			expected: []string{"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.p[__local0__].foo.bar"},
+			expected: []string{"rule data.test.p[x].foo.bar is recursive: data.test.p[x].foo.bar -> data.test.p[x].foo.bar"},
 		},
 		{
 			note: "leaf depending on a dynamic sibling position is recursive",
@@ -11079,7 +11079,7 @@ p[x].foo.bar if {
 	x := "a"
 	p[x].foo[_]
 }`,
-			expected: []string{"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.p[__local0__].foo.bar"},
+			expected: []string{"rule data.test.p[x].foo.bar is recursive: data.test.p[x].foo.bar -> data.test.p[x].foo.bar"},
 		},
 		{
 			note: "mutual recursion across leaves is detected",
@@ -11095,9 +11095,19 @@ q[x].baz if {
 	p[x].foo.bar
 }`,
 			expected: []string{
-				"rule data.test.p[__local0__].foo.bar is recursive: data.test.p[__local0__].foo.bar -> data.test.q[__local1__].baz -> data.test.p[__local0__].foo.bar",
-				"rule data.test.q[__local1__].baz is recursive: data.test.q[__local1__].baz -> data.test.p[__local0__].foo.bar -> data.test.q[__local1__].baz",
+				"rule data.test.p[x].foo.bar is recursive: data.test.p[x].foo.bar -> data.test.q[x].baz -> data.test.p[x].foo.bar",
+				"rule data.test.q[x].baz is recursive: data.test.q[x].baz -> data.test.p[x].foo.bar -> data.test.q[x].baz",
 			},
+		},
+		{
+			note: "head var is reported under its source name",
+			policy: `package test
+
+q[x] := 1 if {
+	some x in ["a", "b"]
+	q.a
+}`,
+			expected: []string{"rule data.test.q[x] is recursive: data.test.q[x] -> data.test.q[x]"},
 		},
 	}
 
