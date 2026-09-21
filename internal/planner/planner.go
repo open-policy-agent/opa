@@ -52,6 +52,7 @@ type Planner struct {
 
 	allRules     map[*ast.Rule]bool // all rules parsed from input modules, used to track unplanned rules for additional reporting (e.g. coverage)
 	plannedRules map[*ast.Rule]bool
+	planning     map[string]struct{} // ground path prefixes currently being planned
 
 	unplannedRules bool // whether to populate policy.UnplannedRules
 }
@@ -91,6 +92,7 @@ func New() *Planner {
 
 		allRules:     map[*ast.Rule]bool{},
 		plannedRules: map[*ast.Rule]bool{},
+		planning:     map[string]struct{}{},
 	}
 }
 
@@ -244,6 +246,23 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	if funcName, ok := p.funcs.Get(path); ok {
 		return funcName, nil
 	}
+
+	// One function is planned per ground path prefix, so rules whose refs only
+	// differ past a variable share a function. A reference from one of those
+	// rule bodies back into the same prefix is not recursion the compiler would
+	// reject, but the planner has no way to evaluate part of a function that is
+	// still being planned. The generation is left out of the key on purpose: a
+	// 'with' statement that shadows planned functions bumps it, and keying on
+	// it would let the same prefix re-enter planning forever.
+	if _, ok := p.planning[path]; ok {
+		err := fmt.Errorf("reference to %v is not supported: rules sharing that path prefix are planned as a single function", path)
+		if p.loc != nil {
+			return "", fmt.Errorf("%v: %w", p.loc, err)
+		}
+		return "", err
+	}
+	p.planning[path] = struct{}{}
+	defer delete(p.planning, path)
 
 	// Save current state of planner.
 	//
