@@ -316,7 +316,7 @@ func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters
 	}
 
 	p.compile.timer(metrics.CompileTranslateQueries).Start()
-	defer p.compile.timer(metrics.CompileTranslateQueries).Start()
+	defer p.compile.timer(metrics.CompileTranslateQueries).Stop()
 
 	ret := Filters{}
 	for i := range p.compile.targets {

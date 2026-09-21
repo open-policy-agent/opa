@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/rego/compile"
 )
@@ -279,5 +280,35 @@ include if input.fruit.name in input.names
 	}
 	if exp, act := "WHERE fruit.name IN ('apple', 'banana')", filters.One().Query; exp != act {
 		t.Errorf("query: expected %q, got %q", exp, act)
+	}
+}
+
+func TestCompileFiltersTranslateQueriesTimer(t *testing.T) {
+	module := `package filters
+include if input.fruit.name in input.names
+`
+
+	m := metrics.New()
+	r := compile.New(
+		compile.Target("sql", "postgresql"),
+		compile.ParsedUnknowns(ast.MustParseTerm("input.fruit")),
+		compile.ParsedQuery(ast.MustParseBody("data.filters.include")),
+		compile.Metrics(m),
+		compile.Rego(
+			rego.Module("filters.rego", module),
+			rego.Input(map[string]any{"names": []string{"apple", "banana"}}),
+		),
+	)
+
+	prep, err := r.Prepare(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prep.Compile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if n := m.Timer(metrics.CompileTranslateQueries).Int64(); n == 0 {
+		t.Errorf("expected %s timer to be recorded, got 0", metrics.CompileTranslateQueries)
 	}
 }
