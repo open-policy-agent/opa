@@ -107,6 +107,7 @@ type eval struct {
 	inliningControl             *inliningControl
 	runtime                     *ast.Term
 	builtinErrors               *builtinErrors
+	stackCapture                *stackTraceCapture
 	roundTripper                CustomizeRoundTripper
 	evaluated                   *EvaluatedRuleTracker
 	genvarprefix                string
@@ -120,8 +121,6 @@ type eval struct {
 	indexing                    bool
 	earlyExit                   bool
 	traceEnabled                bool
-	stackTraces                 bool
-	reportBuiltinErrors         bool
 	plugTraceVars               bool
 	skipSaveNamespace           bool
 	findOne                     bool
@@ -2163,8 +2162,8 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 			// evalExpr, so the stack has to be recorded now. Skip it when the
 			// collected errors have no consumer: query.go drops them, and a
 			// policy over messy data reaches this for every row.
-			if e.e.reportBuiltinErrors {
-				err = e.e.withStackTrace(err)
+			if c := e.e.stackCapture; c != nil && c.builtinErrors {
+				err = e.e.attachStackTrace(err)
 			}
 			e.e.builtinErrors.errs = append(e.e.builtinErrors.errs, err)
 			err = nil

@@ -290,7 +290,7 @@ func TestStackTraceDoesNotMutateSharedErrors(t *testing.T) {
 	// occurrence of the error, process-wide.
 	shared := errInScopeWithStmt
 
-	e := &eval{stackTraces: true, queryID: 1}
+	e := &eval{stackCapture: &stackTraceCapture{}, queryID: 1}
 	annotated := e.withStackTrace(shared)
 
 	if shared.StackTrace != nil {

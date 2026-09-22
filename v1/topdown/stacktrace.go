@@ -114,10 +114,29 @@ func (e *eval) currentLocation() *ast.Location {
 	return e.query[min(e.index, len(e.query)-1)].Location
 }
 
+// stackTraceCapture is the state Query.WithStackTraces turns on. A non-nil one
+// on an eval means capture is enabled, so the feature adds a single field to a
+// struct that is copied for every query.
+type stackTraceCapture struct {
+	// builtinErrors records whether collected built-in errors have a consumer.
+	// Without one query.go drops them, and a policy over messy data reaches that
+	// path for every row.
+	builtinErrors bool
+}
+
+// newStackCapture returns the capture state to share across q's evals, nil when
+// stack traces are off and nothing will ask for it.
+func (q *Query) newStackCapture() *stackTraceCapture {
+	if !q.stackTraces {
+		return nil
+	}
+	return &stackTraceCapture{builtinErrors: q.strictBuiltinErrors || q.builtinErrorList != nil}
+}
+
 // withStackTrace records the evaluation stack on err, if enabled. Kept small
 // enough to inline, so the disabled case costs only a branch.
 func (e *eval) withStackTrace(err error) error {
-	if err == nil || !e.stackTraces {
+	if err == nil || e.stackCapture == nil {
 		return err
 	}
 	return e.attachStackTrace(err)
