@@ -127,7 +127,7 @@ jobs:
           go mod init test-go-get
           go get github.com/open-policy-agent/opa@main
 
-          go list -m -retracted \
+          go list -mod=mod -m -retracted \
             -f '{{with .Retracted}}{{$.Path}}@{{$.Version}}: {{join . "; "}}{{end}}' all \
             > /tmp/retracted-raw.log
           grep -v '^[[:space:]]*$' /tmp/retracted-raw.log > /tmp/retracted.log || true
