@@ -123,6 +123,9 @@ type Case[T any] interface {
 	// WithSource returns a copy of the case stamped with the file it was loaded from and
 	// the rego version of the directory that file is in. Neither is authored.
 	WithSource(filename, regoVersion string) T
+	// Validate reports whether the case is well-formed. The loader calls it on every case,
+	// so a corpus that loads is a corpus whose every case is valid.
+	Validate() error
 }
 
 // Set represents a collection of test cases.
@@ -167,8 +170,9 @@ func LoadFS[T Case[T]](fsys fs.FS, root string) (Set[T], error) {
 // directory per rego version, and that directory is what a case is parsed as. A case
 // therefore states no version of its own — see RegoVersionForPath.
 //
-// A note has to be unique within a version, which is checked here rather than by the
-// caller, because this is the only place that knows which version a file was found under.
+// Every case is validated, and a note has to be unique within a version. Both are checked
+// here rather than by the caller: this is the only place that knows which version a file
+// was found under, and a corpus nobody has validated is one whose cases may assert nothing.
 func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set[T], error) {
 	result := Set[T]{}
 	seen := map[string]string{}
@@ -202,12 +206,17 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 		}
 
 		for i := range x.Cases {
-			x.Cases[i] = x.Cases[i].WithSource(filename(path), version)
+			tc := x.Cases[i].WithSource(filename(path), version)
+			x.Cases[i] = tc
 
-			key := version + "/" + x.Cases[i].Name()
+			if err := tc.Validate(); err != nil {
+				return fmt.Errorf("%s: %s: %w", filename(path), tc.Name(), err)
+			}
+
+			key := version + "/" + tc.Name()
 			if other, ok := seen[key]; ok {
 				return fmt.Errorf("%s: %s: note is already used by %s, which is the same rego version",
-					filename(path), x.Cases[i].Name(), other)
+					filename(path), tc.Name(), other)
 			}
 			seen[key] = filename(path)
 		}

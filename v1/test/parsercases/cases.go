@@ -242,34 +242,18 @@ func (tc TestCase) validateWantAST() error {
 	return nil
 }
 
-// Load returns the set of test cases under path.
+// Load returns the set of test cases in the corpus rooted at path.
 func Load(path string) (Set, error) {
-	return validate(conformance.Load[TestCase](path))
+	return conformance.Load[TestCase](path)
 }
 
-// MustLoad returns the set of test cases under path or panics if an error occurs.
+// MustLoad returns the set of test cases in the corpus rooted at path, or panics if an
+// error occurs.
 func MustLoad(path string) Set {
-	set, err := Load(path)
-	if err != nil {
-		panic(err)
-	}
-	return set
+	return conformance.MustLoad[TestCase](path)
 }
 
-// LoadFS returns the set of test cases under root in fsys.
+// LoadFS returns the set of test cases in the corpus rooted at root in fsys.
 func LoadFS(fsys fs.FS, root string) (Set, error) {
-	return validate(conformance.LoadFS[TestCase](fsys, root))
-}
-
-func validate(set Set, err error) (Set, error) {
-	if err != nil {
-		return set, err
-	}
-	for i := range set.Cases {
-		tc := &set.Cases[i]
-		if err := tc.Validate(); err != nil {
-			return set, fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
-		}
-	}
-	return set, nil
+	return conformance.LoadFS[TestCase](fsys, root)
 }
