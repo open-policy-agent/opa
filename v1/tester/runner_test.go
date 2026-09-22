@@ -1417,7 +1417,7 @@ func TestResultUnmarshalJSONEvalError(t *testing.T) {
 }
 
 func TestResultUnmarshalJSONStackTrace(t *testing.T) {
-	// Payload as emitted by `opa test --format json --stack-trace`.
+	// Payload as emitted by `opa test --format json`.
 	bs := []byte(`{
 		"location": {"file": "test.rego", "row": 8, "col": 1},
 		"package": "data.test",

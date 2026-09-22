@@ -278,11 +278,11 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 // as Error.StackTrace and left out of the error message, so callers render it
 // themselves.
 //
-// Off by default, for two reasons. StackFrame.String quotes the policy source,
-// so anything that renders a traceback for a caller hands that caller policy
-// text. And capture is not free: each *Error costs a walk of the parent chain
-// and two allocations, which on a query collecting one built-in error per row
-// runs from +14% to +39% in time (see BenchmarkStackTraceCollectedBuiltinErrors).
+// Off by default because capture is not free: each *Error costs a walk of the
+// parent chain and two allocations, which on a query collecting one built-in
+// error per row runs from +14% to +39% in time (see
+// BenchmarkStackTraceCollectedBuiltinErrors). OPA's own CLI and server accept
+// that cost and turn it on.
 func (q *Query) WithStackTraces(yes bool) *Query {
 	q.stackTraces = yes
 	return q
