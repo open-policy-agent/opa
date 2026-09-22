@@ -2539,7 +2539,17 @@ func TestEvalDiscardOutput(t *testing.T) {
         "file": "",
         "row": 1
       },
-      "message": "div: divide by zero"
+      "message": "div: divide by zero",
+      "stack_trace": [
+        {
+          "location": {
+            "col": 1,
+            "file": "",
+            "row": 1
+          },
+          "query_id": 0
+        }
+      ]
     }
   ]
 }
