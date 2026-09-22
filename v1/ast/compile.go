@@ -5116,15 +5116,19 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 			cv := unsVis.Vars().Intersect(bodyVars).Diff(globals)
 			unsVis.Clear()
 
-			ob := outputVarsForBody(reordered, arity, safe, vis)
+			// ob is the expensive part of this loop, and an empty cv makes the
+			// comparisons below hold whatever it is.
+			if len(cv) > 0 {
+				ob := outputVarsForBody(reordered, arity, safe, vis)
 
-			if cv.DiffCount(ob) > 0 {
-				uv := cv.Diff(ob)
-				if uv.Equal(ovs) { // special case "closure-self"
-					continue
+				if cv.DiffCount(ob) > 0 {
+					uv := cv.Diff(ob)
+					if uv.Equal(ovs) { // special case "closure-self"
+						continue
+					}
+					// The expression is closing over variables not yet present in reordered body
+					unsafe.Set(e, uv)
 				}
-				// The expression is closing over variables not yet present in reordered body
-				unsafe.Set(e, uv)
 			}
 
 			for v := range unsafe[e] {
