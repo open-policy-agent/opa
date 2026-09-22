@@ -79,10 +79,10 @@ In the REPL, the `traceback` command toggles the same output:
 > data.ex.p
 ```
 
-Pairing the traceback with strict built-in errors above is deliberate. By
-default a failing built-in leaves the expression undefined rather than raising,
-so there is no error to annotate. Conflict and type errors need no second flag,
-and `opa test` does not surface built-in errors at all today.
+Pairing the traceback with strict built-in errors above is deliberate. By default a failing
+built-in leaves the expression undefined rather than raising, so there is no error to annotate —
+that goes for type errors like `count` over a number too, since those are raised by the built-in.
+Conflict errors need no second flag, and `opa test` does not surface built-in errors at all today.
 
 Unlike `--explain`, a traceback only describes the state at the point of failure, so it stays
 short even for policies that evaluate a lot of expressions.
@@ -118,8 +118,8 @@ them, and the frames are then available on `topdown.Error.StackTrace`.
 
 `opa run -s` turns them on for itself. An evaluation error is answered with a 500 and the handlers
 drop the explain buffer on that path, so without a traceback the response carries a single line and
-`?explain=full` has nothing to add. The frames are the same file, row and column the error's
-`location` already reports — no policy source is included:
+`?explain=full` has nothing to add. Querying the policy above with
+`GET /v1/data/ex/p?strict-builtin-errors` answers:
 
 ```json
 {
@@ -127,17 +127,22 @@ drop the explain buffer on that path, so without a traceback the response carrie
   "message": "error(s) occurred while evaluating query",
   "errors": [
     {
-      "code": "eval_conflict_error",
-      "message": "complete rules must not produce multiple outputs",
-      "location": { "file": "policy.rego", "row": 5, "col": 1 },
+      "code": "eval_builtin_error",
+      "message": "div: divide by zero",
+      "location": { "file": "policy.rego", "row": 8, "col": 9 },
       "stack_trace": [
-        { "query_id": 2, "location": { "file": "policy.rego", "row": 5, "col": 16 } },
+        { "query_id": 2, "location": { "file": "policy.rego", "row": 8, "col": 9 } },
+        { "query_id": 1, "location": { "file": "policy.rego", "row": 5, "col": 10 } },
         { "query_id": 0, "location": { "file": "", "row": 1, "col": 1 } }
       ]
     }
   ]
 }
 ```
+
+The middle frame is the `y := f(x)` the rule body was on, which `location` alone doesn't tell you.
+Frames over the wire carry only file, row and column — no policy source is included, so the
+resolved `f(0)` above stays out of the response.
 
 ## Performance Profiling
 
