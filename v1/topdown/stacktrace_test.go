@@ -58,6 +58,22 @@ conflicting := 2
 read_conflicting if {
 	conflicting
 }
+
+short_p if short_q
+
+short_q if 1 / 0
+
+call_fn_var if {
+	x0 := 1
+	fn(x0)
+}
+
+reciprocals contains y if {
+	some x in {2, 1, 0}
+	y := reciprocal(x)
+}
+
+reciprocal(x) := 1 / x
 `
 
 func TestStackTraceFrames(t *testing.T) {
@@ -123,6 +139,36 @@ func TestStackTraceFrames(t *testing.T) {
 				"stack.rego:40: 2",
 				"stack.rego:43: conflicting",
 				"1:1: data.ex.read_conflicting",
+			},
+		},
+		{
+			note:  "rules written without a braced body",
+			query: "data.ex.short_p",
+			expected: []string{
+				"stack.rego:48: 1 / 0",
+				"stack.rego:46: short_q",
+				"1:1: data.ex.short_p",
+			},
+		},
+		{
+			// A frame quotes the source, so the argument shows as the variable
+			// the policy passed, not the 1 it was bound to.
+			note:  "function called with a variable",
+			query: "data.ex.call_fn_var",
+			expected: []string{
+				"stack.rego:31: x / 0",
+				"stack.rego:52: fn(x0)",
+				"1:1: data.ex.call_fn_var",
+			},
+		},
+		{
+			// Likewise, the frame doesn't say which x of the domain failed.
+			note:  "function called for each element of a domain",
+			query: "data.ex.reciprocals",
+			expected: []string{
+				"stack.rego:60: 1 / x",
+				"stack.rego:57: reciprocal(x)",
+				"1:1: data.ex.reciprocals",
 			},
 		},
 	}

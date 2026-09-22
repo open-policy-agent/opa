@@ -89,6 +89,23 @@ second flag, and `opa test` does not surface built-in errors at all today.
 Unlike `--explain`, a traceback only describes the state at the point of failure, so it stays
 short even for policies that evaluate a lot of expressions.
 
+Each frame quotes the expression as it is written in the policy, so a call shows the argument the
+policy passed rather than the value it was bound to. Given:
+
+```rego
+package ex
+
+p contains y if {
+    some x in {3, 2, 1, 0}
+    y := f(x)
+}
+
+f(x) := x / x
+```
+
+the traceback reads `f(x)`, not `f(0)`. It tells you which expression failed, not which iteration
+of it did.
+
 When embedding OPA as a library tracebacks are off by default; `rego.StackTraces(true)` enables
 them, and the frames are then available on `topdown.Error.StackTrace`.
 

@@ -1313,7 +1313,7 @@ func StrictBuiltinErrors(yes bool) func(r *Rego) {
 // StackTraces tells the evaluator to record the stack of queries being evaluated
 // when an error occurred on the returned *topdown.Error. The stack is exposed as
 // topdown.Error.StackTrace and left out of the error message, so callers render
-// it themselves. Off by default: tracebacks quote the policy source.
+// it themselves. Off by default; see [topdown.Query.WithStackTraces] for why.
 func StackTraces(yes bool) func(r *Rego) {
 	return func(r *Rego) {
 		r.stackTraces = yes

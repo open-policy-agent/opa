@@ -276,7 +276,13 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 // WithStackTraces tells the evaluator to record the stack of queries being
 // evaluated when an error occurred on the returned *Error. The stack is exposed
 // as Error.StackTrace and left out of the error message, so callers render it
-// themselves. Off by default: tracebacks quote the policy source.
+// themselves.
+//
+// Off by default, for two reasons. StackFrame.String quotes the policy source,
+// so anything that renders a traceback for a caller hands that caller policy
+// text. And capture is not free: each *Error costs a walk of the parent chain
+// and two allocations, which on a query collecting one built-in error per row
+// runs from +14% to +39% in time (see BenchmarkStackTraceCollectedBuiltinErrors).
 func (q *Query) WithStackTraces(yes bool) *Query {
 	q.stackTraces = yes
 	return q
