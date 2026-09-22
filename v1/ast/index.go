@@ -63,8 +63,13 @@ type (
 		rules  []*Rule
 		groups []int32
 		// required holds, per rule id, the refs it needs defined that are not
-		// trie levels. See refindices.partition.
-		required map[int32][]Ref
+		// trie levels, as positions in requiredRefs. See refindices.partition.
+		required map[int32][]int32
+		// requiredRefs names those refs, indexed by the positions required holds.
+		// Numbering them keeps a lookup's memo a lookup by position rather than a
+		// search: a rule reading a ref of its own is the shape that made the memo
+		// a linear scan over one entry per rule.
+		requiredRefs []Ref
 		// memberships holds, per rule id, the collections gather consults; recorded
 		// by refindices.recordMembership.
 		memberships map[int32][]membership
@@ -188,19 +193,23 @@ func (i *baseDocEqIndex) require(table *refTable, id int32, unvalued []refID, pa
 		return
 	}
 
-	var required []Ref
-	for _, ref := range unvalued {
+	var required []int32
+	for pos, ref := range unvalued {
 		reads := func(path []*refindex) bool {
 			return slices.ContainsFunc(path, func(ri *refindex) bool { return ri.ref == ref })
 		}
 		if !slices.ContainsFunc(paths, func(path []*refindex) bool { return !reads(path) }) {
-			required = append(required, table.ref(ref))
+			required = append(required, int32(pos))
 		}
 	}
 
 	if len(required) > 0 {
 		if i.required == nil {
-			i.required = make(map[int32][]Ref, len(unvalued))
+			i.required = make(map[int32][]int32, len(unvalued))
+			i.requiredRefs = make([]Ref, len(unvalued))
+			for pos, ref := range unvalued {
+				i.requiredRefs[pos] = table.ref(ref)
+			}
 		}
 		i.required[id] = required
 	}
@@ -1591,8 +1600,8 @@ type trieTraversalResult struct {
 // that is unknown rather than absent cannot exclude it, the same way traversal
 // keeps everything below a level it cannot resolve (see traverseUnknown).
 func (i *baseDocEqIndex) defined(resolver ValueResolver, id int32, cache *resolveCache) (bool, error) {
-	for _, ref := range i.required[id] {
-		defined, err := cache.defined(resolver, ref)
+	for _, pos := range i.required[id] {
+		defined, err := cache.defined(resolver, i.requiredRefs, pos)
 		if err != nil {
 			return false, err
 		}
@@ -1605,14 +1614,19 @@ func (i *baseDocEqIndex) defined(resolver ValueResolver, id int32, cache *resolv
 }
 
 // resolveCache memoizes, for the length of one lookup, what the resolver answered.
-// The refs kept out of the trie are the same few over and over -- one per level
-// partition dropped, not one per rule -- and the collections of a ruleset sit under
-// a shared prefix.
+// The refs kept out of the trie are asked for once each however many rules read
+// them, and the collections of a ruleset sit under a shared prefix.
 //
 // Where topdown's baseCache holds what the store gave, making a resolve cheap, this
 // skips making the call.
 type resolveCache struct {
-	refs []resolvedRef
+	// required is one entry per ref in the index's requiredRefs, so a memo is
+	// read at a position rather than searched for. It used to be one entry per
+	// ref asked about, found by scanning: refs no rule constrains to a value are
+	// usually the same few, but a rule reading one of its own gives a lookup as
+	// many distinct ones as there are candidates, and the scan then costs a
+	// comparison per pair of them.
+	required []resolved
 	// keyRef and prefix are the last key and the last collection container asked
 	// for: a ruleset's rules test the same field, and their collections sit side
 	// by side under one prefix.
@@ -1624,24 +1638,26 @@ type resolveCache struct {
 	prefixOK  bool
 }
 
-type resolvedRef struct {
-	// key identifies the reference by the slice it is: interning gives every
-	// distinct one a backing array of its own, and the length tells it from a
-	// prefix sharing that array.
-	key     **Term
-	n       int
-	defined bool
-}
+// resolved is a memo entry: unasked until a lookup asks, and then one of the two
+// answers. Zero has to mean unasked, so that the buffer needs no initialising
+// beyond being allocated.
+type resolved uint8
 
-func (c *resolveCache) defined(resolver ValueResolver, ref Ref) (bool, error) {
-	key, n := &ref[0], len(ref)
-	for i := range c.refs {
-		if c.refs[i].key == key && c.refs[i].n == n {
-			return c.refs[i].defined, nil
-		}
+const (
+	unasked resolved = iota
+	isDefined
+	isAbsent
+)
+
+func (c *resolveCache) defined(resolver ValueResolver, refs []Ref, pos int32) (bool, error) {
+	if c.required == nil {
+		c.required = make([]resolved, len(refs))
+	}
+	if r := c.required[pos]; r != unasked {
+		return r == isDefined, nil
 	}
 
-	v, err := resolver.Resolve(ref)
+	v, err := resolver.Resolve(refs[pos])
 	if err != nil {
 		if !IsUnknownValueErr(err) {
 			return false, err
@@ -1651,8 +1667,12 @@ func (c *resolveCache) defined(resolver ValueResolver, ref Ref) (bool, error) {
 		v = Boolean(true)
 	}
 
-	c.refs = append(c.refs, resolvedRef{key: key, n: n, defined: v != nil})
-	return v != nil, nil
+	if v != nil {
+		c.required[pos] = isDefined
+		return true, nil
+	}
+	c.required[pos] = isAbsent
+	return false, nil
 }
 
 var ttrPool = &sync.Pool{
