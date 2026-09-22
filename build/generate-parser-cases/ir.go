@@ -8,11 +8,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/internal/planner"
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // generateIR compiles and plans every success case, populating WantIR and
@@ -64,54 +63,23 @@ func plan(tc *ParserTestCase, module *ast.Module) ([]string, *ir.Policy, error) 
 		return nil, nil, err
 	}
 
-	caps := popts.Capabilities
-
 	c := ast.NewCompiler().
 		WithDefaultRegoVersion(popts.RegoVersion).
-		WithCapabilities(caps)
+		WithCapabilities(popts.Capabilities)
 	c.Compile(map[string]*ast.Module{parsercases.DefaultModuleName: module})
 	if c.Failed() {
 		return nil, nil, c.Errors
 	}
 
-	entrypoints, refs, err := entrypointRefs(tc.EntryPoints, c.Modules[parsercases.DefaultModuleName])
+	entrypoints, refs, err := entrypointRefs(tc.EntryPoints, c.Modules)
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(entrypoints) == 0 {
-		return nil, nil, errors.New("no entrypoints")
+		return nil, nil, errors.New("no entrypoints: every rule is a function, and a function is not a document")
 	}
 
-	result := ast.VarTerm("result")
-	queries := make([]planner.QuerySet, len(refs))
-	for i := range refs {
-		qc := c.QueryCompiler()
-		query, err := qc.Compile(ast.NewBody(ast.Equality.Expr(result, refs[i])))
-		if err != nil {
-			return nil, nil, err
-		}
-		queries[i] = planner.QuerySet{
-			Name:          entrypoints[i],
-			Queries:       []ast.Body{query},
-			RewrittenVars: qc.RewrittenVars(),
-		}
-	}
-
-	modules := make([]*ast.Module, 0, len(c.Modules))
-	for _, name := range util.KeysSorted(c.Modules) {
-		modules = append(modules, c.Modules[name])
-	}
-
-	builtins := make(map[string]*ast.Builtin, len(caps.Builtins))
-	for _, bi := range caps.Builtins {
-		builtins[bi.Name] = bi
-	}
-
-	policy, err := planner.New().
-		WithQueries(queries).
-		WithModules(modules).
-		WithBuiltinDecls(builtins).
-		Plan()
+	policy, err := corpusgen.PlanEntryPoints(c, entrypoints, refs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -119,39 +87,20 @@ func plan(tc *ParserTestCase, module *ast.Module) ([]string, *ir.Policy, error) 
 	return entrypoints, policy, nil
 }
 
-// entrypointRefs returns one entrypoint per ground rule ref in the module,
-// sorted, unless authored overrides them.
-func entrypointRefs(authored []string, module *ast.Module) ([]string, []*ast.Term, error) {
-	if len(authored) > 0 {
-		refs := make([]*ast.Term, len(authored))
-		for i, ep := range authored {
-			ref, err := ast.PtrRef(ast.DefaultRootDocument.Copy(), ep)
-			if err != nil {
-				return nil, nil, err
-			}
-			refs[i] = ast.NewTerm(ref)
-		}
-		return authored, refs, nil
+// entrypointRefs returns the entrypoints to plan for, which are the documents the module
+// defines unless the case authored an override.
+func entrypointRefs(authored []string, modules map[string]*ast.Module) ([]string, []*ast.Term, error) {
+	if len(authored) == 0 {
+		return corpusgen.EntryPointRefs(modules)
 	}
 
-	set := ast.NewSet()
-	for _, rule := range module.Rules {
-		set.Add(ast.NewTerm(module.Package.Path.Extend(rule.Head.Ref().GroundPrefix())))
-	}
-
-	sorted := set.Sorted()
-	entrypoints := make([]string, sorted.Len())
-	refs := make([]*ast.Term, sorted.Len())
-
-	for i := range sorted.Len() {
-		term := sorted.Elem(i)
-		ep, err := term.Value.(ast.Ref).Ptr()
+	refs := make([]*ast.Term, len(authored))
+	for i, ep := range authored {
+		ref, err := ast.PtrRef(ast.DefaultRootDocument.Copy(), ep)
 		if err != nil {
 			return nil, nil, err
 		}
-		entrypoints[i] = ep
-		refs[i] = term
+		refs[i] = ast.NewTerm(ref)
 	}
-
-	return entrypoints, refs, nil
+	return authored, refs, nil
 }

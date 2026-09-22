@@ -11,6 +11,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
+// TestEntrypointRefs covers the authored override; what the derivation itself does with
+// functions and unnameable keys is corpusgen's TestEntryPointRefs, which both generators
+// now share.
 func TestEntrypointRefs(t *testing.T) {
 	module := ast.MustParseModuleWithOpts(`package test
 
@@ -50,7 +53,7 @@ r.s.t := 2
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			got, refs, err := entrypointRefs(tc.authored, module)
+			got, refs, err := entrypointRefs(tc.authored, map[string]*ast.Module{"test-0.rego": module})
 			if err != nil {
 				t.Fatal(err)
 			}

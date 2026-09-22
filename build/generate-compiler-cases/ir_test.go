@@ -16,7 +16,6 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/open-policy-agent/opa/v1/ast"
-	"github.com/open-policy-agent/opa/v1/test/compilecases"
 )
 
 const planSchemaPath = "../../v1/ir/plan.schema.json"
@@ -178,87 +177,6 @@ func TestCapabilitiesFilter(t *testing.T) {
 	if rejected == 0 || kept == 0 {
 		t.Errorf("expected a one-builtin capability set to reject some plans and keep others, rejected %d of %d",
 			rejected, rejected+kept)
-	}
-}
-
-func TestEntrypointRefs(t *testing.T) {
-	tests := []struct {
-		note    string
-		modules []string
-		want    []string
-	}{
-		{
-			note: "one per document, sorted",
-			modules: []string{`package test
-
-r.s.t := 2
-
-p := 1
-
-q contains x if { some x in [1, 2] }
-`},
-			want: []string{"test/p", "test/q", "test/r/s/t"},
-		},
-		{
-			note: "functions are not documents",
-			modules: []string{`package test
-
-f(x) := x
-
-p := f(1)
-`},
-			want: []string{"test/p"},
-		},
-		{
-			note: "nothing but functions leaves none",
-			modules: []string{`package test
-
-f(x) := x
-`},
-			want: nil,
-		},
-		{
-			note: "a key an entrypoint path cannot spell names the document instead",
-			modules: []string{`package test
-
-p[1] := "x"
-
-q := 2
-`},
-			want: []string{"test/p", "test/q"},
-		},
-		{
-			note: "across modules",
-			modules: []string{
-				"package a\n\np := 1\n",
-				"package b\n\nq := 2\n",
-			},
-			want: []string{"a/p", "b/q"},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			compiled, err := compileCase(compilecases.TestCase{Modules: tc.modules}, ast.ParserOptions{RegoVersion: ast.RegoV1})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(compiled.Errors) > 0 {
-				t.Fatal(compiled.Errors)
-			}
-
-			got, refs, err := entrypointRefs(compiled)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if !slices.Equal(got, tc.want) {
-				t.Errorf("entrypoints: expected %v, got %v", tc.want, got)
-			}
-			if len(refs) != len(got) {
-				t.Errorf("expected a ref per entrypoint, got %d for %d", len(refs), len(got))
-			}
-		})
 	}
 }
 

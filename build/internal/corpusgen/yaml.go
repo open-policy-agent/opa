@@ -2,11 +2,11 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package corpusgen holds what the conformance corpus generators have in common:
-// editing a case's YAML in place, through the node tree rather than by
-// re-marshalling the case struct, so that comments, key order, and the hand
-// authoring around a generated field all survive; and the parts of a case's
-// schema both generators have to interpret the same way.
+// Package corpusgen holds what the conformance corpus generators have in common: editing a
+// case's YAML in place, through the node tree rather than by re-marshalling the case struct,
+// so that comments, key order, and the hand authoring around a generated field all survive;
+// the parts of a case's schema both generators have to interpret the same way; and the
+// derivation of a case's entrypoints and IR plan.
 package corpusgen
 
 import (
