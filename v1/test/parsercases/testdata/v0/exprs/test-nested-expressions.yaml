@@ -2,7 +2,6 @@
 # Generated externalized tests from TestNestedExpressions
 cases:
   - note: exprs/nested-expressions/associativity - or (module)
-    rego_version: v0
     module: |
       package test
 
@@ -84,7 +83,6 @@ cases:
         ]
       }
   - note: exprs/nested-expressions/associativity - or (body)
-    rego_version: v0
     body: |
       z | x | y
     want_ast: |

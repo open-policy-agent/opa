@@ -301,14 +301,14 @@ func TestValidate(t *testing.T) {
 }
 
 func TestLoadRejectsAnUnknownField(t *testing.T) {
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	corpus := "cases:\n  - note: a\n    modules: [package test]\n    no_such_field: true\n"
 
 	if err := os.WriteFile(filepath.Join(dir, "cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := Load(dir)
+	_, err := Load(root)
 	if err == nil {
 		t.Fatal("expected loading to be rejected")
 	}
@@ -422,4 +422,18 @@ func TestValidateQueryCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newCorpus returns a temporary corpus root and the version directory inside it that case
+// files go in. A case's rego version comes from that directory, so the loader rejects a
+// file sitting at the root.
+func newCorpus(t *testing.T) (root, versionDir string) {
+	t.Helper()
+
+	root = t.TempDir()
+	versionDir = filepath.Join(root, "v1")
+	if err := os.Mkdir(versionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root, versionDir
 }

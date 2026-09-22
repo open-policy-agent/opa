@@ -2,7 +2,6 @@
 # Generated externalized tests from TestRuleFromBody
 cases:
   - note: modules/rule-from-body/p[x] { x = 1 }
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -72,7 +71,6 @@ cases:
         ]
       }
   - note: modules/rule-from-body/bar[1]
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -127,7 +125,6 @@ cases:
         ]
       }
   - note: modules/rule-from-body/bar[[{"foo":"baz"}]]
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -198,7 +195,6 @@ cases:
         ]
       }
   - note: modules/rule-from-body/bar.qux
-    rego_version: v0
     module: |
       package a.b.c
 

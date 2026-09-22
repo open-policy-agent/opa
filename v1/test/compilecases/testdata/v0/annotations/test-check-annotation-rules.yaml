@@ -2,7 +2,6 @@
 # Generated externalized tests from TestCheckAnnotationRules
 cases:
   - note: annotations/data and input annotations
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -442,7 +441,6 @@ cases:
             ]
           }
   - note: annotations/correct data override
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -886,7 +884,6 @@ cases:
             ]
           }
   - note: annotations/incorrect data override
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -1074,7 +1071,6 @@ cases:
                 have: "user"
                 want (one of): ["operation"]
   - note: annotations/missing schema
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -1254,7 +1250,6 @@ cases:
         col: 1
         message: 'undefined schema: schema.missing'
   - note: annotations/overriding ref with length greater than one and not existing
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -1443,7 +1438,6 @@ cases:
                       have: "banana"
                       want (one of): ["orange"]
   - note: annotations/overriding ref with length greater than one and existing prefix
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -2022,7 +2016,6 @@ cases:
             ]
           }
   - note: annotations/overriding ref with length greater than one and existing prefix with type error
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -2211,7 +2204,6 @@ cases:
                                     have: "fruit"
                                     want (one of): ["alice" "bob"]
   - note: annotations/overriding ref with length greater than one and existing ref
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -2401,7 +2393,6 @@ cases:
                              have: "user"
                              want (one of): ["alice" "bob"]
   - note: annotations/overriding ref of size one
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -2587,7 +2578,6 @@ cases:
                 have: "user"
                 want (one of): ["alice" "bob"]
   - note: annotations/overriding annotation written with brackets
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -2774,7 +2764,6 @@ cases:
                              have: "fruit"
                              want (one of): ["operation" "user"]
   - note: annotations/data annotation but no input schema
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -3202,7 +3191,6 @@ cases:
             ]
           }
   - note: annotations/overriding ref with data prefix
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -3391,7 +3379,6 @@ cases:
                        have: "blah"
                        want (one of): ["operation" "user"]
   - note: annotations/data annotation type error
-    rego_version: v0
     strict: disabled
     schemas:
       schema.input: |
@@ -3579,7 +3566,6 @@ cases:
                    have: "foo"
                    want (one of): ["alice" "bob"]
   - note: annotations/more than one rule with metadata
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -4212,7 +4198,6 @@ cases:
             ]
           }
   - note: annotations/more than one rule with metadata with type error
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -4419,7 +4404,6 @@ cases:
           ^^^^^^^^^^^^^^^
           have: string
   - note: annotations/document scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -4596,7 +4580,6 @@ cases:
           left  : number
           right : array[any]
   - note: annotations/rule scope overrides document scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -5026,7 +5009,6 @@ cases:
             ]
           }
   - note: annotations/rule scope merges with document scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -5210,7 +5192,6 @@ cases:
           left  : number
           right : string
   - note: annotations/document scope conflict
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -5388,7 +5369,6 @@ cases:
         col: 1
         message: 'document annotation redeclared: test-0.rego:3'
   - note: annotations/package scope in other module
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -5610,7 +5590,6 @@ cases:
           	input.foo = 7
           }
   - note: annotations/package scope in other module type conflict
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -5788,7 +5767,6 @@ cases:
           left  : string
           right : number
   - note: annotations/package scope conflict
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -5967,7 +5945,6 @@ cases:
         col: 1
         message: 'package annotation redeclared: test-0.rego:1'
   - note: annotations/subpackages scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -6142,7 +6119,6 @@ cases:
           left  : number
           right : string
   - note: annotations/document scope overrides subpackages scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -6450,7 +6426,6 @@ cases:
             ]
           }
   - note: annotations/document scope overrides subpackages scope and finds error
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -6629,7 +6604,6 @@ cases:
           left  : number
           right : string
   - note: annotations/package scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -6804,7 +6778,6 @@ cases:
           left  : string
           right : number
   - note: annotations/rule scope overrides package scope
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -7112,7 +7085,6 @@ cases:
             ]
           }
   - note: annotations/inline definition
-    rego_version: v0
     schemas:
       schema.input: |
         {
@@ -7287,7 +7259,6 @@ cases:
           left  : string
           right : number
   - note: annotations/document scope is unordered
-    rego_version: v0
     schemas:
       schema.input: |
         {

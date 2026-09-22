@@ -15,7 +15,6 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
-	"github.com/open-policy-agent/opa/v1/test/conformance"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 	"github.com/open-policy-agent/opa/v1/test/parsercases/testdata"
 )
@@ -105,10 +104,10 @@ func TestGenerateSeedsCommittedDiagnostics(t *testing.T) {
 	assertSeeded(t, dir, notSeedable)
 }
 
-// caseKey identifies a case the way the corpus does: a note is unique within a rego
-// version, not across the corpus, so both are needed.
+// caseKey identifies a case the way the corpus does: a note is unique within one version
+// directory, not across the corpus, so both are needed.
 func caseKey(tc *parsercases.TestCase) string {
-	return conformance.NoteScope(tc.RegoVersion) + "/" + tc.Note
+	return tc.RegoVersion + "/" + tc.Note
 }
 
 // committedFailures returns the diagnostics every committed failure case asserts.

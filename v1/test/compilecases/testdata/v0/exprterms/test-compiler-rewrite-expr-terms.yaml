@@ -2,7 +2,6 @@
 # Generated externalized tests from TestCompilerRewriteExprTerms
 cases:
   - note: exprterms/base
-    rego_version: v0
     modules:
       - |
         package test
@@ -57,7 +56,6 @@ cases:
             	1 with input as __local7__
             }
   - note: exprterms/builtin calls in head-2
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -71,7 +69,6 @@ cases:
         message: rule arguments cannot contain calls
     exhaustive: true
   - note: exprterms/indirect ref in args
-    rego_version: v0
     modules:
       - |
         package test
@@ -94,7 +91,6 @@ cases:
             	__local0__ = [1]
             }
   - note: 'exprterms/every: domain (array)'
-    rego_version: v0
     modules:
       - |
         package test
@@ -115,7 +111,6 @@ cases:
           	}
           }
   - note: 'exprterms/every: domain (call)'
-    rego_version: v0
     modules:
       - |
         package test
@@ -137,7 +132,6 @@ cases:
           	}
           }
   - note: 'exprterms/every: domain (nested calls)'
-    rego_version: v0
     modules:
       - |
         package test
@@ -161,7 +155,6 @@ cases:
           	}
           }
   - note: 'exprterms/every: domain (array with call)'
-    rego_version: v0
     modules:
       - |
         package test
@@ -184,7 +177,6 @@ cases:
           	}
           }
   - note: 'exprterms/every: domain (nested array with call)'
-    rego_version: v0
     modules:
       - |
         package test

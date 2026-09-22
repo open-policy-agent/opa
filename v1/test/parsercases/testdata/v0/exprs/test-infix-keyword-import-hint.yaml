@@ -2,7 +2,6 @@
 # Generated externalized tests from TestInfixKeywordImportHint
 cases:
   - note: exprs/infix-keyword-import-hint/`in` is a future keyword in v0
-    rego_version: v0
     module: |
       package test
 

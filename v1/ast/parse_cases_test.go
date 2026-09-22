@@ -25,17 +25,18 @@ import (
 func TestParseCases(t *testing.T) {
 	defer astJSON.SetOptions(astJSON.GetOptions())
 
-	for _, dir := range []string{"v0", "v1"} {
-		set := parsercases.MustLoad("../test/parsercases/testdata/" + dir).Sorted()
+	set := parsercases.MustLoad("../test/parsercases/testdata").Sorted()
 
-		// The marshalling options are global state, so the corpus is partitioned
-		// on Locations and the options are set once per group rather than per
-		// case. t.Run does not return until the parallel cases it started have
-		// finished, so the next group cannot change the options underneath them.
+	// The marshalling options are global state, so the corpus is partitioned on Locations
+	// and the options are set once per group rather than per case. t.Run does not return
+	// until the parallel cases it started have finished, so the next group cannot change
+	// the options underneath them. The version is part of the group name because a note is
+	// only unique within one.
+	for _, version := range conformance.RegoVersions {
 		for _, locations := range []bool{false, true} {
 			group := make([]parsercases.TestCase, 0, len(set.Cases))
 			for _, tc := range set.Cases {
-				if tc.Locations == locations {
+				if tc.RegoVersion == version && tc.Locations == locations {
 					group = append(group, tc)
 				}
 			}
@@ -44,7 +45,7 @@ func TestParseCases(t *testing.T) {
 			}
 
 			astJSON.SetOptions(conformance.MarshalOptions(locations, false))
-			t.Run(fmt.Sprintf("%s/locations=%t", dir, locations), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/locations=%t", version, locations), func(t *testing.T) {
 				for _, tc := range group {
 					t.Run(tc.Note, func(t *testing.T) {
 						t.Parallel()

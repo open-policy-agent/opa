@@ -27,12 +27,11 @@ func TestCompileCases(t *testing.T) {
 	defer astJSON.SetOptions(astJSON.GetOptions())
 	astJSON.SetOptions(conformance.MarshalOptions(false, false))
 
-	for _, dir := range []string{"v0", "v1"} {
-		for _, tc := range compilecases.MustLoad("../test/compilecases/testdata/" + dir).Sorted().Cases {
-			t.Run(dir+"/"+tc.Note, func(t *testing.T) {
-				runCompileCase(t, tc)
-			})
-		}
+	// The version prefixes the subtest name because a note is only unique within one.
+	for _, tc := range compilecases.MustLoad("../test/compilecases/testdata").Sorted().Cases {
+		t.Run(tc.RegoVersion+"/"+tc.Note, func(t *testing.T) {
+			runCompileCase(t, tc)
+		})
 	}
 }
 

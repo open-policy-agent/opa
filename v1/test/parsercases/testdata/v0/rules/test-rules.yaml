@@ -1,7 +1,6 @@
 ---
 cases:
   - note: rules/partial-set
-    rego_version: v0
     module: |
       package test
 
@@ -65,7 +64,6 @@ cases:
         ]
       }
   - note: rules/imported-future-keyword
-    rego_version: v0
     module: |
       package test
 

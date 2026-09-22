@@ -2,7 +2,6 @@
 # Generated externalized tests from TestRuleRefHeads
 cases:
   - note: 'rules/rule-ref-heads/backcompat: multi-value, no dot (module)'
-    rego_version: v0
     module: |
       package test
 
@@ -64,7 +63,6 @@ cases:
         ]
       }
   - note: 'rules/rule-ref-heads/backcompat: single-value, no dot (module)'
-    rego_version: v0
     module: |
       package test
 
@@ -134,7 +132,6 @@ cases:
         ]
       }
   - note: 'rules/rule-ref-heads/backcompat: single-value, no dot, complex object (module)'
-    rego_version: v0
     module: |
       package test
 

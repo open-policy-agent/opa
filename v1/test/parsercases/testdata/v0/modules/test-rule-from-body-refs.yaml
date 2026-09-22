@@ -2,7 +2,6 @@
 # Generated externalized tests from TestRuleFromBodyRefs
 cases:
   - note: 'modules/rule-from-body-refs/no dots: partial set of numbers'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -57,7 +56,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/no dots: shorthand set of strings'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -112,7 +110,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/no dots: partial set'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -182,7 +179,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/no dots: partial set, ref element'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -246,7 +242,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/one dot, bracket with var: partial set'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -323,7 +318,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/two dots, bracket with var: partial set'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -404,7 +398,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/one dot, bracket with string, no key: complete doc'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -466,7 +459,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/non-ground ref, bracket-key: partial set'
-    rego_version: v0
     module: |
       package a.b.c
 
@@ -573,7 +565,6 @@ cases:
         ]
       }
   - note: 'modules/rule-from-body-refs/last term is number: partial set'
-    rego_version: v0
     module: |
       package a.b.c
 

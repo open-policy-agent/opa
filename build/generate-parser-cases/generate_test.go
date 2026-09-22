@@ -21,13 +21,13 @@ func TestGenerateRejectsTrailingWhitespace(t *testing.T) {
 		"  - note: errors/trailing space\n" +
 		"    module: \"package test\\n\\n[foo, bar, \\n\"\n"
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	path := filepath.Join(dir, "test-cases.yaml")
 	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
+	err := Generate(root)
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
@@ -85,12 +85,12 @@ cases:
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			dir := t.TempDir()
+			root, dir := newCorpus(t)
 			if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(tc.corpus), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
-			err := Generate(dir)
+			err := Generate(root)
 			if err == nil {
 				t.Fatalf("expected an error containing %q, got none", tc.wantErr)
 			}
@@ -149,13 +149,13 @@ cases:
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			dir := t.TempDir()
+			root, dir := newCorpus(t)
 			path := filepath.Join(dir, "test-cases.yaml")
 			if err := os.WriteFile(path, []byte(tc.corpus), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
-			err := Generate(dir)
+			err := Generate(root)
 
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
@@ -167,7 +167,7 @@ cases:
 				t.Fatal(err)
 			}
 
-			set, err := parsercases.Load(dir)
+			set, err := parsercases.Load(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -220,12 +220,12 @@ func TestGenerateCompletesRepeatedMessages(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			dir := t.TempDir()
+			root, dir := newCorpus(t)
 			if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(tc.corpus), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
-			err := Generate(dir)
+			err := Generate(root)
 
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
@@ -237,7 +237,7 @@ func TestGenerateCompletesRepeatedMessages(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			set, err := parsercases.Load(dir)
+			set, err := parsercases.Load(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -299,12 +299,12 @@ func TestGenerateFillsEveryDiagnosticWhenExhaustive(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			dir := t.TempDir()
+			root, dir := newCorpus(t)
 			if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(tc.corpus), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
-			err := Generate(dir)
+			err := Generate(root)
 
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
@@ -316,7 +316,7 @@ func TestGenerateFillsEveryDiagnosticWhenExhaustive(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			set, err := parsercases.Load(dir)
+			set, err := parsercases.Load(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -325,4 +325,18 @@ func TestGenerateFillsEveryDiagnosticWhenExhaustive(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newCorpus returns a temporary corpus root and the version directory inside it that case
+// files go in. A case's rego version comes from that directory, so the generator rejects a
+// file sitting at the root.
+func newCorpus(t *testing.T) (root, versionDir string) {
+	t.Helper()
+
+	root = t.TempDir()
+	versionDir = filepath.Join(root, "v1")
+	if err := os.Mkdir(versionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root, versionDir
 }

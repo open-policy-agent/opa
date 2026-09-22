@@ -31,14 +31,15 @@ type Set = conformance.Set[TestCase]
 // errors are reported against.
 const DefaultModuleName = conformance.DefaultModuleName
 
-// RegoVersions are the accepted values of a case's rego_version.
+// RegoVersions are the rego versions a corpus can hold, which is the set of legal version
+// directory names at its root.
 var RegoVersions = conformance.RegoVersions
 
 // TestCase represents a single test case: one module or one query to parse, and
 // either the AST that parse must produce or the diagnostics it must fail with.
 type TestCase struct {
 	Filename string `json:"-"                 yaml:"-"`                // name of file that case was loaded from
-	Note     string `json:"note"              yaml:"note"`             // identifies the case, unique within its rego_version
+	Note     string `json:"note"              yaml:"note"`             // identifies the case, unique within its version directory
 	Module   string `json:"module,omitempty"  yaml:"module,omitempty"` // the policy to parse, named test-0.rego
 
 	// Body is a query to parse instead of a module: one or more expressions, which
@@ -51,7 +52,11 @@ type TestCase struct {
 	// since parsing a body resolves no references.
 	Imports []string `json:"imports,omitempty"  yaml:"imports,omitempty"`
 
-	RegoVersion string `json:"rego_version,omitempty"  yaml:"rego_version,omitempty"` // rego version to parse the module as: v0, v1 (default), or v0-compat-v1
+	// RegoVersion is the version the module is parsed as, taken from the version
+	// directory the case was loaded from rather than authored. Tagged out of the schema so
+	// that a case stating one is rejected as an unknown field: the directory is the only
+	// place it is said.
+	RegoVersion string `json:"-"  yaml:"-"`
 
 	// FutureKeywords and AllFutureKeywords activate future keywords through a
 	// parser option rather than through the module. Prefer an
@@ -78,14 +83,16 @@ type TestCase struct {
 	EntryPoints []string `json:"entrypoints,omitempty"  yaml:"entrypoints,omitempty"`
 }
 
-// Name returns the note identifying the case, which is unique within its rego_version.
+// Name returns the note identifying the case, which is unique within its version
+// directory.
 func (tc TestCase) Name() string {
 	return tc.Note
 }
 
-// WithFilename returns a copy of tc stamped with the file it was loaded from.
-func (tc TestCase) WithFilename(filename string) TestCase {
-	tc.Filename = filename
+// WithSource returns a copy of tc stamped with the file it was loaded from and the rego
+// version of the directory holding it.
+func (tc TestCase) WithSource(filename, regoVersion string) TestCase {
+	tc.Filename, tc.RegoVersion = filename, regoVersion
 	return tc
 }
 
@@ -107,7 +114,7 @@ func (tc TestCase) Rego() string {
 	return tc.Module
 }
 
-// ParseOptions is how tc's Rego has to be read: its rego_version, the keyword and
+// ParseOptions is how tc's Rego has to be read: its version, the keyword and
 // annotation opt-ins, whether it is a body rather than a module, and the directives
 // among a body's imports folded in.
 func (tc TestCase) ParseOptions() (conformance.ParseOptions, error) {
@@ -146,7 +153,8 @@ func (tc TestCase) Validate() error {
 	case tc.Module != "" && tc.Body != "":
 		return errors.New("'module' and 'body' are mutually exclusive")
 	case tc.RegoVersion != "" && !slices.Contains(RegoVersions, tc.RegoVersion):
-		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
+		// Stamped from the version directory, so this only fires on a case built by hand.
+		return fmt.Errorf("unknown rego version %q, expected one of %v", tc.RegoVersion, RegoVersions)
 	}
 
 	for _, f := range []struct{ field, rego string }{
@@ -257,20 +265,11 @@ func validate(set Set, err error) (Set, error) {
 	if err != nil {
 		return set, err
 	}
-	// Keyed by rego version, not by note alone: the same note in v0 and in v1 is two
-	// cases, and only a collision within one version is a defect.
-	seen := make(map[string]string, len(set.Cases))
 	for i := range set.Cases {
 		tc := &set.Cases[i]
 		if err := tc.Validate(); err != nil {
 			return set, fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 		}
-		key := conformance.NoteScope(tc.RegoVersion) + "/" + tc.Note
-		if other, ok := seen[key]; ok {
-			return set, fmt.Errorf("%s: %s: note is already used by %s for the same rego version",
-				tc.Filename, tc.Note, other)
-		}
-		seen[key] = tc.Filename
 	}
 	return set, nil
 }

@@ -41,11 +41,16 @@ func Generate(dir string) error {
 			return err
 		}
 
-		return generateFile(path, info.Mode())
+		version, err := conformance.RegoVersionForPath(dir, path)
+		if err != nil {
+			return err
+		}
+
+		return generateFile(path, version, info.Mode())
 	})
 }
 
-func generateFile(path string, mode fs.FileMode) error {
+func generateFile(path, regoVersion string, mode fs.FileMode) error {
 	bs, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -73,7 +78,7 @@ func generateFile(path string, mode fs.FileMode) error {
 
 	for i := range set.Cases {
 		tc := &set.Cases[i]
-		*tc = tc.WithFilename(path)
+		*tc = tc.WithSource(path, regoVersion)
 
 		reported, err := caseDiagnostics(*tc)
 		if err != nil {

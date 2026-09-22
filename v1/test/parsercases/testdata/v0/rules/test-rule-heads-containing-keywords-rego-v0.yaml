@@ -2,7 +2,6 @@
 # Generated externalized tests from TestRuleHeadsContainingKeywords_RegoV0
 cases:
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (module)
-    rego_version: v0
     module: |
       package test
 
@@ -56,7 +55,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (module)
-    rego_version: v0
     module: |
       package test
 
@@ -110,7 +108,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -164,7 +161,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (module)
-    rego_version: v0
     module: |
       package test
 
@@ -218,7 +214,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -272,7 +267,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (module)
-    rego_version: v0
     module: |
       package test
 
@@ -332,7 +326,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (module)
-    rego_version: v0
     module: |
       package test
 
@@ -392,7 +385,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -452,7 +444,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (module)
-    rego_version: v0
     module: |
       package test
 
@@ -516,7 +507,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -580,7 +570,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -627,7 +616,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -674,7 +662,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -721,7 +708,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -775,7 +761,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -829,7 +814,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -883,7 +867,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -937,7 +920,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -991,7 +973,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1051,7 +1032,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1111,7 +1091,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1171,7 +1150,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1235,7 +1213,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1299,7 +1276,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1346,7 +1322,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1393,7 +1368,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1440,7 +1414,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1494,7 +1467,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1548,7 +1520,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1602,7 +1573,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1656,7 +1626,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1710,7 +1679,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1770,7 +1738,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1830,7 +1797,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1890,7 +1856,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1954,7 +1919,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2018,7 +1982,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2065,7 +2028,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2112,7 +2074,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2159,7 +2120,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2213,7 +2173,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2267,7 +2226,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2321,7 +2279,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2375,7 +2332,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2429,7 +2385,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2489,7 +2444,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2549,7 +2503,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2609,7 +2562,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2673,7 +2625,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2737,7 +2688,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2784,7 +2734,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2831,7 +2780,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2878,7 +2826,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2932,7 +2879,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2986,7 +2932,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3040,7 +2985,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3094,7 +3038,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3148,7 +3091,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3208,7 +3150,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3268,7 +3209,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3328,7 +3268,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3392,7 +3331,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3456,7 +3394,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3503,7 +3440,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3550,7 +3486,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3597,7 +3532,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3651,7 +3585,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3705,7 +3638,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3759,7 +3691,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3813,7 +3744,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3867,7 +3797,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3927,7 +3856,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -3987,7 +3915,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4047,7 +3974,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4111,7 +4037,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4175,7 +4100,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4222,7 +4146,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4269,7 +4192,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4316,7 +4238,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4370,7 +4291,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4424,7 +4344,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4478,7 +4397,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4532,7 +4450,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4586,7 +4503,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4646,7 +4562,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4706,7 +4621,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4766,7 +4680,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4830,7 +4743,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4894,7 +4806,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4941,7 +4852,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -4988,7 +4898,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5035,7 +4944,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5089,7 +4997,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5143,7 +5050,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5197,7 +5103,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5251,7 +5156,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5305,7 +5209,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5365,7 +5268,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5425,7 +5327,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5485,7 +5386,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5549,7 +5449,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5613,7 +5512,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5660,7 +5558,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5707,7 +5604,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5754,7 +5650,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5808,7 +5703,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5862,7 +5756,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5916,7 +5809,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -5970,7 +5862,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6024,7 +5915,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6084,7 +5974,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6144,7 +6033,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6204,7 +6092,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6268,7 +6155,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6332,7 +6218,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6379,7 +6264,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6426,7 +6310,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6473,7 +6356,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6527,7 +6409,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6581,7 +6462,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6635,7 +6515,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6689,7 +6568,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6743,7 +6621,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6803,7 +6680,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6863,7 +6739,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6923,7 +6798,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -6987,7 +6861,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7051,7 +6924,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7098,7 +6970,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7145,7 +7016,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7192,7 +7062,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw in first term (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7246,7 +7115,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7300,7 +7168,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw last term (bracketed) (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7354,7 +7221,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7408,7 +7274,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/complete rule with ref in head, kw middle term (bracketed) (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7462,7 +7327,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw in first term (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7522,7 +7386,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7582,7 +7445,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw last term (bracketed) (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7642,7 +7504,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7706,7 +7567,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/function with ref in head, kw middle term (bracketed) (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7770,7 +7630,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw in first term (name) (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7817,7 +7676,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (11) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -7864,7 +7722,6 @@ cases:
         ]
       }
   - note: rules/rule-heads-containing-keywords-rego-v0/partial set rule with ref in head, kw last term (key) (bracketed) (11) (module)
-    rego_version: v0
     module: |
       package test
 

@@ -2,7 +2,6 @@
 # Generated externalized tests from TestParseLogical_BuiltinCallForm
 cases:
   - note: exprs/parse-logical-builtin-call-form/or call, statement start (module)
-    rego_version: v0
     module: |
       package test
 
@@ -76,7 +75,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, statement start (body)
-    rego_version: v0
     body: |
       or({1}, {2})
     want_ast: |
@@ -115,7 +113,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, statement start (module)
-    rego_version: v0
     module: |
       package test
 
@@ -189,7 +186,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, statement start (body)
-    rego_version: v0
     body: |
       and({1}, {2})
     want_ast: |
@@ -228,7 +224,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, assigned (module)
-    rego_version: v0
     module: |
       package test
 
@@ -320,7 +315,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, assigned (body)
-    rego_version: v0
     body: |
       x := or({1}, {2})
     want_ast: |
@@ -377,7 +371,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, assigned (module)
-    rego_version: v0
     module: |
       package test
 
@@ -469,7 +462,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, assigned (body)
-    rego_version: v0
     body: |
       x := and({1}, {2})
     want_ast: |
@@ -526,7 +518,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, unified (module)
-    rego_version: v0
     module: |
       package test
 
@@ -618,7 +609,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, unified (body)
-    rego_version: v0
     body: |
       x = or({1}, {2})
     want_ast: |
@@ -675,7 +665,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, comparison lhs (module)
-    rego_version: v0
     module: |
       package test
 
@@ -757,7 +746,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, comparison lhs (body)
-    rego_version: v0
     body: |
       or(a, b) == x
     want_ast: |
@@ -804,7 +792,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, comparison rhs (module)
-    rego_version: v0
     module: |
       package test
 
@@ -886,7 +873,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, comparison rhs (body)
-    rego_version: v0
     body: |
       x == and(a, b)
     want_ast: |
@@ -933,7 +919,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, non-builtin arity (module)
-    rego_version: v0
     module: |
       package test
 
@@ -993,7 +978,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, non-builtin arity (body)
-    rego_version: v0
     body: |
       or(a)
     want_ast: |
@@ -1018,7 +1002,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, no arguments (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1074,7 +1057,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, no arguments (body)
-    rego_version: v0
     body: |
       or()
     want_ast: |
@@ -1095,7 +1077,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, nested in call arguments (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1173,7 +1154,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, nested in call arguments (body)
-    rego_version: v0
     body: |
       f(and(a, b))
     want_ast: |
@@ -1216,7 +1196,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, nested in or call (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1303,7 +1282,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, nested in or call (body)
-    rego_version: v0
     body: |
       or(or(a, b), {1})
     want_ast: |
@@ -1355,7 +1333,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, ref operand (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1431,7 +1408,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, ref operand (body)
-    rego_version: v0
     body: |
       x[or(a, b)]
     want_ast: |
@@ -1472,7 +1448,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, arithmetic operand (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1586,7 +1561,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, arithmetic operand (body)
-    rego_version: v0
     body: |
       x := count(or(a, b)) + 1
     want_ast: |
@@ -1665,7 +1639,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, set comprehension head (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1746,7 +1719,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, set comprehension head (body)
-    rego_version: v0
     body: |
       {or(a, b) | true}
     want_ast: |
@@ -1792,7 +1764,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, negated (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1857,7 +1828,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, negated (body)
-    rego_version: v0
     body: |
       not and(a, b)
     want_ast: |
@@ -1887,7 +1857,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1991,7 +1960,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword (body)
-    rego_version: v0
     body: |
       x and or(a, b)
     imports:
@@ -2039,7 +2007,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2143,7 +2110,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword (body)
-    rego_version: v0
     body: |
       and(a, b) or x
     imports:
@@ -2191,7 +2157,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2310,7 +2275,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword (body)
-    rego_version: v0
     body: |
       or(a, b) or or(b, a)
     imports:
@@ -2373,7 +2337,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2514,7 +2477,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group (body)
-    rego_version: v0
     body: |
       x and (and(a, b) or b)
     imports:
@@ -2580,7 +2542,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2685,7 +2646,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body (body)
-    rego_version: v0
     body: |
       x and {or(a, b)}
     imports:
@@ -2734,7 +2694,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, every domain (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2840,7 +2799,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, every domain (body)
-    rego_version: v0
     body: |
       every y in or(a, b) { y }
     imports:
@@ -2890,7 +2848,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form/or call, with modifier target value (module)
-    rego_version: v0
     module: |
       package test
 
@@ -2978,7 +2935,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form/or call, with modifier target value (body)
-    rego_version: v0
     body: |
       x with data.y as or(a, b)
     want_ast: |

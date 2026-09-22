@@ -2,7 +2,6 @@
 # Generated externalized tests from TestSomeDeclExpr
 cases:
   - note: exprs/some-decl-expr/whitespace separated (module)
-    rego_version: v0
     module: |
       package test
 
@@ -72,7 +71,6 @@ cases:
         ]
       }
   - note: exprs/some-decl-expr/whitespace separated, following `in` rule ref (module)
-    rego_version: v0
     module: |
       package test
 
@@ -142,7 +140,6 @@ cases:
         ]
       }
   - note: exprs/some-decl-expr/some x in ... usage is hinted properly (module)
-    rego_version: v0
     module: |
       package test
 
@@ -155,7 +152,6 @@ cases:
         col: 9
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)'
   - note: exprs/some-decl-expr/some x, y in ... usage is hinted properly (module)
-    rego_version: v0
     module: |
       package test
 
@@ -168,7 +164,6 @@ cases:
         col: 12
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)'
   - note: exprs/some-decl-expr/whitespace terminated (module)
-    rego_version: v0
     module: |
       package test
 

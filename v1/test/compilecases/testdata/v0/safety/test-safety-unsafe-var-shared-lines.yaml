@@ -5,7 +5,6 @@ cases:
     # rule `if`, and `x` is out of scope in the latter. Under v1 the same source
     # compiles, which is why these cases are written per Rego version rather than
     # translated between them.
-    rego_version: v0
     # Strict mode reports `unused argument x` here instead, which is a different
     # diagnostic about a different thing, so the case pins strict mode off.
     strict: disabled

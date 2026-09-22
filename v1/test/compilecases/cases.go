@@ -33,7 +33,8 @@ type Set = conformance.Set[TestCase]
 // module errors are reported against unless stated otherwise.
 const DefaultModuleName = conformance.DefaultModuleName
 
-// RegoVersions are the accepted values of a case's rego_version.
+// RegoVersions are the rego versions a corpus can hold, which is the set of legal version
+// directory names at its root.
 var RegoVersions = conformance.RegoVersions
 
 // Accepted values of a case's strict field. They say whether the case's
@@ -104,12 +105,17 @@ func ModuleName(i int) string {
 // diagnostics compiling them must produce or the assertion that they compile.
 type TestCase struct {
 	Filename             string   `json:"-"                                yaml:"-"`                               // name of file that case was loaded from
-	Note                 string   `json:"note"                             yaml:"note"`                            // identifies the case, unique within its rego_version
+	Note                 string   `json:"note"                             yaml:"note"`                            // identifies the case, unique within its version directory
 	Modules              []string `json:"modules,omitempty"                yaml:"modules,omitempty"`               // policies to compile, named test-0.rego, test-1.rego, ...
-	RegoVersion          string   `json:"rego_version,omitempty"           yaml:"rego_version,omitempty"`          // rego version to parse the modules as: v0, v1 (default), or v0-compat-v1
 	Strict               string   `json:"strict,omitempty"                 yaml:"strict,omitempty"`                // enabled, disabled, or absent where strict mode does not change the outcome
 	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
 	PrintStatements      bool     `json:"print_statements,omitempty"       yaml:"print_statements,omitempty"`      // keep print() calls instead of erasing them, as required to reach diagnostics about their operands
+
+	// RegoVersion is the version the modules are parsed as, taken from the version
+	// directory the case was loaded from rather than authored. Tagged out of the schema so
+	// that a case stating one is rejected as an unknown field: the directory is the only
+	// place it is said.
+	RegoVersion string `json:"-"  yaml:"-"`
 
 	// Schemas are the JSON Schemas the modules refer to from their metadata
 	// annotations, keyed by the reference written there; e.g. `schema.input`.
@@ -140,14 +146,16 @@ type TestCase struct {
 	WantStages map[string][]Want `json:"want_stages,omitempty"  yaml:"want_stages,omitempty"`
 }
 
-// Name returns the note identifying the case, which is unique within its rego_version.
+// Name returns the note identifying the case, which is unique within its version
+// directory.
 func (tc TestCase) Name() string {
 	return tc.Note
 }
 
-// WithFilename returns a copy of tc stamped with the file it was loaded from.
-func (tc TestCase) WithFilename(filename string) TestCase {
-	tc.Filename = filename
+// WithSource returns a copy of tc stamped with the file it was loaded from and the rego
+// version of the directory holding it.
+func (tc TestCase) WithSource(filename, regoVersion string) TestCase {
+	tc.Filename, tc.RegoVersion = filename, regoVersion
 	return tc
 }
 
@@ -245,7 +253,8 @@ func (tc TestCase) Validate() error {
 	case len(tc.Modules) == 0 && !tc.QueryCase():
 		return errors.New("missing 'modules'")
 	case tc.RegoVersion != "" && !slices.Contains(RegoVersions, tc.RegoVersion):
-		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
+		// Stamped from the version directory, so this only fires on a case built by hand.
+		return fmt.Errorf("unknown rego version %q, expected one of %v", tc.RegoVersion, RegoVersions)
 	case tc.Strict != "" && !slices.Contains(Strictnesses, tc.Strict):
 		return fmt.Errorf("unknown 'strict' %q, expected one of %v, or absent where strict mode does not change the outcome",
 			tc.Strict, Strictnesses)
@@ -469,20 +478,11 @@ func validate(set Set, err error) (Set, error) {
 	if err != nil {
 		return set, err
 	}
-	// Keyed by rego version, not by note alone: the same note in v0 and in v1 is two
-	// cases, and only a collision within one version is a defect.
-	seen := make(map[string]string, len(set.Cases))
 	for i := range set.Cases {
 		tc := &set.Cases[i]
 		if err := tc.Validate(); err != nil {
 			return set, fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 		}
-		key := conformance.NoteScope(tc.RegoVersion) + "/" + tc.Note
-		if other, ok := seen[key]; ok {
-			return set, fmt.Errorf("%s: %s: note is already used by %s for the same rego version",
-				tc.Filename, tc.Note, other)
-		}
-		seen[key] = tc.Filename
 	}
 	return set, nil
 }

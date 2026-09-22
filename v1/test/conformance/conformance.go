@@ -116,12 +116,13 @@ func CheckTrailingWhitespace(field, rego string) error {
 
 // Case is implemented by the case type of a corpus.
 type Case[T any] interface {
-	// Name returns the note identifying the case. A note is unique within a rego
-	// version, not across the corpus: the same construct parsed as v0 and as v1 is two
-	// cases with one note. See NoteScope.
+	// Name returns the note identifying the case. A note is unique within one version
+	// directory, not across the corpus: the same construct parsed as v0 and as v1 is two
+	// cases with one note.
 	Name() string
-	// WithFilename returns a copy of the case stamped with the file it was loaded from.
-	WithFilename(string) T
+	// WithSource returns a copy of the case stamped with the file it was loaded from and
+	// the rego version of the directory that file is in. Neither is authored.
+	WithSource(filename, regoVersion string) T
 }
 
 // Set represents a collection of test cases.
@@ -139,15 +140,15 @@ func (s Set[T]) Sorted() Set[T] {
 	return Set[T]{Cases: cpy}
 }
 
-// Load returns the set of test cases in the directory tree rooted at path.
+// Load returns the set of test cases in the corpus rooted at path.
 func Load[T Case[T]](path string) (Set[T], error) {
 	return load[T](os.DirFS(path), ".", func(p string) string {
 		return filepath.Join(path, filepath.FromSlash(p))
 	})
 }
 
-// MustLoad returns the set of test cases in the directory tree rooted at path,
-// or panics if an error occurs.
+// MustLoad returns the set of test cases in the corpus rooted at path, or panics if an
+// error occurs.
 func MustLoad[T Case[T]](path string) Set[T] {
 	result, err := Load[T](path)
 	if err != nil {
@@ -156,14 +157,21 @@ func MustLoad[T Case[T]](path string) Set[T] {
 	return result
 }
 
-// LoadFS returns the set of test cases in the directory tree rooted at root in
-// fsys, for corpora consumed through their embedded copy.
+// LoadFS returns the set of test cases in the corpus rooted at root in fsys, for corpora
+// consumed through their embedded copy.
 func LoadFS[T Case[T]](fsys fs.FS, root string) (Set[T], error) {
 	return load[T](fsys, root, func(p string) string { return p })
 }
 
+// load reads every case under root, which has to be a corpus root: its top level is one
+// directory per rego version, and that directory is what a case is parsed as. A case
+// therefore states no version of its own — see RegoVersionForPath.
+//
+// A note has to be unique within a version, which is checked here rather than by the
+// caller, because this is the only place that knows which version a file was found under.
 func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set[T], error) {
 	result := Set[T]{}
+	seen := map[string]string{}
 
 	err := fs.WalkDir(fsys, root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -178,6 +186,11 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 			return nil
 		}
 
+		version, err := RegoVersionForPath(root, path)
+		if err != nil {
+			return fmt.Errorf("%s: %w", filename(path), err)
+		}
+
 		bs, err := fs.ReadFile(fsys, path)
 		if err != nil {
 			return fmt.Errorf("%s: %w", filename(path), err)
@@ -189,7 +202,14 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 		}
 
 		for i := range x.Cases {
-			x.Cases[i] = x.Cases[i].WithFilename(filename(path))
+			x.Cases[i] = x.Cases[i].WithSource(filename(path), version)
+
+			key := version + "/" + x.Cases[i].Name()
+			if other, ok := seen[key]; ok {
+				return fmt.Errorf("%s: %s: note is already used by %s, which is the same rego version",
+					filename(path), x.Cases[i].Name(), other)
+			}
+			seen[key] = filename(path)
 		}
 
 		result.Cases = append(result.Cases, x.Cases...)
@@ -197,6 +217,30 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 	})
 
 	return result, err
+}
+
+// RegoVersionForPath returns the rego version the cases in a file are to be parsed as,
+// which is the version directory the file sits in, relative to the corpus root.
+//
+// Exported for the generators, which walk a corpus themselves rather than loading it. The
+// directory is the only statement of a case's version, so a file outside one has no version
+// and is rejected rather than defaulted: defaulting would file a case under a version
+// nobody chose.
+func RegoVersionForPath(root, path string) (string, error) {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return "", err
+	}
+
+	version, rest, nested := strings.Cut(filepath.ToSlash(rel), "/")
+	switch {
+	case !nested || rest == "":
+		return "", fmt.Errorf("case file sits at the corpus root; it belongs under a rego version directory, one of %v", RegoVersions)
+	case !slices.Contains(RegoVersions, version):
+		return "", fmt.Errorf("case file is under %q, which is not a rego version directory; expected one of %v", version, RegoVersions)
+	}
+
+	return version, nil
 }
 
 // Unmarshal decodes a parser or compiler corpus file, rejecting a field the case

@@ -2,7 +2,6 @@
 # Generated externalized tests from TestCompilerCheckUnusedImports
 cases:
   - note: 'imports/simple unused: input ref with same name (strict)'
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -19,7 +18,6 @@ cases:
         message: import data.foo.bar as bar unused
     exhaustive: true
   - note: 'imports/simple unused: input ref with same name (non-strict)'
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -37,7 +35,6 @@ cases:
           	input.bar = 11
           }
   - note: imports/unused import, but imported ref used (strict)
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -52,7 +49,6 @@ cases:
         message: import data.foo unused
     exhaustive: true
   - note: imports/unused import, but imported ref used (non-strict)
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -68,7 +64,6 @@ cases:
           	data.foo = 10
           }
   - note: imports/one of two unused (strict)
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -84,7 +79,6 @@ cases:
         message: import data.x.power unused
     exhaustive: true
   - note: imports/one of two unused (non-strict)
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -101,7 +95,6 @@ cases:
           	data.foo = 10
           }
   - note: 'imports/multiple unused: with input ref of same name (strict)'
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -121,7 +114,6 @@ cases:
         message: import data.x.power unused
     exhaustive: true
   - note: 'imports/multiple unused: with input ref of same name (non-strict)'
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -138,7 +130,6 @@ cases:
           	input.foo = 10
           }
   - note: imports/import used in comparison
-    rego_version: v0
     modules:
       - |
         package p
@@ -153,7 +144,6 @@ cases:
           	data.foo.x = 10
           }
   - note: imports/multiple used imports in one rule
-    rego_version: v0
     modules:
       - |
         package p
@@ -169,7 +159,6 @@ cases:
           	data.power.ranger = data.foo.x
           }
   - note: imports/multiple used imports in separate rules
-    rego_version: v0
     modules:
       - |
         package p
@@ -190,7 +179,6 @@ cases:
           	data.foo.x = 1
           }
   - note: imports/import used as plain term
-    rego_version: v0
     modules:
       - |
         package p
@@ -207,7 +195,6 @@ cases:
           	data.foo
           }
   - note: imports/import used in 'every' domain
-    rego_version: v0
     modules:
       - |
         package p
@@ -230,7 +217,6 @@ cases:
           	}
           }
   - note: imports/import used in 'every' body
-    rego_version: v0
     modules:
       - |
         package p
@@ -254,7 +240,6 @@ cases:
           	}
           }
   - note: imports/future import kept even if unused
-    rego_version: v0
     modules:
       - |
         package p
@@ -272,7 +257,6 @@ cases:
           	true
           }
   - note: imports/shadowed var name in function arg (strict)
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -289,7 +273,6 @@ cases:
         message: import data.foo unused
     exhaustive: true
   - note: imports/shadowed var name in function arg (non-strict)
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -311,7 +294,6 @@ cases:
           	equal(__local0__, 1, __local1__)
           }
   - note: imports/shadowed assigned var name (strict)
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -327,7 +309,6 @@ cases:
         message: import data.foo unused
     exhaustive: true
   - note: imports/shadowed assigned var name (non-strict)
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -345,7 +326,6 @@ cases:
           	__local0__
           }
   - note: imports/used as rule value (strict)
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -362,7 +342,6 @@ cases:
         message: import data.bar unused
     exhaustive: true
   - note: imports/used as rule value (non-strict)
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -380,7 +359,6 @@ cases:
           	__local0__ = data.foo
           }
   - note: imports/unused as rule value (but same data ref) (strict)
-    rego_version: v0
     strict: enabled
     modules:
       - |
@@ -401,7 +379,6 @@ cases:
         message: import data.foo unused
     exhaustive: true
   - note: imports/unused as rule value (but same data ref) (non-strict)
-    rego_version: v0
     strict: disabled
     modules:
       - |

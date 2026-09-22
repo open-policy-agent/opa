@@ -2,7 +2,6 @@
 # Generated externalized tests from TestCompilerAndOrRegoVersionParity
 cases:
   - note: 'logical/`and` with `or` compiles to the same body, v0 spelling'
-    rego_version: v0
     modules:
       - |
         package logic

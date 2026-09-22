@@ -42,7 +42,7 @@ func TestValidate(t *testing.T) {
 		{
 			note:    "unknown rego version",
 			tc:      TestCase{Note: "a", Module: "package test", RegoVersion: "v2", WantAST: "{}"},
-			wantErr: "unknown 'rego_version'",
+			wantErr: "unknown rego version",
 		},
 		{
 			note:    "neither want_ast nor want_errors",
@@ -144,8 +144,15 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+const oneCase = `
+cases:
+  - note: a
+    module: package test
+    want_ast: "{}"
+`
+
 func TestLoadRejectsDuplicateNotes(t *testing.T) {
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	corpus := `
 cases:
   - note: a
@@ -159,55 +166,69 @@ cases:
 		t.Fatal(err)
 	}
 
-	_, err := Load(dir)
+	_, err := Load(root)
 	if err == nil || !strings.Contains(err.Error(), "note is already used by") {
 		t.Fatalf("expected duplicate note error, got %v", err)
 	}
 }
 
-// TestLoadAcceptsANoteReusedAcrossRegoVersions checks that a note may be reused under a
-// different rego_version. The same construct parsed as v0 and as v1 is two cases with one
-// note, so most of the corpus does this.
-func TestLoadAcceptsANoteReusedAcrossRegoVersions(t *testing.T) {
-	dir := t.TempDir()
-	corpus := `
-cases:
-  - note: a
-    module: package test
-    want_ast: "{}"
-  - note: a
-    rego_version: v0
-    module: package test
-    want_ast: "{}"
-  - note: a
-    rego_version: v0-compat-v1
-    module: package test
-    want_ast: "{}"
-`
-	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
+// TestLoadRejectsDuplicateNotesAcrossFiles is the same rule between two files of one
+// version, where the single-file check above cannot reach.
+func TestLoadRejectsDuplicateNotesAcrossFiles(t *testing.T) {
+	root, dir := newCorpus(t)
+
+	for _, name := range []string{"test-one.yaml", "test-two.yaml"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(oneCase), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	set, err := Load(dir)
+	_, err := Load(root)
+	if err == nil || !strings.Contains(err.Error(), "note is already used by") {
+		t.Fatalf("expected duplicate note error, got %v", err)
+	}
+}
+
+// TestLoadAcceptsANoteReusedInAnotherVersion checks that a note may be reused under a
+// different version directory. The same construct parsed as v0 and as v1 is two cases with
+// one note, which most of the corpus relies on.
+func TestLoadAcceptsANoteReusedInAnotherVersion(t *testing.T) {
+	root := t.TempDir()
+
+	for _, version := range []string{"v0", "v1", "v0-compat-v1"} {
+		dir := filepath.Join(root, version)
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(oneCase), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	set, err := Load(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(set.Cases) != 3 {
 		t.Fatalf("expected 3 cases, got %d", len(set.Cases))
 	}
+
+	for _, tc := range set.Cases {
+		if tc.RegoVersion == "" {
+			t.Errorf("%s was not stamped with the version of the directory it came from", tc.Filename)
+		}
+	}
 }
 
-// TestLoadRejectsANoteReusedWithinOneRegoVersion covers the version being spelled two ways:
-// an absent rego_version is v1, so these two collide.
-func TestLoadRejectsANoteReusedWithinOneRegoVersion(t *testing.T) {
-	dir := t.TempDir()
+// TestLoadRejectsAnAuthoredRegoVersion checks that the directory stays the only statement
+// of a case's version. The field is tagged out of the schema, so an authored one is an
+// unknown field rather than a second source of truth.
+func TestLoadRejectsAnAuthoredRegoVersion(t *testing.T) {
+	root, dir := newCorpus(t)
 	corpus := `
 cases:
   - note: a
-    module: package test
-    want_ast: "{}"
-  - note: a
-    rego_version: v1
+    rego_version: v0
     module: package test
     want_ast: "{}"
 `
@@ -215,8 +236,59 @@ cases:
 		t.Fatal(err)
 	}
 
-	_, err := Load(dir)
-	if err == nil || !strings.Contains(err.Error(), "for the same rego version") {
-		t.Fatalf("expected duplicate note error, got %v", err)
+	_, err := Load(root)
+	if err == nil || !strings.Contains(err.Error(), "rego_version") {
+		t.Fatalf("expected the field to be rejected, got %v", err)
 	}
+}
+
+func TestLoadRejectsACaseFileOutsideAVersionDirectory(t *testing.T) {
+	tests := []struct {
+		note    string
+		path    string
+		wantErr string
+	}{
+		{
+			note:    "at the corpus root",
+			path:    "test-cases.yaml",
+			wantErr: "belongs under a rego version directory",
+		},
+		{
+			note:    "under a directory that is not a version",
+			path:    filepath.Join("terms", "test-cases.yaml"),
+			wantErr: `under "terms", which is not a rego version directory`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, tc.path)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(oneCase), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := Load(root)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("expected an error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
+// newCorpus returns a temporary corpus root and the version directory inside it that case
+// files go in. A case's rego version comes from that directory, so the loader rejects a
+// file sitting at the root.
+func newCorpus(t *testing.T) (root, versionDir string) {
+	t.Helper()
+
+	root = t.TempDir()
+	versionDir = filepath.Join(root, "v1")
+	if err := os.Mkdir(versionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root, versionDir
 }

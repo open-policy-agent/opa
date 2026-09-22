@@ -2,7 +2,6 @@
 # Generated externalized tests from TestFutureKeywordActivationRoutes
 cases:
   - note: imports/future-keyword-activation-routes/v0, in, imported
-    rego_version: v0
     module: |
       package test
 
@@ -99,7 +98,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, in, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -192,7 +190,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, in, not imported
-    rego_version: v0
     module: |
       package test
 
@@ -203,7 +200,6 @@ cases:
         col: 7
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
   - note: imports/future-keyword-activation-routes/v0, every, imported
-    rego_version: v0
     module: |
       package test
 
@@ -297,7 +293,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, every, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -387,7 +382,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, every, not imported
-    rego_version: v0
     module: |
       package test
 
@@ -398,7 +392,6 @@ cases:
         col: 11
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)'
   - note: imports/future-keyword-activation-routes/v0, contains, imported
-    rego_version: v0
     module: |
       package test
 
@@ -467,7 +460,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, contains, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -532,7 +524,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, contains, not imported
-    rego_version: v0
     module: |
       package test
 
@@ -543,7 +534,6 @@ cases:
         col: 1
         message: 'var cannot be used for rule name (hint: `import future.keywords.contains` for `p contains x` rules)'
   - note: imports/future-keyword-activation-routes/v0, if, imported
-    rego_version: v0
     module: |
       package test
 
@@ -612,7 +602,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, if, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -677,7 +666,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, if, not imported
-    rego_version: v0
     module: |
       package test
 
@@ -688,7 +676,6 @@ cases:
         col: 1
         message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'
   - note: imports/future-keyword-activation-routes/v0, not, imported
-    rego_version: v0
     module: |
       package test
 
@@ -791,7 +778,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, not, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -890,7 +876,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, not, not imported
-    rego_version: v0
     module: |
       package test
 
@@ -901,7 +886,6 @@ cases:
         col: 17
         message: 'unexpected ; token: non-terminated set'
   - note: imports/future-keyword-activation-routes/v0, and, imported
-    rego_version: v0
     module: |
       package test
 
@@ -1005,7 +989,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, and, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -1105,7 +1088,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, and, not imported
-    rego_version: v0
     module: |
       package test
 
@@ -1116,7 +1098,6 @@ cases:
         col: 13
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.and` for `x and y` expressions)'
   - note: imports/future-keyword-activation-routes/v0, or, imported
-    rego_version: v0
     module: |
       package test
 
@@ -1220,7 +1201,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, or, wildcard import
-    rego_version: v0
     module: |
       package test
 
@@ -1320,7 +1300,6 @@ cases:
         ]
       }
   - note: imports/future-keyword-activation-routes/v0, or, not imported
-    rego_version: v0
     module: |
       package test
 

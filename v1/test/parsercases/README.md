@@ -96,11 +96,10 @@ the rest of `Location.Text`.
 
 | field | |
 | - | - |
-| `note` | identifies the case, and names the subtest; unique within a `rego_version`, not across the corpus — its suffix says which entry point, see [Entry points](#entry-points) |
+| `note` | identifies the case, and names the subtest; unique within its version directory, not across the corpus — its suffix says which entry point, see [Entry points](#entry-points) |
 | `module` | the policy to parse, named `test-0.rego` |
 | `body` | a query to parse instead: one or more expressions, exclusive with `module` |
 | `imports` | directives in effect for `body`, which has nowhere to declare them; `body` cases only |
-| `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
 | `future_keywords`, `all_future_keywords` | activate future keywords by parser option — a last resort, see [Future keywords](#future-keywords) |
 | `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `annotations` | parse metadata comments into annotations |
@@ -235,10 +234,29 @@ corpus needs them today.
 Import the narrowest set that works. `import future.keywords` (wildcard) is
 allowed and activates everything, but naming the keyword records which one the
 case depends on. In v1 only `and`, `or` and `not` still need activating; `if`,
-`contains`, `in` and `every` are standard there and need importing only under
-`rego_version: v0`.
+`contains`, `in` and `every` are standard there and need importing only under `v0/`.
 
 `experimental_keywords` has no import form, so it stays a field.
+
+## Layout
+
+```
+testdata/<version>/<area>/<file>.yaml
+```
+
+**The top-level directory is the Rego version, and it is the only place a case says
+which one it is parsed as.** There is no `rego_version` field: a case stating one is
+rejected as an unknown field, so the path and the parse cannot disagree. `v0` and `v1`
+exist today; `v0-compat-v1` is a legal directory name for when a case needs it.
+
+Below the version comes the language area — `terms/`, `exprs/`, `rules/`, `imports/`,
+`packages/`, `logical/`, `templatestrings/`, `annotations/`, `locations/`, `modules/`,
+`negation/` — not the outcome, which `want_errors` already records.
+
+A note has to be unique within one version directory, not across the corpus. Cases are
+expected to overlap: the same construct parsed as v0 and as v1 is two cases with one note,
+and the directory tells them apart. Load the corpus root and the loader stamps each case
+with the version it was found under.
 
 ## Locations
 

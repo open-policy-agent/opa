@@ -2,7 +2,6 @@
 # Generated externalized tests from TestImportContainingFutureKeywords
 cases:
   - note: imports/import-containing-future-keywords/import and (module)
-    rego_version: v0
     module: |
       package test
 
@@ -13,7 +12,6 @@ cases:
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: and (hint: if this is unexpected, try updating OPA)'
   - note: imports/import-containing-future-keywords/import and.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -24,7 +22,6 @@ cases:
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: and (hint: if this is unexpected, try updating OPA)'
   - note: imports/import-containing-future-keywords/import and["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -35,7 +32,6 @@ cases:
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: and (hint: if this is unexpected, try updating OPA)'
   - note: imports/import-containing-future-keywords/import data.foo as and (module)
-    rego_version: v0
     module: |
       package test
 
@@ -48,7 +44,6 @@ cases:
         col: 20
         message: 'unexpected and keyword: expected var'
   - note: imports/import-containing-future-keywords/import or (module)
-    rego_version: v0
     module: |
       package test
 
@@ -59,7 +54,6 @@ cases:
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: or (hint: if this is unexpected, try updating OPA)'
   - note: imports/import-containing-future-keywords/import or.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -70,7 +64,6 @@ cases:
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: or (hint: if this is unexpected, try updating OPA)'
   - note: imports/import-containing-future-keywords/import or["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -81,7 +74,6 @@ cases:
         col: 8
         message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: or (hint: if this is unexpected, try updating OPA)'
   - note: imports/import-containing-future-keywords/import data.foo as or (module)
-    rego_version: v0
     module: |
       package test
 

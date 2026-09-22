@@ -2,7 +2,6 @@
 # Generated externalized tests from TestNotOperandRegoV0
 cases:
   - note: negation/not-operand-rego-v0/parens hold a value
-    rego_version: v0
     module: |
       package test
 
@@ -88,7 +87,6 @@ cases:
         ]
       }
   - note: negation/not-operand-rego-v0/parens hold an object value
-    rego_version: v0
     module: |
       package test
 
@@ -180,7 +178,6 @@ cases:
         ]
       }
   - note: negation/not-operand-rego-v0/braces are a body
-    rego_version: v0
     module: |
       package test
 
@@ -261,7 +258,6 @@ cases:
         ]
       }
   - note: negation/not-operand-rego-v0/braces are a body, multiple expressions
-    rego_version: v0
     module: |
       package test
 
@@ -349,7 +345,6 @@ cases:
         ]
       }
   - note: negation/not-operand-rego-v0/parens cannot wrap a body
-    rego_version: v0
     module: |
       package test
 
@@ -364,7 +359,6 @@ cases:
         col: 6
         message: '`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `not {x; y}`)'
   - note: negation/not-operand-rego-v0/comprehension read as a union is rejected
-    rego_version: v0
     module: |
       package test
 
@@ -379,7 +373,6 @@ cases:
         col: 6
         message: 'ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)'
   - note: negation/not-operand-rego-v0/braces cannot hold an object
-    rego_version: v0
     module: |
       package test
 

@@ -2,7 +2,6 @@
 # Generated externalized tests from TestParseLogical_BuiltinCallFormBoundaries
 cases:
   - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, no space (module)
-    rego_version: v0
     module: |
       package test
 
@@ -91,7 +90,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, no space (body)
-    rego_version: v0
     body: |
       x and(b)
     imports:
@@ -124,7 +122,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand, no space (module)
-    rego_version: v0
     module: |
       package test
 
@@ -213,7 +210,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand, no space (body)
-    rego_version: v0
     body: |
       x or(b)
     imports:
@@ -246,7 +242,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, with space (module)
-    rego_version: v0
     module: |
       package test
 
@@ -335,7 +330,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, with space (body)
-    rego_version: v0
     body: |
       x and (b)
     imports:
@@ -368,7 +362,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand after explicit body lhs (module)
-    rego_version: v0
     module: |
       package test
 
@@ -458,7 +451,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand after explicit body lhs (body)
-    rego_version: v0
     body: |
       {a} or(b)
     imports:
@@ -492,7 +484,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, multi-expression group operand (module)
-    rego_version: v0
     module: |
       package test
 
@@ -598,7 +589,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, multi-expression group operand (body)
-    rego_version: v0
     body: |
       x or(a or b)
     imports:
@@ -648,7 +638,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, assigned (module)
-    rego_version: v0
     module: |
       package test
 
@@ -663,7 +652,6 @@ cases:
         col: 7
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, assigned (body)
-    rego_version: v0
     body: |
       x := or
     imports:
@@ -674,7 +662,6 @@ cases:
         col: 6
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, assigned (module)
-    rego_version: v0
     module: |
       package test
 
@@ -689,7 +676,6 @@ cases:
         col: 7
         message: unexpected and keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, assigned (body)
-    rego_version: v0
     body: |
       x := and
     imports:
@@ -700,7 +686,6 @@ cases:
         col: 6
         message: unexpected and keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, call argument (module)
-    rego_version: v0
     module: |
       package test
 
@@ -715,7 +700,6 @@ cases:
         col: 4
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare or, call argument (body)
-    rego_version: v0
     body: |
       f(or)
     imports:
@@ -726,7 +710,6 @@ cases:
         col: 3
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, comparison lhs (module)
-    rego_version: v0
     module: |
       package test
 
@@ -741,7 +724,6 @@ cases:
         col: 2
         message: unexpected and keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/bare and, comparison lhs (body)
-    rego_version: v0
     body: |
       and == x
     imports:
@@ -752,7 +734,6 @@ cases:
         col: 1
         message: unexpected and keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/or call, space before paren (module)
-    rego_version: v0
     module: |
       package test
 
@@ -767,7 +748,6 @@ cases:
         col: 2
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/or call, space before paren (body)
-    rego_version: v0
     body: |
       or (a, b)
     imports:
@@ -778,7 +758,6 @@ cases:
         col: 1
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/and call, space before paren (module)
-    rego_version: v0
     module: |
       package test
 
@@ -793,7 +772,6 @@ cases:
         col: 2
         message: unexpected and keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/and call, space before paren (body)
-    rego_version: v0
     body: |
       and (a, b)
     imports:
@@ -804,7 +782,6 @@ cases:
         col: 1
         message: unexpected and keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/or call, operator position (module)
-    rego_version: v0
     module: |
       package test
 
@@ -819,7 +796,6 @@ cases:
         col: 7
         message: unexpected or keyword
   - note: exprs/parse-logical-builtin-call-form-boundaries/or call, operator position (body)
-    rego_version: v0
     body: |
       x or or y
     imports:

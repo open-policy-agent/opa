@@ -2,7 +2,6 @@
 # Generated externalized tests from TestRuleBodyContainingRefKeywords_RegoV0
 cases:
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (module)
-    rego_version: v0
     module: |
       package test
 
@@ -143,7 +142,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (2) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -284,7 +282,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (3) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -425,7 +422,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (4) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -566,7 +562,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (5) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -707,7 +702,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (6) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -848,7 +842,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (7) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -989,7 +982,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (8) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1130,7 +1122,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (9) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1271,7 +1262,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (10) (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1412,7 +1402,6 @@ cases:
         ]
       }
   - note: rules/rule-body-containing-ref-keywords-rego-v0/rule with ref in body (11) (module)
-    rego_version: v0
     module: |
       package test
 

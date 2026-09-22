@@ -2,7 +2,6 @@
 # Generated externalized tests from TestMembershipExprHintWithLogicalKeywords
 cases:
   - note: exprs/membership-expr-hint-with-logical-keywords/membership on the lhs of `and`
-    rego_version: v0
     module: |
       package test
 
@@ -14,7 +13,6 @@ cases:
         col: 7
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
   - note: exprs/membership-expr-hint-with-logical-keywords/membership on the rhs of `and`
-    rego_version: v0
     module: |
       package test
 
@@ -26,7 +24,6 @@ cases:
         col: 13
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
   - note: exprs/membership-expr-hint-with-logical-keywords/membership on the rhs of `or`
-    rego_version: v0
     module: |
       package test
 
@@ -38,7 +35,6 @@ cases:
         col: 12
         message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
   - note: exprs/membership-expr-hint-with-logical-keywords/membership inside a not-body
-    rego_version: v0
     module: |
       package test
 

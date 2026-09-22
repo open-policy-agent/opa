@@ -10,27 +10,18 @@ import (
 	"strings"
 )
 
-// RegoVersions are the accepted values of a case's rego_version, and so of
-// ParseOptions.RegoVersion. Absent is v1; v0-compat-v1 is its own parsing mode
-// rather than either of the versions it names.
+// RegoVersions are the rego versions a corpus can hold, which is also the set of legal
+// version directory names at a corpus root. v0-compat-v1 is its own parsing mode rather
+// than either of the versions it names, so it would take a directory of its own; no case
+// needs one yet.
 //
-// Canonical for both corpora. A version added here has to be mapped onto a parser
-// by every consumer, which for OPA means corpusgen.RegoVersion and the runner's
-// caseRegoVersion; the tests over this list are what fail until both are.
+// Also the accepted values of ParseOptions.RegoVersion, where an absent value means v1:
+// a directive can make one want entry v1 without moving the file.
+//
+// Canonical for both corpora. A version added here has to be mapped onto a parser by every
+// consumer, which for OPA means corpusgen.RegoVersion and the runner's caseRegoVersion; the
+// tests over this list are what fail until both are.
 var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
-
-// NoteScope returns the namespace a case's note has to be unique within, which is its
-// rego version rather than the corpus as a whole.
-//
-// Cases are expected to overlap across versions: the same construct parsed as v0 and as
-// v1 is two cases with one note, and the version is what tells them apart. Within one
-// version a note is an identifier, so a collision there is a corpus defect.
-func NoteScope(regoVersion string) string {
-	if regoVersion == "" {
-		return "v1"
-	}
-	return regoVersion
-}
 
 // ParseOptionFields are the names of ParseOptions' fields, which is the list a reader has
 // to carry onto its own parser in full. Exported so that a reader can be tested against

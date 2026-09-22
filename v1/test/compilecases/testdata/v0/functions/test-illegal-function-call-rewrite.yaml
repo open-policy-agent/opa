@@ -2,7 +2,6 @@
 # Generated externalized tests from TestIllegalFunctionCallRewrite
 cases:
   - note: functions/function call override of 'input' root document
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -16,7 +15,6 @@ cases:
         message: called function input shadowed
     exhaustive: true
   - note: functions/function call override of 'data' root document
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -30,7 +28,6 @@ cases:
         message: called function data shadowed
     exhaustive: true
   - note: functions/function call on override of 'input' root document in rule body
-    rego_version: v0
     strict: disabled
     modules:
       - |
@@ -47,7 +44,6 @@ cases:
         message: 'undefined function '
     exhaustive: true
   - note: functions/function call on override of 'data' root document in rule body
-    rego_version: v0
     strict: disabled
     modules:
       - |

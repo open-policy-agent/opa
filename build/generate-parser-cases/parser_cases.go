@@ -146,7 +146,7 @@ func CapabilitiesFilter(c *ast.Capabilities) Filters {
 	}
 }
 
-// RegoVersionFilter will filter out any test case written for a rego_version
+// RegoVersionFilter will filter out any test case filed under a version directory
 // that is not in versions. Matching is exact: v0-compat-v1 is its own parsing
 // mode, so supporting v0 or v1 does not imply it. Passing no version filters
 // nothing.
@@ -231,6 +231,11 @@ func readSets() ([]ParserSet, error) {
 			return nil
 		}
 
+		version, err := conformance.RegoVersionForPath(".", p)
+		if err != nil {
+			return err
+		}
+
 		bs, err := testdata.FS.ReadFile(p)
 		if err != nil {
 			return err
@@ -243,7 +248,7 @@ func readSets() ([]ParserSet, error) {
 
 		set := ParserSet{}
 		for i := range x.Cases {
-			tc := x.Cases[i].WithFilename(p)
+			tc := x.Cases[i].WithSource(p, version)
 			if err := tc.Validate(); err != nil {
 				return fmt.Errorf("%s: %s: %w", p, tc.Note, err)
 			}

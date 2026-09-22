@@ -11,8 +11,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
-// RegoVersion resolves a case's rego_version field. An absent value is v1, the
-// version the corpora default to.
+// RegoVersion resolves a corpus rego version onto the parser's. An absent value is v1,
+// which is what a directive leaves behind when it names no version.
 func RegoVersion(s string) (ast.RegoVersion, error) {
 	switch s {
 	case "", "v1":
@@ -25,7 +25,7 @@ func RegoVersion(s string) (ast.RegoVersion, error) {
 	return ast.RegoUndefined, fmt.Errorf("unknown rego_version %q", s)
 }
 
-// RegoVersionRejected reports whether a case written for the rego_version s
+// RegoVersionRejected reports whether a case of rego version s
 // should be rejected by a consumer that supports only the versions in supported.
 //
 // Matching is exact: v0-compat-v1 is its own parsing mode, so a consumer that

@@ -53,9 +53,8 @@ line. The loader names the offending line rather than stripping it.
 
 | field | |
 | - | - |
-| `note` | identifies the case, and names the subtest; unique within a `rego_version`, not across the corpus |
+| `note` | identifies the case, and names the subtest; unique within its version directory, not across the corpus |
 | `modules` | the policies to compile, named `test-0.rego`, `test-1.rego`, … |
-| `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
 | `strict` | `enabled`, `disabled`, or absent — see [Strict mode](#strict-mode) |
 | `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
@@ -99,8 +98,8 @@ The import is resolved and dropped, the implied rule value is made explicit, and
 `==` becomes unification — three things the compiler does that an implementation
 has to do too.
 
-**The comparison is between ASTs.** `module` is parsed under the case's
-`rego_version` and compared to the compiled module; the Rego is only how the
+**The comparison is between ASTs.** `module` is parsed under the case's version — the
+directory it is filed in — and compared to the compiled module; the Rego is only how the
 expectation is written down, so a printer that differs from OPA's costs nothing.
 
 An absent `want_errors` also asserts that nothing was reported.
@@ -148,7 +147,7 @@ depends on it with nothing left to say so. The entry records what was there:
 | - | - |
 | `future.keywords.<kw>` | activate that keyword |
 | `future.keywords` | activate every future keyword the version has |
-| `rego.v1` | parse as `v1`, whatever the case's `rego_version` says |
+| `rego.v1` | parse as `v1`, whatever version the case is filed under |
 
 Writing the import back into `module` is not an option: the result would carry an
 import the compiled module does not, and so parse to a different AST.
@@ -460,14 +459,22 @@ testdata/v0/<area>/<file>.yaml
 testdata/v1/<area>/<file>.yaml
 ```
 
-The top level is the Rego version, below it the language area — `builtins/`,
+**The top-level directory is the Rego version, and it is the only place a case says which
+one it is parsed as.** There is no `rego_version` field: a case stating one is rejected as
+an unknown field, so the path and the parse cannot disagree. `v0` and `v1` exist today;
+`v0-compat-v1` is a legal directory name for when a case needs it.
+
+A note has to be unique within one version directory, not across the corpus, so the same
+construct can be filed under both. Load the corpus root and the loader stamps each case
+with the version it was found under.
+
+Below the version comes the language area — `builtins/`,
 `functions/`, `imports/`, `keywords/`, `print/`, `recursion/`, `refs/`, `safety/`,
 `templatestrings/`, `vars/` — not the outcome, which `want_errors` already records.
 Grouping by area puts a rule and its counter-example side by side.
 
-The directory is organisational; `rego_version` drives parsing, and the two should
-agree. Where the same source means different things in v0 and v1, write one case per
-version rather than translating between them.
+Where the same source means different things in v0 and v1, write one case per version
+rather than translating between them.
 
 `testdata/testdata.go` embeds the corpus so that tools outside this repository
 can consume it, as `v1/test/cases/testdata` does for the evaluation cases.
@@ -580,7 +587,7 @@ language, and its diagnostics are only reachable for an implementation that has 
 concept at all — the same argument as capabilities above. OPA's tests for it stay in Go.
 
 Where a case does depend on something optional, it says so in a field a consumer can
-filter on — `rego_version`, `strict`, `experimental_keywords`, `schemas` — rather than
+filter on — its version directory, `strict`, `experimental_keywords`, `schemas` — rather than
 by naming a capability set or an OPA release.
 
 The generator lives in `build/generate-compiler-cases`, alongside

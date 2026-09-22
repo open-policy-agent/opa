@@ -2,7 +2,6 @@
 # Generated externalized tests from TestQueryCompiler
 cases:
   - note: query/unsafe var that is a future keyword
-    rego_version: v0
     query:
       body: 1 in 2
     want_errors:

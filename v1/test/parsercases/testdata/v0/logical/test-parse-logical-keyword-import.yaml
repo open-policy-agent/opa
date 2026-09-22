@@ -2,7 +2,6 @@
 # Generated externalized tests from TestParseLogical_KeywordImport
 cases:
   - note: logical/parse-logical-keyword-import/and
-    rego_version: v0
     module: |
       package x
 
@@ -18,7 +17,6 @@ cases:
         col: 1
         message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'
   - note: logical/parse-logical-keyword-import/or
-    rego_version: v0
     module: |
       package x
 

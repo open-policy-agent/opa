@@ -2,7 +2,6 @@
 # Generated externalized tests from TestCompilerFunctions
 cases:
   - note: functions/multiple input types
-    rego_version: v0
     modules:
       - |
         package x
@@ -26,7 +25,6 @@ cases:
           	y = __local1__
           }
   - note: functions/multiple input types-2
-    rego_version: v0
     modules:
       - |
         package x
@@ -50,7 +48,6 @@ cases:
           	y = __local1__
           }
   - note: functions/constant input
-    rego_version: v0
     modules:
       - |
         package x
@@ -74,7 +71,6 @@ cases:
           	y = "bar"
           }
   - note: functions/constant input-2
-    rego_version: v0
     modules:
       - |
         package x
@@ -99,7 +95,6 @@ cases:
           	z = __local3__
           }
   - note: functions/constant input-3
-    rego_version: v0
     modules:
       - |
         package x
@@ -124,7 +119,6 @@ cases:
           	z = __local3__
           }
   - note: functions/multiple input types (nested)
-    rego_version: v0
     modules:
       - |
         package x
@@ -148,7 +142,6 @@ cases:
           	y = __local1__
           }
   - note: functions/multiple output types
-    rego_version: v0
     modules:
       - |
         package x
@@ -172,7 +165,6 @@ cases:
           	y = 2
           }
   - note: functions/namespacing
-    rego_version: v0
     modules:
       - |
         package x
@@ -202,7 +194,6 @@ cases:
           	x = "foo"
           }
   - note: functions/implicit value
-    rego_version: v0
     modules:
       - |
         package x
@@ -218,7 +209,6 @@ cases:
           	__local0__ = "foo"
           }
   - note: functions/resolving
-    rego_version: v0
     modules:
       - |
         package x
@@ -255,7 +245,6 @@ cases:
           	data.x.f(1, c)
           }
   - note: functions/undefined
-    rego_version: v0
     modules:
       - |
         package x
@@ -269,7 +258,6 @@ cases:
         col: 2
         message: undefined function f
   - note: functions/must apply
-    rego_version: v0
     modules:
       - |
         package x
@@ -289,7 +277,6 @@ cases:
           ^^^^^^^^
           have: (number) => boolean
   - note: functions/must apply-2
-    rego_version: v0
     modules:
       - |
         package x
@@ -306,7 +293,6 @@ cases:
           ^^^^^^^^
           have: (number) => boolean
   - note: functions/call argument ref output vars
-    rego_version: v0
     strict: disabled
     modules:
       - |

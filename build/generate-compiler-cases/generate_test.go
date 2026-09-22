@@ -181,13 +181,13 @@ cases:
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			dir := t.TempDir()
+			root, dir := newCorpus(t)
 			path := filepath.Join(dir, "test-cases.yaml")
 			if err := os.WriteFile(path, []byte(tc.corpus), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
-			err := Generate(dir)
+			err := Generate(root)
 			if err == nil {
 				t.Fatalf("expected an error containing %q, got none", tc.wantErr)
 			}
@@ -225,12 +225,12 @@ cases:
         }
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
+	err := Generate(root)
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
@@ -257,12 +257,12 @@ cases:
           p = true if { true }
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
+	err := Generate(root)
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
@@ -288,16 +288,16 @@ cases:
         } else := 2
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := Generate(dir); err != nil {
+	if err := Generate(root); err != nil {
 		t.Fatal(err)
 	}
 
-	set, err := compilecases.Load(dir)
+	set, err := compilecases.Load(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,12 +330,12 @@ cases:
     no_such_field: true
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
+	err := Generate(root)
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
@@ -365,16 +365,16 @@ cases:
       BuildRequiredCapabilities: []
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := Generate(dir); err != nil {
+	if err := Generate(root); err != nil {
 		t.Fatal(err)
 	}
 
-	set, err := compilecases.Load(dir)
+	set, err := compilecases.Load(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,12 +412,12 @@ cases:
       CheckTypes: []
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
+	err := Generate(root)
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
@@ -444,12 +444,12 @@ cases:
       RewriteDynamicTerm: []
 `
 
-	dir := t.TempDir()
+	root, dir := newCorpus(t)
 	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Generate(dir)
+	err := Generate(root)
 	if err == nil {
 		t.Fatal("expected generation to be rejected")
 	}
@@ -485,4 +485,18 @@ func TestCompileCaseToStageRejectsAStageTheCompilerDoesNotHave(t *testing.T) {
 	if _, err := compileCaseToStage(tc, popts, "RewriteEquals"); err != nil {
 		t.Fatalf("expected a real stage to be accepted, got %v", err)
 	}
+}
+
+// newCorpus returns a temporary corpus root and the version directory inside it that case
+// files go in. A case's rego version comes from that directory, so the generator rejects a
+// file sitting at the root.
+func newCorpus(t *testing.T) (root, versionDir string) {
+	t.Helper()
+
+	root = t.TempDir()
+	versionDir = filepath.Join(root, "v1")
+	if err := os.Mkdir(versionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root, versionDir
 }

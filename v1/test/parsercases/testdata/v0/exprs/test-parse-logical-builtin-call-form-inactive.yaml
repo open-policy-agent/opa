@@ -2,7 +2,6 @@
 # Generated externalized tests from TestParseLogical_BuiltinCallFormInactive
 cases:
   - note: exprs/parse-logical-builtin-call-form-inactive/or call (module)
-    rego_version: v0
     module: |
       package test
 
@@ -94,7 +93,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-inactive/or call (body)
-    rego_version: v0
     body: |
       x := or({1}, {2})
     want_ast: |
@@ -151,7 +149,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-inactive/and call (module)
-    rego_version: v0
     module: |
       package test
 
@@ -243,7 +240,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-inactive/and call (body)
-    rego_version: v0
     body: |
       x := and({1}, {2})
     want_ast: |
@@ -300,7 +296,6 @@ cases:
         }
       ]
   - note: exprs/parse-logical-builtin-call-form-inactive/bare or (module)
-    rego_version: v0
     module: |
       package test
 
@@ -364,7 +359,6 @@ cases:
         ]
       }
   - note: exprs/parse-logical-builtin-call-form-inactive/bare or (body)
-    rego_version: v0
     body: |
       x := or
     want_ast: |

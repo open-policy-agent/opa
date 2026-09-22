@@ -2,7 +2,6 @@
 # Generated externalized tests from TestRefTermsContainingKeywords
 cases:
   - note: exprs/ref-terms-containing-keywords/not.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -60,7 +59,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/not.foo (body)
-    rego_version: v0
     body: |
       not.foo
     want_ast: |
@@ -83,7 +81,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/not["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -141,7 +138,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/not["foo"] (body)
-    rego_version: v0
     body: |
       not["foo"]
     want_ast: |
@@ -164,7 +160,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/package.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -222,7 +217,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/package.foo (body)
-    rego_version: v0
     body: |
       package.foo
     want_ast: |
@@ -245,7 +239,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/package["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -303,7 +296,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/package["foo"] (body)
-    rego_version: v0
     body: |
       package["foo"]
     want_ast: |
@@ -326,7 +318,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/import.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -384,7 +375,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/import.foo (body)
-    rego_version: v0
     body: |
       import.foo
     want_ast: |
@@ -407,7 +397,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/import["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -465,7 +454,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/import["foo"] (body)
-    rego_version: v0
     body: |
       import["foo"]
     want_ast: |
@@ -488,7 +476,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/as.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -546,7 +533,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/as.foo (body)
-    rego_version: v0
     body: |
       as.foo
     want_ast: |
@@ -569,7 +555,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/as["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -627,7 +612,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/as["foo"] (body)
-    rego_version: v0
     body: |
       as["foo"]
     want_ast: |
@@ -650,7 +634,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/default.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -708,7 +691,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/default.foo (body)
-    rego_version: v0
     body: |
       default.foo
     want_ast: |
@@ -731,7 +713,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/default["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -789,7 +770,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/default["foo"] (body)
-    rego_version: v0
     body: |
       default["foo"]
     want_ast: |
@@ -812,7 +792,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/else.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -870,7 +849,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/else.foo (body)
-    rego_version: v0
     body: |
       else.foo
     want_ast: |
@@ -893,7 +871,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/else["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -951,7 +928,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/else["foo"] (body)
-    rego_version: v0
     body: |
       else["foo"]
     want_ast: |
@@ -974,7 +950,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/with.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1032,7 +1007,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/with.foo (body)
-    rego_version: v0
     body: |
       with.foo
     want_ast: |
@@ -1055,7 +1029,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/with["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1113,7 +1086,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/with["foo"] (body)
-    rego_version: v0
     body: |
       with["foo"]
     want_ast: |
@@ -1136,7 +1108,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/null.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1194,7 +1165,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/null.foo (body)
-    rego_version: v0
     body: |
       null.foo
     want_ast: |
@@ -1217,7 +1187,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/null["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1275,7 +1244,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/null["foo"] (body)
-    rego_version: v0
     body: |
       null["foo"]
     want_ast: |
@@ -1298,7 +1266,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/true.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1356,7 +1323,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/true.foo (body)
-    rego_version: v0
     body: |
       true.foo
     want_ast: |
@@ -1379,7 +1345,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/true["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1437,7 +1402,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/true["foo"] (body)
-    rego_version: v0
     body: |
       true["foo"]
     want_ast: |
@@ -1460,7 +1424,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/false.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1518,7 +1481,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/false.foo (body)
-    rego_version: v0
     body: |
       false.foo
     want_ast: |
@@ -1541,7 +1503,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/false["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1599,7 +1560,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/false["foo"] (body)
-    rego_version: v0
     body: |
       false["foo"]
     want_ast: |
@@ -1622,7 +1582,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/some.foo (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1680,7 +1639,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/some.foo (body)
-    rego_version: v0
     body: |
       some.foo
     want_ast: |
@@ -1703,7 +1661,6 @@ cases:
         }
       ]
   - note: exprs/ref-terms-containing-keywords/some["foo"] (module)
-    rego_version: v0
     module: |
       package test
 
@@ -1761,7 +1718,6 @@ cases:
         ]
       }
   - note: exprs/ref-terms-containing-keywords/some["foo"] (body)
-    rego_version: v0
     body: |
       some["foo"]
     want_ast: |
