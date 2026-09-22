@@ -45,7 +45,7 @@ picks the first referenced manifest carrying an
 `unknown/unknown` platform entries that build tools attach for provenance and
 SBOM attestations.
 
-Reported by @zscott
+Reported by @zscott, authored by @sspaink
 
 ### Data and Query APIs can return rule labels in the response
 
