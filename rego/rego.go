@@ -553,12 +553,6 @@ func StrictBuiltinErrors(yes bool) func(r *Rego) {
 	return v1.StrictBuiltinErrors(yes)
 }
 
-// StackTraces tells the evaluator to record the stack of queries being evaluated
-// when an error occurred on the returned *topdown.Error.
-func StackTraces(yes bool) func(r *Rego) {
-	return v1.StackTraces(yes)
-}
-
 // BuiltinErrorList supplies an error slice to store built-in function errors.
 func BuiltinErrorList(list *[]topdown.Error) func(r *Rego) {
 	return v1.BuiltinErrorList(list)

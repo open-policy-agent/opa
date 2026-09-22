@@ -107,14 +107,6 @@ type Halt = v1.Halt
 // an evaluation error occurs.
 type Error = v1.Error
 
-// StackFrame is a single query in the stack of queries that were being evaluated
-// when an error occurred.
-type StackFrame = v1.StackFrame
-
-// StackTrace is the stack of queries that were being evaluated when an error
-// occurred, ordered from the innermost query outwards.
-type StackTrace = v1.StackTrace
-
 const (
 
 	// InternalErr represents an unknown evaluation error.
