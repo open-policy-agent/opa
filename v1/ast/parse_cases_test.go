@@ -140,15 +140,12 @@ func parseCaseOptions(tc parsercases.TestCase) (ParserOptions, error) {
 	return caseParserOptions(opts)
 }
 
+// parseCaseErrors is caseErrors for a parse failure, which may not be an ast.Errors: a
+// positionless message is all some entry points report.
 func parseCaseErrors(err error) []conformance.Error {
 	errs, ok := err.(Errors)
 	if !ok {
 		return []conformance.Error{{Message: err.Error()}}
 	}
-
-	got := make([]conformance.Error, 0, len(errs))
-	for _, e := range errs {
-		got = append(got, caseError(e))
-	}
-	return got
+	return caseErrors(errs)
 }

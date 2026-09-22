@@ -14,7 +14,6 @@ import (
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
-	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
@@ -246,9 +245,7 @@ func readSets() ([]ParserSet, error) {
 // on. The marshalling options are global state, so they are set once for the
 // whole pass rather than per case.
 func regenerateAST(sets []ParserSet, cfg *config) error {
-	restore := astJSON.GetOptions()
-	astJSON.SetOptions(conformance.MarshalOptions(true, cfg.locationText))
-	defer astJSON.SetOptions(restore)
+	defer corpusgen.SetMarshalOptions(conformance.MarshalOptions(true, cfg.locationText))()
 
 	for _, set := range sets {
 		for _, tc := range set.Cases {

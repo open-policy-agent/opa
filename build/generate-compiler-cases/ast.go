@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
@@ -28,9 +28,7 @@ var errNotMarshallable = errors.New("OPA cannot marshal the compiled form")
 //
 // The marshalling options are global state, so they are set once for the pass.
 func generateAST(sets []CompilerSet) error {
-	restore := astJSON.GetOptions()
-	astJSON.SetOptions(conformance.MarshalOptions(false, false))
-	defer astJSON.SetOptions(restore)
+	defer corpusgen.SetMarshalOptions(conformance.MarshalOptions(false, false))()
 
 	for _, set := range sets {
 		for _, tc := range set.Cases {

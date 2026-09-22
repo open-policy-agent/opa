@@ -27,8 +27,7 @@ func formatModule(mod *ast.Module, popts ast.ParserOptions) (string, error) {
 	// the annotations and the rules, none of which carry it.
 	reparsed, err := ast.ParseModuleWithOpts("formatted.rego", text, popts)
 	if err != nil {
-		reason, keyword := parseFailureReason(text, err, popts)
-		return "", notPrintableError{reason: reason, text: text, keyword: keyword}
+		return "", notPrintableError{reason: parseFailureReason(text, err, popts), text: text}
 	}
 
 	equal, panicked := equalModules(mod, reparsed)
@@ -62,25 +61,20 @@ func equalModules(mod, other *ast.Module) (equal, panicked bool) {
 // notPrintableError says a compiled module has no Rego spelling that parses back to
 // it. Reason is short enough to carry into a corpus comment.
 type notPrintableError struct {
-	reason  string
-	text    string
-	keyword string // a future keyword whose activation would fix it, if any
+	reason string
+	text   string
 }
 
 func (e notPrintableError) Error() string {
 	return fmt.Sprintf("%s\n--- printed as\n%s", e.reason, e.text)
 }
 
-// Keyword returns the future keyword whose activation would make the text parse,
-// or "" where activating one is not what it needs.
-func (e notPrintableError) Keyword() string { return e.keyword }
-
 // Reason returns the short form.
 func (e notPrintableError) Reason() string { return e.reason }
 
 // parseFailureReason names the printed line the parser choked on, which is more use
 // than a position into text nobody has in front of them.
-func parseFailureReason(text string, err error, popts ast.ParserOptions) (string, string) {
+func parseFailureReason(text string, err error, popts ast.ParserOptions) string {
 	message, line := "does not parse", ""
 
 	if errs, ok := errors.AsType[ast.Errors](err); ok && len(errs) > 0 {
@@ -101,13 +95,13 @@ func parseFailureReason(text string, err error, popts ast.ParserOptions) (string
 			where = fmt.Sprintf("`%s`", line)
 		}
 		return fmt.Sprintf("%s needs `import future.keywords.%s`, which the compiler resolves away "+
-			"and the printer does not put back", where, kw), kw
+			"and the printer does not put back", where, kw)
 	}
 
 	if line == "" {
-		return "the compiled module prints as Rego that does not parse: " + message, ""
+		return "the compiled module prints as Rego that does not parse: " + message
 	}
-	return fmt.Sprintf("the compiled module prints as `%s`, which does not parse: %s", line, message), ""
+	return fmt.Sprintf("the compiled module prints as `%s`, which does not parse: %s", line, message)
 }
 
 // futureKeywordCandidates are the keywords worth trying to activate. ast.Keywords

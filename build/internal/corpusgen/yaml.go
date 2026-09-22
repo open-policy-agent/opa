@@ -11,6 +11,7 @@ package corpusgen
 
 import (
 	"bytes"
+	"cmp"
 	"slices"
 	"strconv"
 	"strings"
@@ -122,25 +123,6 @@ func Encode(root *yaml.Node) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// ModulesNode renders Rego sources as a sequence of block scalars, the form a
-// module is written as in a corpus file.
-func ModulesNode(modules []string) *yaml.Node {
-	seq := &yaml.Node{Kind: yaml.SequenceNode}
-	for _, m := range modules {
-		seq.Content = append(seq.Content, Literal(strings.TrimRight(m, "\n")+"\n"))
-	}
-	return seq
-}
-
-// SetMapComment attaches a comment above key on the mapping n, wrapping it at a
-// width a reviewer can read. Setting it again replaces it, so a regenerated
-// fixture does not accumulate stale explanations.
-func SetMapComment(n *yaml.Node, key, comment string) {
-	if i := keyIndex(n, key); i >= 0 {
-		SetComment(n.Content[i], comment)
-	}
-}
-
 // SetComment attaches a comment above n itself, which is where it belongs for a
 // sequence entry: a comment on the entry's first key would render after the dash.
 func SetComment(n *yaml.Node, comment string) {
@@ -187,12 +169,21 @@ func StringsNode(values []string) *yaml.Node {
 	return seq
 }
 
-// StringListsNode renders a list of short string lists, one flow sequence per line,
-// which is how a per-module field of a handful of entries each reads best.
-func StringListsNode(values [][]string) *yaml.Node {
-	seq := &yaml.Node{Kind: yaml.SequenceNode}
-	for _, v := range values {
-		seq.Content = append(seq.Content, StringsNode(v))
-	}
-	return seq
+// SortErrors orders diagnostics so that a regenerated file is stable whatever order the
+// parser or compiler reported them in. The runners match as a set, so the order is the
+// file's concern alone.
+//
+// Module comes first and is the default for a single-module corpus, which is why one
+// comparator serves both.
+func SortErrors(errs []conformance.Error) []conformance.Error {
+	slices.SortFunc(errs, func(a, b conformance.Error) int {
+		return cmp.Or(
+			cmp.Compare(a.ModuleOrDefault(), b.ModuleOrDefault()),
+			cmp.Compare(a.Row, b.Row),
+			cmp.Compare(a.Col, b.Col),
+			cmp.Compare(a.Code, b.Code),
+			cmp.Compare(a.Message, b.Message),
+		)
+	})
+	return errs
 }

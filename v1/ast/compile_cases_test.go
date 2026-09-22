@@ -45,10 +45,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 
 	c := compileCaseModules(t, tc, popts, "")
 
-	got := make([]conformance.Error, 0, len(c.Errors))
-	for _, e := range c.Errors {
-		got = append(got, caseError(e))
-	}
+	got := caseErrors(c.Errors)
 
 	// A query case's diagnostics come from compiling the query, so its modules must
 	// compile cleanly whatever it asserts.
@@ -83,11 +80,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		// that far cleanly. A case whose diagnostics are raised before the stage it
 		// pins has nothing to say here.
 		if len(sc.Errors) > 0 {
-			reported := make([]conformance.Error, 0, len(sc.Errors))
-			for _, e := range sc.Errors {
-				reported = append(reported, caseError(e))
-			}
-			t.Fatalf("%s: compiling up to %s reports:%s", tc.Filename, stage, indented(reported))
+			t.Fatalf("%s: compiling up to %s reports:%s", tc.Filename, stage, indented(caseErrors(sc.Errors)))
 		}
 
 		assertCaseWant(t, tc, sc, stage)
@@ -209,15 +202,13 @@ func assertCaseQuery(t *testing.T, tc compilecases.TestCase, c *Compiler) {
 
 	compiled, cerr := qc.Compile(query)
 
-	got := make([]conformance.Error, 0)
+	var got []conformance.Error
 	if cerr != nil {
 		errs, ok := errors.AsType[Errors](cerr)
 		if !ok {
 			t.Fatalf("%s: compiling the query failed with %v, which is not an ast.Errors", tc.Filename, cerr)
 		}
-		for _, e := range errs {
-			got = append(got, caseError(e))
-		}
+		got = caseErrors(errs)
 	}
 
 	if tc.Failure() {
@@ -277,12 +268,12 @@ func importDecls(paths []string) string {
 func assertCaseWant(t *testing.T, tc compilecases.TestCase, c *Compiler, stage string) {
 	t.Helper()
 
-	want, field := tc.Want, "want"
+	entries, field := tc.Want, "want"
 	if stage != "" {
-		want, field = tc.WantStages[stage], "want_stages."+stage
+		entries, field = tc.WantStages[stage], "want_stages."+stage
 	}
 
-	for i, want := range want {
+	for i, want := range entries {
 		name := compilecases.ModuleName(i)
 		got := c.Modules[name]
 

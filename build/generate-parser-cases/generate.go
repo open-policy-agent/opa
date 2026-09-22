@@ -6,12 +6,10 @@ package cases
 
 import (
 	"bytes"
-	"cmp"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -27,8 +25,8 @@ import (
 // produces, so it is a golden file: it does not independently validate OPA, it
 // catches unreviewed change. The gate is review of the regeneration diff.
 func Generate(dir string) error {
-	restore := astJSON.GetOptions()
-	defer astJSON.SetOptions(restore)
+	// Set per case below, so they are saved here and put back at the end.
+	defer corpusgen.SetMarshalOptions(astJSON.GetOptions())()
 
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -166,16 +164,7 @@ func allDiagnostics(err error) ([]parsercases.Error, error) {
 		out = append(out, diagnostic(e))
 	}
 
-	slices.SortFunc(out, func(a, b parsercases.Error) int {
-		return cmp.Or(
-			cmp.Compare(a.Row, b.Row),
-			cmp.Compare(a.Col, b.Col),
-			cmp.Compare(a.Code, b.Code),
-			cmp.Compare(a.Message, b.Message),
-		)
-	})
-
-	return out, nil
+	return corpusgen.SortErrors(out), nil
 }
 
 // coversAll checks that an exhaustive case names every diagnostic the parse reported.

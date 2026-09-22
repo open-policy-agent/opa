@@ -5,7 +5,6 @@
 package cases
 
 import (
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
-	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
@@ -78,7 +76,7 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 		if qerr != nil {
 			return nil, qerr
 		}
-		return sortedErrors(qerrs), nil
+		return corpusgen.SortErrors(qerrs), nil
 	}
 
 	reported := make([]conformance.Error, 0, len(compiled.Errors))
@@ -86,21 +84,7 @@ func caseDiagnostics(tc compilecases.TestCase) ([]conformance.Error, error) {
 		reported = append(reported, caseError(e))
 	}
 
-	return sortedErrors(reported), nil
-}
-
-// sortedErrors orders diagnostics for a stable file. The runner matches as a set.
-func sortedErrors(in []conformance.Error) []conformance.Error {
-	slices.SortFunc(in, func(a, b conformance.Error) int {
-		return cmp.Or(
-			cmp.Compare(a.ModuleOrDefault(), b.ModuleOrDefault()),
-			cmp.Compare(a.Row, b.Row),
-			cmp.Compare(a.Col, b.Col),
-			cmp.Compare(a.Code, b.Code),
-			cmp.Compare(a.Message, b.Message),
-		)
-	})
-	return in
+	return corpusgen.SortErrors(reported), nil
 }
 
 // compileQuery compiles a case's query against its already-compiled modules, returning
@@ -197,12 +181,11 @@ func compiledQueryWant(tc compilecases.TestCase) (rego, marshalled string, err e
 	return "", m, nil
 }
 
-// marshalBody renders a compiled query as the AST form of a query expectation.
+// marshalBody renders a compiled query as the AST form of a query expectation, setting the
+// corpus's marshalling options around the call. encodeBody is the same without them, for a
+// caller inside a pass that has set them already.
 func marshalBody(body ast.Body) (string, error) {
-	restore := astJSON.GetOptions()
-	astJSON.SetOptions(conformance.MarshalOptions(false, false))
-	defer astJSON.SetOptions(restore)
-
+	defer corpusgen.SetMarshalOptions(conformance.MarshalOptions(false, false))()
 	return encodeBody(body)
 }
 
@@ -432,12 +415,11 @@ func wantParserOptions(tc compilecases.TestCase, imports [][]string, i int) (ast
 	return translateParserOptions(opts)
 }
 
-// marshalModule renders a compiled module as the AST form of a Want entry.
+// marshalModule renders a compiled module as the AST form of a Want entry, setting the
+// corpus's marshalling options around the call. encodeModule is the same without them, for a
+// caller inside a pass that has set them already.
 func marshalModule(mod *ast.Module) (string, error) {
-	restore := astJSON.GetOptions()
-	astJSON.SetOptions(conformance.MarshalOptions(false, false))
-	defer astJSON.SetOptions(restore)
-
+	defer corpusgen.SetMarshalOptions(conformance.MarshalOptions(false, false))()
 	return encodeModule(mod)
 }
 

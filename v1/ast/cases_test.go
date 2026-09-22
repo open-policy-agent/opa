@@ -135,6 +135,15 @@ func assertCarried(t *testing.T, opts conformance.ParseOptions, carried func(Par
 	}
 }
 
+// caseErrors converts every reported diagnostic into the corpus's form.
+func caseErrors(errs Errors) []conformance.Error {
+	out := make([]conformance.Error, 0, len(errs))
+	for _, e := range errs {
+		out = append(out, caseError(e))
+	}
+	return out
+}
+
 func caseError(e *Error) conformance.Error {
 	out := conformance.Error{Code: e.Code, Message: e.Message}
 	if e.Location != nil {
