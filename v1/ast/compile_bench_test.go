@@ -100,6 +100,43 @@ func BenchmarkCompileUnsafeRules(b *testing.B) {
 	}
 }
 
+// Cost of the reordered body's output vars, at a 200 expression body:
+//
+//	620231000 ns/op // recomputed per candidate expression
+//	  5798000 ns/op // only when a candidate closes over something
+func BenchmarkCompileLongRuleBodies(b *testing.B) {
+	// reorderBodyForSafety walks what it has already placed once per candidate,
+	// so long bodies cost quadratically even with nothing closing over anything.
+	sizes := []int{20, 50, 200}
+
+	for _, size := range sizes {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			var sb strings.Builder
+			sb.WriteString("package bench\n\nallow if {\n\tx0 := input.v[0]\n")
+			// Already in a safe order, so the reordering is pure overhead.
+			for i := 1; i < size; i++ {
+				fmt.Fprintf(&sb, "\tx%d := x%d + input.v[%d]\n", i, i-1, i)
+			}
+
+			sb.WriteString("}\n")
+			base := MustParseModule(sb.String())
+
+			for b.Loop() {
+				// Compile rewrites modules in place, so every iteration needs
+				// its own copy. Copying is not what we're measuring.
+				b.StopTimer()
+				module := base.Copy()
+				b.StartTimer()
+
+				c := NewCompiler()
+				if c.Compile(map[string]*Module{"mod.rego": module}); c.Failed() {
+					b.Fatal(c.Errors)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkRewriteDynamics(b *testing.B) {
 	// The choice of query to use is somewhat arbitrary. This query is
 	// representative of the ones that result from partial evaluation on IAM
