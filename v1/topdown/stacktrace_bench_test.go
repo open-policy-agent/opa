@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Benchmarks behind the decision to keep stack traces opt-in. Each case runs
-// both modes so the pair can be compared directly with benchstat.
+// both modes so the pair can be compared directly with benchstat. The results
+// recorded below were taken with -benchmem.
 //
 // Both supply a builtin error list. Without one the collected errors have no
 // consumer, evalBuiltin skips annotating them entirely, and the benchmark would
@@ -134,8 +135,6 @@ func runStackTraceBenchmark(b *testing.B, module string, n int, stackTraces bool
 		WithInput(input).
 		WithBuiltinErrorList(&builtinErrors).
 		WithStackTraces(stackTraces)
-
-	b.ReportAllocs()
 
 	for b.Loop() {
 		builtinErrors = builtinErrors[:0]
