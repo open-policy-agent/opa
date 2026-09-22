@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -3457,7 +3458,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			input:                    `{"a": 2}`,
 			nondeterministicBuiltins: true,
 			modules: []string{fmt.Sprintf(`package test
-			p if input.x == http.send({"method": "POST", "url": "%s", "body": input.a}).body.p`, testserver.URL),
+			p if input.x == http.send({"method": "POST", "url": "%s", "body": input.a}).body.p`, testserver().URL),
 			},
 			wantQueries: []string{`"x" = input.x`},
 		},
@@ -3481,9 +3482,9 @@ func TestTopDownPartialEval(t *testing.T) {
 			p if {
 				input.x == 1
 				json.match_schema({"user": "jsmith"}, {"$ref": "%s"})
-			}`, testserver.URL),
+			}`, testserver().URL),
 			},
-			wantQueries: []string{fmt.Sprintf(`input.x = 1; json.match_schema({"user": "jsmith"}, {"$ref": "%s"})`, testserver.URL)},
+			wantQueries: []string{fmt.Sprintf(`input.x = 1; json.match_schema({"user": "jsmith"}, {"$ref": "%s"})`, testserver().URL)},
 		},
 
 		{
@@ -7543,10 +7544,15 @@ func (s moduleSet) Equal(other moduleSet) bool {
 	return len(s.Diff(other)) == 0 && len(other.Diff(s)) == 0
 }
 
-var testserver = srv(func(w http.ResponseWriter, _ *http.Request) error {
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(map[string]any{
-		"p": "x",
+// testserver is started on first use rather than at init: as a package-level
+// variable it bound a port for every run of this package's tests and
+// benchmarks, one test being the only thing that asks for it.
+var testserver = sync.OnceValue(func() *httptest.Server {
+	return srv(func(w http.ResponseWriter, _ *http.Request) error {
+		w.Header().Set("Content-Type", "application/json")
+		return json.NewEncoder(w).Encode(map[string]any{
+			"p": "x",
+		})
 	})
 })
 
