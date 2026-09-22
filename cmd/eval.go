@@ -53,7 +53,6 @@ type evalCommandParams struct {
 	disableEarlyExit          bool
 	strictBuiltinErrors       bool
 	showBuiltinErrors         bool
-	stackTrace                bool
 	dataPaths                 repeatedStringFlag
 	inputPath                 string
 	imports                   repeatedStringFlag
@@ -354,7 +353,6 @@ access.
 	evalCommand.Flags().BoolVar(&params.disableEarlyExit, "disable-early-exit", false, "disable 'early exit' optimizations")
 	evalCommand.Flags().BoolVarP(&params.strictBuiltinErrors, "strict-builtin-errors", "", false, "treat the first built-in function error encountered as fatal")
 	evalCommand.Flags().BoolVarP(&params.showBuiltinErrors, "show-builtin-errors", "", false, "collect and return all encountered built-in errors, built in errors are not fatal")
-	evalCommand.Flags().BoolVarP(&params.stackTrace, "stack-trace", "", false, "include the evaluation stack of each error in the output")
 	evalCommand.Flags().BoolVarP(&params.instrument, "instrument", "", false, "enable query instrumentation metrics (implies --metrics)")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results. Accepts: total_time_ns, num_eval, num_redo, num_gen_expr, file, line. This flag can be repeated.")
@@ -758,9 +756,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
-	if params.stackTrace {
-		regoArgs = append(regoArgs, rego.StackTraces(true))
-	}
+	// Always on: a traceback only shows up on an error, and it is the one place
+	// the CLI explains how evaluation reached the failing expression.
+	regoArgs = append(regoArgs, rego.StackTraces(true))
 
 	var builtInErrors []topdown.Error
 	if params.showBuiltinErrors {

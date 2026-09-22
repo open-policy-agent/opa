@@ -1730,27 +1730,19 @@ q if {
 	}
 
 	test.WithTempFS(files, func(path string) {
-		run := func(stackTrace bool) string {
-			params := newEvalCommandParams()
-			params.dataPaths = newrepeatedStringFlag([]string{path})
-			params.strictBuiltinErrors = true
-			params.stackTrace = stackTrace
-			if err := params.outputFormat.Set(formats.Pretty); err != nil {
-				t.Fatalf("Unexpected error: %s", err)
-			}
-
-			var buf, errBuf bytes.Buffer
-			if _, err := eval([]string{"data.test.p"}, params, &buf, &errBuf); err == nil {
-				t.Fatal("expected error")
-			}
-			return errBuf.String()
+		params := newEvalCommandParams()
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.strictBuiltinErrors = true
+		if err := params.outputFormat.Set(formats.Pretty); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		if out := run(false); strings.Contains(out, "Traceback:") {
-			t.Fatal("expected no traceback without --stack-trace, got:", out)
+		var buf, errBuf bytes.Buffer
+		if _, err := eval([]string{"data.test.p"}, params, &buf, &errBuf); err == nil {
+			t.Fatal("expected error")
 		}
 
-		out := run(true)
+		out := errBuf.String()
 		for _, expected := range []string{
 			"Traceback:",
 			filepath.Join(path, "test.rego") + ":8: 1 / 0",
@@ -2754,7 +2746,17 @@ func TestEvalDiscardOutput(t *testing.T) {
         "file": "",
         "row": 1
       },
-      "message": "div: divide by zero"
+      "message": "div: divide by zero",
+      "stack_trace": [
+        {
+          "location": {
+            "col": 1,
+            "file": "",
+            "row": 1
+          },
+          "query_id": 0
+        }
+      ]
     }
   ]
 }

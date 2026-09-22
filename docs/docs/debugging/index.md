@@ -54,11 +54,11 @@ When evaluation fails, the error reports the line the failure happened on, but n
 got there. A rule that divides by zero, or a conflict between two rules, is often only surprising
 because of the path that reached it.
 
-Pass `--stack-trace` to `opa eval` to have each evaluation error carry the stack of queries that
-were being evaluated when it was raised, innermost query first:
+`opa eval` and `opa test` report each evaluation error with the stack of queries that were being
+evaluated when it was raised, innermost query first:
 
 ```shell
-opa eval --strict-builtin-errors --stack-trace -d policy.rego 'data.ex.p'
+opa eval --strict-builtin-errors -d policy.rego 'data.ex.p'
 ```
 
 ```txt
@@ -71,8 +71,6 @@ Traceback:
   1:1: data.ex.p
 ```
 
-`opa test --stack-trace` does the same for the errors a failing test raises.
-
 In the REPL, the `traceback` command toggles the same output:
 
 ```txt
@@ -81,10 +79,10 @@ In the REPL, the `traceback` command toggles the same output:
 > data.ex.p
 ```
 
-Pairing the flag with strict built-in errors above is deliberate. By default a
-failing built-in leaves the expression undefined rather than raising, so there
-is no error for `--stack-trace` to annotate. Conflict and type errors need no
-second flag, and `opa test` does not surface built-in errors at all today.
+Pairing the traceback with strict built-in errors above is deliberate. By
+default a failing built-in leaves the expression undefined rather than raising,
+so there is no error to annotate. Conflict and type errors need no second flag,
+and `opa test` does not surface built-in errors at all today.
 
 Unlike `--explain`, a traceback only describes the state at the point of failure, so it stays
 short even for policies that evaluate a lot of expressions.

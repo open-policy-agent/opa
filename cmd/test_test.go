@@ -1561,7 +1561,7 @@ test_p if {
 	}
 }
 
-func TestTestStackTraceFlag(t *testing.T) {
+func TestTestStackTrace(t *testing.T) {
 	files := map[string]string{
 		"/test.rego": `package test
 
@@ -1572,26 +1572,18 @@ conflicting := 2
 test_conflict if { conflicting }`,
 	}
 
-	run := func(root string, stackTrace bool) string {
+	test.WithTempFS(files, func(root string) {
 		buf := bytes.NewBuffer(nil)
 		testParams := newTestCommandParams()
 		testParams.count = 1
 		testParams.output = buf
 		testParams.errOutput = io.Discard
-		testParams.stackTrace = stackTrace
 
 		if code := opaTest([]string{root}, testParams); code == 0 {
 			t.Fatal("expected a non-zero exit code")
 		}
-		return buf.String()
-	}
 
-	test.WithTempFS(files, func(root string) {
-		if out := run(root, false); strings.Contains(out, "Traceback") {
-			t.Fatal("expected no traceback without --stack-trace, got:", out)
-		}
-
-		out := run(root, true)
+		out := buf.String()
 		for _, expected := range []string{"Traceback:", "test.rego:5: 2", "test.rego:7: conflicting"} {
 			if !strings.Contains(out, expected) {
 				t.Fatalf("expected output to contain %q, got:\n%s", expected, out)
