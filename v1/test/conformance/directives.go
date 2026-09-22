@@ -6,15 +6,71 @@ package conformance
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
+// RegoVersions are the accepted values of a case's rego_version, and so of
+// ParseOptions.RegoVersion. Absent is v1; v0-compat-v1 is its own parsing mode
+// rather than either of the versions it names.
+//
+// Canonical for both corpora. A version added here has to be mapped onto a parser
+// by every consumer, which for OPA means corpusgen.RegoVersion and the runner's
+// caseRegoVersion; the tests over this list are what fail until both are.
+var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
+
+// NoteScope returns the namespace a case's note has to be unique within, which is its
+// rego version rather than the corpus as a whole.
+//
+// Cases are expected to overlap across versions: the same construct parsed as v0 and as
+// v1 is two cases with one note, and the version is what tells them apart. Within one
+// version a note is an identifier, so a collision there is a corpus defect.
+func NoteScope(regoVersion string) string {
+	if regoVersion == "" {
+		return "v1"
+	}
+	return regoVersion
+}
+
+// ParseOptionFields are the names of ParseOptions' fields, which is the list a reader has
+// to carry onto its own parser in full. Exported so that a reader can be tested against
+// it: a field added here fails that test until the reader says how it carries the field.
+//
+// OPA needs this because it has three readers that cannot import each other: the two
+// generators under build/, and the runner in package ast. A field carried by some of them
+// and dropped by the rest would otherwise go unnoticed until a fixture was wrong.
+func ParseOptionFields() []string {
+	t := reflect.TypeFor[ParseOptions]()
+
+	out := make([]string, 0, t.NumField())
+	for f := range t.Fields() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
 // ParseOptions is how a corpus's Rego has to be parsed. Stated without reference
 // to v1/ast, so a consumer can map it onto its own parser.
+//
+// Every decision a case implies is made here rather than by each reader: OPA has three of
+// those — a generator per corpus, and the runner that checks what they write — and none can
+// import another, so anything a reader works out for itself is worked out three times. What
+// is left for a reader to do is rename these fields onto its own parser's.
 type ParseOptions struct {
 	RegoVersion       string
 	FutureKeywords    []string
 	AllFutureKeywords bool
+
+	// ExperimentalKeywords opts in to the future keywords that have no import.
+	ExperimentalKeywords bool
+
+	// ProcessAnnotations asks for metadata comments to be parsed into annotations.
+	ProcessAnnotations bool
+
+	// SkipRules reads the Rego as a body rather than a module. Set for a body case, as
+	// rego.New does for a query: without it a body that reads as a rule fails with a Go
+	// type name and no position, where the parser has a positioned diagnostic to report.
+	SkipRules bool
 }
 
 // DirectiveOption folds a directive import path into out, reporting whether imp

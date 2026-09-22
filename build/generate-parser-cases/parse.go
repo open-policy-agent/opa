@@ -13,16 +13,18 @@ import (
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 )
 
-func capabilities(tc parsercases.TestCase) *ast.Capabilities {
-	return ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(tc.ExperimentalKeywords))
-}
-
+// parserOptions translates the case's parse options onto OPA's parser. Every decision
+// is the schema's; nothing here is derived from the case. The runner's parseCaseOptions
+// is the same translation, and TestTranslateParserOptionsCarryEveryField pins it.
 func parserOptions(tc parsercases.TestCase) (ast.ParserOptions, error) {
 	opts, err := tc.ParseOptions()
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}
+	return translateParserOptions(opts)
+}
 
+func translateParserOptions(opts conformance.ParseOptions) (ast.ParserOptions, error) {
 	v, err := corpusgen.RegoVersion(opts.RegoVersion)
 	if err != nil {
 		return ast.ParserOptions{}, err
@@ -30,15 +32,11 @@ func parserOptions(tc parsercases.TestCase) (ast.ParserOptions, error) {
 
 	return ast.ParserOptions{
 		RegoVersion:       v,
-		Capabilities:      capabilities(tc),
-		ProcessAnnotation: tc.Annotations,
+		Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(opts.ExperimentalKeywords)),
+		ProcessAnnotation: opts.ProcessAnnotations,
 		FutureKeywords:    opts.FutureKeywords,
 		AllFutureKeywords: opts.AllFutureKeywords,
-
-		// As rego.New does for a query: without it a body that reads as a rule fails
-		// with "expected body but got *ast.Rule", a Go type name with no position,
-		// where the parser has a positioned rego_parse_error to report.
-		SkipRules: tc.BodyCase(),
+		SkipRules:         opts.SkipRules,
 	}, nil
 }
 

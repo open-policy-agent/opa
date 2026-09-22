@@ -34,7 +34,7 @@ type Set = conformance.Set[TestCase]
 const DefaultModuleName = conformance.DefaultModuleName
 
 // RegoVersions are the accepted values of a case's rego_version.
-var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
+var RegoVersions = conformance.RegoVersions
 
 // Accepted values of a case's strict field. They say whether the case's
 // expectations depend on the setting, so a consumer whose own strict mode is not
@@ -104,7 +104,7 @@ func ModuleName(i int) string {
 // diagnostics compiling them must produce or the assertion that they compile.
 type TestCase struct {
 	Filename             string   `json:"-"                                yaml:"-"`                               // name of file that case was loaded from
-	Note                 string   `json:"note"                             yaml:"note"`                            // globally unique identifier for this test case
+	Note                 string   `json:"note"                             yaml:"note"`                            // identifies the case, unique within its rego_version
 	Modules              []string `json:"modules,omitempty"                yaml:"modules,omitempty"`               // policies to compile, named test-0.rego, test-1.rego, ...
 	RegoVersion          string   `json:"rego_version,omitempty"           yaml:"rego_version,omitempty"`          // rego version to parse the modules as: v0, v1 (default), or v0-compat-v1
 	Strict               string   `json:"strict,omitempty"                 yaml:"strict,omitempty"`                // enabled, disabled, or absent where strict mode does not change the outcome
@@ -140,7 +140,7 @@ type TestCase struct {
 	WantStages map[string][]Want `json:"want_stages,omitempty"  yaml:"want_stages,omitempty"`
 }
 
-// Name returns the globally unique note identifying the case.
+// Name returns the note identifying the case, which is unique within its rego_version.
 func (tc TestCase) Name() string {
 	return tc.Note
 }
@@ -360,11 +360,23 @@ func (tc TestCase) validateWant(field string, want []Want) error {
 // reference to v1/ast, so a consumer can map it onto its own parser.
 type WantOptions = conformance.ParseOptions
 
+// ParseOptions is how tc's modules have to be read.
+func (tc TestCase) ParseOptions() WantOptions {
+	return WantOptions{
+		RegoVersion:          tc.RegoVersion,
+		ExperimentalKeywords: tc.ExperimentalKeywords,
+
+		// Schema annotations are only honoured when they were parsed as annotations, so
+		// attaching schemas asks for that too.
+		ProcessAnnotations: len(tc.Schemas) > 0,
+	}
+}
+
 // WantParserOptions interprets the imports on the i-th Want entry. An import it does
 // not recognise is an error rather than a no-op.
 func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
 	if i >= len(tc.Want) {
-		return WantOptions{RegoVersion: tc.RegoVersion}, nil
+		return tc.baseWantOptions(), nil
 	}
 	return tc.wantOptions(fmt.Sprintf("want[%d]", i), tc.Want[i])
 }
@@ -374,16 +386,17 @@ func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
 func (tc TestCase) WantStageParserOptions(stage string, i int) (WantOptions, error) {
 	want := tc.WantStages[stage]
 	if i >= len(want) {
-		return WantOptions{RegoVersion: tc.RegoVersion}, nil
+		return tc.baseWantOptions(), nil
 	}
 	return tc.wantOptions(fmt.Sprintf("want_stages.%s[%d]", stage, i), want[i])
 }
 
-// QueryParserOptions are the options query.body and query.want are read with, taken from
-// the directives among the query's own imports — the same list that is in scope for it,
-// and the same derivation OPA makes for a query handed to it with `--import`.
+// QueryParserOptions are the options query.body and query.want are read with: the
+// modules' own, plus the directives among the query's imports — the same list that is in
+// scope for it, and the same derivation OPA makes for a query handed to it with
+// `--import`.
 func (tc TestCase) QueryParserOptions() (WantOptions, error) {
-	out := WantOptions{RegoVersion: tc.RegoVersion}
+	out := tc.ParseOptions()
 	if !tc.QueryCase() {
 		return out, nil
 	}
@@ -398,8 +411,18 @@ func (tc TestCase) QueryParserOptions() (WantOptions, error) {
 	return out, nil
 }
 
+// baseWantOptions is how an expected module is read before its own imports are folded
+// in. Annotations always, since the compiler builds them from METADATA comments and
+// Module.Compare compares them, so an expectation carrying one has to be read with them
+// processed.
+func (tc TestCase) baseWantOptions() WantOptions {
+	out := tc.ParseOptions()
+	out.ProcessAnnotations = true
+	return out
+}
+
 func (tc TestCase) wantOptions(at string, w Want) (WantOptions, error) {
-	out := WantOptions{RegoVersion: tc.RegoVersion}
+	out := tc.baseWantOptions()
 
 	for _, imp := range w.Imports {
 		directive, err := conformance.DirectiveOption(at+".imports", imp, &out)
@@ -446,16 +469,20 @@ func validate(set Set, err error) (Set, error) {
 	if err != nil {
 		return set, err
 	}
+	// Keyed by rego version, not by note alone: the same note in v0 and in v1 is two
+	// cases, and only a collision within one version is a defect.
 	seen := make(map[string]string, len(set.Cases))
 	for i := range set.Cases {
 		tc := &set.Cases[i]
 		if err := tc.Validate(); err != nil {
 			return set, fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 		}
-		if other, ok := seen[tc.Note]; ok {
-			return set, fmt.Errorf("%s: %s: note is already used by %s", tc.Filename, tc.Note, other)
+		key := conformance.NoteScope(tc.RegoVersion) + "/" + tc.Note
+		if other, ok := seen[key]; ok {
+			return set, fmt.Errorf("%s: %s: note is already used by %s for the same rego version",
+				tc.Filename, tc.Note, other)
 		}
-		seen[tc.Note] = tc.Filename
+		seen[key] = tc.Filename
 	}
 	return set, nil
 }

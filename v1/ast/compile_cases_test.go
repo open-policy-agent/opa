@@ -39,19 +39,9 @@ func TestCompileCases(t *testing.T) {
 func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 	t.Helper()
 
-	regoVersion, err := caseRegoVersion(tc.RegoVersion)
+	popts, err := caseParserOptions(tc.ParseOptions())
 	if err != nil {
 		t.Fatalf("%s: %v", tc.Filename, err)
-	}
-
-	popts := ParserOptions{
-		RegoVersion: regoVersion,
-		// Schema annotations are only honoured when they were parsed as annotations, so
-		// attaching schemas asks for that too.
-		ProcessAnnotation: len(tc.Schemas) > 0,
-	}
-	if tc.ExperimentalKeywords {
-		popts.Capabilities = CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
 	}
 
 	c := compileCaseModules(t, tc, popts, "")
@@ -68,7 +58,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 			t.Fatalf("%s: a query case's modules are its environment and must compile, got:%s",
 				tc.Filename, indented(got))
 		}
-		assertCaseQuery(t, tc, popts, c)
+		assertCaseQuery(t, tc, c)
 		return
 	}
 
@@ -83,7 +73,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		t.Fatalf("%s: expected the modules to compile, got:%s", tc.Filename, indented(got))
 	}
 
-	assertCaseWant(t, tc, popts, c, "")
+	assertCaseWant(t, tc, c, "")
 
 	// want_stages is additive: the full-pipeline assertions above stand on their
 	// own, and a consumer without OPA's stages ignores everything below.
@@ -101,7 +91,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 			t.Fatalf("%s: compiling up to %s reports:%s", tc.Filename, stage, indented(reported))
 		}
 
-		assertCaseWant(t, tc, popts, sc, stage)
+		assertCaseWant(t, tc, sc, stage)
 	}
 }
 
@@ -174,7 +164,7 @@ func compileCaseModules(t *testing.T, tc compilecases.TestCase, popts ParserOpti
 
 // assertCaseQuery compiles the case's query against its modules and checks what came
 // back: the compiled query where the case names one, the diagnostics otherwise.
-func assertCaseQuery(t *testing.T, tc compilecases.TestCase, popts ParserOptions, c *Compiler) {
+func assertCaseQuery(t *testing.T, tc compilecases.TestCase, c *Compiler) {
 	t.Helper()
 
 	// A directive among the query's imports is in effect for its body, which is how a
@@ -183,8 +173,10 @@ func assertCaseQuery(t *testing.T, tc compilecases.TestCase, popts ParserOptions
 	if err != nil {
 		t.Fatalf("%s: %v", tc.Filename, err)
 	}
-	popts.FutureKeywords = declared.FutureKeywords
-	popts.AllFutureKeywords = declared.AllFutureKeywords
+	popts, err := caseParserOptions(declared)
+	if err != nil {
+		t.Fatalf("%s: %v", tc.Filename, err)
+	}
 
 	query, perr := ParseBodyWithOpts(tc.Query.Body, popts)
 	if perr != nil {
@@ -283,7 +275,7 @@ func importDecls(paths []string) string {
 
 // assertCaseWant compares the compiled modules against the case's expectations —
 // the full-pipeline want where stage is empty, the one pinned to stage otherwise.
-func assertCaseWant(t *testing.T, tc compilecases.TestCase, popts ParserOptions, c *Compiler, stage string) {
+func assertCaseWant(t *testing.T, tc compilecases.TestCase, c *Compiler, stage string) {
 	t.Helper()
 
 	want, field := tc.Want, "want"
@@ -330,19 +322,10 @@ func assertCaseWant(t *testing.T, tc compilecases.TestCase, popts ParserOptions,
 			t.Fatalf("%s: %v", tc.Filename, err)
 		}
 
-		wantVersion, err := caseRegoVersion(declared.RegoVersion)
+		wantOpts, err := caseParserOptions(declared)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.Filename, err)
 		}
-
-		wantOpts := popts
-		wantOpts.RegoVersion = wantVersion
-		wantOpts.FutureKeywords = declared.FutureKeywords
-		wantOpts.AllFutureKeywords = declared.AllFutureKeywords
-
-		// Annotations are built from METADATA comments by the compiler and compared by
-		// Module.Compare, so the expected module has to be read with them processed.
-		wantOpts.ProcessAnnotation = true
 
 		exp, err := ParseModuleWithOpts(name, want.Module, wantOpts)
 		if err != nil {

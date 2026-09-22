@@ -136,24 +136,7 @@ func parseCaseOptions(tc parsercases.TestCase) (ParserOptions, error) {
 	if err != nil {
 		return ParserOptions{}, err
 	}
-
-	regoVersion, err := caseRegoVersion(opts.RegoVersion)
-	if err != nil {
-		return ParserOptions{}, err
-	}
-
-	return ParserOptions{
-		RegoVersion:       regoVersion,
-		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(tc.ExperimentalKeywords)),
-		ProcessAnnotation: tc.Annotations,
-		FutureKeywords:    opts.FutureKeywords,
-		AllFutureKeywords: opts.AllFutureKeywords,
-
-		// As rego.New does for a query: without it a body that reads as a rule fails
-		// with "expected body but got *ast.Rule", a Go type name with no position,
-		// where the parser has a positioned rego_parse_error to report.
-		SkipRules: tc.BodyCase(),
-	}, nil
+	return caseParserOptions(opts)
 }
 
 func parseCaseErrors(err error) []conformance.Error {

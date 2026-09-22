@@ -96,7 +96,7 @@ the rest of `Location.Text`.
 
 | field | |
 | - | - |
-| `note` | globally unique identifier, and the subtest name; its suffix says which entry point, see [Entry points](#entry-points) |
+| `note` | identifies the case, and names the subtest; unique within a `rego_version`, not across the corpus — its suffix says which entry point, see [Entry points](#entry-points) |
 | `module` | the policy to parse, named `test-0.rego` |
 | `body` | a query to parse instead: one or more expressions, exclusive with `module` |
 | `imports` | directives in effect for `body`, which has nowhere to declare them; `body` cases only |

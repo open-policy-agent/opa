@@ -8,7 +8,26 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
+
+// TestRegoVersionCoversTheSchema fails when a version is added to the corpus schema
+// and not mapped onto a parser here.
+func TestRegoVersionCoversTheSchema(t *testing.T) {
+	seen := map[ast.RegoVersion]string{}
+
+	for _, s := range conformance.RegoVersions {
+		v, err := RegoVersion(s)
+		if err != nil {
+			t.Errorf("%q is an accepted rego_version but has no parser version: %v", s, err)
+			continue
+		}
+		if other, ok := seen[v]; ok {
+			t.Errorf("%q and %q both map to %v", other, s, v)
+		}
+		seen[v] = s
+	}
+}
 
 func TestRegoVersion(t *testing.T) {
 	tests := []struct {

@@ -32,13 +32,13 @@ type Set = conformance.Set[TestCase]
 const DefaultModuleName = conformance.DefaultModuleName
 
 // RegoVersions are the accepted values of a case's rego_version.
-var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
+var RegoVersions = conformance.RegoVersions
 
 // TestCase represents a single test case: one module or one query to parse, and
 // either the AST that parse must produce or the diagnostics it must fail with.
 type TestCase struct {
 	Filename string `json:"-"                 yaml:"-"`                // name of file that case was loaded from
-	Note     string `json:"note"              yaml:"note"`             // globally unique identifier for this test case
+	Note     string `json:"note"              yaml:"note"`             // identifies the case, unique within its rego_version
 	Module   string `json:"module,omitempty"  yaml:"module,omitempty"` // the policy to parse, named test-0.rego
 
 	// Body is a query to parse instead of a module: one or more expressions, which
@@ -78,7 +78,7 @@ type TestCase struct {
 	EntryPoints []string `json:"entrypoints,omitempty"  yaml:"entrypoints,omitempty"`
 }
 
-// Name returns the globally unique note identifying the case.
+// Name returns the note identifying the case, which is unique within its rego_version.
 func (tc TestCase) Name() string {
 	return tc.Note
 }
@@ -107,13 +107,17 @@ func (tc TestCase) Rego() string {
 	return tc.Module
 }
 
-// ParseOptions is how tc's Rego has to be read: its rego_version, and the
-// directives among a body's imports folded in.
+// ParseOptions is how tc's Rego has to be read: its rego_version, the keyword and
+// annotation opt-ins, whether it is a body rather than a module, and the directives
+// among a body's imports folded in.
 func (tc TestCase) ParseOptions() (conformance.ParseOptions, error) {
 	out := conformance.ParseOptions{
-		RegoVersion:       tc.RegoVersion,
-		FutureKeywords:    slices.Clone(tc.FutureKeywords),
-		AllFutureKeywords: tc.AllFutureKeywords,
+		RegoVersion:          tc.RegoVersion,
+		FutureKeywords:       slices.Clone(tc.FutureKeywords),
+		AllFutureKeywords:    tc.AllFutureKeywords,
+		ExperimentalKeywords: tc.ExperimentalKeywords,
+		ProcessAnnotations:   tc.Annotations,
+		SkipRules:            tc.BodyCase(),
 	}
 
 	for _, imp := range tc.Imports {
@@ -253,16 +257,20 @@ func validate(set Set, err error) (Set, error) {
 	if err != nil {
 		return set, err
 	}
+	// Keyed by rego version, not by note alone: the same note in v0 and in v1 is two
+	// cases, and only a collision within one version is a defect.
 	seen := make(map[string]string, len(set.Cases))
 	for i := range set.Cases {
 		tc := &set.Cases[i]
 		if err := tc.Validate(); err != nil {
 			return set, fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 		}
-		if other, ok := seen[tc.Note]; ok {
-			return set, fmt.Errorf("%s: %s: note is already used by %s", tc.Filename, tc.Note, other)
+		key := conformance.NoteScope(tc.RegoVersion) + "/" + tc.Note
+		if other, ok := seen[key]; ok {
+			return set, fmt.Errorf("%s: %s: note is already used by %s for the same rego version",
+				tc.Filename, tc.Note, other)
 		}
-		seen[tc.Note] = tc.Filename
+		seen[key] = tc.Filename
 	}
 	return set, nil
 }

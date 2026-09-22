@@ -164,3 +164,59 @@ cases:
 		t.Fatalf("expected duplicate note error, got %v", err)
 	}
 }
+
+// TestLoadAcceptsANoteReusedAcrossRegoVersions checks that a note may be reused under a
+// different rego_version. The same construct parsed as v0 and as v1 is two cases with one
+// note, so most of the corpus does this.
+func TestLoadAcceptsANoteReusedAcrossRegoVersions(t *testing.T) {
+	dir := t.TempDir()
+	corpus := `
+cases:
+  - note: a
+    module: package test
+    want_ast: "{}"
+  - note: a
+    rego_version: v0
+    module: package test
+    want_ast: "{}"
+  - note: a
+    rego_version: v0-compat-v1
+    module: package test
+    want_ast: "{}"
+`
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	set, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(set.Cases) != 3 {
+		t.Fatalf("expected 3 cases, got %d", len(set.Cases))
+	}
+}
+
+// TestLoadRejectsANoteReusedWithinOneRegoVersion covers the version being spelled two ways:
+// an absent rego_version is v1, so these two collide.
+func TestLoadRejectsANoteReusedWithinOneRegoVersion(t *testing.T) {
+	dir := t.TempDir()
+	corpus := `
+cases:
+  - note: a
+    module: package test
+    want_ast: "{}"
+  - note: a
+    rego_version: v1
+    module: package test
+    want_ast: "{}"
+`
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(dir)
+	if err == nil || !strings.Contains(err.Error(), "for the same rego version") {
+		t.Fatalf("expected duplicate note error, got %v", err)
+	}
+}

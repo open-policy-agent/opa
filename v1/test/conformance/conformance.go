@@ -116,7 +116,9 @@ func CheckTrailingWhitespace(field, rego string) error {
 
 // Case is implemented by the case type of a corpus.
 type Case[T any] interface {
-	// Name returns the globally unique note identifying the case.
+	// Name returns the note identifying the case. A note is unique within a rego
+	// version, not across the corpus: the same construct parsed as v0 and as v1 is two
+	// cases with one note. See NoteScope.
 	Name() string
 	// WithFilename returns a copy of the case stamped with the file it was loaded from.
 	WithFilename(string) T

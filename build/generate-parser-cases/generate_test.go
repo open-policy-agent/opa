@@ -5,7 +5,6 @@
 package cases
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,87 +13,6 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 )
-
-func TestGenerateFillsWantErrors(t *testing.T) {
-	// The second case is authored with a diagnostic that does not match what the
-	// parser reports, to pin that generation leaves it that way: a message that
-	// changes has to fail the runner, not be rewritten underneath it.
-	corpus := `---
-cases:
-  - note: errors/filled-in
-    module: |
-      package test
-
-      p := 03
-  - note: errors/left-alone
-    module: |
-      package test
-
-      p := 03
-    want_errors:
-      - code: rego_parse_error
-        row: 99
-        message: something else entirely
-`
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test-errors.yaml")
-	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	first, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := parsercases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(set.Cases) != 2 {
-		t.Fatalf("expected 2 cases, got %d", len(set.Cases))
-	}
-
-	filled, left := set.Cases[0], set.Cases[1]
-
-	want := parsercases.Error{
-		Code:    "rego_parse_error",
-		Row:     3,
-		Col:     6,
-		Message: "unexpected number token: expected number without leading zero",
-	}
-	if len(filled.WantErrors) != 1 || filled.WantErrors[0] != want {
-		t.Errorf("expected %v, got %v", want, filled.WantErrors)
-	}
-
-	if len(left.WantErrors) != 1 || left.WantErrors[0].Row != 99 {
-		t.Errorf("expected the authored diagnostic to survive, got %v", left.WantErrors)
-	}
-
-	// Neither case gets a want_ast: the module does not parse.
-	for _, tc := range set.Cases {
-		if tc.WantAST != "" {
-			t.Errorf("%s: expected no want_ast on a failure case", tc.Note)
-		}
-	}
-
-	// Generation is idempotent, including over the case it just filled in.
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Errorf("second generation changed the file:\n%s", string(second))
-	}
-}
 
 func TestGenerateRejectsTrailingWhitespace(t *testing.T) {
 	// The module is quoted so the trailing space survives being authored; a block

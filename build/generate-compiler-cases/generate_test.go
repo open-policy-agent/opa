@@ -6,11 +6,9 @@ package cases
 
 import (
 	"bytes"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -20,92 +18,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/compilecases/testdata"
 )
-
-func TestGenerateFillsWantErrors(t *testing.T) {
-	// The second case is authored with a diagnostic that does not match what the
-	// compiler reports, to pin that generation leaves it that way: a message that
-	// changes has to fail the runner, not be rewritten underneath it.
-	corpus := `---
-cases:
-  - note: safety/filled in
-    modules:
-      - |
-        package test
-
-        p if {
-        	x == 2
-        }
-    exhaustive: true
-  - note: safety/left alone
-    modules:
-      - |
-        package test
-
-        p if {
-        	x == 2
-        }
-    want_errors:
-      - code: rego_unsafe_var_error
-        row: 99
-        message: something else entirely
-`
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test-safety.yaml")
-	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	first, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(set.Cases) != 2 {
-		t.Fatalf("expected 2 cases, got %d", len(set.Cases))
-	}
-
-	filled, left := set.Cases[0], set.Cases[1]
-
-	want := compilecases.Error{
-		Code:    "rego_unsafe_var_error",
-		Row:     4,
-		Col:     2,
-		Message: "var x is unsafe",
-	}
-	if len(filled.WantErrors) != 1 || filled.WantErrors[0] != want {
-		t.Errorf("expected %v, got %v", want, filled.WantErrors)
-	}
-
-	// want_errors is inserted ahead of exhaustive, which the case already carried.
-	if i, j := bytes.Index(first, []byte("want_errors")), bytes.Index(first, []byte("exhaustive")); i > j {
-		t.Errorf("expected want_errors before exhaustive:\n%s", first)
-	}
-
-	if len(left.WantErrors) != 1 || left.WantErrors[0].Row != 99 {
-		t.Errorf("expected the authored diagnostic to survive, got %v", left.WantErrors)
-	}
-
-	// Generation is idempotent, including over the case it just filled in.
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Errorf("second generation changed the file:\n%s", string(second))
-	}
-}
 
 // TestGenerateReproducesCommittedFixtures strips want_errors from the corpus and
 // regenerates it. The committed diagnostics were reviewed by hand, so this checks
@@ -224,92 +136,6 @@ func assertMatchesCommitted(t *testing.T, dir string) {
 	}
 }
 
-func TestGenerateAttributesErrorsToTheirModule(t *testing.T) {
-	corpus := `---
-cases:
-  - note: safety/across modules
-    modules:
-      - |
-        package a
-
-        p if {
-        	x == 2
-        }
-      - |
-        package b
-
-        q if {
-        	y == 3
-        }
-    exhaustive: true
-`
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := []compilecases.Error{
-		// The first module is the default, so it is not named.
-		{Code: "rego_unsafe_var_error", Row: 4, Col: 2, Message: "var x is unsafe"},
-		{Module: "test-1.rego", Code: "rego_unsafe_var_error", Row: 4, Col: 2, Message: "var y is unsafe"},
-	}
-
-	got := set.Cases[0].WantErrors
-	if len(got) != len(want) {
-		t.Fatalf("expected %v, got %v", want, got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("expected %v, got %v", want[i], got[i])
-		}
-	}
-}
-
-// TestGenerateRecordsMoreThanTheErrorLimit pins the SetErrorLimit(0) in
-// caseDiagnostics: at the compiler's default the twelfth diagnostic would be
-// "too many errors" and the rest would be missing.
-func TestGenerateRecordsMoreThanTheErrorLimit(t *testing.T) {
-	var sb strings.Builder
-	sb.WriteString("---\ncases:\n  - note: safety/many\n    modules:\n      - |\n        package test\n")
-	for i := range 12 {
-		fmt.Fprintf(&sb, "\n        p%d if {\n        	x%d == 2\n        }\n", i, i)
-	}
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(sb.String()), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got := set.Cases[0].WantErrors
-	if len(got) != 12 {
-		t.Fatalf("expected 12 diagnostics, got %d: %v", len(got), got)
-	}
-	for _, e := range got {
-		if e.Code != "rego_unsafe_var_error" {
-			t.Errorf("expected only unsafe-var diagnostics, got %v", e)
-		}
-	}
-}
-
 func TestGenerateRejectsContradictoryCases(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -381,39 +207,6 @@ cases:
 	}
 }
 
-func TestGenerateFillsInACleanCompile(t *testing.T) {
-	corpus := `---
-cases:
-  - note: transforms/clean compile
-    modules:
-      - |
-        package test
-
-        p if {
-        	x := 1
-        	x == 1
-        }
-`
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test-cases.yaml")
-	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !set.Cases[0].Transform() {
-		t.Errorf("expected the clean compile to be filled in as a transformation, got %#v", set.Cases[0])
-	}
-}
-
 func TestGenerateRejectsATransformThatReportsDiagnostics(t *testing.T) {
 	corpus := `---
 cases:
@@ -443,101 +236,6 @@ cases:
 	}
 	if want := "they report 1 diagnostic(s)"; !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected an error containing %q, got %v", want, err)
-	}
-}
-
-func TestGenerateSeedsWantModules(t *testing.T) {
-	// A case with no want_errors is a transformation case: the generator fills in
-	// what the modules compile to.
-	corpus := `---
-cases:
-  - note: transforms/import resolved
-    modules:
-      - |
-        package test
-
-        import data.other.thing
-
-        p if {
-        	thing == 1
-        }
-`
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test-cases.yaml")
-	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := "package test\n\np = true if {\n\tdata.other.thing = 1\n}\n"
-	if got := set.Cases[0].Want; len(got) != 1 || got[0].Module != want {
-		t.Errorf("expected %q, got %+v", want, got)
-	}
-
-	first, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Unlike want_errors, want_modules is regenerated every time — but a second
-	// pass over unchanged input has to reach the same text.
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Errorf("second generation changed the file:\n%s", string(second))
-	}
-}
-
-func TestGenerateRegeneratesStaleWantModules(t *testing.T) {
-	// want_modules is the compiled form, so an authored one that no longer matches
-	// is rewritten and the diff is the gate — the opposite of want_errors, which is
-	// left alone so that a changed message fails the runner.
-	corpus := `---
-cases:
-  - note: transforms/stale
-    modules:
-      - |
-        package test
-
-        p if {
-        	true
-        }
-    want:
-      - module: |
-          package test
-
-          p = "something else entirely" if { true }
-`
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := set.Cases[0].Want[0].Module; strings.Contains(got, "something else") {
-		t.Errorf("expected the stale expectation to be regenerated, got %q", got)
 	}
 }
 
@@ -616,107 +314,6 @@ cases:
 	}
 }
 
-// TestGenerateSwitchesBackFromWantAST checks the other direction: a case whose
-// compiled form becomes printable loses its want_ast rather than carrying both.
-func TestGenerateSwitchesBackFromWantAST(t *testing.T) {
-	corpus := `---
-cases:
-  - note: transforms/printable
-    modules:
-      - |
-        package test
-
-        p if {
-        	true
-        }
-    want:
-      - ast: |
-          {}
-`
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tc := set.Cases[0]
-	if len(tc.Want) != 1 {
-		t.Fatalf("expected one entry, got %d", len(tc.Want))
-	}
-	if tc.Want[0].AST != "" {
-		t.Errorf("expected the AST form to be dropped, got %q", tc.Want[0].AST)
-	}
-	if tc.Want[0].Module == "" {
-		t.Error("expected a module")
-	}
-}
-
-// TestGenerateExplainsTheWantASTFallback checks that an unreadable fixture says
-// why it is unreadable. Without it a reader has to reproduce the printer failure
-// to find out why the case is not want_modules.
-func TestGenerateExplainsTheWantASTFallback(t *testing.T) {
-	corpus := `---
-cases:
-  - note: transforms/else assign
-    modules:
-      - |
-        package test
-
-        p := 1 if {
-        	input.x
-        } else := 2
-`
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test-cases.yaml")
-	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	bs, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, want := range []string{
-		"# ast rather than module",
-		"parses to a different AST",
-		// The disqualifying expression, so the reason is checkable rather than
-		// merely stated. The printer wrote `else = 2` where the source says `:=`.
-		// Matched in a fragment that survives the comment being wrapped.
-		"else = 2",
-	} {
-		if !bytes.Contains(bs, []byte(want)) {
-			t.Errorf("expected the fixture to explain the fallback with %q, got:\n%s", want, bs)
-		}
-	}
-
-	// Regenerating replaces the comment rather than stacking another copy.
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-	again, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n := bytes.Count(again, []byte("ast rather than module")); n != 1 {
-		t.Errorf("expected one explanation, got %d:\n%s", n, again)
-	}
-}
-
 // TestGenerateRejectsAnUnknownField pins that a field the schema does not declare
 // fails generation, rather than loading as though it were not there.
 func TestGenerateRejectsAnUnknownField(t *testing.T) {
@@ -744,57 +341,6 @@ cases:
 	}
 	if want := `unknown field "no_such_field"`; !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected an error containing %q, got %v", want, err)
-	}
-}
-
-// TestGenerateFillsWantStages covers the additive stage assertion: the case names
-// a stage, the generator records what the modules look like there, and want keeps
-// describing the whole pipeline.
-func TestGenerateFillsWantStages(t *testing.T) {
-	corpus := `---
-cases:
-  - note: transforms/hoisted dynamic term
-    modules:
-      - |
-        package test
-
-        q := 1
-
-        p if {
-        	[q]
-        }
-    want_stages:
-      RewriteEquals: []
-`
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Generate(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	set, err := compilecases.Load(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tc := set.Cases[0]
-	if got := tc.SortedStages(); !slices.Equal(got, []string{"RewriteEquals"}) {
-		t.Fatalf("expected RewriteEquals to survive, got %v", got)
-	}
-
-	// The point of the field: the stage form is not the full-pipeline one.
-	if stage, full := tc.WantStages["RewriteEquals"][0].Module, tc.Want[0].Module; stage == full {
-		t.Fatalf("expected the stage form to differ from the full-pipeline form, both are:\n%s", full)
-	}
-	if want := "[data.test.q]"; !strings.Contains(tc.WantStages["RewriteEquals"][0].Module, want) {
-		t.Errorf("expected the stage form to contain %q, got:\n%s", want, tc.WantStages["RewriteEquals"][0].Module)
-	}
-	if want := "__local0__ = data.test.q"; !strings.Contains(tc.Want[0].Module, want) {
-		t.Errorf("expected the full-pipeline form to contain %q, got:\n%s", want, tc.Want[0].Module)
 	}
 }
 

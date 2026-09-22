@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
@@ -60,15 +59,15 @@ func generateIR(sets []ParserSet) error {
 }
 
 func plan(tc *ParserTestCase, module *ast.Module) ([]string, *ir.Policy, error) {
-	v, err := corpusgen.RegoVersion(tc.RegoVersion)
+	popts, err := parserOptions(tc.TestCase)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	caps := capabilities(tc.TestCase)
+	caps := popts.Capabilities
 
 	c := ast.NewCompiler().
-		WithDefaultRegoVersion(v).
+		WithDefaultRegoVersion(popts.RegoVersion).
 		WithCapabilities(caps)
 	c.Compile(map[string]*ast.Module{parsercases.DefaultModuleName: module})
 	if c.Failed() {

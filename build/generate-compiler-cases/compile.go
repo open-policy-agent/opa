@@ -19,39 +19,36 @@ import (
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
+// parserOptions translates the case's parse options onto OPA's parser. Every decision is
+// the schema's; nothing here is derived from the case. The runner does the same
+// translation, and TestParserOptionsMatchTheSchema pins the two together.
 func parserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
-	v, err := corpusgen.RegoVersion(tc.RegoVersion)
-	if err != nil {
-		return ast.ParserOptions{}, err
-	}
-
-	popts := ast.ParserOptions{
-		RegoVersion: v,
-		// Schema annotations are only honoured when they were parsed as annotations, so
-		// attaching schemas asks for that too.
-		ProcessAnnotation: len(tc.Schemas) > 0,
-	}
-	if tc.ExperimentalKeywords {
-		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
-	}
-	return popts, nil
+	return translateParserOptions(tc.ParseOptions())
 }
 
 // queryParserOptions are the options a query case's body and expectation are read with.
 func queryParserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
-	popts, err := parserOptions(tc)
+	opts, err := tc.QueryParserOptions()
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+	return translateParserOptions(opts)
+}
+
+func translateParserOptions(opts compilecases.WantOptions) (ast.ParserOptions, error) {
+	v, err := corpusgen.RegoVersion(opts.RegoVersion)
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}
 
-	declared, err := tc.QueryParserOptions()
-	if err != nil {
-		return ast.ParserOptions{}, err
-	}
-	popts.FutureKeywords = declared.FutureKeywords
-	popts.AllFutureKeywords = declared.AllFutureKeywords
-
-	return popts, nil
+	return ast.ParserOptions{
+		RegoVersion:       v,
+		Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(opts.ExperimentalKeywords)),
+		ProcessAnnotation: opts.ProcessAnnotations,
+		FutureKeywords:    opts.FutureKeywords,
+		AllFutureKeywords: opts.AllFutureKeywords,
+		SkipRules:         opts.SkipRules,
+	}, nil
 }
 
 // caseDiagnostics compiles a case's modules and returns the diagnostics, sorted. A
@@ -435,22 +432,7 @@ func wantParserOptions(tc compilecases.TestCase, imports [][]string, i int) (ast
 		return ast.ParserOptions{}, err
 	}
 
-	version, err := corpusgen.RegoVersion(opts.RegoVersion)
-	if err != nil {
-		return ast.ParserOptions{}, err
-	}
-
-	popts := ast.ParserOptions{
-		RegoVersion:       version,
-		FutureKeywords:    opts.FutureKeywords,
-		AllFutureKeywords: opts.AllFutureKeywords,
-		ProcessAnnotation: true,
-	}
-	if tc.ExperimentalKeywords {
-		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
-	}
-
-	return popts, nil
+	return translateParserOptions(opts)
 }
 
 // marshalModule renders a compiled module as the AST form of a Want entry.

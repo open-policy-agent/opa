@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,6 +23,116 @@ func caseRegoVersion(s string) (RegoVersion, error) {
 		return RegoV0CompatV1, nil
 	}
 	return RegoUndefined, fmt.Errorf("unknown rego_version %q", s)
+}
+
+// TestCaseRegoVersionCoversTheSchema fails when a version is added to the corpus
+// schema and not mapped here. The generator has the same mapping and the same test,
+// since neither package can import the other; this is what keeps the two from
+// drifting into generating fixtures under a version they are not checked under.
+func TestCaseRegoVersionCoversTheSchema(t *testing.T) {
+	seen := map[RegoVersion]string{}
+
+	for _, s := range conformance.RegoVersions {
+		v, err := caseRegoVersion(s)
+		if err != nil {
+			t.Errorf("%q is an accepted rego_version but has no parser version: %v", s, err)
+			continue
+		}
+		if other, ok := seen[v]; ok {
+			t.Errorf("%q and %q both map to %v", other, s, v)
+		}
+		seen[v] = s
+	}
+
+	// Not in RegoVersions: absent is structural rather than an accepted value.
+	if v, err := caseRegoVersion(""); err != nil || v != RegoV1 {
+		t.Errorf("expected an absent rego_version to be v1, got %v, %v", v, err)
+	}
+	if _, err := caseRegoVersion("v2"); err == nil {
+		t.Error("expected an unknown rego_version to be rejected")
+	}
+}
+
+// caseParserOptions translates a case's parse options onto OPA's parser, for both
+// corpora. Every decision is the schema's; nothing is derived from the case here. Each
+// generator does the same translation, and cannot share this one — it would have to
+// import package ast, which imports it — so TestCaseParserOptionsCarryEveryField on each
+// side is what keeps fixtures from being generated under options they are not checked
+// under.
+func caseParserOptions(opts conformance.ParseOptions) (ParserOptions, error) {
+	version, err := caseRegoVersion(opts.RegoVersion)
+	if err != nil {
+		return ParserOptions{}, err
+	}
+
+	return ParserOptions{
+		RegoVersion:       version,
+		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(opts.ExperimentalKeywords)),
+		ProcessAnnotation: opts.ProcessAnnotations,
+		FutureKeywords:    opts.FutureKeywords,
+		AllFutureKeywords: opts.AllFutureKeywords,
+		SkipRules:         opts.SkipRules,
+	}, nil
+}
+
+// TestCaseParserOptionsCarryEveryField fails when a field is added to the schema's
+// ParseOptions and caseParserOptions does not carry it.
+func TestCaseParserOptionsCarryEveryField(t *testing.T) {
+	carried := map[string]func(*testing.T){
+		"RegoVersion": func(t *testing.T) {
+			assertCarried(t, conformance.ParseOptions{RegoVersion: "v0"},
+				func(p ParserOptions) bool { return p.RegoVersion == RegoV0 })
+		},
+		"FutureKeywords": func(t *testing.T) {
+			assertCarried(t, conformance.ParseOptions{FutureKeywords: []string{"in"}},
+				func(p ParserOptions) bool { return slices.Equal(p.FutureKeywords, []string{"in"}) })
+		},
+		"AllFutureKeywords": func(t *testing.T) {
+			assertCarried(t, conformance.ParseOptions{AllFutureKeywords: true},
+				func(p ParserOptions) bool { return p.AllFutureKeywords })
+		},
+		"ExperimentalKeywords": func(t *testing.T) {
+			assertCarried(t, conformance.ParseOptions{ExperimentalKeywords: true}, func(p ParserOptions) bool {
+				// Asserts the flag reaches the capabilities, not an observable difference:
+				// experimentalFutureKeywords is empty in this build, so capabilities built
+				// with the opt-in and without it are equal. This becomes a real check the
+				// day OPA adds an experimental keyword.
+				return p.Capabilities != nil && slices.Equal(
+					slices.Sorted(slices.Values(p.Capabilities.FutureKeywords)),
+					slices.Sorted(slices.Values(CapabilitiesForThisVersion(
+						CapabilitiesExperimentalKeywords(true)).FutureKeywords)))
+			})
+		},
+		"ProcessAnnotations": func(t *testing.T) {
+			assertCarried(t, conformance.ParseOptions{ProcessAnnotations: true},
+				func(p ParserOptions) bool { return p.ProcessAnnotation })
+		},
+		"SkipRules": func(t *testing.T) {
+			assertCarried(t, conformance.ParseOptions{SkipRules: true},
+				func(p ParserOptions) bool { return p.SkipRules })
+		},
+	}
+
+	for _, field := range conformance.ParseOptionFields() {
+		check, ok := carried[field]
+		if !ok {
+			t.Errorf("conformance.ParseOptions.%s is not carried by caseParserOptions; carry it, and say here how", field)
+			continue
+		}
+		t.Run(field, check)
+	}
+}
+
+func assertCarried(t *testing.T, opts conformance.ParseOptions, carried func(ParserOptions) bool) {
+	t.Helper()
+
+	popts, err := caseParserOptions(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !carried(popts) {
+		t.Errorf("the field was not carried onto %+v", popts)
+	}
 }
 
 func caseError(e *Error) conformance.Error {

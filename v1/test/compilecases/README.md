@@ -53,7 +53,7 @@ line. The loader names the offending line rather than stripping it.
 
 | field | |
 | - | - |
-| `note` | globally unique identifier, and the subtest name |
+| `note` | identifies the case, and names the subtest; unique within a `rego_version`, not across the corpus |
 | `modules` | the policies to compile, named `test-0.rego`, `test-1.rego`, … |
 | `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
 | `strict` | `enabled`, `disabled`, or absent — see [Strict mode](#strict-mode) |
