@@ -28,20 +28,20 @@ import (
 // and two allocations. Depth is swept as well as error count because the walk
 // is proportional to it.
 //
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=false-16    	   28700	     40480 ns/op	   72940 B/op	    1117 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=true-16     	   26426	     45996 ns/op	   87421 B/op	    1317 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=false-16    	   26203	     45624 ns/op	   78060 B/op	    1246 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=true-16     	   22844	     52425 ns/op	  102182 B/op	    1446 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=false-16   	   22716	     52964 ns/op	   85074 B/op	    1417 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=true-16    	   18742	     64023 ns/op	  122092 B/op	    1617 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=false-16   	    3348	    365319 ns/op	  625758 B/op	   10689 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=true-16    	    2844	    422193 ns/op	  770931 B/op	   12691 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=false-16   	    3310	    368131 ns/op	  630848 B/op	   10818 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=true-16    	    2722	    441942 ns/op	  872065 B/op	   12820 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=false-16  	    3162	    373970 ns/op	  637913 B/op	   10989 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=true-16   	    2330	    519403 ns/op	 1009386 B/op	   12996 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=false-16    	   31813	     36799 ns/op	   48088 B/op	    1102 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=true-16     	   27426	     43181 ns/op	   62561 B/op	    1302 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=false-16    	   28749	     41752 ns/op	   53199 B/op	    1231 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=true-16     	   24178	     49639 ns/op	   77334 B/op	    1431 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=false-16   	   24164	     49782 ns/op	   60208 B/op	    1401 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=true-16    	   19729	     60518 ns/op	   97216 B/op	    1602 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=false-16   	    3289	    362875 ns/op	  444556 B/op	   10670 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=true-16    	    2842	    403191 ns/op	  589390 B/op	   12671 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=false-16   	    3376	    359189 ns/op	  449718 B/op	   10799 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=true-16    	    2708	    443949 ns/op	  691559 B/op	   12801 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=false-16  	    3265	    367829 ns/op	  456874 B/op	   10970 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=true-16   	    2414	    503342 ns/op	  827582 B/op	   12975 allocs/op
 //
-// Ranges from +14% time / +20% bytes to +39% / +58%, all of it on errors the
+// Ranges from +17% time / +30% bytes to +37% / +81%, all of it on errors the
 // caller asked to collect. That is why capture stays behind
 // Query.WithStackTraces.
 func BenchmarkStackTraceCollectedBuiltinErrors(b *testing.B) {
@@ -62,8 +62,8 @@ func BenchmarkStackTraceCollectedBuiltinErrors(b *testing.B) {
 // but it never carries an *Error, so the guard in withStackTrace should be the
 // only cost.
 //
-// BenchmarkStackTraceEarlyExit/stacktraces=false-16    	     229	   5212186 ns/op	 2083281 B/op	   96419 allocs/op
-// BenchmarkStackTraceEarlyExit/stacktraces=true-16     	     232	   5169479 ns/op	 2083059 B/op	   96418 allocs/op
+// BenchmarkStackTraceEarlyExit/stacktraces=false-16    	     225	   5292645 ns/op	 2082595 B/op	   96411 allocs/op
+// BenchmarkStackTraceEarlyExit/stacktraces=true-16     	     224	   5359468 ns/op	 2082750 B/op	   96412 allocs/op
 func BenchmarkStackTraceEarlyExit(b *testing.B) {
 	for _, on := range []bool{false, true} {
 		b.Run("stacktraces="+strconv.FormatBool(on), func(b *testing.B) {
@@ -123,21 +123,22 @@ func runStackTraceBenchmark(b *testing.B, module string, n int, stackTraces bool
 
 	query := ast.MustParseBody("data.bench.top")
 
+	// A builtin error list is what makes the collected errors reportable;
+	// without one they are dropped and never annotated at all.
+	var builtinErrors []Error
+
+	q := NewQuery(query).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(input).
+		WithBuiltinErrorList(&builtinErrors).
+		WithStackTraces(stackTraces)
+
 	b.ReportAllocs()
-	b.ResetTimer()
 
 	for b.Loop() {
-		// A builtin error list is what makes the collected errors reportable;
-		// without one they are dropped and never annotated at all.
-		var builtinErrors []Error
-
-		q := NewQuery(query).
-			WithCompiler(compiler).
-			WithStore(store).
-			WithTransaction(txn).
-			WithInput(input).
-			WithBuiltinErrorList(&builtinErrors).
-			WithStackTraces(stackTraces)
+		builtinErrors = builtinErrors[:0]
 
 		if _, err := q.Run(ctx); err != nil {
 			b.Fatal(err)
