@@ -22,6 +22,14 @@ import (
 // generated and compared with. Unlike cmd/parse.go, which toggles 12 of the 15
 // node types, locations here are all-or-nothing: a fixture that pins positions
 // pins them everywhere.
+//
+// Comments are never recorded, whatever these options say, and every caller that
+// marshals clears them first. The module is in the case already, so recording them
+// again asserts nothing a reader cannot see, and it would hold an implementation to
+// retaining them in a particular shape — OPA's own being one nobody should be held to,
+// since Comment marshals its text as base64 and its position unconditionally, ignoring
+// the toggle above. This is the reason locations are off by default too: the corpus
+// does not pin what it does not have to.
 func MarshalOptions(locations, locationText bool) astJSON.Options {
 	toggle := astJSON.NodeToggle{
 		Term:           locations,
@@ -48,13 +56,6 @@ func MarshalOptions(locations, locationText bool) astJSON.Options {
 		},
 	}
 }
-
-// A fixture never records comments. The module is in the case already, so
-// recording them again asserts nothing a reader cannot see, and it would require
-// an implementation to retain them in a particular shape — OPA's own being one
-// nobody should be held to, since Comment marshals its text as base64 and its
-// position unconditionally. Both the generator and the runner clear them before
-// marshalling; Validate rejects a fixture that carries them anyway.
 
 // FormatAST renders marshalled AST JSON the way a want_ast fixture holds it:
 // with the members of every object in lexical order, indented, so that a

@@ -22,10 +22,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
-// Generate fills in want_errors for every case in the corpus rooted at dir,
-// rewriting the YAML files in place. The fixture is what OPA's compiler
-// produces, so it is a golden file: it does not independently validate OPA, it
-// catches unreviewed change. The gate is review of the regeneration diff.
+// Generate fills in what each case asserts — want, want_stages, a query's want, and
+// want_errors where a failure case has none — in the corpus rooted at dir, rewriting the
+// YAML files in place.
+//
+// What that does and does not assert is v1/test/compilecases/README.md's "Adding a case".
 func Generate(dir string) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -243,17 +244,8 @@ func wantNode(want []compilecases.Want, reasons []string) *yaml.Node {
 	return seq
 }
 
-// fillStages writes what the modules look like at each stage the case names, and
-// drops a stage whose form is the full-pipeline one again.
-//
-// The drop is the point of the field. An intermediate assertion equal to the
-// endpoint asserts nothing the endpoint does not, and carrying it would pin OPA's
-// stage decomposition — which the StageID identifiers are explicitly not stable
-// enough to bear — for no gain. What survives is the set of stages that do
-// something the endpoint hides.
-//
-// A case asserting want_errors keeps every stage it names: with no full-pipeline
-// form to compare against, the intermediate one is the only form it has.
+// fillStages writes what the modules look like at each stage the case names, and drops a
+// stage whose form is the full-pipeline one again.
 func fillStages(tc *compilecases.TestCase, node *yaml.Node) error {
 	if len(tc.WantStages) == 0 {
 		return nil
@@ -272,6 +264,12 @@ func fillStages(tc *compilecases.TestCase, node *yaml.Node) error {
 			return fmt.Errorf("want_stages.%s: %w", stage, err)
 		}
 
+		// Dropping these is the point of the field: an intermediate assertion equal to the
+		// endpoint asserts nothing the endpoint does not, and carrying it would pin OPA's
+		// stage decomposition — which the StageID identifiers are explicitly not stable
+		// enough to bear — for no gain. What survives is the stages that do something the
+		// endpoint hides. A case asserting want_errors has no endpoint form to compare
+		// against, so it keeps every stage it names.
 		if tc.Transform() && slices.EqualFunc(want, tc.Want, sameWant) {
 			continue
 		}

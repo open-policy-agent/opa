@@ -67,7 +67,6 @@ func caseParserOptions(opts conformance.ParseOptions) (ParserOptions, error) {
 
 	return ParserOptions{
 		RegoVersion:       version,
-		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(opts.ExperimentalKeywords)),
 		ProcessAnnotation: opts.ProcessAnnotations,
 		FutureKeywords:    opts.FutureKeywords,
 		AllFutureKeywords: opts.AllFutureKeywords,
@@ -90,18 +89,6 @@ func TestCaseParserOptionsCarryEveryField(t *testing.T) {
 		"AllFutureKeywords": func(t *testing.T) {
 			assertCarried(t, conformance.ParseOptions{AllFutureKeywords: true},
 				func(p ParserOptions) bool { return p.AllFutureKeywords })
-		},
-		"ExperimentalKeywords": func(t *testing.T) {
-			assertCarried(t, conformance.ParseOptions{ExperimentalKeywords: true}, func(p ParserOptions) bool {
-				// Asserts the flag reaches the capabilities, not an observable difference:
-				// experimentalFutureKeywords is empty in this build, so capabilities built
-				// with the opt-in and without it are equal. This becomes a real check the
-				// day OPA adds an experimental keyword.
-				return p.Capabilities != nil && slices.Equal(
-					slices.Sorted(slices.Values(p.Capabilities.FutureKeywords)),
-					slices.Sorted(slices.Values(CapabilitiesForThisVersion(
-						CapabilitiesExperimentalKeywords(true)).FutureKeywords)))
-			})
 		},
 		"ProcessAnnotations": func(t *testing.T) {
 			assertCarried(t, conformance.ParseOptions{ProcessAnnotations: true},
@@ -182,6 +169,8 @@ func assertCaseErrors(t *testing.T, filename string, want, got []conformance.Err
 	t.Fatalf("%s: diagnostics do not match:%s", filename, sb.String())
 }
 
+// indented renders diagnostics one per line, for a failure message that lists what was
+// reported.
 func indented(errs []conformance.Error) string {
 	var sb strings.Builder
 	for _, e := range errs {

@@ -20,10 +20,10 @@ import (
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 )
 
-// Generate fills in want_ast for every success case in the corpus rooted at
-// dir, rewriting the YAML files in place. The fixture is what OPA's parser
-// produces, so it is a golden file: it does not independently validate OPA, it
-// catches unreviewed change. The gate is review of the regeneration diff.
+// Generate fills in want_ast for every success case, and want_errors for every failure case
+// that has none, in the corpus rooted at dir, rewriting the YAML files in place.
+//
+// What that does and does not assert is v1/test/parsercases/README.md's "Adding a case".
 func Generate(dir string) error {
 	// Set per case below, so they are saved here and put back at the end.
 	defer corpusgen.SetMarshalOptions(astJSON.GetOptions())()

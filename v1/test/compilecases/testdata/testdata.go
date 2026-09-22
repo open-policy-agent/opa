@@ -2,9 +2,9 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package testdata embeds the compiler diagnostic test cases so that they can be
-// consumed by tools outside of this repository, as v1/test/cases/testdata is for
-// the evaluation cases.
+// Package testdata embeds the compiler conformance test cases so that they can be consumed
+// by tools outside of this repository, as v1/test/cases/testdata is for the evaluation
+// cases.
 package testdata
 
 import "embed"

@@ -2,13 +2,16 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package parsercases contains the schema and loader for the parser conformance
-// corpus: a Rego module or query in, an AST, an equivalent module, or diagnostics
-// out.
+// Package parsercases contains the schema and loader for the parser conformance corpus: a
+// Rego module or query in, and an AST, an equivalent module, or diagnostics out. See
+// README.md.
 //
-// The package deliberately depends on nothing but the loader it shares with the
-// other corpora. OPA's own runner lives in package ast, and the generator that
-// writes the fixtures lives in build/generate-parser-cases.
+// The package implements no Rego: it holds the schema and reads the corpus, and nothing
+// here parses. That is what lets validation stay independent of the implementation under
+// test — a case OPA cannot parse is a failing test, not an invalid case — and it keeps the
+// parser out of a consumer's dependencies. It is enforced by the runner living in package
+// ast, which importing this package back would cycle. OPA's own runner is there, and the
+// generator that writes the fixtures is in build/generate-parser-cases.
 package parsercases
 
 import (
@@ -68,9 +71,8 @@ type TestCase struct {
 	FutureKeywords    []string `json:"future_keywords,omitempty"      yaml:"future_keywords,omitempty"`
 	AllFutureKeywords bool     `json:"all_future_keywords,omitempty"  yaml:"all_future_keywords,omitempty"`
 
-	ExperimentalKeywords bool `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords, which have no import
-	Annotations          bool `json:"annotations,omitempty"            yaml:"annotations,omitempty"`           // parse metadata comments into annotations
-	Locations            bool `json:"locations,omitempty"              yaml:"locations,omitempty"`             // include row and col of every node in want_ast
+	Annotations bool `json:"annotations,omitempty"            yaml:"annotations,omitempty"` // parse metadata comments into annotations
+	Locations   bool `json:"locations,omitempty"              yaml:"locations,omitempty"`   // include row and col of every node in want_ast
 
 	WantAST        string  `json:"want_ast,omitempty"         yaml:"want_ast,omitempty"`        // the AST the parse must produce, as JSON; generated, not authored
 	WantEquivalent string  `json:"want_equivalent,omitempty"  yaml:"want_equivalent,omitempty"` // a second module that must parse to the same AST
@@ -119,12 +121,11 @@ func (tc TestCase) Rego() string {
 // among a body's imports folded in.
 func (tc TestCase) ParseOptions() (conformance.ParseOptions, error) {
 	out := conformance.ParseOptions{
-		RegoVersion:          tc.RegoVersion,
-		FutureKeywords:       slices.Clone(tc.FutureKeywords),
-		AllFutureKeywords:    tc.AllFutureKeywords,
-		ExperimentalKeywords: tc.ExperimentalKeywords,
-		ProcessAnnotations:   tc.Annotations,
-		SkipRules:            tc.BodyCase(),
+		RegoVersion:        tc.RegoVersion,
+		FutureKeywords:     slices.Clone(tc.FutureKeywords),
+		AllFutureKeywords:  tc.AllFutureKeywords,
+		ProcessAnnotations: tc.Annotations,
+		SkipRules:          tc.BodyCase(),
 	}
 
 	for _, imp := range tc.Imports {

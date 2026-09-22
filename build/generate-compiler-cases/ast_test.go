@@ -151,9 +151,6 @@ func wantOptions(tc compilecases.TestCase, field string, i int) (ast.ParserOptio
 		AllFutureKeywords: opts.AllFutureKeywords,
 		ProcessAnnotation: true,
 	}
-	if tc.ExperimentalKeywords {
-		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
-	}
 
 	return popts, nil
 }

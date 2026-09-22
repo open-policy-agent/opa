@@ -45,9 +45,12 @@ func formatModule(mod *ast.Module, popts ast.ParserOptions) (string, error) {
 	return text, nil
 }
 
-// equalModules is mod.Equal(other), guarded.
+// equalModules is mod.Equal(other), guarded against a panic in the comparison itself.
 //
-// FIXME: TermValueCompare() can panic on nil head.Key
+// FIXME: ast.TermValueCompare (v1/ast/compare.go) dereferences its arguments without a nil
+// guard, so Module.Equal panics where a rule head's key or value is nil. 78 compiled outputs
+// in the corpus hit it, and each falls back to the `ast` form of its expectation. Remove the
+// guard once the nil check lands.
 func equalModules(mod, other *ast.Module) (equal, panicked bool) {
 	defer func() {
 		if recover() != nil {

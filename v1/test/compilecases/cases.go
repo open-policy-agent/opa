@@ -2,12 +2,17 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package compilecases contains the schema and loader for the compiler
-// conformance corpus: Rego modules in, diagnostics out.
+// Package compilecases contains the schema and loader for the compiler conformance corpus:
+// Rego modules in, and either the modules they compile to or the diagnostics compiling them
+// produces. See README.md.
 //
-// The package deliberately depends on nothing but the loader it shares with the
-// other corpora. OPA's own runner lives in package ast, and the generator that
-// fills in the fixtures lives in build/generate-compiler-cases.
+// The package implements no Rego: it holds the schema and reads the corpus, and nothing
+// here parses or compiles. That is what lets validation stay independent of the
+// implementation under test — a case OPA cannot parse is a failing test, not an invalid
+// case — and it keeps the parser and compiler out of a consumer's dependencies. It is
+// enforced by the runner living in package ast, which importing this package back would
+// cycle. OPA's own runner is there, and the generator that fills in the fixtures is in
+// build/generate-compiler-cases.
 package compilecases
 
 import (
@@ -104,12 +109,11 @@ func ModuleName(i int) string {
 // TestCase represents a single test case: a set of modules, and either the
 // diagnostics compiling them must produce or the assertion that they compile.
 type TestCase struct {
-	Filename             string   `json:"-"                                yaml:"-"`                               // name of file that case was loaded from
-	Note                 string   `json:"note"                             yaml:"note"`                            // identifies the case, unique within its version directory
-	Modules              []string `json:"modules,omitempty"                yaml:"modules,omitempty"`               // policies to compile, named test-0.rego, test-1.rego, ...
-	Strict               string   `json:"strict,omitempty"                 yaml:"strict,omitempty"`                // enabled, disabled, or absent where strict mode does not change the outcome
-	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
-	PrintStatements      bool     `json:"print_statements,omitempty"       yaml:"print_statements,omitempty"`      // keep print() calls instead of erasing them, as required to reach diagnostics about their operands
+	Filename        string   `json:"-"                                yaml:"-"`                          // name of file that case was loaded from
+	Note            string   `json:"note"                             yaml:"note"`                       // identifies the case, unique within its version directory
+	Modules         []string `json:"modules,omitempty"                yaml:"modules,omitempty"`          // policies to compile, named test-0.rego, test-1.rego, ...
+	Strict          string   `json:"strict,omitempty"                 yaml:"strict,omitempty"`           // enabled, disabled, or absent where strict mode does not change the outcome
+	PrintStatements bool     `json:"print_statements,omitempty"       yaml:"print_statements,omitempty"` // keep print() calls instead of erasing them, as required to reach diagnostics about their operands
 
 	// RegoVersion is the version the modules are parsed as, taken from the version
 	// directory the case was loaded from rather than authored. Tagged out of the schema so
@@ -372,8 +376,7 @@ type WantOptions = conformance.ParseOptions
 // ParseOptions is how tc's modules have to be read.
 func (tc TestCase) ParseOptions() WantOptions {
 	return WantOptions{
-		RegoVersion:          tc.RegoVersion,
-		ExperimentalKeywords: tc.ExperimentalKeywords,
+		RegoVersion: tc.RegoVersion,
 
 		// Schema annotations are only honoured when they were parsed as annotations, so
 		// attaching schemas asks for that too.

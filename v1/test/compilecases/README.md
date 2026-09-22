@@ -1,8 +1,9 @@
 # Compiler conformance corpus
 
-A YAML corpus of compiler conformance cases: Rego modules in, diagnostics out.
-Every assertion a case makes is committed here, so a case is complete without a
-Go counterpart, and a new compiler test can land as YAML only.
+A YAML corpus of compiler conformance cases: Rego modules in, and either the modules they
+compile to or the diagnostics compiling them produces. Every assertion a case makes is
+committed here, so a case is complete without a Go counterpart, and a new compiler test can
+land as YAML only.
 
 ## Run order
 
@@ -56,7 +57,6 @@ line. The loader names the offending line rather than stripping it.
 | `note` | identifies the case, and names the subtest; unique within its version directory, not across the corpus |
 | `modules` | the policies to compile, named `test-0.rego`, `test-1.rego`, … |
 | `strict` | `enabled`, `disabled`, or absent — see [Strict mode](#strict-mode) |
-| `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
 | `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message`/`detail` |
 | `exhaustive` | require `want_errors` to be the complete set, not a subset |
@@ -65,10 +65,9 @@ line. The loader names the offending line rather than stripping it.
 | `query` | a query to compile against the modules, instead of asserting what they compile to — see [Queries](#queries) |
 | `want_stages` | what the modules look like partway through, keyed by compiler stage — see [Stages](#stages) |
 
-Activate a future keyword with an `import` in the module rather than a field on
-the case, for the reason the [parser corpus](../parsercases/README.md#future-keywords)
-gives: an import is part of the Rego, so any conforming parser already honours
-it. `experimental_keywords` has no import form, so it stays a field.
+Activate a future keyword with an `import` in the module, for the reason the
+[parser corpus](../parsercases/README.md#future-keywords) gives: an import is part of the
+Rego, so any conforming parser already honours it. There is no field for it.
 
 ## Transformations
 
@@ -468,9 +467,8 @@ A note has to be unique within one version directory, not across the corpus, so 
 construct can be filed under both. Load the corpus root and the loader stamps each case
 with the version it was found under.
 
-Below the version comes the language area — `builtins/`,
-`functions/`, `imports/`, `keywords/`, `print/`, `recursion/`, `refs/`, `safety/`,
-`templatestrings/`, `vars/` — not the outcome, which `want_errors` already records.
+Below the version comes one directory per language area — `safety/`, `types/`, `refs/` and
+so on; the tree is the list — and not the outcome, which `want_errors` already records.
 Grouping by area puts a rule and its counter-example side by side.
 
 Where the same source means different things in v0 and v1, write one case per version
@@ -551,7 +549,7 @@ entrypoint `query`.
 built from — `result = data.test.f` — is rejected as a function used as a value. A module
 of nothing but functions therefore has no entrypoint and no plan: planning its package
 instead would succeed and produce a plan with no functions in it, which asserts nothing
-while looking like coverage. 47 cases are in that position today.
+while looking like coverage. 49 cases are in that position today.
 
 A case that does not plan says why on `IRError`, and nothing is silently skipped. Besides
 the function-only cases, two use a dynamic `with` target (`true with input[x] as 1`),
@@ -587,7 +585,7 @@ language, and its diagnostics are only reachable for an implementation that has 
 concept at all — the same argument as capabilities above. OPA's tests for it stay in Go.
 
 Where a case does depend on something optional, it says so in a field a consumer can
-filter on — its version directory, `strict`, `experimental_keywords`, `schemas` — rather than
+filter on — its version directory, `strict`, `schemas` — rather than
 by naming a capability set or an OPA release.
 
 The generator lives in `build/generate-compiler-cases`, alongside

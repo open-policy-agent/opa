@@ -133,7 +133,6 @@ func CapabilitiesFilter(c *ast.Capabilities) Filters {
 		}
 
 		for _, b := range tc.WantIR.Static.BuiltinFuncs {
-			// if the test case contains a builtin not in the capabilities file, reject it
 			if _, ok := builtins[b.Name]; !ok {
 				return true
 			}

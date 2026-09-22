@@ -1,8 +1,8 @@
 # Parser conformance corpus
 
-A YAML corpus of parser conformance cases: a Rego module in, an AST or
-diagnostics out. Every assertion a case makes is committed here, so a case is
-complete without a Go counterpart, and a new parser test can land as YAML only.
+A YAML corpus of parser conformance cases: a Rego module or query in, an AST or
+diagnostics out. Every assertion a case makes is committed here, so a case is complete
+without a Go counterpart, and a new parser test can land as YAML only.
 
 ## Run order
 
@@ -101,7 +101,6 @@ the rest of `Location.Text`.
 | `body` | a query to parse instead: one or more expressions, exclusive with `module` |
 | `imports` | directives in effect for `body`, which has nowhere to declare them; `body` cases only |
 | `future_keywords`, `all_future_keywords` | activate future keywords by parser option — a last resort, see [Future keywords](#future-keywords) |
-| `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `annotations` | parse metadata comments into annotations |
 | `locations` | include the row and col of every node in `want_ast` |
 | `want_ast` | the AST the parse must produce, as JSON; generated, not authored |
@@ -143,10 +142,10 @@ what a query is. Which one it is is decided by the field it carries, `module` or
 | ` (body)` | `body`, the same Rego unwrapped | the compiler corpus hands queries to `QueryCompiler`, so this is the baseline those cases stand on |
 
 The module and body forms of one input are siblings, adjacent in the same file:
-1,080 of the corpus's cases are a wrapper around a term or an expression, and each
+1,151 of the corpus's cases are a wrapper around a term or an expression, and each
 has a `(body)` sibling. Both are needed. A wrapper is chosen so the case
 reproduces what its Go test asserted, and the wrapper carries part of the
-assertion: of the 237 sibling pairs that assert a diagnostic, 19 report a
+assertion: of the 248 sibling pairs that assert a diagnostic, 19 report a
 different one on each side. `every x in xs` fails with
 `unexpected } token: missing body` in a rule and
 `unexpected eof token: missing body` on its own, because the brace the parser hit
@@ -236,8 +235,6 @@ allowed and activates everything, but naming the keyword records which one the
 case depends on. In v1 only `and`, `or` and `not` still need activating; `if`,
 `contains`, `in` and `every` are standard there and need importing only under `v0/`.
 
-`experimental_keywords` has no import form, so it stays a field.
-
 ## Layout
 
 ```
@@ -249,9 +246,9 @@ which one it is parsed as.** There is no `rego_version` field: a case stating on
 rejected as an unknown field, so the path and the parse cannot disagree. `v0` and `v1`
 exist today; `v0-compat-v1` is a legal directory name for when a case needs it.
 
-Below the version comes the language area — `terms/`, `exprs/`, `rules/`, `imports/`,
-`packages/`, `logical/`, `templatestrings/`, `annotations/`, `locations/`, `modules/`,
-`negation/` — not the outcome, which `want_errors` already records.
+Below the version comes one directory per language area — `terms/`, `rules/`, `logical/`
+and so on; the tree is the list — and not the outcome, which `want_errors` already records.
+Grouping by area puts a rule and its counter-example side by side.
 
 A note has to be unique within one version directory, not across the corpus. Cases are
 expected to overlap: the same construct parsed as v0 and as v1 is two cases with one note,
@@ -297,8 +294,8 @@ artifact of a successful parse.
 
 ### Cases that produce no plan
 
-Roughly half the success cases do not plan. Where that happens, `WantIR` is nil
-and `IRError` says why:
+Most success cases do not plan: 858 of the 2,170 that parse a module do, and no body case
+can. Where a case does not, `WantIR` is nil and `IRError` says why:
 
 ```
 terms/var-terms/var (module)  1 error occurred: test-0.rego:3: rego_unsafe_var_error: var foo is unsafe
@@ -441,6 +438,41 @@ written in a dialect you do not parse, so neither its AST nor its diagnostics
 apply. Both filters set the same `Ignore` flag, so if you pass both, skipping an
 ignored case entirely is the safe reading.
 
+### Regenerating `want_ast` with positions
+
+`WithASTLocations` regenerates every `want_ast` with the row and column of every node,
+overriding each case's `locations` field; `WithLocationText` adds the source text span and
+implies it. Neither lands in the corpus — they are for a consumer that wants to compare
+positions it does not otherwise assert.
+
+```go
+sets, err := cases.LoadParserTestCases(cases.WithASTLocations())
+```
+
+A case's `want_equivalent` is dropped from the cases these regenerate: the two modules are
+structurally identical but positionally different, so they cannot share a fixture.
+
+## The schema package holds no Rego
+
+`v1/test/parsercases` implements no parser. It holds the schema and reads the corpus, and
+that boundary is deliberate twice over: a consumer importing the schema links no parser,
+and — more importantly — validation cannot come to depend on the implementation under test.
+A loader that validated by parsing would turn a case OPA cannot parse into an *invalid
+case* rather than a *failing test*.
+
+It is enforced structurally: OPA's runner is `package ast`, so the schema package importing
+`v1/ast` would cycle. The costs are visible — `RegoVersions` is a list of strings rather
+than `ast.RegoVersion` values, and `compilecases.Stages` is a hand-kept copy of
+`ast.AllStages()` — and each is paired with a test that fails if the two drift.
+
+## Differences from the compiler corpus
+
+Worth knowing if you read both:
+
+| | this corpus | [`compilecases`](../compilecases/README.md) |
+| - | - | - |
+| `exceptions.yaml` | the generator reads one, so a case can be excluded by note or glob | none; every case is loaded |
+| `entrypoints` | a case may author them, see above | always derived, never authored |
+
 The generator lives in `build/generate-parser-cases`, alongside
 `build/generate-extended-cases`, which does the same for the evaluation corpus.
-`WithASTLocations`, `WithLocationText` and `Filters` are documented there.

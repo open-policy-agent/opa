@@ -87,24 +87,20 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 	}
 }
 
-// compileCaseModules parses the case's modules and compiles them, stopping after
-// stage when one is named.
-//
-// The parse is repeated per compilation rather than shared: the stages rewrite the
-// modules in place, so a second run over the same ASTs would start from the first
-// run's output.
-//
-// The stage is checked against AllStages() first, because WithOnlyStagesUpTo runs
-// the whole pipeline when it does not recognise its argument — so a name the corpus
-// carries but the compiler no longer has would silently be asserted against the
-// full-pipeline form.
+// compileCaseModules parses the case's modules and compiles them, stopping after stage when
+// one is named.
 func compileCaseModules(t *testing.T, tc compilecases.TestCase, popts ParserOptions, stage StageID) *Compiler {
 	t.Helper()
 
+	// Checked before compiling, because WithOnlyStagesUpTo runs the whole pipeline when it
+	// does not recognise its argument: a name the corpus carries but the compiler no longer
+	// has would silently be asserted against the full-pipeline form.
 	if stage != "" && !slices.Contains(AllStages(), stage) {
 		t.Fatalf("%s: %q is not one of the compiler's stages", tc.Filename, stage)
 	}
 
+	// Parsed per compilation rather than once: the stages rewrite the modules in place, so a
+	// second run over the same ASTs would start from the first run's output.
 	modules := make(map[string]*Module, len(tc.Modules))
 	for i, module := range tc.Modules {
 		name := compilecases.ModuleName(i)
@@ -278,9 +274,7 @@ func assertCaseWant(t *testing.T, tc compilecases.TestCase, c *Compiler, stage s
 		got := c.Modules[name]
 
 		if want.AST != "" {
-			// Comments are not part of the assertion: the module is in the case
-			// already, and holding an implementation to the shape OPA marshals a
-			// comment in is the reason the parser corpus drops them too.
+			// Comments are not part of the assertion; conformance.MarshalOptions says why.
 			got.Comments = nil
 
 			bs, err := json.Marshal(got)
@@ -326,15 +320,9 @@ func assertCaseWant(t *testing.T, tc compilecases.TestCase, c *Compiler, stage s
 	}
 }
 
-// TestCorpusStagesMatchCompiler keeps compilecases.Stages agreeing with the
-// compiler's own list.
-//
-// This is not the check that catches a stage rename: the fixtures are. Updating
-// Stages is what makes a committed want_stages key unknown, which Validate rejects
-// in both the runner and the generator, and both also check the name against
-// AllStages() before compiling. What this test buys is that the two lists cannot
-// disagree — so those checks cannot contradict each other, and an author can pin any
-// stage the compiler really has.
+// TestCorpusStagesMatchCompiler keeps compilecases.Stages agreeing with the compiler's own
+// list, so that an author can pin any stage the compiler really has. A renamed stage is
+// caught by the fixtures, not here.
 func TestCorpusStagesMatchCompiler(t *testing.T) {
 	got := make([]string, 0, len(AllStages()))
 	for _, s := range AllStages() {

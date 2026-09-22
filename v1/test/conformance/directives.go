@@ -52,9 +52,6 @@ type ParseOptions struct {
 	FutureKeywords    []string
 	AllFutureKeywords bool
 
-	// ExperimentalKeywords opts in to the future keywords that have no import.
-	ExperimentalKeywords bool
-
 	// ProcessAnnotations asks for metadata comments to be parsed into annotations.
 	ProcessAnnotations bool
 

@@ -32,18 +32,6 @@ func TestTranslateParserOptionsCarryEveryField(t *testing.T) {
 			assertCarried(t, conformance.ParseOptions{AllFutureKeywords: true},
 				func(p ast.ParserOptions) bool { return p.AllFutureKeywords })
 		},
-		"ExperimentalKeywords": func(t *testing.T) {
-			assertCarried(t, conformance.ParseOptions{ExperimentalKeywords: true}, func(p ast.ParserOptions) bool {
-				// Asserts the flag reaches the capabilities, not an observable difference:
-				// ast.experimentalFutureKeywords is empty in this build, so capabilities
-				// built with the opt-in and without it are equal. This becomes a real
-				// check the day OPA adds an experimental keyword.
-				return p.Capabilities != nil && slices.Equal(
-					slices.Sorted(slices.Values(p.Capabilities.FutureKeywords)),
-					slices.Sorted(slices.Values(ast.CapabilitiesForThisVersion(
-						ast.CapabilitiesExperimentalKeywords(true)).FutureKeywords)))
-			})
-		},
 		"ProcessAnnotations": func(t *testing.T) {
 			assertCarried(t, conformance.ParseOptions{ProcessAnnotations: true},
 				func(p ast.ParserOptions) bool { return p.ProcessAnnotation })

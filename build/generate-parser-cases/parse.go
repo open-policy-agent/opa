@@ -32,7 +32,6 @@ func translateParserOptions(opts conformance.ParseOptions) (ast.ParserOptions, e
 
 	return ast.ParserOptions{
 		RegoVersion:       v,
-		Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(opts.ExperimentalKeywords)),
 		ProcessAnnotation: opts.ProcessAnnotations,
 		FutureKeywords:    opts.FutureKeywords,
 		AllFutureKeywords: opts.AllFutureKeywords,
@@ -57,11 +56,7 @@ func parseCase(tc parsercases.TestCase) (any, error) {
 // marshalling options are currently in effect. A module marshals as an object, a
 // body as an array of expressions.
 //
-// Comments are dropped, for the reason locations are off by default: the module
-// is right there in the fixture, so recording them again asserts nothing a reader
-// cannot see, while requiring an implementation to retain them in a particular
-// shape. OPA's own is not one to hold anyone to — Comment marshals its text as
-// base64 and its position unconditionally, ignoring the toggle that exists for it.
+// Comments are dropped; conformance.MarshalOptions says why.
 func MarshalAST(node any) (string, error) {
 	if m, ok := node.(*ast.Module); ok {
 		m.Comments = nil

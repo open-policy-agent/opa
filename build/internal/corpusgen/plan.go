@@ -14,19 +14,18 @@ import (
 )
 
 // EntryPointRefs returns one entrypoint per document the modules define, sorted, with the
-// ref to plan each from.
-//
-// A function is not a document: `data.test.f` names nothing, and the query a plan is built
-// from — `result = data.test.f` — is rejected as a function used as a value. A module of
-// nothing but functions therefore has no entrypoint. Planning its package instead would
-// succeed and produce a plan with no functions in it, which is worse than none: it asserts
-// nothing while counting as coverage.
+// ref to plan each from. A module of nothing but functions has none.
 func EntryPointRefs(modules map[string]*ast.Module) ([]string, []*ast.Term, error) {
 	set := ast.NewSet()
 
 	for _, name := range util.KeysSorted(modules) {
 		mod := modules[name]
 		for _, rule := range mod.Rules {
+			// A function is not a document: `data.test.f` names nothing, and the query a
+			// plan is built from — `result = data.test.f` — is rejected as a function used
+			// as a value. Planning the package instead would succeed and produce a plan
+			// with no functions in it, which is worse than none: it asserts nothing while
+			// counting as coverage.
 			if len(rule.Head.Args) > 0 {
 				continue
 			}
