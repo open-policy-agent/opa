@@ -33,6 +33,20 @@ path prefix, and cannot evaluate part of a function that is still being planned.
 
 Authored by @sspaink
 
+### OCI bundles can now be pulled from an image index ([#7461](https://github.com/open-policy-agent/opa/issues/7461))
+
+An `oci` service `resource` that resolved to an image index rather than an image
+manifest failed with `Bundle load failed: no layers in manifest`, because the
+downloader read the index as if it were a manifest and found no layers. Tags
+resolve to an index more often than not — `docker buildx` wraps even a
+single-platform push in one. The downloader now descends into the index and
+picks the first referenced manifest carrying an
+`application/vnd.oci.image.layer.v1.tar+gzip` layer, skipping the
+`unknown/unknown` platform entries that build tools attach for provenance and
+SBOM attestations.
+
+Reported by @zscott, authored by @sspaink
+
 ### Data and Query APIs can return rule labels in the response
 
 `# METADATA` `labels` for evaluated rules were only available in decision log

@@ -176,6 +176,46 @@ func TestOCIStartStop(t *testing.T) {
 	d.Stop(ctx)
 }
 
+func TestOCIImageIndex(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+
+	// buffered so the retry loop can't block on a failing download, which would
+	// deadlock Stop
+	updates := make(chan *Update, 1)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:index", t.TempDir()).WithCallback(func(_ context.Context, u Update) error {
+		select {
+		case updates <- &u:
+		default:
+		}
+		return nil
+	})
+
+	d.Start(ctx)
+	defer d.Stop(ctx)
+
+	u1 := <-updates
+
+	if u1.Error != nil {
+		t.Fatalf("expected no error but got: %v", u1.Error)
+	}
+
+	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+		t.Fatal("expected bundle with at least one module but got:", u1)
+	}
+
+	// the index points at the same image manifest the latest tag resolves to
+	if exp := "d85a3b7072e295a091f4ec50e85fefcd5285a1e2c60c298c0b87c498f1cb0613"; u1.ETag != exp {
+		t.Fatalf("expected etag %v but got %v", exp, u1.ETag)
+	}
+}
+
 func TestOCIBearerAuthPlugin(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t)

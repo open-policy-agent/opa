@@ -694,6 +694,11 @@ by the user. If persistence is not configured the OCI downloader will store the
 layers in the system's temporary directory to allow automatic cleanup on system
 restart.
 
+The `resource` may point either at an image manifest or at an image index (a
+multi-platform "manifest list"). See
+[OCI Registry](./management-bundles/#oci-registry) for how to build and publish
+a bundle image.
+
 ### Custom Plugin
 
 If none of the existing credential options work for a service, OPA can authenticate using a custom plugin, enabling support for any authentication scheme.
