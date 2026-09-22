@@ -25,23 +25,23 @@ import (
 // BenchmarkStackTraceCollectedBuiltinErrors is the worst case for the feature.
 // A failing built-in leaves the expression undefined and evaluation carries on,
 // so messy data raises one error per row, and each one costs a parent-chain walk
-// and two allocations. Depth is swept as well as error count because the walk
-// is proportional to it.
+// and a resolved frame per query on it. Depth is swept as well as error count
+// because both are proportional to it.
 //
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=false-16    	   31813	     36799 ns/op	   48088 B/op	    1102 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=true-16     	   27426	     43181 ns/op	   62561 B/op	    1302 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=false-16    	   28749	     41752 ns/op	   53199 B/op	    1231 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=true-16     	   24178	     49639 ns/op	   77334 B/op	    1431 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=false-16   	   24164	     49782 ns/op	   60208 B/op	    1401 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=true-16    	   19729	     60518 ns/op	   97216 B/op	    1602 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=false-16   	    3289	    362875 ns/op	  444556 B/op	   10670 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=true-16    	    2842	    403191 ns/op	  589390 B/op	   12671 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=false-16   	    3376	    359189 ns/op	  449718 B/op	   10799 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=true-16    	    2708	    443949 ns/op	  691559 B/op	   12801 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=false-16  	    3265	    367829 ns/op	  456874 B/op	   10970 allocs/op
-// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=true-16   	    2414	    503342 ns/op	  827582 B/op	   12975 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=false-16    	   32085	     37078 ns/op	   48085 B/op	    1102 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=2/stacktraces=true-16     	   20283	     59257 ns/op	   71535 B/op	    1606 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=false-16    	   29112	     41292 ns/op	   53197 B/op	    1231 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=8/stacktraces=true-16     	   14090	     84914 ns/op	   95956 B/op	    1735 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=false-16   	   24403	     49264 ns/op	   60206 B/op	    1401 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=100/depth=16/stacktraces=true-16    	    9816	    119575 ns/op	  135159 B/op	    1906 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=false-16   	    3408	    358635 ns/op	  444537 B/op	   10670 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=2/stacktraces=true-16    	    2010	    598633 ns/op	  709073 B/op	   15676 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=false-16   	    3344	    354682 ns/op	  449724 B/op	   10799 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=8/stacktraces=true-16    	    1479	    811721 ns/op	  907602 B/op	   15808 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=false-16  	    3207	    365128 ns/op	  456894 B/op	   10970 allocs/op
+// BenchmarkStackTraceCollectedBuiltinErrors/errors=1000/depth=16/stacktraces=true-16   	    1087	   1105354 ns/op	 1235738 B/op	   15982 allocs/op
 //
-// Ranges from +17% time / +30% bytes to +37% / +81%, all of it on errors the
+// Ranges from +60% time / +49% bytes to +203% / +170%, all of it on errors the
 // caller asked to collect. That is why capture stays behind
 // Query.WithStackTraces.
 func BenchmarkStackTraceCollectedBuiltinErrors(b *testing.B) {
@@ -62,8 +62,8 @@ func BenchmarkStackTraceCollectedBuiltinErrors(b *testing.B) {
 // but it never carries an *Error, so the guard in withStackTrace should be the
 // only cost.
 //
-// BenchmarkStackTraceEarlyExit/stacktraces=false-16    	     225	   5292645 ns/op	 2082595 B/op	   96411 allocs/op
-// BenchmarkStackTraceEarlyExit/stacktraces=true-16     	     224	   5359468 ns/op	 2082750 B/op	   96412 allocs/op
+// BenchmarkStackTraceEarlyExit/stacktraces=false-16    	     229	   5183392 ns/op	 2082660 B/op	   96411 allocs/op
+// BenchmarkStackTraceEarlyExit/stacktraces=true-16     	     230	   5170409 ns/op	 2082777 B/op	   96412 allocs/op
 func BenchmarkStackTraceEarlyExit(b *testing.B) {
 	for _, on := range []bool{false, true} {
 		b.Run("stacktraces="+strconv.FormatBool(on), func(b *testing.B) {

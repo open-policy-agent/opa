@@ -87,8 +87,8 @@ and `opa test` does not surface built-in errors at all today.
 Unlike `--explain`, a traceback only describes the state at the point of failure, so it stays
 short even for policies that evaluate a lot of expressions.
 
-Each frame quotes the expression as it is written in the policy, so a call shows the argument the
-policy passed rather than the value it was bound to. Given:
+Each frame quotes the expression as it is written in the policy, with the values its variables were
+bound to spliced in, so a call shows the argument it actually failed on. Given:
 
 ```rego
 package ex
@@ -101,8 +101,17 @@ p contains y if {
 f(x) := x / x
 ```
 
-the traceback reads `f(x)`, not `f(0)`. It tells you which expression failed, not which iteration
-of it did.
+the traceback reads:
+
+```txt
+Traceback:
+  policy.rego:8: 0 / 0
+  policy.rego:5: f(0)
+  1:1: data.ex.p
+```
+
+naming the iteration that failed rather than repeating the `f(x)` in the source. A variable that
+isn't bound yet, or whose value is too long to fit on a frame, keeps the name the policy gave it.
 
 When embedding OPA as a library tracebacks are off by default; `rego.StackTraces(true)` enables
 them, and the frames are then available on `topdown.Error.StackTrace`.

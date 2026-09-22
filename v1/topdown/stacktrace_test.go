@@ -74,6 +74,29 @@ reciprocals contains y if {
 }
 
 reciprocal(x) := 1 / x
+
+long_fn(x) if {
+	count(x) / 0
+}
+
+call_fn_long_arg if {
+	long := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	long_fn(long)
+}
+
+obj_fn(x) if {
+	x.a / 0
+}
+
+call_obj_fn if {
+	o := {"a": 1}
+	obj_fn(o)
+}
+
+with_var if {
+	v := {}
+	q with input as v
+}
 `
 
 func TestStackTraceFrames(t *testing.T) {
@@ -109,7 +132,9 @@ func TestStackTraceFrames(t *testing.T) {
 			expected: []string{
 				"stack.rego:22: 1 / 0",
 				"stack.rego:21: [1]", // the query enumerating the domain
-				"stack.rego:21: every y in [1] { y == 1 / 0 }",
+				// y is declared by the every, so it keeps its name in the head
+				// and reads as the element being tested in the body.
+				"stack.rego:21: every y in [1] { 1 == 1 / 0 }",
 				"1:1: data.ex.every_expr",
 			},
 		},
@@ -127,7 +152,7 @@ func TestStackTraceFrames(t *testing.T) {
 			note:  "function call",
 			query: "data.ex.call_fn",
 			expected: []string{
-				"stack.rego:31: x / 0",
+				"stack.rego:31: 1 / 0",
 				"stack.rego:35: fn(1)",
 				"1:1: data.ex.call_fn",
 			},
@@ -151,24 +176,54 @@ func TestStackTraceFrames(t *testing.T) {
 			},
 		},
 		{
-			// A frame quotes the source, so the argument shows as the variable
-			// the policy passed, not the 1 it was bound to.
+			// The argument is reported as the value it was bound to, not as the
+			// variable the policy passed.
 			note:  "function called with a variable",
 			query: "data.ex.call_fn_var",
 			expected: []string{
-				"stack.rego:31: x / 0",
-				"stack.rego:52: fn(x0)",
+				"stack.rego:31: 1 / 0",
+				"stack.rego:52: fn(1)",
 				"1:1: data.ex.call_fn_var",
 			},
 		},
 		{
-			// Likewise, the frame doesn't say which x of the domain failed.
+			// Likewise, the frame says which x of the domain failed.
 			note:  "function called for each element of a domain",
 			query: "data.ex.reciprocals",
 			expected: []string{
-				"stack.rego:60: 1 / x",
-				"stack.rego:57: reciprocal(x)",
+				"stack.rego:60: 1 / 0",
+				"stack.rego:57: reciprocal(0)",
 				"1:1: data.ex.reciprocals",
+			},
+		},
+		{
+			// A value that wouldn't fit in a frame is left as the name the
+			// policy gave it, while the count over it is short enough to show.
+			note:  "argument too long to inline",
+			query: "data.ex.call_fn_long_arg",
+			expected: []string{
+				"stack.rego:63: 84 / 0",
+				"stack.rego:68: long_fn(long)",
+				"1:1: data.ex.call_fn_long_arg",
+			},
+		},
+		{
+			note:  "composite argument",
+			query: "data.ex.call_obj_fn",
+			expected: []string{
+				"stack.rego:72: 1 / 0",
+				`stack.rego:77: obj_fn({"a": 1})`,
+				"1:1: data.ex.call_obj_fn",
+			},
+		},
+		{
+			note:  "with value bound to a variable",
+			query: "data.ex.with_var",
+			expected: []string{
+				"stack.rego:12: 1 / 0",
+				"stack.rego:8: r[x]",
+				"stack.rego:82: q with input as {}",
+				"1:1: data.ex.with_var",
 			},
 		},
 	}
@@ -364,7 +419,7 @@ func TestFrameText(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			t.Parallel()
 
-			if actual := frameText([]byte(tc.src)); actual != tc.expected {
+			if actual := frameText(tc.src); actual != tc.expected {
 				t.Fatalf("expected %q, got %q", tc.expected, actual)
 			}
 		})

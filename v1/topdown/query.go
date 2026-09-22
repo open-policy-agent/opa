@@ -279,10 +279,10 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 // themselves.
 //
 // Off by default because capture is not free: each *Error costs a walk of the
-// parent chain and two allocations, which on a query collecting one built-in
-// error per row runs from +14% to +39% in time (see
-// BenchmarkStackTraceCollectedBuiltinErrors). OPA's own CLI and server accept
-// that cost and turn it on.
+// parent chain and a frame per query on it, resolved against the bindings in
+// scope, which on a query collecting one built-in error per row runs from +60%
+// to +203% in time (see BenchmarkStackTraceCollectedBuiltinErrors). OPA's own
+// CLI and server accept that cost and turn it on.
 func (q *Query) WithStackTraces(yes bool) *Query {
 	q.stackTraces = yes
 	return q
