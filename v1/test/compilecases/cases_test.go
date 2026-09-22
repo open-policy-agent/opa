@@ -121,7 +121,7 @@ func TestWantParserOptions(t *testing.T) {
 				c.Want = append(c.Want, Want{Module: "package t\n", Imports: imports})
 			}
 
-			got, err := c.WantParserOptions(tc.module)
+			got, err := c.WantParserOptions("", tc.module)
 			if tc.wantErr != "" {
 				if err == nil {
 					t.Fatalf("expected an error containing %q, got %+v", tc.wantErr, got)

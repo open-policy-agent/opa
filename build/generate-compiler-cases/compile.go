@@ -418,16 +418,13 @@ func reasonFor(err error) string {
 	return err.Error()
 }
 
-// wantParserOptions is how the i-th entry's Module has to be parsed, as the schema
-// reads it.
+// wantParserOptions is how the i-th entry's Module has to be parsed, as the schema reads it.
+// The entry does not exist yet — this is what decides what to write into it — so the imports
+// are handed over directly.
 func wantParserOptions(tc compilecases.TestCase, imports [][]string, i int) (ast.ParserOptions, error) {
-	with := tc
-	with.Want = make([]compilecases.Want, len(imports))
-	for j := range imports {
-		with.Want[j] = compilecases.Want{Imports: imports[j]}
-	}
+	want := compilecases.Want{Imports: imports[i]}
 
-	opts, err := with.WantParserOptions(i)
+	opts, err := want.ParserOptions(fmt.Sprintf("want[%d]", i), tc.WantBaseOptions())
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}
@@ -492,8 +489,8 @@ func directiveImports(tc compilecases.TestCase, popts ast.ParserOptions) ([][]st
 			}
 
 			// Interpreted by the schema, so writer and reader cannot drift apart.
-			probe := compilecases.TestCase{Modules: []string{src}, Want: []compilecases.Want{{Imports: []string{path}}}}
-			if _, err := probe.WantParserOptions(0); err != nil {
+			entry := compilecases.Want{Imports: []string{path}}
+			if _, err := entry.ParserOptions(name, compilecases.WantOptions{}); err != nil {
 				return nil, fmt.Errorf("%s: %w; teach the generator and the schema what it means", name, err)
 			}
 

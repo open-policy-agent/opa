@@ -133,10 +133,9 @@ func checkEntry(t *testing.T, tc compilecases.TestCase, field string, i int, got
 // wantOptions is how the entry's module is read, whether it belongs to want or to a
 // stage.
 func wantOptions(tc compilecases.TestCase, field string, i int) (ast.ParserOptions, error) {
-	opts, err := tc.WantParserOptions(i)
-	if stage, ok := stageOf(field); ok {
-		opts, err = tc.WantStageParserOptions(stage, i)
-	}
+	stage, _ := stageOf(field)
+
+	opts, err := tc.WantParserOptions(stage, i)
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}

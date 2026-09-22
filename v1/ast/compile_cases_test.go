@@ -313,10 +313,7 @@ func assertCaseWant(t *testing.T, tc compilecases.TestCase, c *Compiler, stage s
 		// those away, so the expected module depends on them with no import left to
 		// say so — and they do not carry across, so one module's
 		// `future.keywords.not` must not reach its neighbour.
-		declared, err := tc.WantParserOptions(i)
-		if stage != "" {
-			declared, err = tc.WantStageParserOptions(stage, i)
-		}
+		declared, err := tc.WantParserOptions(stage, i)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.Filename, err)
 		}

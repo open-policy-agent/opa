@@ -357,7 +357,7 @@ func (tc TestCase) validateWant(field string, want []Want) error {
 		if err := conformance.CheckTrailingWhitespace(at+".module", w.Module); err != nil {
 			return err
 		}
-		if _, err := tc.wantOptions(at, w); err != nil {
+		if _, err := w.ParserOptions(at, tc.WantBaseOptions()); err != nil {
 			return err
 		}
 	}
@@ -381,23 +381,20 @@ func (tc TestCase) ParseOptions() WantOptions {
 	}
 }
 
-// WantParserOptions interprets the imports on the i-th Want entry. An import it does
-// not recognise is an error rather than a no-op.
-func (tc TestCase) WantParserOptions(i int) (WantOptions, error) {
-	if i >= len(tc.Want) {
-		return tc.baseWantOptions(), nil
+// WantParserOptions is how the i-th entry of an expectation has to be parsed: the case's
+// options with the entry's own directive imports folded in. stage names a want_stages key,
+// or is empty for the full-pipeline want. An import it does not recognise is an error rather
+// than a no-op.
+func (tc TestCase) WantParserOptions(stage string, i int) (WantOptions, error) {
+	want, at := tc.Want, "want"
+	if stage != "" {
+		want, at = tc.WantStages[stage], "want_stages."+stage
 	}
-	return tc.wantOptions(fmt.Sprintf("want[%d]", i), tc.Want[i])
-}
 
-// WantStageParserOptions is WantParserOptions for the i-th entry of the assertion
-// pinned to stage.
-func (tc TestCase) WantStageParserOptions(stage string, i int) (WantOptions, error) {
-	want := tc.WantStages[stage]
 	if i >= len(want) {
-		return tc.baseWantOptions(), nil
+		return tc.WantBaseOptions(), nil
 	}
-	return tc.wantOptions(fmt.Sprintf("want_stages.%s[%d]", stage, i), want[i])
+	return want[i].ParserOptions(fmt.Sprintf("%s[%d]", at, i), tc.WantBaseOptions())
 }
 
 // QueryParserOptions are the options query.body and query.want are read with: the
@@ -420,18 +417,24 @@ func (tc TestCase) QueryParserOptions() (WantOptions, error) {
 	return out, nil
 }
 
-// baseWantOptions is how an expected module is read before its own imports are folded
-// in. Annotations always, since the compiler builds them from METADATA comments and
+// WantBaseOptions is how an expected module is read before its own imports are folded in.
+// Annotations always, since the compiler builds them from METADATA comments and
 // Module.Compare compares them, so an expectation carrying one has to be read with them
 // processed.
-func (tc TestCase) baseWantOptions() WantOptions {
+func (tc TestCase) WantBaseOptions() WantOptions {
 	out := tc.ParseOptions()
 	out.ProcessAnnotations = true
 	return out
 }
 
-func (tc TestCase) wantOptions(at string, w Want) (WantOptions, error) {
-	out := tc.baseWantOptions()
+// ParserOptions is how w's Module has to be parsed: base, which is the case's
+// WantBaseOptions, with w's own directive imports folded in. at names the entry for the
+// error message.
+//
+// On Want rather than on the case because that is what it needs: a caller holding one entry
+// does not have to fabricate a case around it to ask how the entry reads.
+func (w Want) ParserOptions(at string, base WantOptions) (WantOptions, error) {
+	out := base
 
 	for _, imp := range w.Imports {
 		directive, err := conformance.DirectiveOption(at+".imports", imp, &out)
