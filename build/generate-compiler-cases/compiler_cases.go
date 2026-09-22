@@ -7,8 +7,6 @@ package cases
 import (
 	"errors"
 	"fmt"
-	"io/fs"
-	"path"
 	"slices"
 	"strings"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/compilecases/testdata"
-	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
 // CompilerTestCase is a corpus case together with whatever a filter had to say
@@ -205,50 +202,24 @@ func LoadCompilerTestCasesFiltered(filters []Filters, opts ...Option) ([]Compile
 	return sets, nil
 }
 
+// readSets reads the committed corpus grouped by file, which is how the corpus is
+// organised and how a consumer reports against it.
 func readSets() ([]CompilerSet, error) {
-	var results []CompilerSet
+	byFile, err := compilecases.LoadFSByFile(testdata.FS, ".")
+	if err != nil {
+		return nil, err
+	}
 
-	err := fs.WalkDir(testdata.FS, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	results := make([]CompilerSet, 0, len(byFile))
+	for _, file := range byFile {
+		set := CompilerSet{Cases: make([]*CompilerTestCase, 0, len(file.Cases))}
+		for i := range file.Cases {
+			set.Cases = append(set.Cases, &CompilerTestCase{TestCase: file.Cases[i]})
 		}
+		results = append(results, set)
+	}
 
-		if d.IsDir() || (path.Ext(p) != ".yaml" && path.Ext(p) != ".yml") {
-			return nil
-		}
-
-		version, err := conformance.RegoVersionForPath(".", p)
-		if err != nil {
-			return err
-		}
-
-		bs, err := testdata.FS.ReadFile(p)
-		if err != nil {
-			return err
-		}
-
-		var x compilecases.Set
-		if err := conformance.Unmarshal(bs, &x); err != nil {
-			return fmt.Errorf("%s: %w", p, err)
-		}
-
-		set := CompilerSet{}
-		for i := range x.Cases {
-			tc := x.Cases[i].WithSource(p, version)
-			if err := tc.Validate(); err != nil {
-				return fmt.Errorf("%s: %s: %w", p, tc.Note, err)
-			}
-			set.Cases = append(set.Cases, &CompilerTestCase{TestCase: tc})
-		}
-
-		if len(set.Cases) > 0 {
-			results = append(results, set)
-		}
-
-		return nil
-	})
-
-	return results, err
+	return results, nil
 }
 
 // addDirectiveImports puts back the imports the compiler dropped, so each expected

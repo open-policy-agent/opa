@@ -470,3 +470,8 @@ func MustLoad(path string) Set {
 func LoadFS(fsys fs.FS, root string) (Set, error) {
 	return conformance.LoadFS[TestCase](fsys, root)
 }
+
+// LoadFSByFile is LoadFS with the cases kept grouped by the file they came from.
+func LoadFSByFile(fsys fs.FS, root string) ([]Set, error) {
+	return conformance.LoadFSByFile[TestCase](fsys, root)
+}

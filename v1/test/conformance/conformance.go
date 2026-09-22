@@ -166,15 +166,36 @@ func LoadFS[T Case[T]](fsys fs.FS, root string) (Set[T], error) {
 	return load[T](fsys, root, func(p string) string { return p })
 }
 
-// load reads every case under root, which has to be a corpus root: its top level is one
-// directory per rego version, and that directory is what a case is parsed as. A case
+// LoadFSByFile is LoadFS with the cases kept grouped by the file they came from, in walk
+// order, for a generator that reads a corpus the way it writes one. A file holding no cases
+// contributes nothing.
+func LoadFSByFile[T Case[T]](fsys fs.FS, root string) ([]Set[T], error) {
+	return loadByFile[T](fsys, root, func(p string) string { return p })
+}
+
+// load reads every case under root and returns them flat. See loadByFile for the walk.
+func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set[T], error) {
+	byFile, err := loadByFile[T](fsys, root, filename)
+	if err != nil {
+		return Set[T]{}, err
+	}
+
+	var out Set[T]
+	for _, set := range byFile {
+		out.Cases = append(out.Cases, set.Cases...)
+	}
+	return out, nil
+}
+
+// loadByFile reads every case under root, which has to be a corpus root: its top level is
+// one directory per rego version, and that directory is what a case is parsed as. A case
 // therefore states no version of its own — see RegoVersionForPath.
 //
 // Every case is validated, and a note has to be unique within a version. Both are checked
 // here rather than by the caller: this is the only place that knows which version a file
 // was found under, and a corpus nobody has validated is one whose cases may assert nothing.
-func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set[T], error) {
-	result := Set[T]{}
+func loadByFile[T Case[T]](fsys fs.FS, root string, filename func(string) string) ([]Set[T], error) {
+	var out []Set[T]
 	seen := map[string]string{}
 
 	err := fs.WalkDir(fsys, root, func(path string, d fs.DirEntry, err error) error {
@@ -221,11 +242,13 @@ func load[T Case[T]](fsys fs.FS, root string, filename func(string) string) (Set
 			seen[key] = filename(path)
 		}
 
-		result.Cases = append(result.Cases, x.Cases...)
+		if len(x.Cases) > 0 {
+			out = append(out, x)
+		}
 		return nil
 	})
 
-	return result, err
+	return out, err
 }
 
 // RegoVersionForPath returns the rego version the cases in a file are to be parsed as,

@@ -7,9 +7,7 @@ package cases
 import (
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/gobwas/glob"
@@ -219,53 +217,29 @@ func LoadParserTestCasesFiltered(filters []Filters, opts ...Option) ([]ParserSet
 	return sets, nil
 }
 
+// readSets reads the committed corpus grouped by file, which is how the corpus is
+// organised and how a consumer reports against it. Cases named in exceptions.yaml are
+// dropped here rather than by the loader, which knows nothing about them.
 func readSets() ([]ParserSet, error) {
+	byFile, err := parsercases.LoadFSByFile(testdata.FS, ".")
+	if err != nil {
+		return nil, err
+	}
+
 	var results []ParserSet
-
-	err := fs.WalkDir(testdata.FS, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() || (path.Ext(p) != ".yaml" && path.Ext(p) != ".yml") {
-			return nil
-		}
-
-		version, err := conformance.RegoVersionForPath(".", p)
-		if err != nil {
-			return err
-		}
-
-		bs, err := testdata.FS.ReadFile(p)
-		if err != nil {
-			return err
-		}
-
-		var x parsercases.Set
-		if err := conformance.Unmarshal(bs, &x); err != nil {
-			return fmt.Errorf("%s: %w", p, err)
-		}
-
+	for _, file := range byFile {
 		set := ParserSet{}
-		for i := range x.Cases {
-			tc := x.Cases[i].WithSource(p, version)
-			if err := tc.Validate(); err != nil {
-				return fmt.Errorf("%s: %s: %w", p, tc.Note, err)
+		for i := range file.Cases {
+			if tc := file.Cases[i]; !shouldSkip(tc) {
+				set.Cases = append(set.Cases, &ParserTestCase{TestCase: tc})
 			}
-			if shouldSkip(tc) {
-				continue
-			}
-			set.Cases = append(set.Cases, &ParserTestCase{TestCase: tc})
 		}
-
 		if len(set.Cases) > 0 {
 			results = append(results, set)
 		}
+	}
 
-		return nil
-	})
-
-	return results, err
+	return results, nil
 }
 
 // regenerateAST rewrites want_ast for every success case with locations turned
