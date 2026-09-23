@@ -181,40 +181,6 @@ const baseUrl = "/";
           },
           { to: "/ecosystem/", label: "Ecosystem", position: "right" },
           { href: "https://play.openpolicyagent.org/", label: "Play", position: "right" },
-          {
-            type: "html",
-            position: "right",
-            value: `
-        <a href="https://github.com/open-policy-agent"
-           target="_blank"
-           rel="noopener noreferrer"
-           aria-label="GitHub repository">
-          <img src="${
-              path.join(baseUrl, "img/nav/github-light.svg")
-            }" class="light-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
-          <img src="${
-              path.join(baseUrl, "img/nav/github-dark.svg")
-            }" class="dark-only" alt="GitHub" style="width: 24px; height: auto; margin-left: 8px;" />
-        </a>
-      `,
-          },
-          {
-            type: "html",
-            position: "right",
-            value: `
-        <a href="https://slack.openpolicyagent.org/"
-           target="_blank"
-           rel="noopener noreferrer"
-           aria-label="Slack community">
-          <img src="${
-              path.join(baseUrl, "img/nav/slack-light.svg")
-            }" class="light-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
-          <img src="${
-              path.join(baseUrl, "img/nav/slack-dark.svg")
-            }" class="dark-only" alt="Slack" style="width: 24px; height: auto; margin-left: 8px;" />
-        </a>
-      `,
-          },
         ],
       },
       footer: {
@@ -713,7 +679,6 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         "data-project-name": "Open Policy Agent",
         "data-project-logo": "https://openpolicyagent.org/img/nav/logo.png",
         "data-search-mode-enabled": "false",
-        "data-modal-open-on-command-k": "true",
         "data-deep-thinking-button-hover-background-color": "#f1f8f1",
         "data-deep-thinking-button-hover-color": "#2e7d32",
         "data-deep-thinking-button-enabled-background-color": "#e8f5e9",

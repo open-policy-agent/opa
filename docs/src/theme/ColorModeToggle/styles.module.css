@@ -3,6 +3,12 @@
   height: 2rem;
 }
 
+.item {
+  composes: navbar__item from global;
+  display: flex;
+  align-items: center;
+}
+
 .toggleButton {
   -webkit-tap-highlight-color: transparent;
   align-items: center;

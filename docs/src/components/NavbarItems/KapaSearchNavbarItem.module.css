@@ -1,9 +1,16 @@
+.item {
+  composes: navbar__item from global;
+  display: flex;
+  align-items: center;
+}
+
 .chatButton {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  margin-left: 0.5rem;
-  padding: 0.35rem 0.75rem;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 0.75rem;
   background: #f2e9fe;
   border: 1px solid #d5b8fb;
   border-radius: 0.375rem;

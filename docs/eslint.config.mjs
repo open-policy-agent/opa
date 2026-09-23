@@ -31,6 +31,7 @@ export default [
       "node_modules/**",
       ".docusaurus/**",
       "build/**",
+      "static/pagefind/**",
       "projects/regal/**",
       "src/theme/prism-rego.js",
       "src/theme/prism-include-languages.js",

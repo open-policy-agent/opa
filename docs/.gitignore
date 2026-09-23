@@ -7,3 +7,4 @@ package-lock.json
 static/data/versions.json
 static/schemas/ir/v1/plan.schema.json
 static/schemas/bundle/v1/manifest.schema.json
+static/pagefind

@@ -9,9 +9,11 @@ export default function KapaSearchNavbarItem() {
   }
 
   return (
-    <button onClick={openKapaChat} className={styles.chatButton} aria-label="Ask AI">
-      <Icon icon="mdi:robot-outline" className={styles.chatIcon} aria-hidden="true" />
-      <span>Ask AI</span>
-    </button>
+    <div className={styles.item}>
+      <button onClick={openKapaChat} className={styles.chatButton} aria-label="Ask AI">
+        <Icon icon="mdi:robot-outline" className={styles.chatIcon} aria-hidden="true" />
+        <span>Ask AI</span>
+      </button>
+    </div>
   );
 }

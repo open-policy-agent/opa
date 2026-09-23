@@ -21,3 +21,4 @@ fi
 git checkout "$LATEST_TAG" -- docs
 
 BUILD_VERSION="$LATEST_TAG" npx docusaurus build
+npx pagefind --site build

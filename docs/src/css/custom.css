@@ -2,6 +2,10 @@
 	display: none;
 }
 
+.navbar__items--right {
+	--ifm-navbar-item-padding-horizontal: 0.5rem;
+}
+
 /* This is done to show more of a code example on mobile/tablet */
 pre {
 	tab-size: 4;
