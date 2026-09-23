@@ -32,6 +32,11 @@ func Transform(t Transformer, x any) (any, error) {
 		return nil, nil
 	}
 
+	// The cases below that hold a slice mutate it in place, so this interface
+	// value goes on describing what they produce. Returning it costs nothing,
+	// where returning the case variable would box a slice header afresh.
+	orig := y
+
 	var ok bool
 	switch y := y.(type) {
 	case *Module:
@@ -137,7 +142,7 @@ func Transform(t Transformer, x any) (any, error) {
 				return nil, err
 			}
 		}
-		return y, nil
+		return orig, nil
 	case Body:
 		for i, e := range y {
 			e, err := Transform(t, e)
@@ -148,7 +153,7 @@ func Transform(t Transformer, x any) (any, error) {
 				return nil, fmt.Errorf("illegal transform: %T != %T", y[i], e)
 			}
 		}
-		return y, nil
+		return orig, nil
 	case *Expr:
 		switch ts := y.Terms.(type) {
 		case *SomeDecl:
@@ -238,7 +243,7 @@ func Transform(t Transformer, x any) (any, error) {
 				return nil, err
 			}
 		}
-		return y, nil
+		return orig, nil
 	case *object:
 		return y.Map(func(k, v *Term) (*Term, *Term, error) {
 			k, err := transformTerm(t, k)
@@ -297,7 +302,7 @@ func Transform(t Transformer, x any) (any, error) {
 				return nil, err
 			}
 		}
-		return y, nil
+		return orig, nil
 	case *TemplateString:
 		for i := range y.Parts {
 			if expr, ok := y.Parts[i].(*Expr); ok {
