@@ -1561,6 +1561,37 @@ test_p if {
 	}
 }
 
+func TestTestStackTrace(t *testing.T) {
+	files := map[string]string{
+		"/test.rego": `package test
+
+conflicting := 1
+
+conflicting := 2
+
+test_conflict if { conflicting }`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		buf := bytes.NewBuffer(nil)
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.output = buf
+		testParams.errOutput = io.Discard
+
+		if code := opaTest([]string{root}, testParams); code == 0 {
+			t.Fatal("expected a non-zero exit code")
+		}
+
+		out := buf.String()
+		for _, expected := range []string{"Traceback:", "test.rego:5: 2", "test.rego:7: conflicting"} {
+			if !strings.Contains(out, expected) {
+				t.Fatalf("expected output to contain %q, got:\n%s", expected, out)
+			}
+		}
+	})
+}
+
 // Assert that ignore flag is correctly used when the bundle flag is activated
 func TestIgnoreFlagWithBundleFlag(t *testing.T) {
 	files := map[string]string{

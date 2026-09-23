@@ -1715,6 +1715,47 @@ func TestEvalWithStrictBuiltinErrors(t *testing.T) {
 	}
 }
 
+func TestEvalWithStackTrace(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+p if {
+	q
+}
+
+q if {
+	1 / 0
+}
+`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		params := newEvalCommandParams()
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.strictBuiltinErrors = true
+		if err := params.outputFormat.Set(formats.Pretty); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		var buf, errBuf bytes.Buffer
+		if _, err := eval([]string{"data.test.p"}, params, &buf, &errBuf); err == nil {
+			t.Fatal("expected error")
+		}
+
+		out := errBuf.String()
+		for _, expected := range []string{
+			"Traceback:",
+			filepath.Join(path, "test.rego") + ":8: 1 / 0",
+			filepath.Join(path, "test.rego") + ":4: q",
+			"1:1: data.test.p",
+		} {
+			if !strings.Contains(out, expected) {
+				t.Fatalf("expected output to contain %q, got:\n%s", expected, out)
+			}
+		}
+	})
+}
+
 func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 	t.Helper()
 	result := make([]any, 0, len(rs))
@@ -2705,7 +2746,17 @@ func TestEvalDiscardOutput(t *testing.T) {
         "file": "",
         "row": 1
       },
-      "message": "div: divide by zero"
+      "message": "div: divide by zero",
+      "stack_trace": [
+        {
+          "location": {
+            "col": 1,
+            "file": "",
+            "row": 1
+          },
+          "query_id": 0
+        }
+      ]
     }
   ]
 }

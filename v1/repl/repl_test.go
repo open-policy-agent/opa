@@ -4012,6 +4012,51 @@ func TestStrictBuiltinErrors(t *testing.T) {
 	}
 }
 
+func TestTraceback(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore()
+	var buffer bytes.Buffer
+
+	repl := newRepl(store, &buffer)
+
+	if err := repl.OneShot(ctx, "strict-builtin-errors"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "1/0"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if result := buffer.String(); strings.Contains(result, "Traceback:") {
+		t.Fatal("expected no traceback before enabling it, got:", result)
+	}
+
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "traceback"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "1/0"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	result := buffer.String()
+	if !strings.Contains(result, "Traceback:") {
+		t.Fatal("expected traceback, got:", result)
+	}
+	if !strings.Contains(result, "1:1: 1/0") {
+		t.Fatal("expected a frame for the query, got:", result)
+	}
+
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "show debug"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !strings.Contains(buffer.String(), `"traceback": true`) {
+		t.Fatal("expected traceback to be reported by show debug, got:", buffer.String())
+	}
+}
+
 func TestInstrument(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore()

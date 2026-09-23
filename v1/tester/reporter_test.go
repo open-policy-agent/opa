@@ -666,6 +666,70 @@ ERROR: 1/14
 	}
 }
 
+func TestPrettyReporterStackTrace(t *testing.T) {
+	var buf bytes.Buffer
+
+	tdErr := &topdown.Error{
+		Code:     topdown.ConflictErr,
+		Message:  "complete rules must not produce multiple outputs",
+		Location: ast.NewLocation(nil, "policy.rego", 5, 1),
+		StackTrace: topdown.StackTrace{
+			{QueryID: 2, Location: ast.NewLocation([]byte("2"), "policy.rego", 5, 16)},
+			{QueryID: 1, Location: ast.NewLocation([]byte("conflicting"), "policy.rego", 8, 2)},
+		},
+	}
+
+	ts := []*Result{{
+		Package:  "data.foo.bar",
+		Name:     "test_baz",
+		Error:    tdErr,
+		Location: &ast.Location{File: "policy.rego", Row: 1},
+	}}
+
+	r := PrettyReporter{Output: &buf}
+	if err := r.Report(resultsChan(ts)); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := `policy.rego:1:
+data.foo.bar.test_baz: ERROR (0s)
+  policy.rego:5: eval_conflict_error: complete rules must not produce multiple outputs
+  Traceback:
+    policy.rego:5: 2
+    policy.rego:8: conflicting
+--------------------------------------------------------------------------------
+ERROR: 1/1
+`
+
+	if exp != buf.String() {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, buf.String())
+	}
+}
+
+func TestPrettyReporterNoStackTrace(t *testing.T) {
+	var buf bytes.Buffer
+
+	ts := []*Result{{
+		Package: "data.foo.bar",
+		Name:    "test_baz",
+		Error: &topdown.Error{
+			Code:     topdown.ConflictErr,
+			Message:  "complete rules must not produce multiple outputs",
+			Location: ast.NewLocation(nil, "policy.rego", 5, 1),
+		},
+		Location: &ast.Location{File: "policy.rego", Row: 1},
+	}}
+
+	r := PrettyReporter{Output: &buf}
+	if err := r.Report(resultsChan(ts)); err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(buf.String(), "Traceback") {
+		t.Fatal("expected no traceback, got:", buf.String())
+	}
+}
+
 func TestJSONReporter(t *testing.T) {
 	tests := []struct {
 		name     string

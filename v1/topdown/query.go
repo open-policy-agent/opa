@@ -58,6 +58,7 @@ type Query struct {
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	ndBuiltinCache              builtins.NDBCache
 	strictBuiltinErrors         bool
+	stackTraces                 bool
 	builtinErrorList            *[]Error
 	strictObjects               bool
 	roundTripper                CustomizeRoundTripper
@@ -273,6 +274,21 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
+// WithStackTraces tells the evaluator to record the stack of queries being
+// evaluated when an error occurred on the returned *Error. The stack is exposed
+// as Error.StackTrace and left out of the error message, so callers render it
+// themselves.
+//
+// Off by default because capture is not free: each *Error costs a walk of the
+// parent chain and a frame per query on it, resolved against the bindings in
+// scope, which on a query collecting one built-in error per row runs from +60%
+// to +203% in time (see BenchmarkStackTraceCollectedBuiltinErrors). OPA's own
+// CLI and server accept that cost and turn it on.
+func (q *Query) WithStackTraces(yes bool) *Query {
+	q.stackTraces = yes
+	return q
+}
+
 // WithBuiltinErrorList supplies a pointer to an Error slice to store built-in function errors
 // encountered during evaluation. This error slice can be inspected after evaluation to determine
 // which built-in function errors occurred.
@@ -400,6 +416,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		external:                    q.external,
 		tracers:                     q.tracers,
 		traceEnabled:                len(q.tracers) > 0,
+		stackCapture:                q.newStackCapture(),
 		plugTraceVars:               q.plugTraceVars,
 		instr:                       q.instr,
 		builtins:                    q.builtins,
@@ -574,6 +591,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		external:                    q.external,
 		tracers:                     q.tracers,
 		traceEnabled:                len(q.tracers) > 0,
+		stackCapture:                q.newStackCapture(),
 		plugTraceVars:               q.plugTraceVars,
 		instr:                       q.instr,
 		builtins:                    q.builtins,

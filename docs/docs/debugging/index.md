@@ -48,6 +48,102 @@ during policy evaluation as well as seeing how many times a particular line of c
 See the [print function documentation](./policy-reference/builtins/opa#debugging) for more details on how to use
 the `print` built-in function in different contexts.
 
+## Evaluation Stack Traces
+
+When evaluation fails, the error reports the line the failure happened on, but not how evaluation
+got there. A rule that divides by zero, or a conflict between two rules, is often only surprising
+because of the path that reached it.
+
+`opa eval` and `opa test` report each evaluation error with the stack of queries that were being
+evaluated when it was raised, innermost query first:
+
+```shell
+opa eval --strict-builtin-errors -d policy.rego 'data.ex.p'
+```
+
+```txt
+1 error occurred: policy.rego:12: eval_builtin_error: div: divide by zero
+
+Traceback:
+  policy.rego:12: 1 / 0
+  policy.rego:8: r[x]
+  policy.rego:4: q[x]
+  1:1: data.ex.p
+```
+
+In the REPL, the `traceback` command toggles the same output:
+
+```txt
+> traceback
+> strict-builtin-errors
+> data.ex.p
+```
+
+Pairing the traceback with strict built-in errors above is deliberate. By default a failing
+built-in leaves the expression undefined rather than raising, so there is no error to annotate —
+that goes for type errors like `count` over a number too, since those are raised by the built-in.
+Conflict errors need no second flag, and `opa test` does not surface built-in errors at all today.
+
+Unlike `--explain`, a traceback only describes the state at the point of failure, so it stays
+short even for policies that evaluate a lot of expressions.
+
+Each frame quotes the expression as it is written in the policy, with the values its variables were
+bound to spliced in, so a call shows the argument it actually failed on. Given:
+
+```rego
+package ex
+
+p contains y if {
+    some x in {3, 2, 1, 0}
+    y := f(x)
+}
+
+f(x) := x / x
+```
+
+the traceback reads:
+
+```txt
+Traceback:
+  policy.rego:8: 0 / 0
+  policy.rego:5: f(0)
+  1:1: data.ex.p
+```
+
+naming the iteration that failed rather than repeating the `f(x)` in the source. A variable that
+isn't bound yet, or whose value is too long to fit on a frame, keeps the name the policy gave it.
+
+When embedding OPA as a library tracebacks are off by default; `rego.StackTraces(true)` enables
+them, and the frames are then available on `topdown.Error.StackTrace`.
+
+`opa run -s` turns them on for itself. An evaluation error is answered with a 500 and the handlers
+drop the explain buffer on that path, so without a traceback the response carries a single line and
+`?explain=full` has nothing to add. Querying the policy above with
+`GET /v1/data/ex/p?strict-builtin-errors` answers:
+
+```json
+{
+  "code": "internal_error",
+  "message": "error(s) occurred while evaluating query",
+  "errors": [
+    {
+      "code": "eval_builtin_error",
+      "message": "div: divide by zero",
+      "location": { "file": "policy.rego", "row": 8, "col": 9 },
+      "stack_trace": [
+        { "query_id": 2, "location": { "file": "policy.rego", "row": 8, "col": 9 } },
+        { "query_id": 1, "location": { "file": "policy.rego", "row": 5, "col": 10 } },
+        { "query_id": 0, "location": { "file": "", "row": 1, "col": 1 } }
+      ]
+    }
+  ]
+}
+```
+
+The middle frame is the `y := f(x)` the rule body was on, which `location` alone doesn't tell you.
+Frames over the wire carry only file, row and column — no policy source is included, so the
+resolved `f(0)` above stays out of the response.
+
 ## Performance Profiling
 
 Sometimes the issue isn't the correctness of the policy but rather the performance. The

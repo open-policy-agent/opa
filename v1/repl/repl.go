@@ -56,6 +56,7 @@ type REPL struct {
 	metrics             metrics.Metrics
 	profiler            bool
 	strictBuiltinErrors bool
+	traceback           bool
 	capabilities        *ast.Capabilities
 	regoVersion         ast.RegoVersion
 	initBundles         map[string]*bundle.Bundle
@@ -495,6 +496,8 @@ func (r *REPL) oneShot(ctx context.Context, line string, complete bool) error {
 				return r.cmdUnknown(cmd.args)
 			case "strict-builtin-errors":
 				return r.cmdStrictBuiltinErrors()
+			case "traceback":
+				return r.cmdTraceback()
 			case "target":
 				return r.cmdTarget(cmd.args)
 			case "help":
@@ -714,6 +717,7 @@ func (r *REPL) cmdShow(args []string) error {
 			Instrument:          r.instrument,
 			Profile:             r.profilerEnabled(),
 			StrictBuiltinErrors: r.strictBuiltinErrors,
+			Traceback:           r.traceback,
 		}
 		b, err := json.MarshalIndent(debug, "", "\t")
 		if err != nil {
@@ -731,6 +735,7 @@ type replDebugState struct {
 	Instrument          bool        `json:"instrument"`
 	Profile             bool        `json:"profile"`
 	StrictBuiltinErrors bool        `json:"strict-builtin-errors"`
+	Traceback           bool        `json:"traceback"`
 }
 
 func (r *REPL) cmdTrace(mode explainMode) error {
@@ -790,6 +795,11 @@ func (r *REPL) cmdProfile() error {
 
 func (r *REPL) cmdStrictBuiltinErrors() error {
 	r.strictBuiltinErrors = !r.strictBuiltinErrors
+	return nil
+}
+
+func (r *REPL) cmdTraceback() error {
+	r.traceback = !r.traceback
 	return nil
 }
 
@@ -1276,6 +1286,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
 		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
+		rego.StackTraces(r.traceback),
 		rego.Target(r.target),
 		rego.EnablePrintStatements(true),
 		rego.PrintHook(topdown.NewPrintHook(r.stderrWriter())),
@@ -1352,6 +1363,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		rego.ParsedUnknowns(r.unknowns),
 		rego.Runtime(r.runtime),
 		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
+		rego.StackTraces(r.traceback),
 		rego.EnablePrintStatements(true),
 		rego.PrintHook(topdown.NewPrintHook(r.stderrWriter())),
 	)
@@ -1763,6 +1775,7 @@ var builtin = [...]commandDesc{
 	{"types", []string{}, "toggle type information"},
 	{"unknown", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
 	{"strict-builtin-errors", []string{}, "toggle strict built-in error mode"},
+	{"traceback", []string{}, "toggle evaluation stack traces on errors"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
 	{"target", []string{"[mode]"}, "set the runtime to exercise {rego,wasm} (default rego)"},

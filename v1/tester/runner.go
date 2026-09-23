@@ -173,9 +173,10 @@ func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trac
 // resultError mirrors the JSON shape *topdown.Error marshals to, which is the
 // form errors take in the output of `opa test --format json`.
 type resultError struct {
-	Code     string        `json:"code,omitempty"`
-	Message  string        `json:"message,omitempty"`
-	Location *ast.Location `json:"location,omitempty"`
+	Code       string             `json:"code,omitempty"`
+	Message    string             `json:"message,omitempty"`
+	Location   *ast.Location      `json:"location,omitempty"`
+	StackTrace topdown.StackTrace `json:"stack_trace,omitempty"`
 }
 
 func (e *resultError) error() error {
@@ -184,7 +185,12 @@ func (e *resultError) error() error {
 	}
 
 	if e.Code != "" {
-		return &topdown.Error{Code: e.Code, Message: e.Message, Location: e.Location}
+		return &topdown.Error{
+			Code:       e.Code,
+			Message:    e.Message,
+			Location:   e.Location,
+			StackTrace: e.StackTrace,
+		}
 	}
 
 	return errors.New(e.Message)
@@ -323,6 +329,7 @@ type Runner struct {
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
+	stackTraces           bool
 	runtime               *ast.Term
 	timeout               time.Duration
 	modules               map[string]*ast.Module
@@ -377,6 +384,13 @@ func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 // such as parsing input.
 func (r *Runner) RaiseBuiltinErrors(enabled bool) *Runner {
 	r.raiseBuiltinErrors = enabled
+	return r
+}
+
+// StackTraces sets the runner to record the stack of queries being evaluated
+// when a test errors, reported as topdown.Error.StackTrace.
+func (r *Runner) StackTraces(enabled bool) *Runner {
+	r.stackTraces = enabled
 	return r
 }
 
@@ -1031,7 +1045,14 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Runtime(r.runtime),
 		rego.Target(r.target),
 		rego.PrintHook(topdown.NewPrintHook(printbuf)),
-		rego.BuiltinErrorList(&builtinErrors),
+		rego.StackTraces(r.stackTraces),
+	}
+
+	// Only collect built-in errors when they will be reported below. Supplying
+	// the list unconditionally makes the evaluator hold on to every error a test
+	// raises, and annotate each with a stack trace nothing reads.
+	if r.raiseBuiltinErrors {
+		opts = append(opts, rego.BuiltinErrorList(&builtinErrors))
 	}
 
 	rg := rego.New(opts...)

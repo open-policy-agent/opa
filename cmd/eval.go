@@ -756,6 +756,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
+	// Always on: a traceback only shows up on an error, and it is the one place
+	// the CLI explains how evaluation reached the failing expression.
+	regoArgs = append(regoArgs, rego.StackTraces(true))
+
 	var builtInErrors []topdown.Error
 	if params.showBuiltinErrors {
 		regoArgs = append(regoArgs, rego.BuiltinErrorList(&builtInErrors))

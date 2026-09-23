@@ -119,6 +119,12 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		}
 		if tr.Error != nil {
 			_, _ = fmt.Fprintf(r.Output, "  %v\n", tr.Error)
+			if tdErr, ok := errors.AsType[*topdown.Error](tr.Error); ok && len(tdErr.StackTrace) > 0 {
+				r.println("  Traceback:")
+				for _, f := range tdErr.StackTrace {
+					_, _ = fmt.Fprintf(r.Output, "    %v\n", f)
+				}
+			}
 		}
 	}
 

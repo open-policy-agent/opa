@@ -705,6 +705,7 @@ type Rego struct {
 	interQueryBuiltinValueCache cache.InterQueryValueCache
 	ndBuiltinCache              builtins.NDBCache
 	strictBuiltinErrors         bool
+	stackTraces                 bool
 	builtinErrorList            *[]topdown.Error
 	resolvers                   []refResolver
 	externalSources             []ast.ExternalRuleSource
@@ -1306,6 +1307,16 @@ func NDBuiltinCache(c builtins.NDBCache) func(r *Rego) {
 func StrictBuiltinErrors(yes bool) func(r *Rego) {
 	return func(r *Rego) {
 		r.strictBuiltinErrors = yes
+	}
+}
+
+// StackTraces tells the evaluator to record the stack of queries being evaluated
+// when an error occurred on the returned *topdown.Error. The stack is exposed as
+// topdown.Error.StackTrace and left out of the error message, so callers render
+// it themselves. Off by default; see [topdown.Query.WithStackTraces] for why.
+func StackTraces(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.stackTraces = yes
 	}
 }
 
@@ -2336,6 +2347,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithInterQueryBuiltinValueCache(ectx.interQueryBuiltinValueCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
+		WithStackTraces(r.stackTraces).
 		WithBuiltinErrorList(ectx.builtinErrorList).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
@@ -2642,6 +2654,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithInterQueryBuiltinValueCache(ectx.interQueryBuiltinValueCache).
 		WithStrictBuiltinErrors(ectx.strictBuiltinErrors).
+		WithStackTraces(r.stackTraces).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithRequestMetadata(ectx.requestMetadata).

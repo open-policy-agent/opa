@@ -905,6 +905,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
 		rego.NDBuiltinCache(ndbCache),
 		rego.EvaluatedRuleTracker(tracker),
+		rego.StackTraces(true),
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
@@ -1391,6 +1392,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
 		rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.PrintHook(s.manager.PrintHook()),
+		rego.StackTraces(true),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -2588,6 +2590,10 @@ func (s *Server) makeRego(_ context.Context,
 		rego.StrictBuiltinErrors(strictBuiltinErrors),
 		rego.PrintHook(s.manager.PrintHook()),
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
+		// An evaluation error is answered with a 500 and nothing else: the
+		// handlers discard the explain buffer on that path, so the traceback is
+		// the only diagnostic the caller gets.
+		rego.StackTraces(true),
 	)
 
 	return rego.New(opts...), nil

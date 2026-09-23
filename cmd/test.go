@@ -426,6 +426,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetStore(store).
 		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose || testParams.varValues).
+		StackTraces(true).
 		SetCoverageRuns(coverageRuns).
 		SetCoverageQueryTracer(coverTracer).
 		SetRuntime(runtimeInfo).
