@@ -1,29 +1,17 @@
 import { Icon } from "@iconify/react";
-import React from "react";
 import styles from "./KapaSearchNavbarItem.module.css";
 
 export default function KapaSearchNavbarItem() {
-  const platform = typeof navigator !== "undefined"
-    ? (navigator.userAgentData?.platform ?? navigator.platform)
-    : "";
-  const isMac = platform.includes("Mac");
-
-  function openKapaSearch() {
+  function openKapaChat() {
     if (typeof window !== "undefined" && window.Kapa) {
-      window.Kapa.open({ mode: "search" });
+      window.Kapa.open();
     }
   }
 
   return (
-    <div className={styles.searchContainer}>
-      <button onClick={openKapaSearch} className={styles.searchButton} aria-label="Search and Chat">
-        <Icon icon="mdi:magnify" className={styles.searchIcon} aria-hidden="true" />
-        <span>Search and Chat</span>
-        <span className={styles.searchHints}>
-          <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>
-          <kbd>K</kbd>
-        </span>
-      </button>
-    </div>
+    <button onClick={openKapaChat} className={styles.chatButton} aria-label="Ask AI">
+      <Icon icon="mdi:robot-outline" className={styles.chatIcon} aria-hidden="true" />
+      <span>Ask AI</span>
+    </button>
   );
 }
