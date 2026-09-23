@@ -18,5 +18,5 @@ cases:
         }
     note: functionerrors/function output conflict multiple
     query: data.test3.r = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test3.p produced conflicting values for the same inputs
     want_error_code: eval_conflict_error

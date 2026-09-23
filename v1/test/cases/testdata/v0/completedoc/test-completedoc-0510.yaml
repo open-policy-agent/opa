@@ -13,5 +13,5 @@ cases:
         }
     note: completedoc/vars conflict
     query: data.generated.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.generated.p produced conflicting values
     want_error_code: eval_conflict_error

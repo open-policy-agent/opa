@@ -32,6 +32,9 @@
 # https://github.com/open-policy-agent/opa/issues/8424
 /docs/management/ /docs/management-introduction
 
+# renamed along with the error message it documents
+/docs/errors/eval-conflict-error/complete-rules-must-not-produce-multiple-outputs/ /docs/errors/eval-conflict-error/rule-name-produced-conflicting-values/
+
 # 7729 and #7720 were opened relating to this but we don't know the source of
 # the old link
 /docs/kubernetes-admission-control.html /docs/kubernetes

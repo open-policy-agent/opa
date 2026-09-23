@@ -14,7 +14,7 @@ cases:
         q = false
     note: "disjunction/complete: reference error"
     query: data.generated.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.generated.q produced conflicting values
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -40,7 +40,7 @@ cases:
         }
     note: "disjunction/complete: nested conflict, else"
     query: data.generated.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.generated.q produced conflicting values
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -57,7 +57,7 @@ cases:
         q(_) = false
     note: "disjunction/nested function with conflict"
     query: data.test.p = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.q produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -83,7 +83,7 @@ cases:
         }
     note: "disjunction/nested function with conflict, else"
     query: data.test.p = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.q produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -97,7 +97,7 @@ cases:
         q = xs[_]
     note: "disjunction/complete: conflict involving early-exit complete rule (set enumeration)"
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -111,7 +111,7 @@ cases:
         q = xs[_]
     note: "disjunction/complete: conflict involving early-exit complete rule (array enumeration)"
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -125,7 +125,7 @@ cases:
         q = xs[_]
     note: "disjunction/complete: conflict involving early-exit complete rule (object enumeration)"
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error
 
   - data:
@@ -160,7 +160,7 @@ cases:
         } else = xs[_]
     note: "disjunction/complete: conflict involving early-exit complete rule, else"
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error
 
   - data:
@@ -175,7 +175,7 @@ cases:
         q = xs[_]
     note: "disjunction/complete: conflict involving early-exit complete rule, multiple"
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error
 
   - note: "disjunction/complete: conflict involving early-exit complete rule, data array enumeration"
@@ -190,7 +190,7 @@ cases:
         }
         q := data.arr[_]
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error
 
   - note: "disjunction/complete: conflict involving early-exit complete rule, data object enumeration"
@@ -207,5 +207,5 @@ cases:
         }
         q := data.obj[_]
     query: data.test.p = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.test.q produced conflicting values
     want_error_code: eval_conflict_error

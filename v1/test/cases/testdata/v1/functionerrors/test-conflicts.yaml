@@ -12,7 +12,7 @@ cases:
 
         p if f("1")
     want_error_code: eval_conflict_error
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.f produced conflicting values for the same inputs
   - note: "functionerrors/conflict: plain false and true result, second round"
     query: data.test.p = x
     modules:
@@ -25,4 +25,4 @@ cases:
 
         p if f("2")
     want_error_code: eval_conflict_error
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.f produced conflicting values for the same inputs

@@ -14,7 +14,7 @@ cases:
         }
     note: functionerrors/function output conflict single
     query: data.test1.r = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test1.p produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -29,5 +29,5 @@ cases:
         }
     note: functionerrors/function output conflict, used as boolean
     query: data.test.r = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.f produced conflicting values for the same inputs
     want_error_code: eval_conflict_error

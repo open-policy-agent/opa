@@ -1708,7 +1708,7 @@ p = true if { false }`
     		        "file": "test",
     		        "row": 5
     		      },
-    		      "message": "complete rules must not produce multiple outputs",
+    		      "message": "rule data.testmod.p produced conflicting values:\n  rule at test:4\n  rule at test:5",
     		      "stack_trace": [
     		        {"query_id": 2, "location": {"col": 16, "file": "test", "row": 5}},
     		        {"query_id": 0, "location": {"col": 1, "file": "", "row": 1}}

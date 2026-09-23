@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
@@ -187,4 +189,204 @@ func BenchmarkErrorError(b *testing.B) {
 	for b.Loop() {
 		_ = err.Error()
 	}
+}
+
+func TestConflictErrorListsConflictingRules(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note    string
+		modules map[string]string
+		query   string
+		input   string
+		strict  bool
+		message string
+	}{
+		{
+			note: "complete rules",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := "one" if input.a
+
+allow := "two" if input.b
+
+allow := "three" if input.c`},
+			query: "data.ex.allow",
+			input: `{"a": true, "b": true}`,
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5",
+		},
+		{
+			note: "complete rules, all conflicting rules",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := "one" if input.a
+
+allow := "two" if input.b
+
+allow := "three" if input.c`},
+			query: "data.ex.allow",
+			input: `{"a": true, "b": true, "c": true}`,
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5\n" +
+				"  rule at policy.rego:7",
+		},
+		{
+			note:    "complete rules, limit",
+			modules: map[string]string{"policy.rego": distinctCompleteRules(12)},
+			query:   "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5\n" +
+				"  rule at policy.rego:7\n" +
+				"  rule at policy.rego:9\n" +
+				"  rule at policy.rego:11\n" +
+				"  rule at policy.rego:13\n" +
+				"  rule at policy.rego:15\n" +
+				"  rule at policy.rego:17\n" +
+				"  rule at policy.rego:19\n" +
+				"  rule at policy.rego:21\n" +
+				"  ...",
+		},
+		{
+			note: "complete rules, error after conflict",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := 1
+
+allow := 2
+
+allow := 1 / 0`},
+			query:  "data.ex.allow",
+			strict: true,
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5",
+		},
+		{
+			note: "complete rules, error after conflict, non-strict",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := 1
+
+allow := 2
+
+allow := 1 / 0`},
+			query: "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5",
+		},
+		{
+			note: "complete rules across files",
+			modules: map[string]string{
+				"a.rego": "package ex\n\nallow := 1",
+				"b.rego": "package ex\n\nallow := 2",
+			},
+			query: "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at a.rego:3\n" +
+				"  rule at b.rego:3",
+		},
+		{
+			note: "complete rules, else branch",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := 1 if input.a
+else := 2
+
+allow := 3 if input.b`},
+			query: "data.ex.allow",
+			input: `{"b": true}`,
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  rule at policy.rego:4\n" +
+				"  rule at policy.rego:6",
+		},
+		{
+			note: "complete rule, single rule",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := x if some x in [1, 2]`},
+			query:   "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values",
+		},
+		{
+			note: "functions",
+			modules: map[string]string{"policy.rego": `package ex
+
+f(x) := 1 if x > 0
+
+f(x) := 2 if x > 1`},
+			query: "data.ex.f(2)",
+			message: "function data.ex.f produced conflicting values for the same inputs:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5",
+		},
+		{
+			note: "functions, all conflicting rules",
+			modules: map[string]string{"policy.rego": `package ex
+
+f(x) := 1 if x > 0
+
+f(x) := 2 if x > 1
+
+f(x) := 3 if x > 2`},
+			query: "data.ex.f(3)",
+			message: "function data.ex.f produced conflicting values for the same inputs:\n" +
+				"  rule at policy.rego:3\n" +
+				"  rule at policy.rego:5\n" +
+				"  rule at policy.rego:7",
+		},
+		{
+			note: "functions, single rule",
+			modules: map[string]string{"policy.rego": `package ex
+
+f(_) := x if some x in [1, 2]`},
+			query:   "data.ex.f(2)",
+			message: "function data.ex.f produced conflicting values for the same inputs",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			q := topdown.NewQuery(ast.MustParseBody(tc.query)).
+				WithCompiler(ast.MustCompileModules(tc.modules)).
+				WithStrictBuiltinErrors(tc.strict)
+			var builtinErrs []topdown.Error
+			if !tc.strict {
+				q = q.WithBuiltinErrorList(&builtinErrs)
+			}
+			if tc.input != "" {
+				q = q.WithInput(ast.MustParseTerm(tc.input))
+			}
+
+			_, err := q.Run(t.Context())
+			tdErr, ok := errors.AsType[*topdown.Error](err)
+			if !ok {
+				t.Fatalf("expected topdown error, got: %v", err)
+			}
+			if tdErr.Code != topdown.ConflictErr {
+				t.Fatalf("expected code %q, got %q", topdown.ConflictErr, tdErr.Code)
+			}
+			if tdErr.Message != tc.message {
+				t.Fatalf("expected message:\n%s\ngot:\n%s", tc.message, tdErr.Message)
+			}
+			if len(builtinErrs) > 0 {
+				t.Fatalf("expected no built-in errors, got: %v", builtinErrs)
+			}
+		})
+	}
+}
+
+func distinctCompleteRules(n int) string {
+	s := strings.Builder{}
+	s.WriteString("package ex\n")
+	for i := range n {
+		fmt.Fprintf(&s, "\nallow := %d\n", i)
+	}
+	return s.String()
 }

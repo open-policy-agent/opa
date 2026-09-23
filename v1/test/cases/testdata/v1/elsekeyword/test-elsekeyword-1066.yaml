@@ -18,4 +18,4 @@ cases:
 
         else := true
     want_error_code: eval_conflict_error
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.ex.conflict_2 produced conflicting values

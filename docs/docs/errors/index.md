@@ -28,7 +28,7 @@ The errors currently documented are:
 | compilation | `rego_type_error`       | [unsafe built-in function calls in expression: `{name}`](./errors/rego-type-error/unsafe-built-in-function-calls-in-expression-name) |
 | compilation | `rego_unsafe_var_error` | [var `{name}` is unsafe](./errors/rego-unsafe-var-error/var-name-is-unsafe)                                                          |
 | compilation | `rego_compile_error`    | [assigned var `{name}` unused](./errors/rego-compile-error/assigned-var-name-unused)                                                 |
-| evaluation  | `eval_conflict_error`   | [complete rules must not produce multiple outputs](./errors/eval-conflict-error/complete-rules-must-not-produce-multiple-outputs)    |
+| evaluation  | `eval_conflict_error`   | [rule `{name}` produced conflicting values](./errors/eval-conflict-error/rule-name-produced-conflicting-values)                      |
 | evaluation  | `eval_conflict_error`   | [object keys must be unique](./errors/eval-conflict-error/object-keys-must-be-unique)                                                |
 
 ## How To Read Pages in this Section
@@ -121,7 +121,9 @@ This policy _might_ work, if only one of `x` or `y` is provided in the input. If
 different, conflicting, values — an error will be reported during the evaluation stage:
 
 ```sh
-policy.rego:3: eval_conflict_error: complete rules must not produce multiple outputs
+policy.rego:3: eval_conflict_error: rule data.policy.x produced conflicting values:
+  rule at policy.rego:3
+  rule at policy.rego:5
 ```
 
 Important to know is that not all "errors" at this stage will be reported as errors! Some things that would be

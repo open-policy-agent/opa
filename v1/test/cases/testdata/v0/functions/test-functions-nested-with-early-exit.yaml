@@ -14,7 +14,7 @@ cases:
         q = false
     note: "functions/nested complete doc with conflict"
     query: data.generated.p(1) = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.generated.q produced conflicting values
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -40,7 +40,7 @@ cases:
         }
     note: "functions/nested complete doc with conflict, else"
     query: data.generated.p(1) = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.generated.q produced conflicting values
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -56,7 +56,7 @@ cases:
         q(_) = false
     note: "functions/nested function with conflict"
     query: data.generated.p(1) = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.generated.q produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -82,7 +82,7 @@ cases:
         }
     note: "functions/nested function with conflict, else"
     query: data.generated.p(1) = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.generated.q produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
   - data:
     modules:
@@ -96,5 +96,5 @@ cases:
         q(_) = xs[_]
     note: "functions/nested function with conflict, else, no extra return"
     query: data.test.p(1) = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.q produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
