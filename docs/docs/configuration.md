@@ -1101,7 +1101,7 @@ applied.
 
 ## Reloading Configuration
 
-> Only supported with the OPA runtime (`opa run`).
+> Only supported when OPA is run as a server (`opa run --server`).
 
 By default the configuration file is read once, at start-up. Running with the
 `--watch-config` flag makes `opa run` watch the file and bring OPA back up under
@@ -1117,11 +1117,11 @@ this restarts the server and everything the configuration drives.
 
 ### When to use it
 
-Where something else can replace the process for you, let it. Under an
-orchestrator, a configuration change is a change to the desired state: update
-the ConfigMap and roll the pods out, and you get the restart with health
-gating, surge control and a record of what happened. OPA restarting itself is
-none of those things — from the outside it is an unexplained blip.
+Where something else can replace the process for you, let it. On Kubernetes,
+a configuration change is a change to the desired state: update the ConfigMap
+and roll the pods out, and you get the restart with health gating, surge
+control and a record of what happened. OPA restarting itself is none of those
+things — from the outside it is an unexplained blip.
 
 `--watch-config` is for where that is not on offer:
 
