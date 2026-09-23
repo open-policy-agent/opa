@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -13,7 +14,11 @@ import (
 )
 
 func TestRegexBuiltinCache(t *testing.T) {
-	t.Parallel()
+	// Not parallel: regexpCache is shared by the whole package, and parallel
+	// tests calling regex built-ins would evict the patterns asserted on here.
+	regexpCacheLock.Lock()
+	regexpCache = make(map[string]*regexp.Regexp)
+	regexpCacheLock.Unlock()
 
 	ctx := BuiltinContext{}
 	iter := func(*ast.Term) error { return nil }
@@ -29,9 +34,7 @@ func TestRegexBuiltinCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if _, ok := regexpCache[regex1]; !ok {
-		t.Fatalf("Expected regex to be cached: %v", regex1)
-	}
+	assertRegexCached(t, regex1)
 
 	// Fill up the cache.
 	for i := range regexCacheMaxSize - 1 {
@@ -45,11 +48,11 @@ func TestRegexBuiltinCache(t *testing.T) {
 		}
 	}
 
-	if len(regexpCache) != regexCacheMaxSize {
-		t.Fatal("Expected cache to be full")
-	}
+	assertRegexCacheLen(t, regexCacheMaxSize)
 
-	// A new regex pattern is cached and a random pattern is evicted.
+	// A new regex pattern is cached and a random pattern is evicted. Any
+	// pattern can be evicted by the next insert, so each one is asserted on
+	// right after it is cached.
 	regex2 := "bar.*"
 	operands = []*ast.Term{
 		ast.NewTerm(ast.String(regex2)),
@@ -59,6 +62,9 @@ func TestRegexBuiltinCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+
+	assertRegexCached(t, regex2)
+	assertRegexCacheLen(t, regexCacheMaxSize)
 
 	// Both builtins which interact with the cache should correctly evict
 	// cache items.
@@ -74,12 +80,37 @@ func TestRegexBuiltinCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if len(regexpCache) != regexCacheMaxSize {
-		t.Fatalf("Expected cache be capped at %d, was %d", regexCacheMaxSize, len(regexpCache))
+	// Templates are cached under the pattern generated from them.
+	gen, err := generateRegexTemplate(regex3, '<', '>')
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if _, ok := regexpCache[regex2]; !ok {
-		t.Fatalf("Expected regex to be cached: %v", regex2)
+	assertRegexCached(t, gen)
+	assertRegexCacheLen(t, regexCacheMaxSize)
+}
+
+func assertRegexCached(t *testing.T, pat string) {
+	t.Helper()
+
+	regexpCacheLock.RLock()
+	_, ok := regexpCache[pat]
+	regexpCacheLock.RUnlock()
+
+	if !ok {
+		t.Fatalf("Expected regex to be cached: %v", pat)
+	}
+}
+
+func assertRegexCacheLen(t *testing.T, exp int) {
+	t.Helper()
+
+	regexpCacheLock.RLock()
+	n := len(regexpCache)
+	regexpCacheLock.RUnlock()
+
+	if n != exp {
+		t.Fatalf("Expected cache to hold %d entries, was %d", exp, n)
 	}
 }
 
