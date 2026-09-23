@@ -4174,12 +4174,12 @@ func TestWithQueryImports(t *testing.T) {
 			exp:     "true\n",
 		},
 		{
-			note:         "future keyword used, invalid rego.v2 imported",
+			note:         "future keyword used, invalid rego.v3 imported",
 			v0Compatible: true,
 			query:        `"b" in ["a", "b", "c"]`,
-			imports:      []string{"rego.v2"},
+			imports:      []string{"rego.v3"},
 			expErrs: []string{
-				"1:8: rego_parse_error: invalid import `rego.v2`, must be `rego.v1`",
+				"1:8: rego_parse_error: invalid import `rego.v3`, must be one of: `rego.v1`, `rego.v2`",
 			},
 		},
 		{
