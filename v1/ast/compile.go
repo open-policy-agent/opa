@@ -2528,6 +2528,12 @@ func (c *Compiler) rewriteTemplateStrings() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(r *Rule) bool {
+			// The output vars computed below are read only to resolve a template
+			// string, and most rules have none to resolve.
+			if !containsTemplateString(r) {
+				return false
+			}
+
 			tsr = tsr.Clear()
 			safe := r.Head.Args.Vars()
 
@@ -2555,6 +2561,17 @@ func (c *Compiler) rewriteTemplateStrings() {
 	if modified {
 		c.Required.addBuiltinSorted(InternalTemplateString)
 	}
+}
+
+func containsTemplateString(x any) bool {
+	found := false
+	WalkTerms(x, func(t *Term) bool {
+		if _, ok := t.Value.(*TemplateString); ok {
+			found = true
+		}
+		return found
+	})
+	return found
 }
 
 func rewriteTemplateStrings(tsr *templateStringRewriter, globals VarSet, x any) (bool, VarSet, Errors) {
