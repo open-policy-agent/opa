@@ -2361,8 +2361,21 @@ func (c *Compiler) initLocalVarGen() {
 func (c *Compiler) rewriteComprehensionTerms() {
 	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
+		// Transform rebuilds what it walks, so finding nothing is not free.
+		if !ContainsComprehensions(c.Modules[name]) {
+			continue
+		}
 		_, _ = rewriteComprehensionTerms(f, c.Modules[name]) // ignore error
 	}
+}
+
+func containsWith(x any) bool {
+	found := false
+	WalkWiths(x, func(*With) bool {
+		found = true
+		return found
+	})
+	return found
 }
 
 func (c *Compiler) rewriteExprTerms() {
@@ -3695,6 +3708,10 @@ func (c *Compiler) rewriteWithModifiers() {
 	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
+		// As above: a module with no with modifier would be rebuilt unchanged.
+		if !containsWith(mod) {
+			continue
+		}
 		t := GenericTransformer{f: func(x any) (any, error) {
 			body, ok := x.(Body)
 			if !ok {
