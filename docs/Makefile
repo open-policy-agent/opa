@@ -8,6 +8,15 @@ ci:
 
 .PHONY: dev
 dev:
+	# Build once and index with Pagefind so search works in dev, but skip
+	# it if a build and index already exist. Run `make clean` first to
+	# force a fresh build/reindex.
+	if [ ! -d build ] || [ ! -d static/pagefind ]; then \
+		npx docusaurus build && \
+		npx pagefind --site build && \
+		rm -rf static/pagefind && \
+		cp -r build/pagefind static/pagefind; \
+	fi
 	# --no-open means that the browser will not be opened on start.
 	# This is done to avoid opening many tabs repeatedly when editing
 	# docusaurus.config.js.
@@ -16,6 +25,7 @@ dev:
 .PHONY: build
 build:
 	npx docusaurus build
+	npx pagefind --site build
 
 .PHONY: build-latest
 build-latest:
