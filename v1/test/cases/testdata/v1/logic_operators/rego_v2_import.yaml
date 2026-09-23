@@ -1,0 +1,132 @@
+---
+cases:
+  - note: "logic_op/rego_v2_import: and, both operands true"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a and input.b
+        }
+    input:
+      a: true
+      b: true
+    want_result:
+      - x: true
+  - note: "logic_op/rego_v2_import: and, rhs false"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a and input.b
+        }
+    input:
+      a: true
+      b: false
+    want_result: []
+  - note: "logic_op/rego_v2_import: or, rhs true"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a or input.b
+        }
+    input:
+      a: false
+      b: true
+    want_result:
+      - x: true
+  - note: "logic_op/rego_v2_import: or, both false"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a or input.b
+        }
+    input:
+      a: false
+      b: false
+    want_result: []
+  - note: "logic_op/rego_v2_import: not {x and y}"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          not { input.a and input.b }
+        }
+    input:
+      a: true
+      b: false
+    want_result:
+      - x: true
+  - note: "logic_op/rego_v2_import: rego.v1 also imported"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v1
+        import rego.v2
+
+        p if {
+          input.a or input.b
+        }
+    input:
+      a: false
+      b: true
+    want_result:
+      - x: true
+  - note: "logic_op/rego_v2_import: future.keywords.and also imported"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+        import future.keywords.and
+
+        p if {
+          input.a and input.b
+        }
+    input:
+      a: true
+      b: true
+    want_result:
+      - x: true
+  - note: "logic_op/rego_v2_import: import is per module"
+    # `or` is only a keyword in the module importing rego.v2; the other module
+    # uses it as a variable name.
+    query: data.test = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a or input.b
+        }
+      - |
+        package test
+
+        q := or if {
+          or := 1
+        }
+    input:
+      a: false
+      b: true
+    want_result:
+      - x:
+          p: true
+          q: 1

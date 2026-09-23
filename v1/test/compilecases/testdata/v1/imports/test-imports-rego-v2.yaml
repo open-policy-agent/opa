@@ -1,0 +1,50 @@
+---
+cases:
+  - note: imports/rego-v2-duplicate
+    modules:
+      - |
+        package test
+
+        import rego.v2
+        import rego.v2
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import must not shadow import rego.v2
+    exhaustive: true
+  - note: imports/rego-v2-duplicate-alongside-rego-v1
+    # rego.v1 and rego.v2 are distinct imports: only the repeated rego.v2 is a
+    # duplicate.
+    modules:
+      - |
+        package test
+
+        import rego.v1
+        import rego.v2
+        import rego.v2
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import rego.v2
+    exhaustive: true
+  - note: imports/rego-v2-not-reported-unused
+    # A directive import is never unused; only the data import is reported.
+    strict: true
+    modules:
+      - |
+        package test
+
+        import rego.v2
+        import data.foo
+
+        p if {
+        	input.a or input.b
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import data.foo unused
+    exhaustive: true
