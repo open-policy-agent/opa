@@ -10,8 +10,8 @@ value is `undefined`). An "output" in this context could be likened to a **retur
 most developers. While Rego rules can be incrementally defined in multiple statements, a complete rule can't produce
 multiple outputs, or "return values".
 
-| Stage        | Category              | Message                                    |
-| ------------ | --------------------- | ------------------------------------------ |
+| Stage        | Category              | Message                                   |
+| ------------ | --------------------- | ----------------------------------------- |
 | `evaluation` | `eval_conflict_error` | `rule {name} produced conflicting values` |
 
 ## Examples
