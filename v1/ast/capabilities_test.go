@@ -2,6 +2,7 @@ package ast
 
 import (
 	"path"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -376,6 +377,61 @@ func TestLoadCapabilitiesFile(t *testing.T) {
 		}
 	})
 
+}
+
+func TestCapabilitiesForThisVersion(t *testing.T) {
+	v0Features := []string{
+		FeatureKeywordsInRefs,
+		FeatureRegoV1,
+		FeatureRegoV1Import,
+		FeatureRegoV2Import,
+		FeatureRefHeadStringPrefixes,
+		FeatureRefHeads,
+	}
+	v0Keywords := []string{"and", "contains", "every", "if", "in", "not", "or"}
+
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		features    []string
+		keywords    []string
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+			features:    v0Features,
+			keywords:    v0Keywords,
+		},
+		{
+			note:        "v0 compat v1",
+			regoVersion: RegoV0CompatV1,
+			features:    v0Features,
+			keywords:    v0Keywords,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+			features: []string{
+				FeatureKeywordsInRefs,
+				FeatureRegoV1,
+				FeatureRegoV2Import,
+				FeatureTemplateStrings,
+			},
+			keywords: []string{"and", "not", "or"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := CapabilitiesForThisVersion(CapabilitiesRegoVersion(tc.regoVersion))
+			if !slices.Equal(c.Features, tc.features) {
+				t.Fatalf("expected features %v but got %v", tc.features, c.Features)
+			}
+			if !slices.Equal(c.FutureKeywords, tc.keywords) {
+				t.Fatalf("expected future keywords %v but got %v", tc.keywords, c.FutureKeywords)
+			}
+		})
+	}
 }
 
 func TestCapabilitiesAddBuiltinSorted(t *testing.T) {
