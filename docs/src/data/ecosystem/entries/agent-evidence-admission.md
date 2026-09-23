@@ -8,8 +8,8 @@ labels:
 software:
 - kubernetes
 code:
-- https://github.com/astrogilda/agent-evidence-admission
-- https://github.com/astrogilda/agent-evidence-vectors
+- https://github.com/probityai/agent-evidence-admission
+- https://github.com/probityai/agent-evidence-vectors
 docs_features:
   kubernetes:
     note: |
@@ -21,7 +21,7 @@ docs_features:
     note: |
       `rego/execution_evidence_test.rego` runs the policy over a corpus
       generated from
-      [agent-evidence-vectors](https://github.com/astrogilda/agent-evidence-vectors)
+      [agent-evidence-vectors](https://github.com/probityai/agent-evidence-vectors)
       at tag `v0.10.1`, so the policy and the specification are checked against
       the same bytes. CI refuses a tag that has moved off the commit it is
       pinned to, and refuses any row that declares an obligation enforced while
