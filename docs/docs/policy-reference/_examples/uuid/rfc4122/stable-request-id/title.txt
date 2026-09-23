@@ -1,1 +1,1 @@
-Generate audit correlation ID with uuid.rfc4122
+Stable correlation ID from the same uuid key

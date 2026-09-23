@@ -1,10 +1,15 @@
 package play
 
-# Generate a correlation ID for this policy decision using the request ID as a cache key.
+# Correlation ID for this request (cache key = request_id).
 correlation_id := uuid.rfc4122(input.request_id)
 
-# Return authorization decision along with the audit correlation ID.
+# Reusing the same key yields the same UUID in this evaluation.
 decision := {
 	"allow": input.action == "read",
 	"correlation_id": correlation_id,
+	"audit_id": uuid.rfc4122(input.request_id),
+}
+
+same_key_match if {
+	decision.correlation_id == decision.audit_id
 }

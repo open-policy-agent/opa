@@ -2,6 +2,8 @@
   "correlation_id": "b3f6c8d2-45a7-4e12-9c3b-6f8e7d5a1c90",
   "decision": {
     "allow": true,
+    "audit_id": "b3f6c8d2-45a7-4e12-9c3b-6f8e7d5a1c90",
     "correlation_id": "b3f6c8d2-45a7-4e12-9c3b-6f8e7d5a1c90"
-  }
+  },
+  "same_key_match": true
 }

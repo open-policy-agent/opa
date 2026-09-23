@@ -13,9 +13,23 @@ be compared by magnitude only.
 
 <PlaygroundExample dir={require.context('../_examples/numbers/abs/normalize-delta')} />
 
-### `ceil`, `floor`, and `round`
+### `ceil`
 
-These functions convert fractional numbers to whole numbers. Capacity and
-quota policies often need a stable integer before comparing against a limit.
+`ceil` returns the smallest whole number greater than or equal to its argument.
+Use it when fractional capacity must never be under-provisioned.
 
-<PlaygroundExample dir={require.context('../_examples/numbers/round/quota-units')} />
+<PlaygroundExample dir={require.context('../_examples/numbers/ceil/cpu-cores')} />
+
+### `floor`
+
+`floor` returns the largest whole number less than or equal to its argument.
+Use it when fractional free capacity must never be over-counted.
+
+<PlaygroundExample dir={require.context('../_examples/numbers/floor/free-disk')} />
+
+### `round`
+
+`round` returns the nearest whole number. Use it when a fractional ratio should
+become a stable integer (for example a utilization percent).
+
+<PlaygroundExample dir={require.context('../_examples/numbers/round/util-percent')} />
