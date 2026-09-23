@@ -129,11 +129,11 @@ func functionConflictErr(loc *ast.Location) error {
 	}
 }
 
-func completeDocConflictErr(loc *ast.Location) error {
+func completeDocConflictErr(loc *ast.Location, prevLoc *ast.Location) error {
 	return &Error{
 		Code:     ConflictErr,
 		Location: loc,
-		Message:  "complete rules must not produce multiple outputs",
+		Message:  "complete rules must not produce multiple outputs: conflicts with value from " + prevLoc.String(),
 	}
 }
 

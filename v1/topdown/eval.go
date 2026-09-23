@@ -3796,10 +3796,12 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
 		var prev *ast.Term
+		var prevRule *ast.Rule
 		var deferredEe *deferredEarlyExitError
 
 		for _, rule := range e.ir.Rules {
-			next, err := e.evalValueRule(iter, rule, prev, findOne)
+			producer := rule
+			next, err := e.evalValueRule(iter, rule, prev, prevRule, findOne)
 			if err != nil {
 				if dee, ok := err.(*deferredEarlyExitError); ok {
 					if deferredEe == nil {
@@ -3811,7 +3813,8 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 			}
 			if next == nil {
 				for _, erule := range e.ir.Else[rule] {
-					next, err = e.evalValueRule(iter, erule, prev, findOne)
+					producer = erule
+					next, err = e.evalValueRule(iter, erule, prev, prevRule, findOne)
 					if err != nil {
 						if dee, ok := err.(*deferredEarlyExitError); ok {
 							if deferredEe == nil {
@@ -3828,11 +3831,12 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 			}
 			if next != nil {
 				prev = next
+				prevRule = producer
 			}
 		}
 
 		if e.ir.Default != nil && prev == nil {
-			_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
+			_, err := e.evalValueRule(iter, e.ir.Default, prev, prevRule, findOne)
 			return err
 		}
 
@@ -3848,7 +3852,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	})
 }
 
-func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term, findOne bool) (*ast.Term, error) {
+func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term, prevRule *ast.Rule, findOne bool) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -3864,13 +3868,14 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 		result = child.bindings.Plug(rule.Head.Value)
 		if prev != nil {
 			if !prev.Equal(result) {
-				return completeDocConflictErr(rule.Location)
+				return completeDocConflictErr(rule.Location, prevRule.Location)
 			}
 			child.traceRedo(rule)
 			return nil
 		}
 
 		prev = result
+		prevRule = rule
 		e.e.virtualCache.Put(e.plugged[:e.pos+1], result)
 
 		term, termbindings := child.bindings.apply(rule.Head.Value)

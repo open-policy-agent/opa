@@ -168,6 +168,17 @@ leading zero (`1.2.3+01`) all still parse.
 
 Authored by @sueun-dev
 
+### `eval_conflict_error` for complete rules now names the earlier conflicting value's location ([#9247](https://github.com/open-policy-agent/opa/issues/9247))
+
+When a complete rule produced two different values, the error only pointed at the
+rule invocation that was detected last, e.g. `policy.rego:5: eval_conflict_error:
+complete rules must not produce multiple outputs`, leaving the location of the
+other, earlier value unstated. The error message now also names the location of
+that earlier value: `... complete rules must not produce multiple outputs:
+conflicts with value from policy.rego:3`.
+
+Authored by @pujitha24
+
 ## 1.20.2
 
 This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency

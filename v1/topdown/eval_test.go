@@ -1915,3 +1915,45 @@ func TestCanInlineNegation(t *testing.T) {
 		})
 	}
 }
+
+func TestCompleteDocConflictErrLocation(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	module, err := ast.ParseModuleWithOpts("policy.rego", `package test
+
+p := "one" if { true }
+
+p := "two" if { true }`, ast.ParserOptions{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	compiler := ast.NewCompiler()
+	if compiler.Compile(map[string]*ast.Module{"policy.rego": module}); compiler.Failed() {
+		t.Fatalf("Unexpected error: %v", compiler.Errors)
+	}
+
+	query := NewQuery(ast.MustParseBody("data.test.p")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn)
+
+	_, err = query.Run(ctx)
+	if err == nil {
+		t.Fatal("expected conflict error, got nil")
+	}
+
+	// The error must reference the locations of *both* conflicting rules,
+	// not just the one that was evaluated last (policy.rego:5).
+	if !strings.Contains(err.Error(), "policy.rego:5:") {
+		t.Errorf("expected error to reference second rule's location (policy.rego:5), got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "conflicts with value from policy.rego:3") {
+		t.Errorf("expected error to reference first rule's location (policy.rego:3), got %q", err.Error())
+	}
+}
