@@ -34,9 +34,9 @@ var (
 // don't conflict.
 
 // conflictValue is a value produced by one of the rules of a complete rule or
-// function.
+// function, and the location of that rule.
 type conflictValue struct {
-	rule  *ast.Rule
+	loc   *ast.Location
 	value *ast.Term
 }
 
@@ -58,7 +58,7 @@ func (c *conflicts) add(rule *ast.Rule, value *ast.Term) error {
 		c.more = true
 		return errConflictLimit
 	}
-	c.values = append(c.values, conflictValue{rule: rule, value: value})
+	c.values = append(c.values, conflictValue{loc: rule.Location, value: value})
 	if len(c.values) == 1 {
 		return nil
 	}
@@ -205,7 +205,7 @@ func (e *eval) collectConflicts(err *Error, ir *ast.IndexResult, eval func(*ast.
 func (c *conflicts) error(err *Error) error {
 	values := slices.Clone(c.values)
 	slices.SortStableFunc(values, func(a, b conflictValue) int {
-		return a.rule.Location.Compare(b.rule.Location)
+		return a.loc.Compare(b.loc)
 	})
 
 	s := strings.Builder{}
@@ -215,7 +215,7 @@ func (c *conflicts) error(err *Error) error {
 		s.WriteString("\n  ")
 		s.WriteString(frameText(v.value.String()))
 		s.WriteString(" at ")
-		writeConflictLocation(&s, v.rule.Location)
+		writeConflictLocation(&s, v.loc)
 	}
 	if c.more {
 		s.WriteString("\n  ...")
