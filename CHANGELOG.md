@@ -9,7 +9,6 @@ This release contains a mix of new features and bug fixes. Notably:
 
 - Improved rule indexing
 - Improved rule recursion check
-- Image index support for OCI bundles
 - YAML is parsed against the 1.2 core schema (breaking change)
 
 ### Rules with general refs no longer collide in the recursion check ([#6813](https://github.com/open-policy-agent/opa/issues/6813))
@@ -39,20 +38,6 @@ The IR and Wasm targets however still return an error: they plan one function pe
 path prefix, and cannot evaluate part of a function that is still being planned.
 
 Authored by @sspaink, reported by @tsandall
-
-### OCI bundles can now be pulled from an image index ([#7461](https://github.com/open-policy-agent/opa/issues/7461))
-
-An `oci` service `resource` that resolved to an image index rather than an image
-manifest failed with `Bundle load failed: no layers in manifest`, because the
-downloader read the index as if it were a manifest and found no layers. Tags
-resolve to an index more often than not — `docker buildx` wraps even a
-single-platform push in one. The downloader now descends into the index and
-picks the first referenced manifest carrying an
-`application/vnd.oci.image.layer.v1.tar+gzip` layer, skipping the
-`unknown/unknown` platform entries that build tools attach for provenance and
-SBOM attestations.
-
-Reported by @zscott, authored by @sspaink
 
 ### Data and Query APIs can return rule labels in the response ([#9211](https://github.com/open-policy-agent/opa/pull/9211))
 
@@ -175,6 +160,7 @@ for what is indexed.
 - download: Fix Trigger() racing a cancelled context into a false success ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
 - download: Fix ignored OCI downloader settings ([#9113](https://github.com/open-policy-agent/opa/pull/9113)) authored by @sspaink
 - download: Note that ociTarget.Exists is dead code ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- download: Resolve OCI bundles behind an image index ([#7461](https://github.com/open-policy-agent/opa/issues/7461)) authored by @sspaink, reported by @zscott
 - download: Stop BundleRequest timer on OCI early returns ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
 - fix: `runner.CapturePrintOutput` setting never read ([#9104](https://github.com/open-policy-agent/opa/pull/9104)) authored by @anderseknert
 - format: don't drop comments after an inline `if` body ([#9109](https://github.com/open-policy-agent/opa/issues/9109)) authored by @sspaink, reported by @anderseknert
