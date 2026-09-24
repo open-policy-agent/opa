@@ -138,6 +138,8 @@ for what is indexed.
   and orders the generated locals of its support rules differently. What a policy
   evaluates to is unaffected.
 
+#### Changes
+
 - ast: Index a lookup into a collection in base data ([#9235](https://github.com/open-policy-agent/opa/pull/9235)) authored by @srenatus
 - ast: Index refs rooted at a local variable ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
 - ast: Let concrete index values supersede leftover "any" entries ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
@@ -242,16 +244,6 @@ for what is indexed.
 - ast: Update remaining `errors.As` call sites to use `errors.AsType` ([#9106](https://github.com/open-policy-agent/opa/pull/9106)) authored by @anderseknert
 - ast: Use modern Go in place of custom compare code ([#9151](https://github.com/open-policy-agent/opa/pull/9151)) authored by @anderseknert
 - ast: Where have all the allocs gone? ([#9137](https://github.com/open-policy-agent/opa/pull/9137)) authored by @anderseknert
-- bench-comment: Measure the curated benchlab set ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
-- bench-nightly: Curate the remaining shards ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
-- bench-nightly: Select curated benchmarks by name prefix ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
-- bench-nightly: Skip benchmarks the baseline does not have ([#9229](https://github.com/open-policy-agent/opa/pull/9229)) authored by @srenatus
-- benchmarks-nightly: Skip a night when HEAD hasn't moved since the last one ([#9207](https://github.com/open-policy-agent/opa/pull/9207)) authored by @srenatus
-- benchmarks-publish: Stage before deciding there is nothing to commit ([#9229](https://github.com/open-policy-agent/opa/pull/9229)) authored by @srenatus
-- benchmarks: Fix nightly workflow ([#9121](https://github.com/open-policy-agent/opa/pull/9121)) authored by @srenatus
-- benchmarks: Include compile package, change heuristic ([#9162](https://github.com/open-policy-agent/opa/pull/9162)) authored by @srenatus
-- benchmarks: Upload benchlab output ([#9135](https://github.com/open-policy-agent/opa/pull/9135)) authored by @srenatus
-- benchmarks: don't ignore benchlab result files needed later ([#9127](https://github.com/open-policy-agent/opa/pull/9127)) authored by @srenatus
 - build: Add bench-nightly, a three-arm benchlab experiment runner ([#9118](https://github.com/open-policy-agent/opa/pull/9118)) authored by @srenatus
 - build: Pin pigeon in build/tools instead of go run pkg@version ([#9160](https://github.com/open-policy-agent/opa/pull/9160)) authored by @sspaink
 - bundle: Avoid allocation in getdepth ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
@@ -285,7 +277,6 @@ for what is indexed.
 - workflows: Use OCP@main in nightly ([#9171](https://github.com/open-policy-agent/opa/pull/9171)) authored by @srenatus
 - Collapse v0 shim packages into a single file each ([#8976](https://github.com/open-policy-agent/opa/issues/8976)) authored by @sspaink, reported by @anderseknert
 - Makefile: Add a benchlab target ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
-- Move Rita Zhang to emeritus ([#9132](https://github.com/open-policy-agent/opa/pull/9132)) authored by @JaydipGabani
 - Remove retired go report ([#9112](https://github.com/open-policy-agent/opa/pull/9112)) authored by @sspaink
 - Dependency updates:
   - build(go): Bump to 1.27.1 ([#9136](https://github.com/open-policy-agent/opa/pull/9136)) authored by @srenatus
