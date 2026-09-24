@@ -140,6 +140,7 @@ for what is indexed.
 
 #### Changes
 
+- ast: Count a ref once when an index entry replaces its var entry ([#9257](https://github.com/open-policy-agent/opa/issues/9257)) authored by @srenatus, reported by @vlsi
 - ast: Index a lookup into a collection in base data ([#9235](https://github.com/open-policy-agent/opa/pull/9235)) authored by @srenatus
 - ast: Index refs rooted at a local variable ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
 - ast: Let concrete index values supersede leftover "any" entries ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
