@@ -631,7 +631,7 @@ p contains 1 if {
 					t.Fatal(err)
 				}
 
-				go rt.StartServer(ctx)
+				serve(ctx, t, rt)
 
 				if !test.Eventually(t, 5*time.Second, func() bool {
 					return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
@@ -922,12 +922,9 @@ func TestCheckAuthIneffective(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	done := make(chan struct{})
-	go func() {
-		rt.StartServer(ctx)
-		close(done)
-	}()
-	<-done
+	if err := rt.Serve(ctx); err != nil {
+		t.Fatal(err)
+	}
 
 	expected := "Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information."
 	if !strings.Contains(stdout.String(), expected) {
@@ -952,12 +949,9 @@ func TestServerInitialized(t *testing.T) {
 	}
 
 	initChannel := rt.Manager.ServerInitializedChannel()
-	done := make(chan struct{})
-	go func() {
-		rt.StartServer(ctx)
-		close(done)
-	}()
-	<-done
+	if err := rt.Serve(ctx); err != nil {
+		t.Fatal(err)
+	}
 	select {
 	case <-initChannel:
 		return
@@ -1105,12 +1099,9 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 						}
 
 						initChannel := rt.Manager.ServerInitializedChannel()
-						done := make(chan struct{})
-						go func() {
-							rt.StartServer(ctx)
-							close(done)
-						}()
-						<-done
+						if err := rt.Serve(ctx); err != nil {
+							t.Fatal(err)
+						}
 						select {
 						case <-initChannel:
 							return
@@ -1423,12 +1414,9 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 						}
 
 						initChannel := rt.Manager.ServerInitializedChannel()
-						done := make(chan struct{})
-						go func() {
-							rt.StartServer(ctx)
-							close(done)
-						}()
-						<-done
+						if err := rt.Serve(ctx); err != nil {
+							t.Fatal(err)
+						}
 						select {
 						case <-initChannel:
 							return
@@ -1468,12 +1456,9 @@ func TestGracefulTracerShutdown(t *testing.T) {
 			t.Fatal("traceExporter should not be nil")
 		}
 
-		done := make(chan struct{})
-		go func() {
-			rt.StartServer(ctx)
-			close(done)
-		}()
-		<-done
+		if err := rt.Serve(ctx); err != nil {
+			t.Fatal(err)
+		}
 
 		expected := "Failed to shutdown OpenTelemetry trace exporter gracefully."
 		if strings.Contains(logger.Entries()[0].Message, expected) {
@@ -1517,7 +1502,7 @@ func TestTracingExcludePaths(t *testing.T) {
 	rt.Params.DistributedTracingOpts = append(rt.Params.DistributedTracingOpts,
 		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))))
 
-	go rt.StartServer(ctx)
+	serve(ctx, t, rt)
 	if !test.Eventually(t, 5*time.Second, func() bool {
 		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
@@ -1867,7 +1852,6 @@ func (*factory) Reconfigure(context.Context, any) {
 // in OPA run as server.
 func TestCustomHandlerFlusher(t *testing.T) {
 	fact := &factory{}
-	ctx := t.Context()
 	spanExporter := tracetest.NewInMemoryExporter()
 	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))),
@@ -1903,11 +1887,11 @@ func TestCustomHandlerFlusher(t *testing.T) {
 			params.Addrs = &[]string{"localhost:0"}
 			params.ConfigFile = cfg
 
-			rt, err := NewRuntime(ctx, params)
+			rt, err := NewRuntime(t.Context(), params)
 			if err != nil {
 				t.Fatalf("Unexpected error %v", err)
 			}
-			go rt.StartServer(ctx)
+			serve(t.Context(), t, rt)
 			if !test.Eventually(t, 5*time.Second, func() bool {
 				return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 			}) {
@@ -1994,12 +1978,9 @@ func TestConfigHookAndNonReplacedEnvVars(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	initChannel := rt.Manager.ServerInitializedChannel()
-	done := make(chan struct{})
-	go func() {
-		rt.StartServer(ctx)
-		close(done)
-	}()
-	<-done
+	if err := rt.Serve(ctx); err != nil {
+		t.Fatal(err)
+	}
 	select {
 	case <-initChannel:
 		return
@@ -2052,12 +2033,9 @@ func TestCacheHooksOnServer(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	initChannel := rt.Manager.ServerInitializedChannel()
-	done := make(chan struct{})
-	go func() {
-		rt.StartServer(ctx)
-		close(done)
-	}()
-	<-done
+	if err := rt.Serve(ctx); err != nil {
+		t.Fatal(err)
+	}
 	select {
 	case <-initChannel:
 		return
@@ -2111,7 +2089,7 @@ func TestCustomStoreBuilder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
-	go rt.StartServer(ctx)
+	serve(ctx, t, rt)
 	if !test.Eventually(t, 5*time.Second, func() bool {
 		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
@@ -2162,7 +2140,7 @@ func TestExtraMiddleware(t *testing.T) {
 	rt.Manager.ExtraRoute("GET /exp/foo", "exp/foo", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, r.Context().Value("foo"))
 	}))
-	go rt.StartServer(ctx)
+	serve(ctx, t, rt)
 	if !test.Eventually(t, 5*time.Second, func() bool {
 		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
@@ -2237,7 +2215,7 @@ allow if {
 		s1 := path[1].(string)
 		return method == "POST" && s0 == "exp" && s1 == "foo"
 	})
-	go rt.StartServer(ctx)
+	serve(ctx, t, rt)
 	if !test.Eventually(t, 5*time.Second, func() bool {
 		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 	}) {
@@ -2470,4 +2448,18 @@ func TestInitDiskStoreLargeBundle(t *testing.T) {
 			}
 		}
 	})
+}
+
+// serve runs the server until the test's context is canceled. StartServer
+// would os.Exit on error, killing the test binary without a trace.
+func serve(ctx context.Context, t *testing.T, rt *Runtime) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := rt.Serve(ctx); err != nil {
+			t.Errorf("Serve: %v", err)
+		}
+	}()
+	t.Cleanup(func() { <-done })
 }
