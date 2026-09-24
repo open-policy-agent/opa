@@ -486,17 +486,18 @@ func (i *refindices) updateAnyAffixMatch(rule *Rule, expr *Expr, constants map[V
 // key types.
 func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) {
 	id := i.table.intern(ref)
-	i.countN(id, len(bases))
 
 	// concrete counts the values this rule already reaches ref by that survive
 	// insertPath's var-stripping, so that the alternatives the base adds can be
 	// weighed against them without a second scan (see refindices.alternate).
 	concrete := 0
+	known := false
 	seen := make(map[String]struct{}, len(bases))
 	for _, other := range i.rules[rule] {
 		if other.ref != id {
 			continue
 		}
+		known = true
 		if !other.isVar() {
 			concrete++
 		}
@@ -506,6 +507,11 @@ func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) 
 			}
 		}
 	}
+	n := len(bases)
+	if known && n > 0 {
+		n--
+	}
+	i.countN(id, n)
 
 	// One refindex per base, laid down in a single block rather than allocated
 	// one at a time: a base collection runs to thousands of them. Duplicates

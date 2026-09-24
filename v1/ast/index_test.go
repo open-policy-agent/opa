@@ -1825,6 +1825,44 @@ func TestRefIndicesSorted(t *testing.T) {
 	}
 }
 
+func TestRefIndicesCountVarAssignedRefOnce(t *testing.T) {
+	tests := []struct {
+		body string
+		ref  string
+		exp  int32
+	}{
+		{`input.id == "r1"; "p1" in input.perms`, "input.perms", 1},
+		{`x := input.role; x == "admin"`, "input.role", 1},
+		{`x := input.role; y := x; y == "a"`, "input.role", 1},
+		{`x := input.x; y := input.x; x == "a"; y == "a"`, "input.x", 1},
+		{`x := input.role; x in {"a", "b", "c"}`, "input.role", 3},
+		{`input.role in {"a", "b", "c"}`, "input.role", 3},
+		{`strings.any_prefix_match(input.p, ["/a", "/b"])`, "input.p", 2},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.body, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"test.rego": MustParseModule("package test\n\np if { " + tc.body + " }")})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			rule := c.GetRulesExact(MustParseRef("data.test.p"))[0]
+
+			ri := newrefindices(func(Ref) bool { return false }, newRefTable())
+			values := map[Var]Value{}
+			for _, expr := range rule.Body {
+				ri.Update(rule, expr, values)
+			}
+
+			id := ri.table.intern(MustParseRef(tc.ref))
+			if act := ri.stat(id).count; act != tc.exp {
+				t.Errorf("expected %s to count %d, got %d", tc.ref, tc.exp, act)
+			}
+		})
+	}
+}
+
 // collected returns the rule ids a traversal reached, in the order gather reads
 // them back.
 func collected(tr *trieTraversalResult) []int32 {
