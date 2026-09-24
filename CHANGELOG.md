@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.21.0
 
 ### Rules with general refs no longer collide in the recursion check ([#6813](https://github.com/open-policy-agent/opa/issues/6813))
 
@@ -167,6 +167,181 @@ alphanumeric identifier starting with zero (`1.2.3-0a`), and build metadata with
 leading zero (`1.2.3+01`) all still parse.
 
 Authored by @sueun-dev
+
+### Miscellaneous
+
+- Dependency updates; notably:
+  - build(deps): Bump github.com/dgraph-io/badger/v4 from 4.9.5 to 4.9.6
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.42.1 to 1.43.0
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.1.1 to 3.3.0
+  - build(deps): Bump github.com/olekukonko/tablewriter from 1.1.4 to 1.1.5
+  - build(deps): Bump github.com/prometheus/client_model from 0.6.2 to 0.6.3
+  - build(deps): Bump github.com/santhosh-tekuri/jsonschema/v6 from 6.0.2 to 6.0.3
+  - build(deps): Bump github.com/sirupsen/logrus from 1.9.4 to 1.10.2
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.36 to 2.5.37
+  - build(deps): Bump go.opentelemetry.io/contrib/bridges/prometheus from 0.69.0 to 0.71.0
+  - build(deps): Bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.69.0 to 0.71.0
+  - build(deps): Bump go.opentelemetry.io/otel from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk/metric from 1.44.0 to 1.46.0
+  - build(deps): Bump go.yaml.in/yaml/v3 from 3.0.4 to 3.0.5
+  - build(deps): Bump golang.org/x/sync from 0.22.0 to 0.23.0
+  - build(deps): Bump golang.org/x/term from 0.45.0 to 0.46.0
+  - build(deps): Bump golang.org/x/text from 0.40.0 to 0.42.0
+  - build(deps): Bump golang.org/x/time from 0.15.0 to 0.16.0
+  - build(deps): Bump google.golang.org/grpc from 1.82.1 to 1.83.2
+  - build(deps): Bump google.golang.org/protobuf from 1.36.11 to 1.36.12
+  - build(deps): Drop sigs.k8s.io/yaml (was 1.6.0)
+  - dependencies: Include else bodies and unused ref bindings ([#4814](https://github.com/open-policy-agent/opa/issues/4814)) authored by @sspaink, reported by @anderseknert
+  - deps: Bump github.com/gobwas/glob to v1.0.0 ([#9114](https://github.com/open-policy-agent/opa/issues/9114)) authored by @sspaink, reported by @ghmer
+- Makefile: Add a benchlab target ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- Move Rita Zhang to emeritus ([#9132](https://github.com/open-policy-agent/opa/pull/9132)) authored by @JaydipGabani
+- Remove retired go report ([#9112](https://github.com/open-policy-agent/opa/pull/9112)) authored by @sspaink
+- ast: Add util.MapKeys helper ([#9158](https://github.com/open-policy-agent/opa/pull/9158)) authored by @anderseknert
+- ast: Avoid pointer escape in GenericTransformer ([#9148](https://github.com/open-policy-agent/opa/pull/9148)) authored by @anderseknert
+- ast: Build package exports in a single pass ([#9162](https://github.com/open-policy-agent/opa/pull/9162)) authored by @srenatus
+- ast: Clear shared output buffer in outputVarsForExprEq ([#8302](https://github.com/open-policy-agent/opa/issues/8302)) authored by @zanarellidev, reported by @johanfylling
+- ast: Clear the term cache when a brace operand guess is abandoned ([#9140](https://github.com/open-policy-agent/opa/pull/9140)) authored by @sspaink
+- ast: Collect a lookup's candidates in a bitset ([#9190](https://github.com/open-policy-agent/opa/pull/9190)) authored by @srenatus
+- ast: Emphasize top-most differing types in type errors ([#499](https://github.com/open-policy-agent/opa/issues/499)) authored by @sspaink, reported by @tsandall
+- ast: Enable more gocritic linters ([#9154](https://github.com/open-policy-agent/opa/pull/9154)) authored by @anderseknert
+- ast: Enable unparam linter ([#9223](https://github.com/open-policy-agent/opa/pull/9223)) authored by @anderseknert
+- ast: Fix panic comparing a decimal zero with a non-integral number ([#9098](https://github.com/open-policy-agent/opa/issues/9098)) reported and authored by @kmadan
+- ast: Fix type errors from allowed undefined function calls ([#6946](https://github.com/open-policy-agent/opa/issues/6946)) authored by @sspaink, reported by @nikpivkin
+- ast: Hint at missing future keyword imports ([#4619](https://github.com/open-policy-agent/opa/issues/4619)) authored by @sspaink, reported by @anderseknert
+- ast: Index a lookup into a collection in base data ([#9235](https://github.com/open-policy-agent/opa/pull/9235)) authored by @srenatus
+- ast: Index refs rooted at a local variable ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
+- ast: Keep refs no rule constrains to a value out of the trie ([#9190](https://github.com/open-policy-agent/opa/pull/9190)) authored by @srenatus
+- ast: Let concrete index values supersede leftover "any" entries ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
+- ast: Mark JSON schema builtins nondeterministic ([#8998](https://github.com/open-policy-agent/opa/issues/8998)) authored by @ARMeeru, reported by @charlesdaniels
+- ast: More niceties, less allocs, less code ([#9228](https://github.com/open-policy-agent/opa/pull/9228)) authored by @anderseknert
+- ast: Number the references an index is built on ([#9190](https://github.com/open-policy-agent/opa/pull/9190)) authored by @srenatus
+- ast: Number the refs a rule requires ([#9244](https://github.com/open-policy-agent/opa/pull/9244)) authored by @srenatus
+- ast: Number the rules an index holds ([#9190](https://github.com/open-policy-agent/opa/pull/9190)) authored by @srenatus
+- ast: Only compute template string scopes for rules that have one ([#9248](https://github.com/open-policy-agent/opa/pull/9248)) authored by @srenatus
+- ast: Pin BenchmarkObjectConstruction shuffle seed ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- ast: Point object parse errors at the offending token ([#6714](https://github.com/open-policy-agent/opa/issues/6714)) authored by @sspaink, reported by @charlesdaniels
+- ast: Report keywords used as rule names ([#6652](https://github.com/open-policy-agent/opa/issues/6652)) authored by @sspaink, reported by @johanfylling
+- ast: Report violations from multiple compiler stages ([#5815](https://github.com/open-policy-agent/opa/issues/5815)) authored by @sspaink, reported by @anderseknert
+- ast: Resolve local ref heads in the ground-prefix path too ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
+- ast: Skip the reordered body's output vars where no closure reads them ([#9248](https://github.com/open-policy-agent/opa/pull/9248)) authored by @srenatus
+- ast: Stop a rule index path at its last constrained level ([#9108](https://github.com/open-policy-agent/opa/pull/9108)) authored by @srenatus
+- ast: Type check the `in` operator against the collection's types ([#5658](https://github.com/open-policy-agent/opa/issues/5658)) authored by @sspaink, reported by @anderseknert
+- ast: Type empty object and array literals by their contents ([#7275](https://github.com/open-policy-agent/opa/issues/7275)) authored by @sspaink, reported by @anderseknert
+- ast: Update remaining `errors.As` call sites to use `errors.AsType` ([#9106](https://github.com/open-policy-agent/opa/pull/9106)) authored by @anderseknert
+- ast: Use modern Go in place of custom compare code ([#9151](https://github.com/open-policy-agent/opa/pull/9151)) authored by @anderseknert
+- ast: Walk a rule tree's children in a stable order ([#9190](https://github.com/open-policy-agent/opa/pull/9190)) authored by @srenatus
+- ast: Where have all the allocs gone? ([#9137](https://github.com/open-policy-agent/opa/pull/9137)) authored by @anderseknert
+- ast: don't box a slice header on the way out of Transform ([#9248](https://github.com/open-policy-agent/opa/pull/9248)) authored by @srenatus
+- ast: don't rebuild modules that have nothing to rewrite ([#9248](https://github.com/open-policy-agent/opa/pull/9248)) authored by @srenatus
+- ast: don't treat sibling leaves of a general ref as recursive ([#6813](https://github.com/open-policy-agent/opa/issues/6813)) authored by @sspaink, reported by @tsandall
+- bench-comment: Measure the curated benchlab set ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- bench-nightly: Curate the remaining shards ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- bench-nightly: Select curated benchmarks by name prefix ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- bench-nightly: Skip benchmarks the baseline does not have ([#9229](https://github.com/open-policy-agent/opa/pull/9229)) authored by @srenatus
+- benchmarks-nightly: Skip a night when HEAD hasn't moved since the last one ([#9207](https://github.com/open-policy-agent/opa/pull/9207)) authored by @srenatus
+- benchmarks-publish: Stage before deciding there is nothing to commit ([#9229](https://github.com/open-policy-agent/opa/pull/9229)) authored by @srenatus
+- benchmarks: Fix nightly workflow ([#9121](https://github.com/open-policy-agent/opa/pull/9121)) authored by @srenatus
+- benchmarks: Include compile package, change heuristic ([#9162](https://github.com/open-policy-agent/opa/pull/9162)) authored by @srenatus
+- benchmarks: Upload benchlab output ([#9135](https://github.com/open-policy-agent/opa/pull/9135)) authored by @srenatus
+- benchmarks: don't ignore benchlab result files needed later ([#9127](https://github.com/open-policy-agent/opa/pull/9127)) authored by @srenatus
+- build(go): Bump to 1.27.1 ([#9136](https://github.com/open-policy-agent/opa/pull/9136)) authored by @srenatus
+- build: Add bench-nightly, a three-arm benchlab experiment runner ([#9118](https://github.com/open-policy-agent/opa/pull/9118)) authored by @srenatus
+- build: Pin pigeon in build/tools instead of go run pkg@version ([#9160](https://github.com/open-policy-agent/opa/pull/9160)) authored by @sspaink
+- capabilities: Collapse v0 shim packages into a single file each ([#8976](https://github.com/open-policy-agent/opa/issues/8976)) authored by @sspaink, reported by @anderseknert
+- capabilities: Integrate patch release v1.20.1 ([#9103](https://github.com/open-policy-agent/opa/pull/9103)) authored by @anderseknert
+- capabilities: Integrate patch release v1.20.2 ([#9159](https://github.com/open-policy-agent/opa/pull/9159)) authored by @sspaink
+- check: Avoid allocating in checkExprEq ([#9150](https://github.com/open-policy-agent/opa/pull/9150)) authored by @anderseknert
+- ci: Publish benchmark trend on a schedule instead of per-push ([#9119](https://github.com/open-policy-agent/opa/pull/9119)) authored by @srenatus
+- ci: Run the nightly benchlab experiment ([#9118](https://github.com/open-policy-agent/opa/pull/9118)) authored by @srenatus
+- cmd: Stop binding a fixed port in the run tests ([#9240](https://github.com/open-policy-agent/opa/pull/9240)) authored by @srenatus
+- compile: don't panic on non-string table/column mappings ([#9241](https://github.com/open-policy-agent/opa/pull/9241)) authored by @sspaink
+- compiler: HasherMap returned by getExports never used ([#9149](https://github.com/open-policy-agent/opa/pull/9149)) authored by @anderseknert
+- debug: Adding `query` stack-trace framing mode ([#9128](https://github.com/open-policy-agent/opa/pull/9128)) authored by @johanfylling
+- docs: Add Evolith to the OPA ecosystem ([#9196](https://github.com/open-policy-agent/opa/pull/9196)) authored by @beyondnetPeru
+- docs: Address a number of broken links in blog ([#9117](https://github.com/open-policy-agent/opa/issues/9117)) authored by @charlieegan3, reported by @github-actions
+- docs: Address incorrect package name in example ([#9250](https://github.com/open-policy-agent/opa/pull/9250)) authored by @charlieegan3
+- docs: Document indexing of refs rooted at a local variable ([#9081](https://github.com/open-policy-agent/opa/pull/9081)) authored by @srenatus
+- docs: Ecosystem entry for Agent Evidence Admission ([#9213](https://github.com/open-policy-agent/opa/pull/9213)) authored by @astrogilda
+- docs: Remove word from missed review to #9172 ([#9183](https://github.com/open-policy-agent/opa/pull/9183)) authored by @charlieegan3
+- docs: Report builtin availability in other interpreters ([#8228](https://github.com/open-policy-agent/opa/issues/8228)) authored by @sspaink, reported by @srenatus
+- docs: Update Agent Evidence Admission repo links ([#9255](https://github.com/open-policy-agent/opa/pull/9255)) authored by @astrogilda
+- docs: Update builtin availability in other interpreters ([#9157](https://github.com/open-policy-agent/opa/pull/9157)) authored by @johanfylling
+- docs: Updates to AI guidelines ([#9172](https://github.com/open-policy-agent/opa/pull/9172)) authored by @charlieegan3
+- download: Fix Trigger() racing a cancelled context into a false success ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- download: Fix ignored OCI downloader settings ([#9113](https://github.com/open-policy-agent/opa/pull/9113)) authored by @sspaink
+- download: Note that ociTarget.Exists is dead code ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- download: Resolve OCI bundles behind an image index ([#7461](https://github.com/open-policy-agent/opa/issues/7461)) authored by @sspaink, reported by @srenatus
+- download: Stop BundleRequest timer on OCI early returns ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- fix: `runner.CapturePrintOutput` setting never read ([#9104](https://github.com/open-policy-agent/opa/pull/9104)) authored by @anderseknert
+- format: don't drop comments after an inline `if` body ([#9109](https://github.com/open-policy-agent/opa/issues/9109)) authored by @sspaink, reported by @anderseknert
+- github: Drop python from the CodeQL language matrix ([#9097](https://github.com/open-policy-agent/opa/pull/9097)) authored by @sspaink
+- index: Also index suffix matching (endswith, strings.any_suffix_match) + some tweaks ([#9164](https://github.com/open-policy-agent/opa/pull/9164)) authored by @srenatus
+- metricsexport: Support custom headers on the OTLP exporter ([#9234](https://github.com/open-policy-agent/opa/pull/9234)) authored by @srenatus
+- nightly: Fix go get smoke test ([#9245](https://github.com/open-policy-agent/opa/pull/9245)) authored by @srenatus
+- perf: Add startswith and strings.any_prefix_match indexing ([#9161](https://github.com/open-policy-agent/opa/pull/9161)) authored by @tsandall
+- perf: Cheaper custom function calls ([#9167](https://github.com/open-policy-agent/opa/pull/9167)) authored by @anderseknert
+- perf: Fix linear runtime for Array.set due to rehashing ([#9161](https://github.com/open-policy-agent/opa/pull/9161)) authored by @tsandall
+- perf: General performance improvements  in compiler ([#9170](https://github.com/open-policy-agent/opa/pull/9170)) authored by @anderseknert
+- plugins/logs: Add trace_id, span_id and request_context to the event AST ([#9193](https://github.com/open-policy-agent/opa/pull/9193)) authored by @sspaink
+- plugins/logs: Fix data race on the cached mask and drop queries ([#9189](https://github.com/open-policy-agent/opa/pull/9189)) authored by @sspaink
+- plugins/logs: Make BenchmarkMaskingRuleCountsNop vary the rule count ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- plugins/logs: Report upload failures when retrying requeued chunks ([#9186](https://github.com/open-policy-agent/opa/pull/9186)) authored by @sspaink
+- plugins/rest: Remove unused azureSigningAuthPlugin.host field ([#9215](https://github.com/open-policy-agent/opa/pull/9215)) authored by @sspaink
+- rego: Benchmark index lookups at every match position ([#9190](https://github.com/open-policy-agent/opa/pull/9190)) authored by @srenatus
+- rego: Fix EvalDisableInlining always being overridden ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- rego: Pass Time and Seed through Partial() like Eval() does ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- rego: don't run leaktest checks in a parallel test ([#9176](https://github.com/open-policy-agent/opa/pull/9176)) authored by @sspaink
+- repl: Honor `DisableUndefinedOutput` setting ([#9185](https://github.com/open-policy-agent/opa/pull/9185)) authored by @anderseknert
+- repl: Recall multi-line statements as one history entry ([#4939](https://github.com/open-policy-agent/opa/issues/4939)) authored by @sspaink, reported by @stobias123
+- rest: Fix SSO cache path written to wrong field ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- rest: Remove stray debug print in Azure KeyVault signing ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- runtime: Only log diagnostic API access at DEBUG ([#8419](https://github.com/open-policy-agent/opa/issues/8419)) authored by @srenatus, reported by @msahmi
+- runtime: Reload the config file on change when --watch is set ([#9184](https://github.com/open-policy-agent/opa/issues/9184)) authored by @sspaink, reported by @charlieegan3
+- runtime: Return the listener error instead of exiting the process ([#9240](https://github.com/open-policy-agent/opa/pull/9240)) authored by @srenatus
+- runtime: Revert config file reload on --watch ([#9219](https://github.com/open-policy-agent/opa/pull/9219)) authored by @sspaink
+- semver: Reject leading zeroes and empty pre-release/build ([#9004](https://github.com/open-policy-agent/opa/pull/9004)) authored by @sueun-dev
+- server: Add rule_labels query param to Data and Query APIs ([#9211](https://github.com/open-policy-agent/opa/pull/9211)) authored by @srenatus
+- server: Build the middleware stack in one place ([#9233](https://github.com/open-policy-agent/opa/pull/9233)) authored by @srenatus
+- server: Replace hand-rolled gzip response compression with gzhttp ([#9205](https://github.com/open-policy-agent/opa/pull/9205)) authored by @srenatus
+- storage/disk: Split large bundle writes across transactions ([#9202](https://github.com/open-policy-agent/opa/pull/9202)) authored by @sspaink
+- style: Some more functional niceties ([#9152](https://github.com/open-policy-agent/opa/pull/9152)) authored by @anderseknert
+- test/e2e: Wait for diagnostic listeners before running tests ([#9134](https://github.com/open-policy-agent/opa/pull/9134)) authored by @sspaink
+- tests: Expanded testing for `and`/`or` keywords ([#9115](https://github.com/open-policy-agent/opa/pull/9115)) authored by @johanfylling
+- topdown: Add stack traces to evaluation errors ([#555](https://github.com/open-policy-agent/opa/issues/555)) authored by @sspaink, reported by @tsandall
+- topdown: Enable more revive linters ([#9181](https://github.com/open-policy-agent/opa/pull/9181)) authored by @anderseknert
+- topdown: Fix BulkStartsWith benchmark input generation ([#9222](https://github.com/open-policy-agent/opa/pull/9222)) authored by @srenatus
+- topdown: Fix flaky TestRegexBuiltinCache ([#9254](https://github.com/open-policy-agent/opa/pull/9254)) authored by @sspaink
+- topdown: Fix linter issues ([#9231](https://github.com/open-policy-agent/opa/pull/9231)) authored by @srenatus
+- topdown: Fix regex cache leak ([#9087](https://github.com/open-policy-agent/opa/issues/9087)) reported and authored by @charlesdaniels
+- topdown: Fix sprintf formatting of floats with zero fraction ([#9187](https://github.com/open-policy-agent/opa/issues/9187)) authored by @sspaink, reported by @rothenes
+- topdown: Hoist enumerate callbacks out of the loop ([#9147](https://github.com/open-policy-agent/opa/pull/9147)) authored by @srenatus
+- topdown: Iterate known keys and save unknown ones during PE ([#9139](https://github.com/open-policy-agent/opa/issues/9139)) reported and authored by @srenatus
+- topdown: Record evaluated rules during partial evaluation ([#9163](https://github.com/open-policy-agent/opa/pull/9163)) authored by @srenatus
+- tracing: Add distributed_tracing.exclude_paths ([#7494](https://github.com/open-policy-agent/opa/issues/7494)) authored by @sspaink, reported by @srenatus
+- util: Decode RoundTrip's fallback into a fresh value ([#9206](https://github.com/open-policy-agent/opa/pull/9206)) authored by @srenatus
+- v1/bundle: Avoid allocation in getdepth ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/bundle: Remove unused writeModules helper ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/bundle: Reuse encoder buffer while hashing ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/bundle: deep-copy bundle data natively instead of via JSON round-trip ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/plugins/logs: Use util.RoundTripFast for decision-log event conversion ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/rego: Use util.RoundTripFast for input parsing ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/storage: Use util.RoundTripFast for write round-tripping ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- v1/util: Add RoundTripFast ([#9199](https://github.com/open-policy-agent/opa/pull/9199)) authored by @srenatus
+- wasm: Match topdown semantics in strings.replace_n ([#9216](https://github.com/open-policy-agent/opa/pull/9216)) authored by @andreaTP
+- website: Implement local search based on Pagefind ([#9249](https://github.com/open-policy-agent/opa/pull/9249)) authored by @charlieegan3
+- website: Use new kapa attr to hide AI chat button ([#9239](https://github.com/open-policy-agent/opa/pull/9239)) authored by @charlieegan3
+- workflows: Check the nightly go-get job for retractions via the proxy ([#9240](https://github.com/open-policy-agent/opa/pull/9240)) authored by @srenatus
+- workflows: Remove benchmarks from nightly ([#9182](https://github.com/open-policy-agent/opa/pull/9182)) authored by @srenatus
+- workflows: Run Regal's do.rq in the nightly compatibility check ([#9209](https://github.com/open-policy-agent/opa/pull/9209)) authored by @sspaink
+- workflows: Use OCP@main in nightly ([#9171](https://github.com/open-policy-agent/opa/pull/9171)) authored by @srenatus
+- yaml: Parse against the YAML 1.2 core schema ([#5754](https://github.com/open-policy-agent/opa/issues/5754), [#6598](https://github.com/open-policy-agent/opa/issues/6598)) authored by @sspaink, reported by @scnewma
+- yaml: Reject documents with unreachable content ([#6854](https://github.com/open-policy-agent/opa/issues/6854)) authored by @sspaink, reported by @kishorviswanathan
 
 ## 1.20.2
 
