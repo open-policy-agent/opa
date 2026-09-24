@@ -214,8 +214,8 @@ allow := "three" if input.c`},
 			query: "data.ex.allow",
 			input: `{"a": true, "b": true}`,
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5",
+				"  \"one\" at policy.rego:3\n" +
+				"  \"two\" at policy.rego:5",
 		},
 		{
 			note: "complete rules, all conflicting rules",
@@ -229,25 +229,40 @@ allow := "three" if input.c`},
 			query: "data.ex.allow",
 			input: `{"a": true, "b": true, "c": true}`,
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5\n" +
-				"  rule at policy.rego:7",
+				"  \"one\" at policy.rego:3\n" +
+				"  \"two\" at policy.rego:5\n" +
+				"  \"three\" at policy.rego:7",
+		},
+		{
+			note: "complete rules, same value as first",
+			modules: map[string]string{"policy.rego": `package ex
+
+allow := 1 if input.a
+
+allow := 1 if input.b
+
+allow := 2 if input.c`},
+			query: "data.ex.allow",
+			input: `{"a": true, "b": true, "c": true}`,
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:7",
 		},
 		{
 			note:    "complete rules, limit",
 			modules: map[string]string{"policy.rego": distinctCompleteRules(12)},
 			query:   "data.ex.allow",
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5\n" +
-				"  rule at policy.rego:7\n" +
-				"  rule at policy.rego:9\n" +
-				"  rule at policy.rego:11\n" +
-				"  rule at policy.rego:13\n" +
-				"  rule at policy.rego:15\n" +
-				"  rule at policy.rego:17\n" +
-				"  rule at policy.rego:19\n" +
-				"  rule at policy.rego:21\n" +
+				"  0 at policy.rego:3\n" +
+				"  1 at policy.rego:5\n" +
+				"  2 at policy.rego:7\n" +
+				"  3 at policy.rego:9\n" +
+				"  4 at policy.rego:11\n" +
+				"  5 at policy.rego:13\n" +
+				"  6 at policy.rego:15\n" +
+				"  7 at policy.rego:17\n" +
+				"  8 at policy.rego:19\n" +
+				"  9 at policy.rego:21\n" +
 				"  ...",
 		},
 		{
@@ -262,8 +277,8 @@ allow := 1 / 0`},
 			query:  "data.ex.allow",
 			strict: true,
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5",
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:5",
 		},
 		{
 			note: "complete rules, error after conflict, non-strict",
@@ -276,8 +291,8 @@ allow := 2
 allow := 1 / 0`},
 			query: "data.ex.allow",
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5",
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:5",
 		},
 		{
 			note: "complete rules across files",
@@ -287,8 +302,8 @@ allow := 1 / 0`},
 			},
 			query: "data.ex.allow",
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at a.rego:3\n" +
-				"  rule at b.rego:3",
+				"  1 at a.rego:3\n" +
+				"  2 at b.rego:3",
 		},
 		{
 			note: "complete rules, else branch",
@@ -301,16 +316,41 @@ allow := 3 if input.b`},
 			query: "data.ex.allow",
 			input: `{"b": true}`,
 			message: "rule data.ex.allow produced conflicting values:\n" +
-				"  rule at policy.rego:4\n" +
-				"  rule at policy.rego:6",
+				"  2 at policy.rego:4\n" +
+				"  3 at policy.rego:6",
+		},
+		{
+			note:    "complete rules, long value",
+			modules: map[string]string{"policy.rego": "package ex\n\nallow := \"" + strings.Repeat("x", 100) + "\"\n\nallow := \"y\""},
+			query:   "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  \"" + strings.Repeat("x", 79) + "... at policy.rego:3\n" +
+				"  \"y\" at policy.rego:5",
 		},
 		{
 			note: "complete rule, single rule",
 			modules: map[string]string{"policy.rego": `package ex
 
 allow := x if some x in [1, 2]`},
-			query:   "data.ex.allow",
-			message: "rule data.ex.allow produced conflicting values",
+			query: "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:3",
+		},
+		{
+			note: "complete rule, single rule, many values",
+			modules: map[string]string{"policy.rego": `package ex
+
+r := numbers.range(1, 3000)
+
+allow := [a, b] if {
+	some a in r
+	some b in r
+}`},
+			query: "data.ex.allow",
+			message: "rule data.ex.allow produced conflicting values:\n" +
+				"  [1, 1] at policy.rego:5\n" +
+				"  [1, 2] at policy.rego:5",
 		},
 		{
 			note: "functions",
@@ -321,8 +361,8 @@ f(x) := 1 if x > 0
 f(x) := 2 if x > 1`},
 			query: "data.ex.f(2)",
 			message: "function data.ex.f produced conflicting values for the same inputs:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5",
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:5",
 		},
 		{
 			note: "functions, all conflicting rules",
@@ -335,17 +375,33 @@ f(x) := 2 if x > 1
 f(x) := 3 if x > 2`},
 			query: "data.ex.f(3)",
 			message: "function data.ex.f produced conflicting values for the same inputs:\n" +
-				"  rule at policy.rego:3\n" +
-				"  rule at policy.rego:5\n" +
-				"  rule at policy.rego:7",
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:5\n" +
+				"  3 at policy.rego:7",
 		},
 		{
 			note: "functions, single rule",
 			modules: map[string]string{"policy.rego": `package ex
 
 f(_) := x if some x in [1, 2]`},
-			query:   "data.ex.f(2)",
-			message: "function data.ex.f produced conflicting values for the same inputs",
+			query: "data.ex.f(2)",
+			message: "function data.ex.f produced conflicting values for the same inputs:\n" +
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:3",
+		},
+		{
+			note: "conflict in a dependency",
+			modules: map[string]string{"policy.rego": `package ex
+
+q := 1
+
+q := 2
+
+allow := q`},
+			query: "data.ex.allow",
+			message: "rule data.ex.q produced conflicting values:\n" +
+				"  1 at policy.rego:3\n" +
+				"  2 at policy.rego:5",
 		},
 	}
 

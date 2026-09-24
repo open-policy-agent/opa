@@ -6,9 +6,7 @@ package topdown
 
 import (
 	"errors"
-	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -123,12 +121,20 @@ func (e *Error) Unwrap() error {
 	return e.err
 }
 
-func functionConflictMsg(path string) string {
-	return "function " + path + " produced conflicting values for the same inputs"
+func functionConflictErr(rule *ast.Rule) error {
+	return &Error{
+		Code:     ConflictErr,
+		Location: rule.Location,
+		Message:  "function " + rulePath(rule) + " produced conflicting values for the same inputs",
+	}
 }
 
-func completeDocConflictMsg(path string) string {
-	return "rule " + path + " produced conflicting values"
+func completeDocConflictErr(rule *ast.Rule) error {
+	return &Error{
+		Code:     ConflictErr,
+		Location: rule.Location,
+		Message:  "rule " + rulePath(rule) + " produced conflicting values",
+	}
 }
 
 // rulePath returns the ref of the document produced by rule, falling back to
@@ -139,97 +145,6 @@ func rulePath(rule *ast.Rule) string {
 		return rule.Head.Ref().String()
 	}
 	return rule.Ref().String()
-}
-
-// maxConflictingRules bounds how many rules a conflict error lists, and with
-// that, how much evaluation continues after the first conflict is detected.
-const maxConflictingRules = 10
-
-// errConflictLimit stops evaluation once maxConflictingRules is exceeded. It
-// never escapes the evaluator; the collected ruleConflict is returned instead.
-var errConflictLimit = errors.New("conflicting rules limit exceeded")
-
-// ruleConflict collects the rules of a complete rule or function whose output
-// differs from the first output produced.
-type ruleConflict struct {
-	loc   *ast.Location // location of the first conflicting rule
-	rules []*ast.Rule
-	more  bool
-
-	// builtinErrs is the number of built-in errors recorded when the conflict
-	// was detected. Built-in errors raised while collecting further conflicts
-	// are discarded, as they would otherwise take precedence over the conflict
-	// in strict mode.
-	builtinErrs int
-
-	// stack is the evaluation stack when the conflict was detected, nil when
-	// stack traces are disabled.
-	stack StackTrace
-}
-
-func newRuleConflict(rule, prev *ast.Rule, builtinErrs int) *ruleConflict {
-	c := &ruleConflict{loc: rule.Location, rules: []*ast.Rule{prev}, builtinErrs: builtinErrs}
-	c.add(rule)
-	return c
-}
-
-// add records rule, and returns false when the limit is exceeded and
-// evaluation should stop.
-func (c *ruleConflict) add(rule *ast.Rule) bool {
-	if slices.Contains(c.rules, rule) {
-		return true
-	}
-	if len(c.rules) == maxConflictingRules {
-		c.more = true
-		return false
-	}
-	c.rules = append(c.rules, rule)
-	return true
-}
-
-// error lists the locations of the conflicting rules in source order. The list
-// is omitted when the conflict originates from a single rule, as the error
-// location already points at it.
-func (c *ruleConflict) error(msg string) error {
-	locs := make([]*ast.Location, 0, len(c.rules))
-	for _, rule := range c.rules {
-		if rule.Location != nil {
-			locs = append(locs, rule.Location)
-		}
-	}
-
-	if len(locs) > 1 {
-		slices.SortFunc(locs, (*ast.Location).Compare)
-
-		s := strings.Builder{}
-		s.WriteString(msg)
-		s.WriteString(":")
-		for _, loc := range locs {
-			s.WriteString("\n  rule at ")
-			// Location.String falls back to the full rule text when no file is
-			// set, which is too verbose for a listing.
-			if loc.File != "" {
-				s.WriteString(loc.File)
-				s.WriteByte(':')
-				s.WriteString(strconv.Itoa(loc.Row))
-			} else {
-				s.WriteString(strconv.Itoa(loc.Row))
-				s.WriteByte(':')
-				s.WriteString(strconv.Itoa(loc.Col))
-			}
-		}
-		if c.more {
-			s.WriteString("\n  ...")
-		}
-		msg = s.String()
-	}
-
-	return &Error{
-		Code:       ConflictErr,
-		Location:   c.loc,
-		Message:    msg,
-		StackTrace: c.stack,
-	}
 }
 
 func objectDocKeyConflictErr(loc *ast.Location) error {

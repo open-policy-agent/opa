@@ -2266,7 +2266,7 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 	numArgs := len(e.terms) - 1
 	e.args = slices.Grow(e.args, numArgs)[:numArgs]
 
-	var values ruleValues
+	var prev *ast.Term
 
 	return withSuppressEarlyExit(func() error {
 		var outerEe *deferredEarlyExitError
@@ -2277,57 +2277,50 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 				e.args[numArgs-1] = rule.Head.Value
 			}
 
-			err := e.evalOneRule(iter, rule, &values, findOne)
+			next, err := e.evalOneRule(iter, rule, prev, findOne)
 			if err != nil {
-				if values.conflict != nil {
-					return e.e.conflictErr(&values, functionConflictMsg)
-				}
 				if oee, ok := err.(*deferredEarlyExitError); ok {
 					if outerEe == nil {
 						outerEe = oee
 					}
 				} else {
-					return err
+					return e.conflictErr(err, rule, findOne)
 				}
 			}
-			if values.next == nil {
+			if next == nil {
 				for _, erule := range e.ir.Else[rule] {
 					copy(e.args, erule.Head.Args)
 					if numArgs == numHeadArgs+1 {
 						e.args[numArgs-1] = erule.Head.Value
 					}
 
-					err = e.evalOneRule(iter, erule, &values, findOne)
+					next, err = e.evalOneRule(iter, erule, prev, findOne)
 					if err != nil {
-						if values.conflict != nil {
-							return e.e.conflictErr(&values, functionConflictMsg)
-						}
 						if oee, ok := err.(*deferredEarlyExitError); ok {
 							if outerEe == nil {
 								outerEe = oee
 							}
 						} else {
-							return err
+							return e.conflictErr(err, erule, findOne)
 						}
 					}
-					if values.next != nil {
+					if next != nil {
 						break
 					}
 				}
 			}
+			if next != nil {
+				prev = next
+			}
 		}
 
-		if values.conflict != nil {
-			return e.e.conflictErr(&values, functionConflictMsg)
-		}
-
-		if e.ir.Default != nil && values.prev == nil {
+		if e.ir.Default != nil && prev == nil {
 			copy(e.args, e.ir.Default.Head.Args)
 			if numArgs == len(e.ir.Default.Head.Args)+1 {
 				e.args[numArgs-1] = e.ir.Default.Head.Value
 			}
 
-			err := e.evalOneRule(iter, e.ir.Default, &values, findOne)
+			_, err := e.evalOneRule(iter, e.ir.Default, prev, findOne)
 
 			return err
 		}
@@ -2369,7 +2362,7 @@ func (e *evalFunc) evalCache(argCount int, iter unifyIterator) (bool, error) {
 	return false, nil
 }
 
-func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, values *ruleValues, findOne bool) error {
+func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term, findOne bool) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -2379,11 +2372,12 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, values *ruleV
 	sizeHint := len(e.args)
 	e.e.childWithBindingSizeHint(rule.Body, child, sizeHint)
 	child.findOne = findOne
-	values.next = nil
+
+	var result *ast.Term
 
 	child.traceEnter(rule)
 
-	return child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, func() error {
+	err := child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
 			e.e.evaluated.Record(rule)
@@ -2397,21 +2391,16 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, values *ruleV
 				return err
 			}
 
-			result := child.bindings.Plug(rule.Head.Value)
-			if values.next == nil {
-				values.next = result
-			}
+			result = child.bindings.Plug(rule.Head.Value)
 			if e.cacheKey != nil {
 				e.e.virtualCache.Put(e.cacheKey, result) // the redos confirm this, or the evaluation is aborted
 			}
 
 			if noOutputCapture && ast.Boolean(false).Equal(result.Value) {
-				if values.prev != nil && !values.prev.Equal(result) {
-					return values.addConflict(child, rule)
+				if prev != nil && !prev.Equal(result) {
+					return functionConflictErr(rule)
 				}
-				if values.prev == nil {
-					values.set(result, rule)
-				}
+				prev = result
 				return nil
 			}
 
@@ -2419,17 +2408,15 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, values *ruleV
 			// a ground result so we do not perform conflict detection or
 			// deduplication. See "ignore conflicts: functions" test case for
 			// an example.
-			if !e.e.partial() && values.prev != nil {
-				if !values.prev.Equal(result) {
-					if err := values.addConflict(child, rule); err != nil {
-						return err
-					}
+			if !e.e.partial() && prev != nil {
+				if !prev.Equal(result) {
+					return functionConflictErr(rule)
 				}
 				child.traceRedo(rule)
 				return nil
 			}
 
-			values.set(result, rule)
+			prev = result
 
 			if err := iter(); err != nil {
 				return err
@@ -2439,46 +2426,8 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, values *ruleV
 			return nil
 		})
 	})
-}
 
-// ruleValues tracks the output of a complete rule or function across the
-// rules that define it.
-type ruleValues struct {
-	prev     *ast.Term     // first output produced
-	prevRule *ast.Rule     // rule that produced prev
-	next     *ast.Term     // first output produced by the rule being evaluated
-	conflict *ruleConflict // set once a rule produces an output different from prev
-}
-
-func (v *ruleValues) set(value *ast.Term, rule *ast.Rule) {
-	v.prev = value
-	v.prevRule = rule
-}
-
-// addConflict records a rule whose output differs from prev. Evaluation
-// continues past the conflict so that all conflicting rules can be reported,
-// until maxConflictingRules is exceeded.
-func (v *ruleValues) addConflict(e *eval, rule *ast.Rule) error {
-	if v.conflict == nil {
-		v.conflict = newRuleConflict(rule, v.prevRule, len(e.builtinErrors.errs))
-		// The error is raised once collection ends, after the rule's body has
-		// unwound, so the stack has to be recorded now.
-		if e.stackCapture != nil {
-			v.conflict.stack = e.stackTrace()
-		}
-		return nil
-	}
-	if !v.conflict.add(rule) {
-		return errConflictLimit
-	}
-	return nil
-}
-
-// conflictErr returns the error for the conflict collected in v, discarding
-// built-in errors raised during collection.
-func (e *eval) conflictErr(v *ruleValues, msg func(path string) string) error {
-	e.builtinErrors.errs = e.builtinErrors.errs[:v.conflict.builtinErrs]
-	return v.conflict.error(msg(rulePath(v.conflict.rules[0])))
+	return result, err
 }
 
 func (e *evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
@@ -3846,54 +3795,48 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	return withSuppressEarlyExit(func() error {
 		e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
-		var values ruleValues
+		var prev *ast.Term
 		var deferredEe *deferredEarlyExitError
 
 		for _, rule := range e.ir.Rules {
-			err := e.evalValueRule(iter, rule, &values, findOne)
+			next, err := e.evalValueRule(iter, rule, prev, findOne)
 			if err != nil {
-				if values.conflict != nil {
-					return e.e.conflictErr(&values, completeDocConflictMsg)
-				}
 				if dee, ok := err.(*deferredEarlyExitError); ok {
 					if deferredEe == nil {
 						deferredEe = dee
 					}
 				} else {
-					return err
+					return e.conflictErr(err, rule, findOne)
 				}
 			}
-			if values.next == nil {
+			if next == nil {
 				for _, erule := range e.ir.Else[rule] {
-					err = e.evalValueRule(iter, erule, &values, findOne)
+					next, err = e.evalValueRule(iter, erule, prev, findOne)
 					if err != nil {
-						if values.conflict != nil {
-							return e.e.conflictErr(&values, completeDocConflictMsg)
-						}
 						if dee, ok := err.(*deferredEarlyExitError); ok {
 							if deferredEe == nil {
 								deferredEe = dee
 							}
 						} else {
-							return err
+							return e.conflictErr(err, erule, findOne)
 						}
 					}
-					if values.next != nil {
+					if next != nil {
 						break
 					}
 				}
 			}
+			if next != nil {
+				prev = next
+			}
 		}
 
-		if values.conflict != nil {
-			return e.e.conflictErr(&values, completeDocConflictMsg)
+		if e.ir.Default != nil && prev == nil {
+			_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
+			return err
 		}
 
-		if e.ir.Default != nil && values.prev == nil {
-			return e.evalValueRule(iter, e.ir.Default, &values, findOne)
-		}
-
-		if values.prev == nil {
+		if prev == nil {
 			e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
 		}
 
@@ -3905,34 +3848,29 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	})
 }
 
-func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, values *ruleValues, findOne bool) error {
+func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term, findOne bool) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
 	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.findOne = findOne
 	child.traceEnter(rule)
-	values.next = nil
 
-	return child.eval(func(child *eval) error {
+	var result *ast.Term
+	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
 		e.e.evaluated.Record(rule)
 
-		result := child.bindings.Plug(rule.Head.Value)
-		if values.next == nil {
-			values.next = result
-		}
-		if values.prev != nil {
-			if !values.prev.Equal(result) {
-				if err := values.addConflict(child, rule); err != nil {
-					return err
-				}
+		result = child.bindings.Plug(rule.Head.Value)
+		if prev != nil {
+			if !prev.Equal(result) {
+				return completeDocConflictErr(rule)
 			}
 			child.traceRedo(rule)
 			return nil
 		}
 
-		values.set(result, rule)
+		prev = result
 		e.e.virtualCache.Put(e.plugged[:e.pos+1], result)
 
 		term, termbindings := child.bindings.apply(rule.Head.Value)
@@ -3944,6 +3882,8 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, v
 		child.traceRedo(rule)
 		return nil
 	})
+
+	return result, err
 }
 
 func (e evalVirtualComplete) partialEval(iter unifyIterator) error {

@@ -26,13 +26,13 @@ x := 1
 x := 2
 ```
 
-Naturally, `x` can't be both `1` and `2` at the same time! When the conflicting outputs come from different rules,
-the error lists the location of each of them:
+Naturally, `x` can't be both `1` and `2` at the same time! The error lists each of the
+conflicting values, and the location of the rule that produced it:
 
 ```sh
 policy.rego:5: eval_conflict_error: rule data.policy.x produced conflicting values:
-  rule at policy.rego:3
-  rule at policy.rego:5
+  1 at policy.rego:3
+  2 at policy.rego:5
 ```
 
 Real-world examples are commonly not this obvious, but most

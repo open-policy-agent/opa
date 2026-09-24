@@ -121,9 +121,9 @@ This policy _might_ work, if only one of `x` or `y` is provided in the input. If
 different, conflicting, values — an error will be reported during the evaluation stage:
 
 ```sh
-policy.rego:3: eval_conflict_error: rule data.policy.x produced conflicting values:
-  rule at policy.rego:3
-  rule at policy.rego:5
+policy.rego:5: eval_conflict_error: rule data.policy.x produced conflicting values:
+  1 at policy.rego:3
+  2 at policy.rego:5
 ```
 
 Important to know is that not all "errors" at this stage will be reported as errors! Some things that would be
