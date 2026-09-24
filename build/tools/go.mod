@@ -1,6 +1,6 @@
 module github.com/open-policy-agent/opa/build/tools
 
-go 1.25.7
+go 1.26.0
 
 tool (
 	github.com/josephspurrier/goversioninfo/cmd/goversioninfo
@@ -25,7 +25,7 @@ require (
 	github.com/vbauerster/mpb/v8 v8.12.1 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/perf v0.0.0-20260512194132-3cf34090a3db // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260421165255-392afab6f40e // indirect
 	golang.org/x/tools v0.44.0 // indirect
