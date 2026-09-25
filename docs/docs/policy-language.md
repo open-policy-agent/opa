@@ -1010,7 +1010,7 @@ provide a fallback value.
 ### Rule Heads containing References
 
 As a shorthand for defining nested rule structures, it's valid to use references as rule heads.
-This module defines _two complete rules_, `data.example.fruit.apple.seeds` and `data.example.fruit.orange.color`:
+This module defines _two complete rules_, `data.rule_refs.fruit.apple.seeds` and `data.rule_refs.fruit.orange.color`:
 
 ```rego
 package rule_refs

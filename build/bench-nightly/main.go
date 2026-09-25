@@ -55,8 +55,7 @@ const opaModulePath = "github.com/open-policy-agent/opa"
 // silently over-matches when an unrelated one is added.
 const benchlabPrefix = "Benchlab"
 
-// measureForUnit maps benchstat's units onto the measure names benchmarks.json
-// already uses, so both data sources can be charted on the same axes.
+// measureForUnit maps benchstat's units onto the measure names the dashboard uses.
 var measureForUnit = map[string]string{
 	"sec/op":    "NsPerOp",
 	"ns/op":     "NsPerOp",
@@ -705,8 +704,8 @@ func newDelta(from, to float64, deltaCell, pCell string) *delta {
 	return d
 }
 
-// toMeasureUnits converts benchstat's seconds to the nanoseconds
-// benchmarks.json records, leaving byte and allocation counts alone.
+// toMeasureUnits converts benchstat's seconds to nanoseconds, leaving byte and
+// allocation counts alone.
 func toMeasureUnits(unit string, v float64) float64 {
 	if unit == "sec/op" {
 		return v * 1e9

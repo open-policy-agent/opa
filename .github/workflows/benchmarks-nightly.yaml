@@ -5,11 +5,8 @@ name: Benchmarks (nightly)
 # invocation per package so they are interleaved on a single machine.
 #
 # Why nightly and curated rather than per-push and complete: three arms over the
-# full published set is on the order of a day of measurement, and only arms
-# measured together on one machine are comparable. Blanket coverage stays with
-# the (noisier, cross-machine) gobenchdata run that publishes to the benchmarks
-# branch; this workflow buys precision on the evaluation hot paths instead of
-# breadth.
+# full benchmark set is on the order of a day of measurement, and only arms
+# measured together on one machine are comparable.
 #
 # See build/bench-nightly/main.go for the reasoning behind the three arms, and
 # build/bench-nightly/set.json for the set itself.
@@ -17,8 +14,6 @@ name: Benchmarks (nightly)
 on:
   workflow_dispatch: {}
   schedule:
-    # 02:00 UTC, off the hour to avoid coinciding with the other benchmark
-    # publishers' schedules.
     - cron: '0 2 * * *'
 
 permissions:
@@ -61,9 +56,7 @@ jobs:
           shards=$(jq -c '[.targets[].shard] | unique' build/bench-nightly/set.json)
           echo "shards=${shards}" >> $GITHUB_OUTPUT
 
-          # The newest v* tag reachable from HEAD. Reachability matters twice:
-          # benchlab has to be able to build it, and the notebook anchors its
-          # charts to a tag it found in the data, which is also a main commit.
+          # The newest v* tag reachable from HEAD, so benchlab can build it.
           # Patch tags cut on a release branch are correctly ignored here.
           baseline_tag=$(git describe --tags --abbrev=0 --match 'v*')
           baseline_sha=$(git rev-parse "${baseline_tag}^{commit}")
@@ -167,9 +160,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write # we'll push to the `benchmarks` branch
-    # Only this job writes to the `benchmarks` branch, so only this job belongs
-    # in the group. Holding it for the hours the measurement takes would block
-    # the branch's other writers for no reason.
+    # Only the jobs writing to the `benchmarks` branch belong in the group.
     concurrency:
       group: benchmarks
       cancel-in-progress: false
@@ -220,4 +211,64 @@ jobs:
           git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git config --local user.name "${GITHUB_ACTOR}"
           git commit -m "benchmarks: nightly benchlab results for ${GITHUB_SHA}"
+          git push origin benchmarks
+
+  site:
+    name: Rebuild site
+    needs: publish
+    # Also on skipped nights, so dispatching this workflow rebuilds the site.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # we'll push to the `benchmarks` branch
+    concurrency:
+      group: benchmarks
+      cancel-in-progress: false
+    steps:
+      - name: Check out results branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: benchmarks
+          persist-credentials: true
+      - name: Setup Java
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Setup Clojure
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          cache: true
+          mise_toml: |
+            [tools]
+            clojure = "1.12.5.1638"
+      - name: Cache Clojure dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: clj-${{ hashFiles('clay/deps.edn') }}
+          restore-keys: clj-
+      - name: Clean previous output
+        run: rm -rf docs/*.html
+      - name: Generate site
+        run: clojure -J-Xss32m -M -m opa-bench.generate
+        working-directory: clay/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit if changed
+        working-directory: docs/
+        run: |
+          set -euo pipefail
+          # Stage first: diff-index goes by mtime, and every page was just rewritten.
+          git add -f .
+          if git diff --cached --quiet -- .; then
+            echo "no changes, no commit"
+            exit 0
+          fi
+          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --local user.name "${GITHUB_ACTOR}"
+          git commit -m "benchmarks: update site for ${GITHUB_SHA}"
           git push origin benchmarks

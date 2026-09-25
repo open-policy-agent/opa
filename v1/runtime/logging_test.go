@@ -117,11 +117,7 @@ func TestRequestErrorLoggingWithHTTPRequestContext(t *testing.T) {
 	}
 
 	initChannel := rt.Manager.ServerInitializedChannel()
-	go func() {
-		if err := rt.Serve(ctx); err != nil {
-			t.Error(err)
-		}
-	}()
+	serve(ctx, t, rt)
 	<-initChannel
 
 	rec := httptest.NewRecorder()
@@ -185,11 +181,7 @@ func TestRequestLogging(t *testing.T) {
 	}
 
 	initChannel := rt.Manager.ServerInitializedChannel()
-	go func() {
-		if err := rt.Serve(ctx); err != nil {
-			t.Error(err)
-		}
-	}()
+	serve(ctx, t, rt)
 	<-initChannel
 
 	// prepare the request bodies to be used

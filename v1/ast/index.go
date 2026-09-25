@@ -1542,12 +1542,12 @@ func (i *refindices) alternate(ref refID, kind alternation) {
 }
 
 func (i *refindices) insert(rule *Rule, index *refindex) {
-	i.count(index.ref)
-
 	indexValueIsVar := index.isVar()
+	seen := false
 
 	for pos, other := range i.rules[rule] {
 		if other.ref == index.ref {
+			seen = true
 			if other.Affix == index.Affix && ValueEqual(other.Value, index.Value) {
 				return
 			}
@@ -1573,6 +1573,9 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 		}
 	}
 
+	if !seen {
+		i.count(index.ref)
+	}
 	i.rules[rule] = append(i.rules[rule], index)
 }
 

@@ -193,6 +193,8 @@ Both directions of membership are supported:
 | `{"nested": "obj"} in input.items`        | no      | non-scalar membership value             |
 | `some k, v in input.obj; v == "admin"`    | no      | three-operand `in` not indexed          |
 
+A lookup for `"admin" in input.roles` walks `input.roles`, so its cost grows with the collection. For large collections, prefer an object and `input.roles["admin"]`; see [Use objects over arrays](#use-objects-over-arrays).
+
 #### Bare reference statements
 
 A bare reference used as a boolean check (without an explicit comparison) is also indexed. The indexer selects rules that reference the ref and skips rules that don't — the actual truthiness check still happens during evaluation.

@@ -673,14 +673,6 @@ jobs:
     - name: Run Vale spell check
       run: make docs-spell-check
 
-  benchmarks:
-    name: Benchmarks
-    needs: check-changes
-    if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
-    uses: ./.github/workflows/run-benchmarks.yaml
-    with:
-      publish: false
-
   test-ocp-with-opa:
     needs: check-changes
     if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
@@ -720,7 +712,6 @@ jobs:
       docs-markdownlint-check,
       docs-gen-check,
       docs-spell-check,
-      benchmarks,
       test-ocp-with-opa,
       test-regal-with-opa,
     ]
