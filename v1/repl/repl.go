@@ -1168,12 +1168,16 @@ func (r *REPL) parserOptions() (ast.ParserOptions, error) {
 
 	if r.regoVersion == ast.RegoV1 {
 		opts.RegoVersion = ast.RegoV1
-		return opts, nil
 	}
 
 	for _, i := range imports {
-		if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
+		switch {
+		case ast.RegoV1CompatibleRef.Equal(i.Path.Value):
 			opts.RegoVersion = ast.RegoV1
+		case ast.RegoV2CompatibleRef.Equal(i.Path.Value):
+			// TODO: when we introduce ast.RegoV2, it should be applied here instead
+			opts.RegoVersion = ast.RegoV1
+			opts.AllFutureKeywords = true
 		}
 	}
 

@@ -12134,6 +12134,55 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			features: []string{"rego_v1"},
 		},
 		{
+			note: "rego.v2 import, v0 module",
+			module: `
+				package x
+
+				import rego.v2
+
+				p if input.a and input.b
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
+			features: []string{"rego_v2_import"},
+		},
+		{
+			note: "rego.v2 import, v0 module, ref head",
+			module: `
+				package x
+
+				import rego.v2
+
+				p.q.r if input.a or input.b
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
+			features: []string{"rego_v2_import", "rule_head_ref_string_prefixes"},
+		},
+		{
+			note: "rego.v1 and rego.v2 imports, v0 module",
+			module: `
+				package x
+
+				import rego.v1
+				import rego.v2
+
+				p if input.a and input.b
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
+			features: []string{"rego_v1_import", "rego_v2_import"},
+		},
+		{
+			note: "rego.v2 import, v1 module",
+			module: `
+				package x
+
+				import rego.v2
+
+				p if input.a and input.b
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1", "rego_v2_import"},
+		},
+		{
 			note: "future.keywords wildcard, v0 module",
 			module: `
 				package x
@@ -13373,6 +13422,32 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p if { true }`,
 			features: []string{
 				FeatureRegoV1,
+			},
+		},
+		{
+			note: "no features, rego.v2 import",
+			module: `package test
+				import rego.v2
+				p if { input.a and input.b }`,
+			expectedErr: "rego_compile_error: rego.v2 import is not supported",
+		},
+		{
+			note: "rego-v1 feature, rego.v2 import",
+			module: `package test
+				import rego.v2
+				p if { input.a and input.b }`,
+			features: []string{
+				FeatureRegoV1,
+			},
+			expectedErr: "rego_compile_error: rego.v2 import is not supported",
+		},
+		{
+			note: "rego-v2-import feature, rego.v2 import",
+			module: `package test
+				import rego.v2
+				p if { input.a and input.b }`,
+			features: []string{
+				FeatureRegoV2Import,
 			},
 		},
 		{

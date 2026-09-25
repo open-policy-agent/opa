@@ -1,0 +1,8 @@
+package test
+
+import rego.v2
+
+p if {
+	some x in input.xs
+	x and input.b
+}

@@ -31,6 +31,7 @@ const (
 	FeatureRefHeads              = "rule_head_refs"
 	FeatureRegoV1                = "rego_v1"
 	FeatureRegoV1Import          = "rego_v1_import"
+	FeatureRegoV2Import          = "rego_v2_import"
 	FeatureKeywordsInRefs        = "keywords_in_refs"
 	FeatureTemplateStrings       = "template_strings"
 )
@@ -40,6 +41,7 @@ var (
 	// Use RegisterFeatures to add to them.
 	Features = []string{
 		FeatureRegoV1,
+		FeatureRegoV2Import,
 		FeatureKeywordsInRefs,
 		FeatureTemplateStrings,
 	}
@@ -47,6 +49,7 @@ var (
 		FeatureRefHeadStringPrefixes,
 		FeatureRefHeads,
 		FeatureRegoV1Import,
+		FeatureRegoV2Import,
 		FeatureRegoV1, // Included in v0 capabilities to allow v1 bundles in --v0-compatible mode
 		FeatureKeywordsInRefs,
 	}

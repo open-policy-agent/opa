@@ -20,6 +20,7 @@ The `and`/`or` keywords are not part of the standard v0 and v1 Rego syntax, and 
 - and: `import future.keywords.and`
 - or: `import future.keywords.or`
 - both, along with every other future keyword: `import future.keywords`
+- both, along with the [improved negation semantics](./not#improved-negation-semantics): [import rego.v2](./import#importing-regov2)
 
 Importing `rego.v1` does _not_ enable them.
 
@@ -169,7 +170,7 @@ Use parentheses to override the default binding:
 | `a or (b with input as x)` | `a or (b with input as x)` (`with` applies to `b` only)              |
 
 To negate a whole expression, group it with `not (...)`. This requires
-`import future.keywords.not` in addition to the `and`/`or` imports; without it the
+`import future.keywords.not` in addition to the `and`/`or` imports, or `import rego.v2`; without it the
 parentheses are read as an ordinary grouped expression, which cannot contain `and`
 or `or`:
 

@@ -161,6 +161,7 @@ type fmtOpts struct {
 
 	regoV1         bool
 	regoV1Imported bool
+	regoV2Imported bool
 	futureKeywords []string
 
 	// If true, the formatter will retain keywords in refs, e.g. `p.not ` instead of `p["not"]`.
@@ -169,6 +170,9 @@ type fmtOpts struct {
 }
 
 func (o fmtOpts) keywords() []string {
+	if o.regoV2Imported {
+		return append(ast.KeywordsV1[:], "and", "or")
+	}
 	if o.regoV1 {
 		return append(ast.KeywordsV1[:], o.futureKeywords...)
 	}
@@ -249,6 +253,11 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 				o.regoV1Imported = true
 				o.contains = true
 				o.ifs = true
+			case isRegoV2Compatible(n):
+				o.regoV1Imported = true
+				o.regoV2Imported = true
+				o.contains = true
+				o.ifs = true
 			case future.IsAllFutureKeywords(n):
 				o.contains = true
 				o.ifs = true
@@ -282,13 +291,15 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		if regoVersion == ast.RegoV1 && opts.DropV0Imports {
+		regoV2Imported := slices.ContainsFunc(x.Imports, isRegoV2Compatible)
+
+		if regoV2Imported || regoVersion == ast.RegoV1 && opts.DropV0Imports {
 			x.Imports = slices.DeleteFunc(x.Imports, regoV1Import)
 		} else if regoVersion == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
 
-		regoV1Imported := slices.ContainsFunc(x.Imports, isRegoV1Compatible)
+		regoV1Imported := slices.ContainsFunc(x.Imports, isRegoV1Compatible) || regoV2Imported
 
 		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || regoV1Imported {
 			if !opts.DropV0Imports && !regoV1Imported {
@@ -299,9 +310,11 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 				x.Imports = future.FilterFutureImports(x.Imports)
 			}
 
-			for kw := range extraFutureKeywordImports {
-				if ast.IsFutureKeywordForRegoVersion(kw, ast.RegoV1) {
-					x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+			if !regoV2Imported {
+				for kw := range extraFutureKeywordImports {
+					if ast.IsFutureKeywordForRegoVersion(kw, ast.RegoV1) {
+						x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+					}
 				}
 			}
 		} else {
@@ -3035,6 +3048,10 @@ func isRegoV1Compatible(imp *ast.Import) bool {
 	return len(path) == 2 &&
 		ast.RegoRootDocument.Equal(path[0]) &&
 		path[1].Equal(ast.InternedTerm("v1"))
+}
+
+func isRegoV2Compatible(imp *ast.Import) bool {
+	return ast.RegoV2CompatibleRef.Equal(imp.Path.Value)
 }
 
 func isUnexpectedCommentError(err error) bool {

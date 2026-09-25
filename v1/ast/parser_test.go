@@ -3535,6 +3535,39 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 			},
 		},
 		{
+			note: "rego.v2 imported",
+			imp:  "import rego.v2",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+				"not":      tokens.Not,
+				"and":      tokens.LogicalAnd,
+				"or":       tokens.LogicalOr,
+			},
+		},
+		{
+			note:        "rego.v2 imported in v0",
+			regoVersion: RegoV0,
+			imp:         "import rego.v2",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+				"not":      tokens.Not,
+				"and":      tokens.LogicalAnd,
+				"or":       tokens.LogicalOr,
+			},
+		},
+		{
+			note:        "rego.v1 imported in v0 does not enable the logical future keywords",
+			regoVersion: RegoV0,
+			imp:         "import rego.v1",
+			absent:      []string{"and", "or"},
+		},
+		{
 			// A single-keyword import must not activate any other keyword.
 			note:        "not imported in v0 does not enable the v0 future keywords",
 			regoVersion: RegoV0,
@@ -3606,10 +3639,10 @@ func TestRegoV1Import(t *testing.T) {
 	// These tests assert that the 'rego.v1' import is correctly handled in v0.
 	popts := ParserOptions{RegoVersion: RegoV0}
 
-	assertParseErrorContains(t, "rego", "import rego", "invalid import `rego`, must be `rego.v1`", popts)
-	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import `rego.foo`, must be `rego.v1`", popts)
-	assertParseErrorContains(t, "rego.foo.bar", "import rego.foo.bar", "invalid import `rego.foo.bar`, must be `rego.v1`", popts)
-	assertParseErrorContains(t, "rego.v1.bar", "import rego.v1.bar", "invalid import `rego.v1.bar`, must be `rego.v1`", popts)
+	assertParseErrorContains(t, "rego", "import rego", "invalid import `rego`, must be one of: `rego.v1`, `rego.v2`", popts)
+	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import `rego.foo`, must be one of: `rego.v1`, `rego.v2`", popts)
+	assertParseErrorContains(t, "rego.foo.bar", "import rego.foo.bar", "invalid import `rego.foo.bar`, must be one of: `rego.v1`, `rego.v2`", popts)
+	assertParseErrorContains(t, "rego.v1.bar", "import rego.v1.bar", "invalid import `rego.v1.bar`, must be one of: `rego.v1`, `rego.v2`", popts)
 	assertParseErrorContains(t, "rego.v1 + alias", "import rego.v1 as xyz", "`rego` imports cannot be aliased", popts)
 
 	assertParseImport(t, "import rego.v1",
@@ -4182,6 +4215,162 @@ f(x) if {
 				if !strings.Contains(actual, expected) {
 					t.Errorf("expected error:\n\n%q\n\ngot:\n\n%v", expected, actual)
 				}
+			}
+		})
+	}
+}
+
+func TestRegoV2Import(t *testing.T) {
+	tests := []struct {
+		note         string
+		regoVersion  RegoVersion
+		capabilities *Capabilities
+		module       string
+		expVersion   RegoVersion
+		expErr       string
+	}{
+		{
+			note: "and",
+			module: `package test
+				import rego.v2
+				p if input.a and input.b`,
+			expVersion: RegoV1,
+		},
+		{
+			note: "or",
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV1,
+		},
+		{
+			note: "not body",
+			module: `package test
+				import rego.v2
+				p if not { input.a; input.b }`,
+			expVersion: RegoV1,
+		},
+		{
+			note: "future.keywords.and also imported",
+			module: `package test
+				import rego.v2
+				import future.keywords.and
+				p if input.a and input.b`,
+			expVersion: RegoV1,
+		},
+		{
+			note: "rego.v1 also imported",
+			module: `package test
+				import rego.v1
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV1,
+		},
+		{
+			note:         "keywords not advertised in capabilities",
+			capabilities: &Capabilities{Features: []string{FeatureRegoV1, FeatureRegoV2Import}},
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV1,
+		},
+		{
+			note:        "v0, v0 future keywords",
+			regoVersion: RegoV0,
+			module: `package test
+				import rego.v2
+				p contains x if { 
+					some x in input.xs
+					every y in input.ys { y } 
+				}`,
+			expVersion: RegoV0CompatV1,
+		},
+		{
+			note:        "v0, logical keywords",
+			regoVersion: RegoV0,
+			module: `package test
+				import rego.v2
+				p if not { input.a; input.b or input.c }`,
+			expVersion: RegoV0CompatV1,
+		},
+		{
+			note:        "v0, rego.v1 also imported",
+			regoVersion: RegoV0,
+			module: `package test
+				import rego.v1
+				import rego.v2
+				p if input.a and input.b`,
+			expVersion: RegoV0CompatV1,
+		},
+		{
+			note:        "v0, v1 rules required",
+			regoVersion: RegoV0,
+			module: `package test
+				import rego.v2
+				p { true }`,
+			expErr: "`if` keyword is required before rule body",
+		},
+		{
+			note: "trailing path",
+			module: `package test
+				import rego.v2.x`,
+			expErr: "invalid import `rego.v2.x`, must be one of: `rego.v1`, `rego.v2`",
+		},
+		{
+			note: "unknown version",
+			module: `package test
+				import rego.v3`,
+			expErr: "invalid import `rego.v3`, must be one of: `rego.v1`, `rego.v2`",
+		},
+		{
+			note: "aliased",
+			module: `package test
+				import rego.v2 as x`,
+			expErr: "`rego` imports cannot be aliased",
+		},
+		{
+			note:        "v0, aliased",
+			regoVersion: RegoV0,
+			module: `package test
+				import rego.v2 as x`,
+			expErr: "`rego` imports cannot be aliased",
+		},
+		{
+			note:         "not supported by capabilities",
+			capabilities: &Capabilities{Features: []string{FeatureRegoV1}},
+			module: `package test
+				import rego.v2`,
+			expErr: "invalid import, `rego.v2` is not supported by current capabilities",
+		},
+		{
+			note:         "v0, not supported by capabilities",
+			regoVersion:  RegoV0,
+			capabilities: &Capabilities{Features: []string{FeatureRegoV1Import}},
+			module: `package test
+				import rego.v2`,
+			expErr: "invalid import, `rego.v2` is not supported by current capabilities",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := ParserOptions{RegoVersion: tc.regoVersion, Capabilities: tc.capabilities}
+			mod, err := ParseModuleWithOpts("", tc.module, popts)
+
+			if tc.expErr != "" {
+				if errs, ok := err.(Errors); !ok || len(errs) != 1 {
+					t.Fatal("expected exactly one error but got:", err)
+				} else if errs[0].Code != ParseErr || errs[0].Message != tc.expErr {
+					t.Fatal("unexpected error:", err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+			if mod.RegoVersion() != tc.expVersion {
+				t.Fatalf("expected rego version %v but got %v", tc.expVersion, mod.RegoVersion())
 			}
 		})
 	}
