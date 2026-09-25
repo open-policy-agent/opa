@@ -393,6 +393,13 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v2ImportModule := `package example
+		import rego.v2
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	tests := []struct {
 		note         string
 		files        [][2]string
@@ -464,6 +471,34 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
 			expErrs:      []string{"rego_parse_error: unexpected keyword, must be one of [contains every if in not]"},
 		},
+		{
+			note:  "rego.v2 import",
+			files: [][2]string{{"test.rego", v2ImportModule}},
+		},
+		{
+			note: "v0 bundle manifest, rego.v2 import",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 0}`},
+				{"test.rego", v2ImportModule},
+			},
+		},
+		{
+			note:        "v0 reader rego-version, rego.v2 import",
+			files:       [][2]string{{"test.rego", v2ImportModule}},
+			regoVersion: ast.RegoV0,
+		},
+		{
+			// rego.v2 activates its keywords whatever the capabilities advertise.
+			note:         "capabilities without and/or, rego.v2 import",
+			files:        [][2]string{{"test.rego", v2ImportModule}},
+			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
+		},
+		{
+			note:         "capabilities without rego_v2_import",
+			files:        [][2]string{{"test.rego", v2ImportModule}},
+			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import),
+			expErrs:      []string{"test.rego:2: rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities"},
+		},
 	}
 
 	for _, tc := range tests {
@@ -517,6 +552,17 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			}
 		})
 	}
+}
+
+func capabilitiesWithoutFeatures(tb testing.TB, features ...string) *ast.Capabilities {
+	tb.Helper()
+
+	caps := ast.CapabilitiesForThisVersion()
+	caps.Features = slices.DeleteFunc(caps.Features, func(f string) bool {
+		return slices.Contains(features, f)
+	})
+
+	return caps
 }
 
 func capabilitiesWithoutFutureKeywords(tb testing.TB, kws ...string) *ast.Capabilities {
@@ -1567,6 +1613,71 @@ func TestRoundtrip(t *testing.T) {
 
 	if !reflect.DeepEqual(bundle2.Signatures, bundle.Signatures) {
 		t.Fatal("Expected signatures to be same")
+	}
+}
+
+func TestRoundtrip_RegoV2Import(t *testing.T) {
+	v0 := 0
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		manifest    Manifest
+	}{
+		{
+			note:        "v1",
+			regoVersion: ast.RegoV1,
+			manifest:    Manifest{Roots: &[]string{""}, Revision: "r"},
+		},
+		{
+			note:        "v0 manifest",
+			regoVersion: ast.RegoV0,
+			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v0},
+		},
+	}
+
+	module := `package foo
+		import rego.v2
+		
+		allow if input.a or not { input.b; input.c }`
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			bundle := Bundle{
+				Data: map[string]any{},
+				Modules: []ModuleFile{
+					{
+						URL:    "/foo/policy.rego",
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModuleWithOpts(module, ast.ParserOptions{RegoVersion: tc.regoVersion}),
+						Raw:    []byte(module),
+					},
+				},
+				Manifest: tc.manifest,
+			}
+
+			if err := bundle.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			var buf bytes.Buffer
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+
+			bundle2, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			if !bundle2.Equal(bundle) {
+				t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
+			}
+			if !bundle2.Manifest.Equal(tc.manifest) {
+				t.Fatal("Exp manifest:", tc.manifest, "\n\nGot:", bundle2.Manifest)
+			}
+		})
 	}
 }
 

@@ -1298,6 +1298,13 @@ func TestServerLogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v2ImportModule := `package test
+		import rego.v2
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	expQuery := func(s string) string {
 		body := ast.MustParseBodyWithOpts(s, ast.ParserOptions{FutureKeywords: []string{"and", "or"}})
 		return fmt.Sprintf(`{"result": {"queries": [%v]}}`, string(util.MustMarshalJSON(body)))
@@ -1327,6 +1334,24 @@ func TestServerLogicalKeywords(t *testing.T) {
 			},
 		},
 		{
+			note: "put policy, rego.v2 import, evaluate data",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v2ImportModule, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": true}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
+			note:        "put policy, rego.v2 import, evaluate data (v0 rego-version)",
+			regoVersion: ast.RegoV0,
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v2ImportModule, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
 			note: "put policy, wildcard future.keywords import",
 			trs: []tr{
 				{http.MethodPut, "/policies/logical", `package test
@@ -1351,6 +1376,16 @@ func TestServerLogicalKeywords(t *testing.T) {
 			note: "compile policy",
 			trs: []tr{
 				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "data.test.allow = true"
+				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+			},
+		},
+		{
+			note: "compile policy, rego.v2 import",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", regoV2Module, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input"],
 					"query": "data.test.allow = true"

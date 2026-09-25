@@ -53,62 +53,89 @@ func TestMain(m *testing.M) {
 }
 
 func TestEvaluateBundle(t *testing.T) {
-	sampleModule := `
-		package foo.bar
-		import rego.v1
+	tests := []struct {
+		note   string
+		module string
+	}{
+		{
+			note: "rego.v1 import",
+			module: `
+				package foo.bar
+				import rego.v1
 
-		bundle = {
-			"name": rt.name,
-			"service": "example"
-		} if {
-			rt := opa.runtime()
-		}
-	`
-
-	b := &bundleApi.Bundle{
-		Manifest: bundleApi.Manifest{
-			Revision: "quickbrownfaux",
+				bundle = {
+					"name": rt.name,
+					"service": "example"
+				} if {
+					rt := opa.runtime()
+				}
+			`,
 		},
-		Data: map[string]any{
-			"foo": map[string]any{
-				"bar": map[string]any{
-					"status": map[string]any{},
+		{
+			note: "rego.v2 import",
+			module: `
+				package foo.bar
+				import rego.v2
+
+				bundle = {
+					"name": rt.name,
+					"service": "example"
+				} if {
+					rt := opa.runtime()
+					rt.name or not { rt.missing }
+				}
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			b := &bundleApi.Bundle{
+				Manifest: bundleApi.Manifest{
+					Revision: "quickbrownfaux",
 				},
-			},
-		},
-		Modules: []bundleApi.ModuleFile{
-			{
-				Path:   `/example.rego`,
-				Raw:    []byte(sampleModule),
-				Parsed: ast.MustParseModule(sampleModule),
-			},
-		},
-	}
+				Data: map[string]any{
+					"foo": map[string]any{
+						"bar": map[string]any{
+							"status": map[string]any{},
+						},
+					},
+				},
+				Modules: []bundleApi.ModuleFile{
+					{
+						Path:   `/example.rego`,
+						Raw:    []byte(tc.module),
+						Parsed: ast.MustParseModule(tc.module),
+					},
+				},
+			}
 
-	info := ast.MustParseTerm(`{"name": "test/bundle1"}`)
+			info := ast.MustParseTerm(`{"name": "test/bundle1"}`)
 
-	config, err := evaluateBundle(t.Context(), "test-id", info, b, "data.foo.bar")
-	if err != nil {
-		t.Fatal(err)
-	}
+			config, err := evaluateBundle(t.Context(), "test-id", info, b, "data.foo.bar")
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	if config.Bundle == nil {
-		t.Fatal("Expected a bundle configuration")
-	}
+			if config.Bundle == nil {
+				t.Fatal("Expected a bundle configuration")
+			}
 
-	var parsedConfig bundlePlugin.Config
+			var parsedConfig bundlePlugin.Config
 
-	if err := util.Unmarshal(config.Bundle, &parsedConfig); err != nil {
-		t.Fatal("Unexpected error:", err)
-	}
+			if err := util.Unmarshal(config.Bundle, &parsedConfig); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
 
-	expectedBundleConfig := bundlePlugin.Config{
-		Name:    "test/bundle1",
-		Service: "example",
-	}
+			expectedBundleConfig := bundlePlugin.Config{
+				Name:    "test/bundle1",
+				Service: "example",
+			}
 
-	if !reflect.DeepEqual(expectedBundleConfig, parsedConfig) {
-		t.Fatalf("Expected bundle config %v, but got %v", expectedBundleConfig, parsedConfig)
+			if !reflect.DeepEqual(expectedBundleConfig, parsedConfig) {
+				t.Fatalf("Expected bundle config %v, but got %v", expectedBundleConfig, parsedConfig)
+			}
+		})
 	}
 }
 
