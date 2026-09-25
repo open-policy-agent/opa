@@ -65,6 +65,19 @@ func (ee deferredEarlyExitError) Error() string {
 	return fmt.Sprintf("%v: deferred early exit", ee.e.query)
 }
 
+// bodyContainer is used to hold a single expression body for the purpose of
+// complementing a `not` expression without allocating a new body and expression
+// each time. see [*eval.evalNot].
+// TODO: expand use of this to other similar functions, like e.g. eval of `every`
+// expressions that also create temporary bodies.
+type bodyContainer struct {
+	body ast.Body
+}
+
+func newBodyContainer() *bodyContainer {
+	return &bodyContainer{body: ast.Body([]*ast.Expr{{}})}
+}
+
 // Note(æ): this struct is formatted for optimal alignment as it is big, internal and instantiated
 // *very* frequently during evaluation. If you need to add fields here, please consider the alignment
 // of the struct, and use something like betteralign (https://github.com/dkorunic/betteralign) if you
@@ -131,12 +144,13 @@ type eval struct {
 }
 
 var (
-	evalPool        = util.NewSyncPool[eval]()
-	deecPool        = util.NewSyncPool[deferredEarlyExitContainer]()
-	resolverPool    = util.NewSyncPool[evalResolver]()
-	arraysRecPool   = util.NewSyncPool[biunifyArraysRecParams]()
-	evalFuncPool    = util.NewResettablePool[evalFunc]()
-	evalBuiltinPool = util.NewResettablePool[evalBuiltin]()
+	evalPool          = util.NewSyncPool[eval]()
+	deecPool          = util.NewSyncPool[deferredEarlyExitContainer]()
+	resolverPool      = util.NewSyncPool[evalResolver]()
+	arraysRecPool     = util.NewSyncPool[biunifyArraysRecParams]()
+	evalFuncPool      = util.NewResettablePool[evalFunc]()
+	evalBuiltinPool   = util.NewResettablePool[evalBuiltin]()
+	bodyContainerPool = util.NewSyncPoolWithConstructor(newBodyContainer)
 )
 
 func (e *eval) Run(iter evalIterator) error {
@@ -145,11 +159,13 @@ func (e *eval) Run(iter evalIterator) error {
 		return e.eval(iter)
 	}
 
-	e.traceEnter(e.query)
+	var queryNode ast.Node = e.query
+
+	e.traceEnter(queryNode)
 	return e.eval(func(e *eval) error {
-		e.traceExit(e.query)
+		e.traceExit(queryNode)
 		err := iter(e)
-		e.traceRedo(e.query)
+		e.traceRedo(queryNode)
 		return err
 	})
 }
@@ -228,10 +244,13 @@ func (e *eval) unknown(x any, b *bindings) bool {
 	// it as an ast.Term because the saveSet Contains() function expects
 	// ast.Term.
 	if v, ok := x.(ast.Value); ok {
-		x = ast.NewTerm(v)
+		term := ast.TermPtrPool.Get()
+		term.Value = v
+		defer ast.TermPtrPool.Put(term)
+		x = term
 	}
 
-	return saveRequired(e.compiler.RuleTree, e.externalTreeStack, e.inliningControl, true, e.saveSet, b, x, false)
+	return e.saveRequired(true, e.saveSet, b, x, false)
 }
 
 // exactly like `unknown` above` but without the cost of `any` boxing when arg is known to be a ref
@@ -239,7 +258,31 @@ func (e *eval) unknownRef(ref ast.Ref, b *bindings) bool {
 	if !e.partial() {
 		return false
 	}
-	return saveRequired(e.compiler.RuleTree, e.externalTreeStack, e.inliningControl, true, e.saveSet, b, ast.NewTerm(ref), false)
+	term := ast.TermPtrPool.Get()
+	term.Value = ref
+	defer ast.TermPtrPool.Put(term)
+
+	return e.saveRequired(true, e.saveSet, b, term, false)
+}
+
+// similarly, avoid Body -> any boxing by iterating over the body's expressions.
+func (e *eval) unknownBody(body ast.Body, b *bindings) bool {
+	if e.partial() {
+		for _, ex := range body {
+			if e.saveRequired(true, e.saveSet, b, ex, false) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (e *eval) saveRequired(icIgnoreInternal bool, saveSet *saveSet, b *bindings, x any, rec bool) bool {
+	return saveRequired(
+		e.compiler.RuleTree, e.externalTreeStack, e.inliningControl,
+		icIgnoreInternal, saveSet, b, x, rec,
+	)
 }
 
 func (e *eval) traceEnter(x ast.Node) {
@@ -627,28 +670,62 @@ func (e *eval) fmtVar() string {
 	return util.ByteSliceToString(buf)
 }
 
+// complementNotWith is equivalent to [*ast.Expr.ComplementNoWith] but
+// operates in place of the container without allocating a new body + expression.
+func (c *bodyContainer) complementNotWith(expr *ast.Expr) {
+	cpy := *expr
+	cpy.Negated = !expr.Negated
+	cpy.With = nil
+	cpy.Index = 0
+	*c.body[0] = cpy
+}
+
 func (e *eval) evalNot(iter evalIterator) error {
-	expr := e.query[e.index]
-	if e.unknown(expr, e.bindings) {
+	if e.unknown(e.query[e.index], e.bindings) {
 		return e.setupAndEvalNotPartial(iter)
 	}
+	if e.traceEnabled {
+		return e.evalNotTrace(iter)
+	}
 
-	negation := ast.NewBody(expr.ComplementNoWith())
+	bodyContainer := bodyContainerPool.Get()
+	child := evalPool.Get()
+	defer func() {
+		bodyContainerPool.Put(bodyContainer)
+		evalPool.Put(child)
+	}()
+
+	bodyContainer.complementNotWith(e.query[e.index])
+	e.closure(bodyContainer.body, child)
+
+	if err := child.eval(func(*eval) error {
+		child.defined = true
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if !child.defined {
+		return iter(e)
+	}
+	return nil
+}
+
+func (e *eval) evalNotTrace(iter evalIterator) error {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.closure(negation, child)
-	if e.traceEnabled {
-		child.traceEnter(negation)
-	}
+	body := ast.NewBody(e.query[e.index].ComplementNoWith())
+	e.closure(body, child)
+
+	// box only once, not on every trace call
+	var bodyNode ast.Node = body
+	child.traceEnter(bodyNode)
 
 	if err := child.eval(func(*eval) error {
-		if e.traceEnabled {
-			child.traceExit(negation)
-			child.traceRedo(negation)
-		}
+		child.traceExit(bodyNode)
+		child.traceRedo(bodyNode)
 		child.defined = true
-
 		return nil
 	}); err != nil {
 		return err
@@ -658,12 +735,11 @@ func (e *eval) evalNot(iter evalIterator) error {
 		return iter(e)
 	}
 
-	e.traceFail(expr)
+	e.traceFail(e.query[e.index])
 	return nil
 }
 
 func (e *eval) evalWith(iter evalIterator) error {
-
 	expr := e.query[e.index]
 
 	var disable []ast.Ref
@@ -1546,25 +1622,23 @@ func (e *eval) amendComprehension(a *ast.Term, b1 *bindings) (*ast.Term, error) 
 }
 
 func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	var elements []*ast.Term
 	child := evalPool.Get()
-
-	e.closure(x.Body, child)
 	defer evalPool.Put(child)
 
+	e.closure(x.Body, child)
+
+	var elements []*ast.Term
 	err := child.Run(func(child *eval) error {
 		elements = append(elements, child.bindings.Plug(x.Term))
 		return nil
 	})
-	if err != nil {
-		return err
+	if err == nil {
+		if len(elements) == 0 {
+			return e.biunify(ast.InternedEmptyArray, b, b1, b2, iter)
+		}
+		return e.biunify(ast.ArrayTerm(elements...), b, b1, b2, iter)
 	}
-
-	if len(elements) == 0 {
-		return e.biunify(ast.InternedEmptyArray, b, b1, b2, iter)
-	}
-
-	return e.biunify(ast.NewTerm(ast.NewArray(elements...)), b, b1, b2, iter)
+	return err
 }
 
 func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
@@ -2568,7 +2642,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 	// In some cases, it may not be possible to PE the ref. If the path refers
 	// to virtual docs that PE does not support or base documents where inlining
 	// has been disabled, then we have to save.
-	if e.e.partial() && e.e.unknownRef(e.plugged, e.e.bindings) {
+	if e.e.unknownRef(e.plugged, e.e.bindings) {
 		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
 	}
 
@@ -2740,7 +2814,6 @@ func (en *enumerateNext) call() error {
 }
 
 func (e evalTree) enumerate(iter unifyIterator) error {
-
 	if e.e.inliningControl.Disabled(e.plugged[:e.pos], true) {
 		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
 	}
@@ -3918,7 +3991,6 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 	originalPath := e.plugged[:e.pos+1]
 	namespacePath := e.e.namespaceRef(originalPath)
-	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
 	var defined bool
 
@@ -3959,6 +4031,8 @@ func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 	if !defined {
 		return nil
 	}
+
+	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
 	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
@@ -4032,7 +4106,6 @@ type evalTerm struct {
 }
 
 func (e evalTerm) eval(iter unifyIterator) error {
-
 	if len(e.ref) == e.pos {
 		return e.e.biunify(e.term, e.rterm, e.termbindings, e.rbindings, iter)
 	}
@@ -4042,7 +4115,6 @@ func (e evalTerm) eval(iter unifyIterator) error {
 	}
 
 	plugged := e.bindings.Plug(e.ref[e.pos])
-
 	if plugged.IsGround() {
 		return e.next(iter, plugged)
 	}
@@ -4051,7 +4123,6 @@ func (e evalTerm) eval(iter unifyIterator) error {
 }
 
 func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
-
 	// Key selects an unknown sub-document: save the reference instead of reading
 	// a concrete document that may lack the key, or hold a stand-in value. The
 	// partial() test is inline to keep the call off the non-partial hot path.
@@ -4304,8 +4375,7 @@ type evalEvery struct {
 
 func (e evalEvery) eval(iter unifyIterator) error {
 	// unknowns in domain or body: save the expression, PE its body
-	// partial() check to avoid e.Body -> Node boxing allocation
-	if e.e.partial() && (e.e.unknown(e.every.Domain, e.e.bindings) || e.e.unknown(e.every.Body, e.e.bindings)) {
+	if e.e.unknown(e.every.Domain, e.e.bindings) || e.e.unknownBody(e.every.Body, e.e.bindings) {
 		return e.save(iter)
 	}
 
@@ -4419,7 +4489,7 @@ type evalNot struct {
 }
 
 func (e evalNot) eval(iter evalIterator) error {
-	if e.e.partial() && e.e.unknown(e.not.Body, e.e.bindings) {
+	if e.e.unknownBody(e.not.Body, e.e.bindings) {
 		return e.evalPartial(iter)
 	}
 
@@ -4518,7 +4588,7 @@ type evalLogicalAnd struct {
 }
 
 func (e evalLogicalAnd) eval(iter evalIterator) error {
-	if e.e.partial() && (e.e.unknown(e.and.Lhs, e.e.bindings) || e.e.unknown(e.and.Rhs, e.e.bindings)) {
+	if e.e.partial() && (e.e.unknownBody(e.and.Lhs, e.e.bindings) || e.e.unknownBody(e.and.Rhs, e.e.bindings)) {
 		return e.evalPartial(iter)
 	}
 
@@ -4577,7 +4647,7 @@ type evalLogicalOr struct {
 }
 
 func (e evalLogicalOr) eval(iter evalIterator) error {
-	if e.e.partial() && (e.e.unknown(e.or.Lhs, e.e.bindings) || e.e.unknown(e.or.Rhs, e.e.bindings)) {
+	if e.e.unknownBody(e.or.Lhs, e.e.bindings) || e.e.unknownBody(e.or.Rhs, e.e.bindings) {
 		return e.evalPartial(iter)
 	}
 

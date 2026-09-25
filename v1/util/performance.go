@@ -32,6 +32,16 @@ func NewSyncPool[T any]() *SyncPool[T] {
 	}
 }
 
+func NewSyncPoolWithConstructor[T any](constructor func() *T) *SyncPool[T] {
+	return &SyncPool[T]{
+		Pool: sync.Pool{
+			New: func() any {
+				return constructor()
+			},
+		},
+	}
+}
+
 func (p *SyncPool[T]) Get() *T {
 	return p.Pool.Get().(*T)
 }
