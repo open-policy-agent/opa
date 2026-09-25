@@ -3967,6 +3967,19 @@ func TestWithQueryImports(t *testing.T) {
 			exp:     "true\n",
 		},
 		{
+			note:         "future keyword used, rego.v2 imported (v0)",
+			v0Compatible: true,
+			query:        `"b" in ["a", "b", "c"]`,
+			imports:      []string{"rego.v2"},
+			exp:          "true\n",
+		},
+		{
+			note:    "logical keyword used, rego.v2 imported",
+			query:   `true or false`,
+			imports: []string{"rego.v2"},
+			exp:     "true\n",
+		},
+		{
 			note:         "future keyword used, invalid rego.v3 imported",
 			v0Compatible: true,
 			query:        `"b" in ["a", "b", "c"]`,

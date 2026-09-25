@@ -2180,9 +2180,13 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 
 func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) ast.ParserOptions {
 	for _, imp := range imports {
-		if ast.RegoV1CompatibleRef.Equal(imp.Path.Value) {
+		switch {
+		case ast.RegoV1CompatibleRef.Equal(imp.Path.Value):
 			popts.RegoVersion = ast.RegoV1
-			return popts
+		case ast.RegoV2CompatibleRef.Equal(imp.Path.Value):
+			// TODO: when we introduce ast.RegoV1, it should be applied here instead
+			popts.RegoVersion = ast.RegoV1
+			popts.AllFutureKeywords = true
 		}
 	}
 	return popts
