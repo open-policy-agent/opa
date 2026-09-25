@@ -108,7 +108,7 @@ func TestBuildRespectsCapabilities(t *testing.T) {
 			]
 		}`,
 			policy: `package test
-p { is_foo("bar") }`,
+				p { is_foo("bar") }`,
 		},
 		{
 			note: "future kw NOT defined in caps",
@@ -123,9 +123,9 @@ p { is_foo("bar") }`,
 				return string(j)
 			}(),
 			policy: `package test
-import future.keywords.if
-import future.keywords.in
-p if "opa" in input.tools`,
+				import future.keywords.if
+				import future.keywords.in
+				p if "opa" in input.tools`,
 			err: "rego_parse_error: unexpected keyword, must be one of [in]",
 		},
 		{
@@ -141,9 +141,9 @@ p if "opa" in input.tools`,
 				return string(j)
 			}(),
 			policy: `package test
-import future.keywords.if
-import future.keywords.in
-p if "opa" in input.tools`,
+				import future.keywords.if
+				import future.keywords.in
+				p if "opa" in input.tools`,
 		},
 		{
 			note: "future kw are defined in caps",
@@ -157,9 +157,9 @@ p if "opa" in input.tools`,
 				return string(j)
 			}(),
 			policy: `package test
-import future.keywords.if
-import future.keywords.in
-p if "opa" in input.tools`,
+				import future.keywords.if
+				import future.keywords.in
+				p if "opa" in input.tools`,
 		},
 		{
 			note: "rego.v1 imported AND defined in capabilities",
@@ -173,7 +173,7 @@ p if "opa" in input.tools`,
 				return string(j)
 			}(),
 			policy: `package test
-import rego.v1`,
+				import rego.v1`,
 		},
 		{
 			note: "rego.v1 imported AND rego-v1 in capabilities",
@@ -187,7 +187,38 @@ import rego.v1`,
 				return string(j)
 			}(),
 			policy: `package test
-import rego.v1`,
+				import rego.v1`,
+		},
+		{
+			note: "rego.v2 imported but NOT defined in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV1Import}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			err: "rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities",
+		},
+		{
+			note: "rego.v2 imported AND defined in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV2Import}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+				import rego.v2
+				p if input.a or input.b`,
 		},
 	}
 
@@ -3026,6 +3057,65 @@ p[k] contains v if {
 
 foo contains __local1__1 if {
 	__local1__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note:                "v0, rego.v2 imported",
+			v1Compatible:        false,
+			regoV1ImportCapable: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v2
+# METADATA
+# entrypoint: true
+p if {
+	input.a or not { input.b; input.c }
+}
+`,
+			},
+			// TODO: No v2 ast.RegoVersion yet, so we can't remember this for the module, so it gets v1+keywords applied
+			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				"/optimized/test.rego": `package test
+
+import future.keywords.not
+import future.keywords.or
+import rego.v1
+
+p if {
+	input.a or not { input.b; input.c }
+}
+`,
+			},
+		},
+		{
+			note:                "v1, rego.v2 imported",
+			v1Compatible:        true,
+			regoV1ImportCapable: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v2
+# METADATA
+# entrypoint: true
+p if {
+	input.a or not { input.b; input.c }
+}
+`,
+			},
+			// TODO: No v2 ast.RegoVersion yet, so we can't remember this for the module, so it gets keywords applied
+			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
+				"/optimized/test.rego": `package test
+
+import future.keywords.not
+import future.keywords.or
+
+p if {
+	input.a or not { input.b; input.c }
 }
 `,
 			},

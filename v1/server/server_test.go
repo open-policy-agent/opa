@@ -1385,7 +1385,7 @@ func TestServerLogicalKeywords(t *testing.T) {
 		{
 			note: "compile policy, rego.v2 import",
 			trs: []tr{
-				{http.MethodPut, "/policies/logical", regoV2Module, 200, ""},
+				{http.MethodPut, "/policies/logical", v2ImportModule, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input"],
 					"query": "data.test.allow = true"

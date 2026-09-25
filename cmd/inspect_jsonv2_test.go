@@ -80,6 +80,95 @@ func TestDoInspectJSONOutputBytes(t *testing.T) {
 	}
 }
 
+func TestDoInspectRequiredCapabilitiesRegoV2Import(t *testing.T) {
+	tests := []struct {
+		note     string
+		manifest string
+		expected string
+	}{
+		{
+			note:     "v1 bundle",
+			manifest: `{"rego_version": 1}`,
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ],
+    "rego_version": 1
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1",
+      "rego_v2_import"
+    ]
+  }
+}
+`,
+		},
+		{
+			note:     "v0 bundle",
+			manifest: `{"rego_version": 0}`,
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ],
+    "rego_version": 0
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v2_import"
+    ]
+  }
+}
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := [][2]string{
+				{"/.manifest", tc.manifest},
+				{"/policy.rego", "package test\n\nimport rego.v2\n\np if input.a or input.b\n"},
+			}
+
+			buf := archive.MustWriteTarGz(files)
+			bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
+			if err := os.WriteFile(bundleFile, buf.Bytes(), 0o644); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			var out bytes.Buffer
+			params := newInspectCommandParams()
+			if err := params.outputFormat.Set(formats.JSON); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if err := doInspect(params, bundleFile, &out); err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			if diff := cmp.Diff(tc.expected, out.String()); diff != "" {
+				t.Errorf("unexpected result (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestDoInspect(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]}`},
@@ -1298,6 +1387,19 @@ p contains v if {
 			},
 		},
 		{
+			note:              "v0.x bundle, rego.v2 imported",
+			bundleRegoVersion: 0,
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+import rego.v2
+p contains v if {
+	v := input.x
+	v or not { input.y }
+}`,
+			},
+		},
+		{
 			note:              "v0 bundle, v1 per-file override",
 			bundleRegoVersion: 0,
 			files: map[string]string{
@@ -1408,6 +1510,19 @@ p contains v if {
 import rego.v1
 p contains v if { 
 	v := input.x 
+}`,
+			},
+		},
+		{
+			note:              "v1.0 bundle, rego.v2 imported",
+			bundleRegoVersion: 1,
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import rego.v2
+p contains v if {
+	v := input.x
+	v or not { input.y }
 }`,
 			},
 		},
