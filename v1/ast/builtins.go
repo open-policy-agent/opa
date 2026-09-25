@@ -12,7 +12,7 @@ import (
 
 // Builtins is the registry of built-in functions supported by OPA.
 // Call RegisterBuiltin to add a new built-in.
-var Builtins []*Builtin
+var Builtins = make([]*Builtin, 0, len(DefaultBuiltins))
 
 // RegisterBuiltin adds a new built-in function to the registry.
 // NOTE: The underlying map storing built-ins is **not** thread-safe,
@@ -328,7 +328,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 // BuiltinMap provides a convenient mapping of built-in names to
 // built-in definitions.
-var BuiltinMap map[string]*Builtin
+var BuiltinMap = make(map[string]*Builtin, len(DefaultBuiltins))
 
 // Deprecated: Builtins can now be directly annotated with the
 // Nondeterministic property, and when set to true, will be ignored
@@ -3724,8 +3724,7 @@ func (b *Builtin) NeedsBuiltInContext() bool {
 }
 
 func init() {
-	BuiltinMap = map[string]*Builtin{}
-	for _, b := range &DefaultBuiltins {
+	for _, b := range &DefaultBuiltins { // & to avoid copying
 		RegisterBuiltin(b)
 	}
 }
