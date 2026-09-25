@@ -2284,7 +2284,7 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 						outerEe = oee
 					}
 				} else {
-					return err
+					return e.conflictErr(err, rule, findOne)
 				}
 			}
 			if next == nil {
@@ -2301,7 +2301,7 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 								outerEe = oee
 							}
 						} else {
-							return err
+							return e.conflictErr(err, erule, findOne)
 						}
 					}
 					if next != nil {
@@ -2398,7 +2398,7 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Ter
 
 			if noOutputCapture && ast.Boolean(false).Equal(result.Value) {
 				if prev != nil && !prev.Equal(result) {
-					return functionConflictErr(rule.Location)
+					return functionConflictErr(rule)
 				}
 				prev = result
 				return nil
@@ -2410,7 +2410,7 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Ter
 			// an example.
 			if !e.e.partial() && prev != nil {
 				if !prev.Equal(result) {
-					return functionConflictErr(rule.Location)
+					return functionConflictErr(rule)
 				}
 				child.traceRedo(rule)
 				return nil
@@ -3806,7 +3806,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 						deferredEe = dee
 					}
 				} else {
-					return err
+					return e.conflictErr(err, rule, findOne)
 				}
 			}
 			if next == nil {
@@ -3818,7 +3818,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 								deferredEe = dee
 							}
 						} else {
-							return err
+							return e.conflictErr(err, erule, findOne)
 						}
 					}
 					if next != nil {
@@ -3864,7 +3864,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 		result = child.bindings.Plug(rule.Head.Value)
 		if prev != nil {
 			if !prev.Equal(result) {
-				return completeDocConflictErr(rule.Location)
+				return completeDocConflictErr(rule)
 			}
 			child.traceRedo(rule)
 			return nil

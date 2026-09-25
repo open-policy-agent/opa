@@ -204,7 +204,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 	expected := `{
   "errors": [
     {
-      "message": "functions must not produce multiple outputs for same inputs",
+      "message": "function data.test.p produced conflicting values for the same inputs:\n  1 at test.rego:5\n  2 at test.rego:5",
       "code": "eval_conflict_error",
       "location": {
         "file": "test.rego",

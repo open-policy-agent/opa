@@ -8,7 +8,7 @@ cases:
         p { f("1") }
     note: "functionerrors/conflict: plain false and true result, first round"
     query: data.test.p = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.f produced conflicting values for the same inputs
     want_error_code: eval_conflict_error
   - modules:
       - |
@@ -18,5 +18,5 @@ cases:
         p { f("2") }
     note: "functionerrors/conflict: plain false and true result, second round"
     query: data.test.p = x
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test.f produced conflicting values for the same inputs
     want_error_code: eval_conflict_error

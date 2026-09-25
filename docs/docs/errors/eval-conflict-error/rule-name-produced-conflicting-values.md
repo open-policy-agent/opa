@@ -1,18 +1,18 @@
 ---
-sidebar_label: complete rules must not produce multiple outputs
+sidebar_label: rule {name} produced conflicting values
 image: /img/opa-errors.png
 ---
 
-# `eval_conflict_error`: complete rules must not produce multiple outputs
+# `eval_conflict_error`: rule `{name}` produced conflicting values
 
 Complete rules are rules that evaluate to a single value, or possibly, don't complete evaluation at all (where their
 value is `undefined`). An "output" in this context could be likened to a **return value**, as should be familiar to
 most developers. While Rego rules can be incrementally defined in multiple statements, a complete rule can't produce
 multiple outputs, or "return values".
 
-| Stage        | Category              | Message                                            |
-| ------------ | --------------------- | -------------------------------------------------- |
-| `evaluation` | `eval_conflict_error` | `complete rules must not produce multiple outputs` |
+| Stage        | Category              | Message                                   |
+| ------------ | --------------------- | ----------------------------------------- |
+| `evaluation` | `eval_conflict_error` | `rule {name} produced conflicting values` |
 
 ## Examples
 
@@ -26,7 +26,16 @@ x := 1
 x := 2
 ```
 
-Naturally, `x` can't be both `1` and `2` at the same time! Real-world examples are commonly not this obvious, but most
+Naturally, `x` can't be both `1` and `2` at the same time! The error lists each of the
+conflicting values, and the location of the rule that produced it:
+
+```sh
+policy.rego:5: eval_conflict_error: rule data.policy.x produced conflicting values:
+  1 at policy.rego:3
+  2 at policy.rego:5
+```
+
+Real-world examples are commonly not this obvious, but most
 often involve scenarios where both rules check for conditions that can _potentially_ both be true. Consider the
 following example:
 

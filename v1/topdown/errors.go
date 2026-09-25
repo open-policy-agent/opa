@@ -121,20 +121,30 @@ func (e *Error) Unwrap() error {
 	return e.err
 }
 
-func functionConflictErr(loc *ast.Location) error {
+func functionConflictErr(rule *ast.Rule) error {
 	return &Error{
 		Code:     ConflictErr,
-		Location: loc,
-		Message:  "functions must not produce multiple outputs for same inputs",
+		Location: rule.Location,
+		Message:  "function " + rulePath(rule) + " produced conflicting values for the same inputs",
 	}
 }
 
-func completeDocConflictErr(loc *ast.Location) error {
+func completeDocConflictErr(rule *ast.Rule) error {
 	return &Error{
 		Code:     ConflictErr,
-		Location: loc,
-		Message:  "complete rules must not produce multiple outputs",
+		Location: rule.Location,
+		Message:  "rule " + rulePath(rule) + " produced conflicting values",
 	}
+}
+
+// rulePath returns the ref of the document produced by rule, falling back to
+// the rule's head ref when it is not contained in a module. Complete rules and
+// functions always have ground refs.
+func rulePath(rule *ast.Rule) string {
+	if rule.Module == nil {
+		return rule.Head.Ref().String()
+	}
+	return rule.Ref().String()
 }
 
 func objectDocKeyConflictErr(loc *ast.Location) error {

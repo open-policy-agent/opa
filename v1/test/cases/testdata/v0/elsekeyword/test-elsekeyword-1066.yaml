@@ -20,6 +20,6 @@ cases:
         }
     note: elsekeyword/conflict-2
     query: data.ex.conflict_2 = x
-    want_error: complete rules must not produce multiple outputs
+    want_error: rule data.ex.conflict_2 produced conflicting values
     want_error_code: eval_conflict_error
     # TODO(sr) strict_error: true

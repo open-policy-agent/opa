@@ -18,4 +18,4 @@ cases:
         	data.test3.p(1, 0, y)
         }
     want_error_code: eval_conflict_error
-    want_error: functions must not produce multiple outputs for same inputs
+    want_error: function data.test3.p produced conflicting values for the same inputs
