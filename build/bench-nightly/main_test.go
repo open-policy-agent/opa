@@ -131,7 +131,7 @@ func TestAssemble(t *testing.T) {
 	t.Run("time", func(t *testing.T) {
 		r := find("BenchmarkGlob/100-4", "NsPerOp")
 
-		// benchstat reports seconds; benchmarks.json records nanoseconds.
+		// benchstat reports seconds; results record nanoseconds.
 		approx(t, "baseline value", r.BaselineValue, 1002, 0.5)
 		approx(t, "head value", r.HeadValue, 1080.7, 0.5)
 
