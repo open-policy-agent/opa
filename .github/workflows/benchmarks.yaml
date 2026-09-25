@@ -5,11 +5,9 @@ on:
   push:
     branches: [main]
 
-# NOTE(sr): No concurrency group here on purpose: this workflow only reads, and
-# comments on, a single push. It must not be serialized with the benchmark
-# results published by benchmarks-publish.yaml -- GitHub only ever queues one
-# waiting run per group, so sharing a group made these regression comments get
-# dropped whenever two pushes landed close together.
+# NOTE(sr): No concurrency group here on purpose: GitHub only ever queues one
+# waiting run per group, so a shared group dropped regression comments whenever
+# two pushes landed close together.
 
 permissions:
   contents: read
