@@ -230,6 +230,7 @@ const (
 	StageCheckTypes                 StageID = "CheckTypes"
 	StageCheckUnsafeBuiltins        StageID = "CheckUnsafeBuiltins"
 	StageCheckDeprecatedBuiltins    StageID = "CheckDeprecatedBuiltins"
+	StageInlineRefAliases           StageID = "InlineRefAliases"
 	StageBuildRuleIndices           StageID = "BuildRuleIndices"
 	StageBuildComprehensionIndices  StageID = "BuildComprehensionIndices"
 	StageBuildRequiredCapabilities  StageID = "BuildRequiredCapabilities"
@@ -273,6 +274,7 @@ func AllStages() []StageID {
 		StageCheckTypes,
 		StageCheckUnsafeBuiltins,
 		StageCheckDeprecatedBuiltins,
+		StageInlineRefAliases,
 		StageBuildRuleIndices,
 		StageBuildComprehensionIndices,
 		StageBuildRequiredCapabilities,
@@ -495,6 +497,7 @@ func NewCompiler() *Compiler {
 		{StageCheckTypes, "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
 		{StageCheckUnsafeBuiltins, "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{StageCheckDeprecatedBuiltins, "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
+		{StageInlineRefAliases, "compile_stage_inline_ref_aliases", c.inlineRefAliases},
 		{StageBuildRuleIndices, "compile_stage_rebuild_indices", c.buildRuleIndices},
 		{StageBuildComprehensionIndices, "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
 		{StageBuildRequiredCapabilities, "compile_stage_build_required_capabilities", c.buildRequiredCapabilities},
