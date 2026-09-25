@@ -1991,6 +1991,68 @@ func TestOneShot_RegoVersion(t *testing.T) {
 				},
 			},
 		},
+		{
+			note:        "v1, logical keywords used, not imported",
+			regoVersion: ast.RegoV1,
+			actions: []action{
+				{
+					line:    "true or false",
+					expErrs: []string{"rego_unsafe_var_error: var or is unsafe (hint: `import future.keywords.or` to import a future keyword)"},
+				},
+			},
+		},
+		{
+			note:        "v1, logical keywords used in rule, rego.v2 imported",
+			regoVersion: ast.RegoV1,
+			actions: []action{
+				{
+					line: "import rego.v2",
+				},
+				{
+					line:      "a if { input.x or true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:        "v1, logical keywords used in query, rego.v2 imported",
+			regoVersion: ast.RegoV1,
+			actions: []action{
+				{
+					line: "import rego.v2",
+				},
+				{
+					line:      "true and not { false }",
+					expOutput: "true\n",
+				},
+			},
+		},
+		{
+			note:        "v0, keywords used in rule, rego.v2 imported",
+			regoVersion: ast.RegoV0,
+			actions: []action{
+				{
+					line: "import rego.v2",
+				},
+				{
+					line:      "a contains 2 if { input.x or true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:        "v0, keywords used in query, rego.v2 imported",
+			regoVersion: ast.RegoV0,
+			actions: []action{
+				{
+					line: "import rego.v2",
+				},
+				{
+					line:      "2 in [2] and true",
+					expOutput: "true\n",
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

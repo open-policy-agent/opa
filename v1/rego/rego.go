@@ -2184,7 +2184,7 @@ func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserO
 		case ast.RegoV1CompatibleRef.Equal(imp.Path.Value):
 			popts.RegoVersion = ast.RegoV1
 		case ast.RegoV2CompatibleRef.Equal(imp.Path.Value):
-			// TODO: when we introduce ast.RegoV1, it should be applied here instead
+			// TODO: when we introduce ast.RegoV2, it should be applied here instead
 			popts.RegoVersion = ast.RegoV1
 			popts.AllFutureKeywords = true
 		}
