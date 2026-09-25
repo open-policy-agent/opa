@@ -171,6 +171,7 @@ Features present in the list are enabled, while features not present are disable
 - `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](./policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
 - `rule_head_refs`: Enables general support for [references in rule heads](./policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](./policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`.
 - `rego_v1_import`: enables use of the `rego.v1` import.
+- `rego_v2_import`: enables use of the `rego.v2` import.
 
 ### Future keywords
 

@@ -1352,7 +1352,7 @@ result := [r([10]), r([10, 1])]
 ## Negation
 
 :::important
-Users are recommended to use the `future.keywords.not` import whenever using the `not` keyword, as it fixes a long-standing semantic issue with negation in Rego.
+Users are recommended to use the `future.keywords.not` (or `rego.v2`) import whenever using the `not` keyword, as it fixes a long-standing semantic issue with negation in Rego.
 Read more about it in the [Improved Negation Semantics](policy-reference/keywords/not#improved-negation-semantics) section of the `not` keyword overview.
 :::
 
@@ -1884,7 +1884,8 @@ please use `some x in xs; not p(x)` instead.
 ## And and Or Keywords
 
 The `and` and `or` keywords express conjunction and disjunction _within_ a single
-rule body, without the need to extract a helper rule. Both require an import, and neither
+rule body, without the need to extract a helper rule. Both require an import
+(`future.keywords.and`/`future.keywords.or`, or [rego.v2](./policy-reference/keywords/import#importing-regov2)), and neither
 produces a value; an expression using them either succeeds or fails:
 
 ```rego
