@@ -1,0 +1,1 @@
+Validate resource annotations with is_string
