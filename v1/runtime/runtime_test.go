@@ -1504,11 +1504,10 @@ func TestTracingExcludePaths(t *testing.T) {
 
 	serve(ctx, t, rt)
 	if !test.Eventually(t, 5*time.Second, func() bool {
-		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+		return rt.ServerStatus() == ServerInitialized
 	}) {
 		t.Fatal("Timed out waiting for server to start")
 	}
-	base := "http://" + rt.Addrs()[0]
 
 	for _, tc := range []struct {
 		path      string
@@ -1523,11 +1522,7 @@ func TestTracingExcludePaths(t *testing.T) {
 		t.Run(tc.path, func(t *testing.T) {
 			t.Cleanup(spanExporter.Reset)
 
-			resp, err := http.Get(base + tc.path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			resp.Body.Close()
+			rt.server.Handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, tc.path, nil))
 
 			var got []string
 			for _, s := range spanExporter.GetSpans() {
