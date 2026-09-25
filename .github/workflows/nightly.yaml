@@ -2,7 +2,7 @@ name: Nightly
 on:
   workflow_dispatch: {}   # Allow for manual triggers
   schedule:
-    - cron:  '0 8 * * 0-4' # Sun-Thu, at 8:00 UTC
+    - cron:  '0 5 * * 1-5' # Mon-Fri, at 5:00 UTC
 
 permissions:
   contents: read
