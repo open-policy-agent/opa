@@ -10,8 +10,7 @@
    "BytesPerOp" "memory"})
 
 (def measure-order
-  "Fixed trace order, so a measure keeps its colour across both charts on a page
-   and between renders. Iterating a group-by would leave that to chance."
+  "Fixed trace order, so a measure keeps its colour between renders."
   ["NsPerOp" "AllocsPerOp" "BytesPerOp"])
 
 (def measure-colors
@@ -215,10 +214,7 @@
 ")
 
 (defn- chart-panel
-  "One Plotly chart, optionally paired with a single-commit details panel.
-
-   `id` must be unique within the page: a benchmark page carries two of these,
-   and Plotly needs a distinct element per plot."
+  "One Plotly chart, optionally paired with a single-commit details panel."
   [{:keys [id heading caption traces layout commit-by-x intervals show-commit-info tick-urls]
     :or   {show-commit-info true}}]
   [:div {:style "margin-bottom:26px"}
@@ -250,13 +246,7 @@
    :showlegend true})
 
 (defn- benchlab-panel
-  "The nightly experiment, on its own axes.
-
-   Kept off the per-push chart deliberately. Its points span a couple of percent
-   where the per-push series spans two- to three-fold, and they cluster at the
-   recent end of a much longer axis, so a shared plot renders the more precise
-   measurement both flat and cramped. Percent difference on a linear scale is
-   also easier to read here than ratios hugging 1 on a log scale."
+  "The nightly experiment, as percent difference from the baseline tag."
   [series]
   (let [points         (apply concat (vals series))
         labelled       (mapv #(select-keys % [:x :date :commit]) points)
