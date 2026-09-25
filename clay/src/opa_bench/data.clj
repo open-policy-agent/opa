@@ -11,12 +11,11 @@
                        {:headers headers})]
     (json/read-str (:body resp) :key-fn keyword)))
 
-(def benchmarks-raw
-  (json/read-str (slurp (io/file "../benchmarks.json")) :key-fn keyword))
-
-(def data-commits
-  "Every commit benchmarks.json holds results for."
-  (into #{} (map :Version) benchmarks-raw))
+(def benchlab-raw
+  (let [f (io/file "../benchlab.json")]
+    (if (.exists f)
+      (json/read-str (slurp f) :key-fn keyword)
+      [])))
 
 (def ^:private max-commit-pages
   "Safety bound on pagination: 20 pages of 100 is 2000 commits of main."
@@ -25,11 +24,8 @@
 (defn- fetch-commits-covering
   "Commit metadata paged back far enough to cover every commit in `wanted`.
 
-   Fetching a fixed slice of main instead would make the charts' extent depend
-   on the repo's commit velocity rather than on how many runs benchmarks.json
-   keeps: as soon as benchmarks are sampled on a schedule rather than run per
-   push, benchmarked commits are a sparse subset of main and a fixed slice
-   holds only a fraction of the available runs.
+   Nightly heads are a sparse subset of main, so a fixed slice of main would
+   hold only some of them.
 
    Stops at max-commit-pages so that a commit which is no longer reachable from
    main (rebased away, force-pushed) can't cause unbounded paging. Anything
@@ -52,7 +48,7 @@
         :else (recur (inc page) acc)))))
 
 (def commits-raw
-  (fetch-commits-covering data-commits))
+  (fetch-commits-covering (into #{} (map :head) benchlab-raw)))
 
 (def commits
   (into {}
@@ -84,134 +80,12 @@
 (def tag-map
   (into {} (map (fn [{:keys [name commit]}] [(:sha commit) name])) tags-raw))
 
-(defn flatten-benchmarks [raw]
-  (for [entry raw
-        :let [commit (:Version entry)
-              date   (:Date entry)
-              tag    (tag-map commit)]
-        suite (:Suites entry)
-        :let [pkg (clojure.string/replace (:Pkg suite)
-                                          "github.com/open-policy-agent/opa" ".")]
-        bench (:Benchmarks suite)
-        [measure value] {"NsPerOp"    (:NsPerOp bench)
-                         "AllocsPerOp" (get-in bench [:Mem :AllocsPerOp])
-                         "BytesPerOp"  (get-in bench [:Mem :BytesPerOp])}]
-    {:commit  commit
-     :date    date
-     :pkg     pkg
-     :name    (:Name bench)
-     :tag     tag
-     :measure measure
-     :value   (or value 0)}))
-
-(def all-rows (flatten-benchmarks benchmarks-raw))
-
-(def rows
-  "Every measurement in benchmarks.json.
-
-   Deliberately unfiltered. This used to drop rows whose commit fell outside the
-   fetched commit-metadata slice, which silently discarded measurements the
-   charts had every right to draw -- and would have discarded most of them once
-   benchmarks stopped being run per push. commit-info supplies a fallback for
-   missing metadata instead, so the plotted extent is governed by the run
-   history benchmarks.json keeps (INPUT_PRUNE_COUNT) and nothing else."
-  all-rows)
-
-(def benchmarks-with-data
-  (into #{} (map (juxt :pkg :name)) rows))
-
-(def commit-order
-  "commit sha -> position in main's history, oldest first."
-  (into {} (map-indexed (fn [i sha] [sha i])) commits-ordered))
-
-(def basis-commit
-  "The commit every chart is anchored to: the newest tagged commit on main.
-
-   Derived from main's history rather than from the runs. Picking the newest tag
-   that happens to have a run would leave the charts anchored to the previous
-   release for as long as the new release's commit went unbenchmarked -- and
-   since the nightly experiment resolves its own baseline from git, the two would
-   disagree and every night's results would be discarded as mis-anchored.
-
-   Tags cut on a release branch are absent from main's history and so are
-   correctly ignored."
-  (->> commits-ordered (filter tag-map) last))
-
-(def latest-tag (tag-map basis-commit))
-
-(def basis-measured?
-  "Whether basis-commit was itself benchmarked, or the anchor is approximated."
-  (contains? (into #{} (map :commit) all-rows) basis-commit))
-
-(defn- basis-row
-  "The measurement to divide by: the one taken nearest the anchor in main's
-   history, preferring one at or after it.
-
-   A release can be tagged without its commit ever being benchmarked -- a run may
-   have been skipped, or the tag may simply be newer than every stored run -- and
-   the charts still need something to anchor to. Searching forward alone is not
-   enough: when the tag postdates the whole history, that finds nothing, basis
-   comes out empty, and since page generation is gated on it the site renders no
-   pages at all. Rows whose commit is not in main's fetched history are skipped,
-   since they cannot be ordered against the anchor."
-  [rows]
-  (when-let [anchor (get commit-order basis-commit)]
-    (let [ordered (->> rows
-                       (keep (fn [r] (when-let [p (commit-order (:commit r))] [p r])))
-                       (sort-by first))]
-      (or (second (first (filter #(>= (first %) anchor) ordered)))
-          (second (last (filter #(< (first %) anchor) ordered)))))))
-
-(def basis
-  (into {}
-        (keep (fn [[k rows]]
-                (when-let [r (basis-row rows)]
-                  [k (:value r)])))
-        (group-by (juxt :pkg :name :measure) all-rows)))
-
-(when-not basis-measured?
-  (println (format "note: %s (%s) has no benchmark run of its own; anchoring to the nearest run instead"
-                   latest-tag (subs (or basis-commit "?") 0 (min 7 (count (or basis-commit "?")))))))
-
-(def ratios
-  (->> all-rows
-       (sort-by :date >)
-       (group-by (juxt :pkg :name :measure))
-       (keep (fn [[[pkg name measure] vs]]
-               ;; Divide by the shared basis rather than by whichever tagged row
-               ;; this benchmark happens to have, so the index table and the
-               ;; charts report the same number.
-               (let [latest-val (:value (first vs))
-                     base       (get basis [pkg name measure])]
-                 (when (and base (pos? base))
-                   {:pkg pkg :name name :measure measure
-                    :ratio (/ latest-val base)}))))
-       (group-by (juxt :pkg :name))
-       (keep (fn [[[pkg name] ms]]
-               (let [m (into {} (map (fn [{:keys [measure ratio]}]
-                                       [measure ratio]))
-                             ms)]
-                 (when (seq m)
-                   (merge {:pkg pkg :name name} m)))))
-       (sort-by #(get % "NsPerOp" 0))))
+(def latest-tag
+  "The tag the newest night was measured against."
+  (:baseline_tag (last (sort-by :date benchlab-raw))))
 
 (defn benchmark-id [pkg name]
   (clojure.string/replace (str pkg "_" name) #"[^a-zA-Z0-9]" "-"))
-
-;; --- benchlab -----------------------------------------------------------
-;;
-;; benchmarks.json holds absolute measurements taken on whatever machine the
-;; runner happened to be, so the relative-to-latest-tag ratios computed from it
-;; carry all of the between-machine variance. benchlab.json holds the nightly
-;; experiment instead, where the baseline and HEAD are measured side by side on
-;; one machine, so its ratio for the same benchmark is the same quantity
-;; measured far more precisely. Both are charted in the same y-space.
-
-(def benchlab-raw
-  (let [f (io/file "../benchlab.json")]
-    (if (.exists f)
-      (json/read-str (slurp f) :key-fn keyword)
-      [])))
 
 (def benchlab-nights
   "Nights anchored to the same tag the charts are, oldest first.
@@ -220,8 +94,8 @@
    another commit, so plotting it on this axis would be quietly wrong by however
    much the two baselines differ. Such nights are dropped rather than rescaled,
    because that offset is not knowable from this data -- it takes a run that
-   measures both baselines together. Expect the benchlab trace to shorten to
-   nothing right after a release and grow back over the following nights."
+   measures both baselines together. After a release the charts restart from
+   the first night measured against the new tag."
   (let [usable  (filter #(= (:baseline_tag %) latest-tag) benchlab-raw)
         dropped (- (count benchlab-raw) (count usable))]
     (when (pos? dropped)
@@ -273,12 +147,7 @@
         benchlab-series))
 
 (def benchlab-benchmarks-with-ids
-  "The dashboard's benchmark list, restricted to what the nightly experiment
-   covers: benchmarks.json's per-push numbers carry between-machine variance
-   benchlab doesn't, so the site shows only the more precise number rather than
-   both. Shaped like benchmarks-with-ids (:pkg :name :id :spark plus a ratio per
-   measure) so the index table and page generator don't need to know which
-   source they're reading."
+  "The dashboard's benchmark list: :pkg :name :id :spark plus a ratio per measure."
   (->> benchlab-keys
        (map (fn [[pkg name]]
               (merge {:pkg pkg :name name :id (benchmark-id pkg name)
@@ -289,19 +158,3 @@
                                      [measure r])))
                            ["NsPerOp" "AllocsPerOp" "BytesPerOp"]))))
        (sort-by #(get % "NsPerOp" 0))))
-
-(def sparklines
-  (->> rows
-       (filter #(= (:measure %) "NsPerOp"))
-       (group-by (juxt :pkg :name))
-       (into {}
-             (map (fn [[k vs]]
-                    [k (mapv :value (sort-by :date vs))])))))
-
-(def benchmarks-with-ids
-  (->> ratios
-       (filter #(contains? benchmarks-with-data [(:pkg %) (:name %)]))
-       (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))
-                        :spark (get sparklines [(:pkg %) (:name %)])
-                        :benchlab (get benchlab-latest-ratios
-                                       [(:pkg %) (:name %) "NsPerOp"])))))
