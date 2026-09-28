@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -119,7 +120,7 @@ func TestBundleSignVerification(t *testing.T) {
 
 		// create gzipped tarball
 		var filesInBundle [][2]string
-		err = filepath.Walk(rootDir, func(path string, info os.FileInfo, _ error) error {
+		err = filepath.WalkDir(rootDir, func(path string, info fs.DirEntry, _ error) error {
 			if !info.IsDir() {
 				bs, err := os.ReadFile(path)
 				if err != nil {

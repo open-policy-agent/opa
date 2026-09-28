@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -139,11 +140,11 @@ func TestSuite(t *testing.T) {
 		}
 	}()
 
-	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, _ error) error {
-		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {
+	err = filepath.WalkDir(wd, func(path string, info fs.DirEntry, _ error) error {
+		if info.IsDir() && path != wd && !testDirectories.MatchString(info.Name()) {
 			return filepath.SkipDir
 		}
-		if !strings.HasSuffix(fileInfo.Name(), ".json") {
+		if !strings.HasSuffix(info.Name(), ".json") {
 			return nil
 		}
 		return executeTests(t, path)
@@ -187,8 +188,8 @@ func TestFormats(t *testing.T) {
 			}
 
 			formatsDirectory := filepath.Join(wd, dir.Name(), "optional", "format")
-			err = filepath.Walk(formatsDirectory, func(path string, fileInfo os.FileInfo, _ error) error {
-				if fileInfo == nil || !strings.HasSuffix(fileInfo.Name(), ".json") {
+			err = filepath.WalkDir(formatsDirectory, func(path string, info fs.DirEntry, _ error) error {
+				if info == nil || !strings.HasSuffix(info.Name(), ".json") {
 					return nil
 				}
 				return executeTests(t, path)

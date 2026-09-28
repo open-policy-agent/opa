@@ -389,10 +389,9 @@ func FilteredPathsFS(fsys fs.FS, paths []string, filter Filter) ([]string, error
 
 // Schemas loads a schema set from the specified file path.
 func Schemas(schemaPath string) (*ast.SchemaSet, error) {
-
-	var errs Errors
 	ss, err := loadSchemas(schemaPath)
 	if err != nil {
+		var errs Errors
 		errs.add(err)
 		return nil, errs
 	}
@@ -401,12 +400,10 @@ func Schemas(schemaPath string) (*ast.SchemaSet, error) {
 }
 
 func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
-
 	if schemaPath == "" {
 		return nil, nil
 	}
 
-	ss := ast.NewSchemaSet()
 	path, err := fileurl.Clean(schemaPath)
 	if err != nil {
 		return nil, err
@@ -416,6 +413,8 @@ func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	ss := ast.NewSchemaSet()
 
 	// Handle single file case.
 	if !info.IsDir() {
@@ -431,38 +430,27 @@ func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
 	// Handle directory case.
 	rootDir := path
 
-	err = filepath.Walk(path,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			} else if info.IsDir() {
-				return nil
-			}
+	return ss, filepath.WalkDir(path, func(path string, info fs.DirEntry, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
 
-			schema, err := loadOneSchema(path)
-			if err != nil {
-				return err
-			}
+		schema, err := loadOneSchema(path)
+		if err != nil {
+			return err
+		}
 
-			relPath, err := filepath.Rel(rootDir, path)
-			if err != nil {
-				return err
-			}
+		relPath, err := filepath.Rel(rootDir, path)
+		if err != nil {
+			return err
+		}
 
-			key := getSchemaSetByPathKey(relPath)
-			ss.Put(key, schema)
-			return nil
-		})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return ss, nil
+		ss.Put(getSchemaSetByPathKey(relPath), schema)
+		return nil
+	})
 }
 
 func getSchemaSetByPathKey(path string) ast.Ref {
-
 	front := filepath.Dir(path)
 	last := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
@@ -557,19 +545,18 @@ func CleanPath(path string) string {
 // and path is a directory, then Paths will walk the directory structure
 // recursively and list files at each level.
 func Paths(path string, recurse bool) (paths []string, err error) {
-	path, err = fileurl.Clean(path)
-	if err != nil {
-		return nil, err
-	}
-	err = filepath.Walk(path, func(f string, _ os.FileInfo, _ error) error {
-		if !recurse {
-			if path != f && path != filepath.Dir(f) {
-				return filepath.SkipDir
+	if path, err = fileurl.Clean(path); err == nil {
+		err = filepath.WalkDir(path, func(f string, _ fs.DirEntry, err error) error {
+			if err == nil {
+				if !recurse && path != f && path != filepath.Dir(f) {
+					return filepath.SkipDir
+				}
+				paths = append(paths, f)
 			}
-		}
-		paths = append(paths, f)
-		return nil
-	})
+			return err
+		})
+	}
+
 	return paths, err
 }
 
@@ -703,7 +690,6 @@ func all(fsys fs.FS, paths []string, filter Filter, f func(*Result, string, int)
 }
 
 func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Result, depth int, f func(*Result, string, int) error) {
-
 	path, err := fileurl.Clean(path)
 	if err != nil {
 		errors.add(err)

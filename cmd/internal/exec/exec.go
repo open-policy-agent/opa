@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -99,15 +100,11 @@ func listAllPaths(roots []string) chan fileListItem {
 	ch := make(chan fileListItem)
 	go func() {
 		for _, path := range roots {
-			err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
+			err := filepath.WalkDir(path, func(path string, info fs.DirEntry, err error) error {
+				if err == nil && !info.IsDir() {
+					ch <- fileListItem{Path: path}
 				}
-				if info.IsDir() {
-					return nil
-				}
-				ch <- fileListItem{Path: path}
-				return nil
+				return err
 			})
 			if err != nil {
 				ch <- fileListItem{Path: path, Error: err}
