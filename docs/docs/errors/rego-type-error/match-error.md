@@ -59,6 +59,7 @@ Two objects are being compared here. Should this really be a match error? The co
 1 error occurred: policy.rego:8: rego_type_error: match error
     left  : object<age: number, name: string>
     right : object<name: string>
+    hint  : both sides are objects but their types differ, so they can never be equal (see https://www.openpolicyagent.org/docs/errors/rego-type-error/match-error)
 ```
 
 The reason is that while objects appear on both sides, the type checker compares _recursively_. In doing
@@ -82,6 +83,7 @@ anonymous if user == {}
 1 error occurred: policy.rego:5: rego_type_error: match error
     left  : object<name: string>
     right : object
+    hint  : both sides are objects but their types differ, so they can never be equal (see https://www.openpolicyagent.org/docs/errors/rego-type-error/match-error)
 ```
 
 To check whether a value is empty without asserting anything about its type, use `count`:
@@ -93,8 +95,9 @@ anonymous if count(user) == 0
 ## How To Fix It
 
 Fixing this requires changing the types to match on both sides of a comparison. For the few cases where one
-_really_ wants to compare two values of different types, a helper function can be used to "wash" off the type
-information from the comparison:
+_really_ wants to compare two values of different types, the comparison can be moved into a helper function. The
+type checker checks a function body once, with its parameters typed as `any`, and does not check it again against
+the argument types at each call site, so the mismatch is left for evaluation to decide:
 
 ```rego
 package policy

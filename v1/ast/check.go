@@ -1343,12 +1343,41 @@ func (a *UnificationErrDetail) Lines() []string {
 	leftLine := "left  : " + types.Sprint(a.Left)
 	rightLine := "right : " + types.Sprint(a.Right)
 
-	if !tooWideForTypeErr(leftLine, rightLine) {
-		return []string{leftLine, rightLine}
+	if tooWideForTypeErr(leftLine, rightLine) {
+		left, right := sprintDiff(a.Left, a.Right)
+		leftLine, rightLine = "left  : "+left, "right : "+right
 	}
 
-	left, right := sprintDiff(a.Left, a.Right)
-	return []string{"left  : " + left, "right : " + right}
+	if kind := sharedCompositeKind(a.Left, a.Right); kind != "" {
+		return []string{leftLine, rightLine, "hint  : both sides are " + kind +
+			" but their types differ, so they can never be equal (see " + matchErrorDocsURL + ")"}
+	}
+
+	return []string{leftLine, rightLine}
+}
+
+const matchErrorDocsURL = "https://www.openpolicyagent.org/docs/errors/rego-type-error/match-error"
+
+// sharedCompositeKind returns the plural kind name when a and b are both
+// objects, arrays, or sets. A mismatch between two values of the same kind is
+// the one users most often read as "== cannot compare these", so it gets a hint.
+func sharedCompositeKind(a, b types.Type) string {
+	a, b = unwrapNamedType(a), unwrapNamedType(b)
+	switch a.(type) {
+	case *types.Object:
+		if _, ok := b.(*types.Object); ok {
+			return "objects"
+		}
+	case *types.Array:
+		if _, ok := b.(*types.Array); ok {
+			return "arrays"
+		}
+	case *types.Set:
+		if _, ok := b.(*types.Set); ok {
+			return "sets"
+		}
+	}
+	return ""
 }
 
 // RefErrUnsupportedDetail describes an undefined reference error where the
