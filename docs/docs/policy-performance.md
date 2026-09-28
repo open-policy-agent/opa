@@ -1094,6 +1094,8 @@ statements that would otherwise generate support rules.
 
 During normal operation, data values read from storage are converted to an AST representation that is used during policy evaluation.
 This conversion can be expensive both in execution time and in memory usage, especially for large data values.
+Large arrays are affected the most: objects are converted lazily, key by key, as they're accessed, but an array is converted in full as soon as it's referenced.
+Even an expression that only checks whether the array is defined, like `data.feeds` in a rule body, pays the full conversion cost on every evaluation.
 The default in-memory store can be configured to optimize for read speed by precomputing the AST representation of data values during storage write operations.
 This removes the time spent converting raw data values to AST during policy evaluation, improving performance.
 
