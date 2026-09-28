@@ -2328,6 +2328,18 @@ main := 7 if {
 `,
 		},
 		{
+			note: "0.x compatible, rego.v2 imported",
+			policy: `
+package system
+
+import rego.v2
+
+main := 7 if {
+	false or not { false }
+}
+`,
+		},
+		{
 			note:         "1.0 compatible, keywords not imported",
 			v1Compatible: true,
 			policy: `
@@ -2361,6 +2373,19 @@ import rego.v1
 
 main := 7 if {
 	true
+}
+`,
+		},
+		{
+			note:         "1.0 compatible, rego.v2 imported",
+			v1Compatible: true,
+			policy: `
+package system
+
+import rego.v2
+
+main := 7 if {
+	false or not { false }
 }
 `,
 		},

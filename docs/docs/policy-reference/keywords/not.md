@@ -23,7 +23,7 @@ allow if {
 ## Improved Negation Semantics
 
 The `future.keywords.not` import fixes a long-standing semantic issue with
-negation in Rego.
+negation in Rego. The [rego.v2 import](./import#importing-regov2) enables it too.
 
 ### The problem with legacy negation
 
@@ -178,5 +178,5 @@ p if {
 ```
 
 Grouping with `not (...)` or `not { ... }` requires the `future.keywords.not` import in
-addition to the `and`/`or` import. Without it the parentheses are read as an ordinary
+addition to the `and`/`or` import, or the `rego.v2` import, which enables all three. Without it the parentheses are read as an ordinary
 grouped expression, which cannot contain `and` or `or`.

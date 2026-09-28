@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -3711,4 +3712,149 @@ func mustPrepare(t *testing.T, r *Rego) PreparedEvalQuery {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
 	return pq
+}
+
+func TestQueryRegoVersionImports(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		imports     []string
+		query       string
+		allowed     bool
+	}{
+		{
+			note:        "rego.v2, or",
+			regoVersion: ast.RegoV1,
+			imports:     []string{"rego.v2"},
+			query:       "input.a or input.b",
+			allowed:     true,
+		},
+		{
+			note:        "rego.v2, not body",
+			regoVersion: ast.RegoV1,
+			imports:     []string{"rego.v2"},
+			query:       "not { input.a; input.b }",
+			allowed:     true,
+		},
+		{
+			note:        "v0, rego.v2, in",
+			regoVersion: ast.RegoV0,
+			imports:     []string{"rego.v2"},
+			query:       `"b" in ["a", "b"]`,
+			allowed:     true,
+		},
+		{
+			note:        "v0, rego.v2, and",
+			regoVersion: ast.RegoV0,
+			imports:     []string{"rego.v2"},
+			query:       "input.a and input.b",
+			allowed:     false,
+		},
+		{
+			note:        "v0, rego.v1 and rego.v2, or",
+			regoVersion: ast.RegoV0,
+			imports:     []string{"rego.v1", "rego.v2"},
+			query:       "input.a or input.b",
+			allowed:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			rs, err := New(
+				Query(tc.query),
+				Imports(tc.imports),
+				SetRegoVersion(tc.regoVersion),
+				Input(map[string]any{"a": true, "b": false}),
+			).Eval(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if rs.Allowed() != tc.allowed {
+				t.Fatalf("expected allowed %v but got %v", tc.allowed, rs)
+			}
+		})
+	}
+}
+
+func TestPartialSupportModulesWithRegoV2Import(t *testing.T) {
+	module := `package test
+		import rego.v2
+		
+		p if { q }
+		
+		q if input.a or input.b
+		
+		q if not { input.c; input.d }
+	`
+
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		exp         string
+	}{
+		{
+			note:        "v1",
+			regoVersion: ast.RegoV1,
+			exp: `package partial.test
+
+import future.keywords.not
+import future.keywords.or
+
+q if not { input.c; input.d }
+
+q if input.a or input.b
+`,
+		},
+		{
+			note:        "v0",
+			regoVersion: ast.RegoV0,
+			exp: `package partial.test
+
+import future.keywords.not
+import future.keywords.or
+import rego.v1
+
+q if not { input.c; input.d }
+
+q if input.a or input.b
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			pq, err := New(
+				Query("data.test.p = true"),
+				Module("test.rego", module),
+				Unknowns([]string{"input"}),
+				SetRegoVersion(tc.regoVersion),
+			).PrepareForPartial(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			pqs, err := pq.Partial(t.Context(), EvalDisableInlining([]ast.Ref{ast.MustParseRef("data.test.q")}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(pqs.Support) != 1 {
+				t.Fatalf("expected one support module but got %v", pqs.Support)
+			}
+
+			// Support modules are marshalled as in internal/presentation.
+			support := pqs.Support[0]
+			bs, err := format.AstWithOpts(support, format.Opts{IgnoreLocations: true, RegoVersion: support.RegoVersion()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(bs) != tc.exp {
+				t.Fatalf("expected:\n\n%s\n\nbut got:\n\n%s", tc.exp, bs)
+			}
+
+			if _, err := ast.ParseModuleWithOpts("support.rego", string(bs), ast.ParserOptions{RegoVersion: tc.regoVersion}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }

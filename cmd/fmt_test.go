@@ -1156,6 +1156,43 @@ p if {
 			},
 		},
 		{
+			note: "rego.v2 imported",
+			input: `package test
+import future.keywords.or
+import rego.v1
+import rego.v2
+p if {
+	input.x == 1 or not { input.y }
+}
+`,
+			expected: `package test
+
+import rego.v2
+
+p if {
+	input.x == 1 or not { input.y }
+}
+`,
+		},
+		{
+			note:          "rego.v2 imported, drop v0 imports",
+			dropV0Imports: true,
+			input: `package test
+import rego.v2
+p if {
+	input.x == 1 or not { input.y }
+}
+`,
+			expected: `package test
+
+import rego.v2
+
+p if {
+	input.x == 1 or not { input.y }
+}
+`,
+		},
+		{
 			note: "deprecated built-in",
 			input: `package test
 p if {

@@ -261,6 +261,10 @@ var astAlteringTestFiles = map[string]bool{
 	// The `rego.v1` import is dropped.
 	"testfiles/v1/test_rego_v1.rego": true,
 
+	// The `rego.v1` and `future.keywords` imports covered by `rego.v2` are dropped.
+	"testfiles/v0/test_rego_v2_redundant_imports.rego": true,
+	"testfiles/v1/test_rego_v2_redundant_imports.rego": true,
+
 	// Constant template string expressions are folded into string parts.
 	"testfiles/v1/test_template_strings.rego": true,
 
@@ -1112,6 +1116,14 @@ func TestFormatAddedImportsPrecedeRules(t *testing.T) {
 		{
 			note:   "or and not",
 			module: "package t\n\nimport future.keywords.not\nimport future.keywords.or\n\nallow if not (input.a) or input.b\n",
+		},
+		{
+			note:   "rego.v2, and and or",
+			module: "package t\n\nimport rego.v2\n\nallow if input.a and input.b or input.c\n",
+		},
+		{
+			note:   "rego.v2, not body and or",
+			module: "package t\n\nimport rego.v2\n\nallow if not { input.a; input.b or input.c }\n",
 		},
 	}
 

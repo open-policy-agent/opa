@@ -1242,6 +1242,8 @@ func (c *Compiler) buildRequiredCapabilities() {
 				if !c.moduleIsRegoV1(c.Modules[name]) {
 					features[FeatureRegoV1Import] = struct{}{}
 				}
+			case path.Equal(RegoV2CompatibleRef):
+				features[FeatureRegoV2Import] = struct{}{}
 			case path.HasPrefix(futureKeywordsPrefix):
 				if len(path) == 2 {
 					if c.moduleIsRegoV1(c.Modules[name]) {
@@ -2204,11 +2206,17 @@ func (c *Compiler) checkImports() {
 
 	supportsRegoV1Import := c.capabilities.ContainsFeature(FeatureRegoV1Import) ||
 		c.capabilities.ContainsFeature(FeatureRegoV1)
+	supportsRegoV2Import := c.capabilities.ContainsFeature(FeatureRegoV2Import)
 
 	for _, name := range c.sorted {
 		for _, imp := range c.Modules[name].Imports {
 			if !supportsRegoV1Import && RegoV1CompatibleRef.Equal(imp.Path.Value) {
 				if !c.errRecoverable(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported")) {
+					continue
+				}
+			}
+			if !supportsRegoV2Import && RegoV2CompatibleRef.Equal(imp.Path.Value) {
+				if !c.errRecoverable(NewError(CompileErr, imp.Loc(), "rego.v2 import is not supported")) {
 					continue
 				}
 			}

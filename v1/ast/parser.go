@@ -63,6 +63,7 @@ var (
 	ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
 
 	RegoV1CompatibleRef = Ref{RegoRootDocument, InternedTerm("v1")}
+	RegoV2CompatibleRef = Ref{RegoRootDocument, InternedTerm("v2")}
 
 	// this is the name to use for instantiating an empty set, e.g., `set()`.
 	setConstructor = RefTerm(VarTerm("set"))
@@ -467,7 +468,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			s = p.save()
 			if imp := p.parseImport(); imp != nil {
 				if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-					p.regoV1Import(imp)
+					p.regoImport(imp)
 					p.reclassifyKeyword()
 				} else if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
 					p.futureImport(imp, allowedFutureKeywords)
@@ -4102,17 +4103,20 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 }
 
+func (p *Parser) regoImport(imp *Import) {
+	switch path := imp.Path.Value.(Ref); {
+	case RegoV1CompatibleRef.Equal(path):
+		p.regoV1Import(imp)
+	case RegoV2CompatibleRef.Equal(path):
+		p.regoV2Import(imp)
+	default:
+		p.errorf(imp.Path.Location, "invalid import `%s`, must be one of: `%s`, `%s`", path, RegoV1CompatibleRef, RegoV2CompatibleRef)
+	}
+}
+
 func (p *Parser) regoV1Import(imp *Import) {
 	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV1CompatibleRef)
-		return
-	}
-
-	path := imp.Path.Value.(Ref)
-
-	// v1 is only valid option
-	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
-		p.errorf(imp.Path.Location, "invalid import `%s`, must be `%s`", path, RegoV1CompatibleRef)
 		return
 	}
 
@@ -4126,12 +4130,37 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	// import all future keywords with the rego.v1 import
-	kwds := util.Keys(futureKeywordsV0)
+	p.regoV1Compatible()
+}
 
+func (p *Parser) regoV2Import(imp *Import) {
+	if !p.po.Capabilities.ContainsFeature(FeatureRegoV2Import) {
+		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV2CompatibleRef)
+		return
+	}
+
+	if imp.Alias != "" {
+		p.errorf(imp.Path.Location, "`rego` imports cannot be aliased")
+		return
+	}
+
+	if p.po.EffectiveRegoVersion() != RegoV1 {
+		// v2 implies v1
+		p.regoV1Compatible()
+	}
+
+	for kw, tok := range futureKeywords {
+		p.s.s.AddKeyword(kw, tok)
+	}
+
+	p.notBodies = true
+}
+
+// regoV1Compatible imports all future keywords with the rego.v1 import.
+func (p *Parser) regoV1Compatible() {
 	p.s.s.SetRegoV1Compatible()
-	for _, kw := range kwds {
-		p.s.s.AddKeyword(kw, futureKeywordsV0[kw])
+	for kw, tok := range futureKeywordsV0 {
+		p.s.s.AddKeyword(kw, tok)
 	}
 }
 

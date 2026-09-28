@@ -1,0 +1,93 @@
+---
+# rego.v2 implies rego.v1: a v0 module importing it gets the v0 future keywords
+# (if, contains, in, every) as well as and, or and not bodies.
+cases:
+  - note: "rego_v2_import/contains, if and in"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p contains x if {
+          some x in input.xs
+          x > 1
+        }
+    input:
+      xs: [1, 2, 3]
+    want_result:
+      - x: [2, 3]
+    sort_bindings: true
+  - note: "rego_v2_import/and inside every"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          every x in input.xs {
+            x > 0 and x < 10
+          }
+        }
+    input:
+      xs: [1, 2, 3]
+    want_result:
+      - x: true
+  - note: "rego_v2_import/or"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a or input.b
+        }
+    input:
+      a: false
+      b: true
+    want_result:
+      - x: true
+  - note: "rego_v2_import/not body"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        default p := false
+
+        p if {
+          not { input.a; input.b }
+        }
+    input:
+      a: true
+      b: false
+    want_result:
+      - x: true
+  - note: "rego_v2_import/import is per module"
+    # The module without the import is still parsed as v0.
+    query: data.test = x
+    modules:
+      - |
+        package test
+        import rego.v2
+
+        p if {
+          input.a or input.b
+        }
+      - |
+        package test
+
+        q {
+          or := 1
+          or == 1
+        }
+    input:
+      a: false
+      b: true
+    want_result:
+      - x:
+          p: true
+          q: true

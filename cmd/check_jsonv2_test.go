@@ -54,7 +54,7 @@ func TestCheckRespectsCapabilities(t *testing.T) {
 			]
 		}`,
 			policy: `package test
-p { is_foo("bar") }`,
+				p { is_foo("bar") }`,
 		},
 		{
 			note: "future kw NOT defined in caps",
@@ -69,9 +69,9 @@ p { is_foo("bar") }`,
 				return string(j)
 			}(),
 			policy: `package test
-import future.keywords.if
-import future.keywords.in
-p if "opa" in input.tools`,
+				import future.keywords.if
+				import future.keywords.in
+				p if "opa" in input.tools`,
 			err: "rego_parse_error: unexpected keyword, must be one of [in]",
 		},
 		{
@@ -87,9 +87,9 @@ p if "opa" in input.tools`,
 				return string(j)
 			}(),
 			policy: `package test
-import future.keywords.if
-import future.keywords.in
-p if "opa" in input.tools`,
+				import future.keywords.if
+				import future.keywords.in
+				p if "opa" in input.tools`,
 		},
 		{
 			note: "future kw are defined in caps",
@@ -103,9 +103,9 @@ p if "opa" in input.tools`,
 				return string(j)
 			}(),
 			policy: `package test
-import future.keywords.if
-import future.keywords.in
-p if "opa" in input.tools`,
+				import future.keywords.if
+				import future.keywords.in
+				p if "opa" in input.tools`,
 		},
 		{
 			note: "rego.v1 imported but NOT defined in capabilities",
@@ -119,7 +119,7 @@ p if "opa" in input.tools`,
 				return string(j)
 			}(),
 			policy: `package test
-import rego.v1`,
+				import rego.v1`,
 			err: "rego_parse_error: invalid import, `rego.v1` is not supported by current capabilities",
 		},
 		{
@@ -134,7 +134,7 @@ import rego.v1`,
 				return string(j)
 			}(),
 			policy: `package test
-import rego.v1`,
+				import rego.v1`,
 		},
 		{
 			note: "rego.v1 imported AND rego-v1 in capabilities",
@@ -148,7 +148,54 @@ import rego.v1`,
 				return string(j)
 			}(),
 			policy: `package test
-import rego.v1`,
+				import rego.v1`,
+		},
+		{
+			note: "rego.v2 imported but NOT defined in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV1Import}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			err: "rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities",
+		},
+		{
+			note: "rego.v2 imported AND defined in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV2Import}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+				import rego.v2
+				p if input.a or input.b`,
+		},
+		{
+			note: "rego.v2 imported AND rego-v1 in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV1}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			err: "rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities",
 		},
 	}
 
@@ -937,6 +984,60 @@ import rego.v1
 p contains x if {
 	x := [1,2,3]
 }`,
+		},
+		{
+			note:         "v0, rego.v2 imported",
+			v0Compatible: true,
+			policy: `package test
+				import rego.v2
+				p contains x if {
+					some x in input.xs
+					x or not { input.y }
+				}`,
+		},
+		{
+			note:         "v0, rego.v2 imported, NOT v1 compliant (parser)",
+			v0Compatible: true,
+			policy: `package test
+				import rego.v2
+				p {
+					input.a or input.b
+				}`,
+			expErrs: []string{
+				"test.rego:3: rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note:         "v0, rego.v2 imported, NOT v1 compliant (compiler)",
+			v0Compatible: true,
+			policy: `package test
+				import rego.v2
+				
+				import data.foo
+				import data.bar as foo
+				`,
+			expErrs: []string{
+				"test.rego:5: rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note:         "v1, rego.v2 imported",
+			v1Compatible: true,
+			policy: `package test
+				import rego.v2
+				p if {
+					input.a or not { input.b; input.c }
+				}`,
+		},
+		{
+			note:         "v0+v1, rego.v2 imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+				import rego.v2
+				p if {
+					input.a or not { input.b; input.c }
+				}`,
 		},
 	}
 

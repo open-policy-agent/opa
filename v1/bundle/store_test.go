@@ -4226,6 +4226,13 @@ func TestActivate_LogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v2ImportModule := `package test
+		import rego.v2
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	tests := []struct {
 		note              string
 		storedModule      string
@@ -4264,6 +4271,21 @@ func TestActivate_LogicalKeywords(t *testing.T) {
 			storedModule: v1Module,
 			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
 			expErrs:      []string{"rego_parse_error: unexpected keyword, must be one of [contains every if in not]"},
+		},
+		{
+			note:         "rego.v2 import",
+			storedModule: v2ImportModule,
+		},
+		{
+			note:              "v0 custom rego-version, rego.v2 import",
+			storedModule:      v2ImportModule,
+			customRegoVersion: ast.RegoV0,
+		},
+		{
+			note:         "capabilities without rego_v2_import",
+			storedModule: v2ImportModule,
+			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import),
+			expErrs:      []string{"rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities"},
 		},
 	}
 

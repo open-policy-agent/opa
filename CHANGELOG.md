@@ -5,6 +5,25 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224))
+
+`import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
+import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
+In a v0 module it also implies `rego.v1`. It is gated by the new `rego_v2_import` capability
+feature.
+
+```rego
+package example
+
+import rego.v2
+
+allow if input.user.admin or not (input.user.suspended or input.user.locked)
+```
+
+See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
+
+Authored by @johanfylling
+
 ## 1.21.0
 
 This release contains a mix of new features and bug fixes. Notably:

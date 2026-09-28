@@ -1,0 +1,91 @@
+---
+# rego.v2 implies rego.v1, so a v0 module importing it is held to the v1
+# compile checks.
+cases:
+  - note: imports/rego-v2-duplicate-in-v0-module
+    # Duplicate imports are only an error in v1-compatible modules.
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import rego.v2
+        import rego.v2
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import must not shadow import rego.v2
+    exhaustive: true
+  - note: imports/rego-v2-deprecated-builtin
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import rego.v2
+
+        p if {
+        	any([true])
+        }
+    want_errors:
+      - code: rego_type_error
+        row: 6
+        col: 2
+        message: "deprecated built-in function calls in expression: any"
+    exhaustive: true
+  - note: imports/rego-v2-input-shadowed
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import rego.v2
+
+        p if {
+        	input := 1
+        	input == 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: variables must not shadow input (use a different variable name)
+    exhaustive: true
+  - note: imports/rego-v2-logical-operand-unsafe-var
+    # `or` is a keyword here only through rego.v2.
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        import rego.v2
+
+        p if {
+        	x or input.a
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 6
+        col: 2
+        message: var x is unsafe
+    exhaustive: true
+  - note: imports/rego-v2-not-reported-unused-in-v0-module
+    rego_version: v0
+    strict: true
+    modules:
+      - |
+        package test
+
+        import rego.v2
+        import data.foo
+
+        p if {
+        	input.a or input.b
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import data.foo unused
+    exhaustive: true

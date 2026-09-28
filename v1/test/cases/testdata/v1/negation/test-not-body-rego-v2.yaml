@@ -1,0 +1,38 @@
+---
+cases:
+  - note: "negation/rego_v2_import: not body, one expression false"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import rego.v2
+
+        default p := false
+
+        p if {
+            not { input.a; input.b }
+        }
+    input:
+      a: true
+      b: false
+    want_result:
+      - x: true
+  - note: "negation/rego_v2_import: not body, all expressions true"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import rego.v2
+
+        default p := false
+
+        p if {
+            not { input.a; input.b }
+        }
+    input:
+      a: true
+      b: true
+    want_result:
+      - x: false

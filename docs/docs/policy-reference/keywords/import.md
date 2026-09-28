@@ -79,12 +79,13 @@ keywords have become a standard part of the Rego language, and no longer require
 The `not` keyword has always been a standard part of the Rego language, but has since its introduction
 received a semantic update that requires author opt-in through importing `future.keywords.not`.
 The `and` and `or` keywords are not part of the Rego v0/v1 syntax, and require an import.
+The [rego.v2 import](#importing-regov2) enables `not`, `and`, and `or` together.
 
 ### Importing `future.keywords.not`
 
 [import future.keywords.not](./not) enables the `not` body syntax
 (`not { ... }`) and implicit body wrapping for single-expression negation.
-This import is independent of the [rego.v1 import](#importing-regov1).
+This import is independent of the [rego.v1 import](#importing-regov1), and implied by the [rego.v2 import](#importing-regov2).
 
 :::important
 The `future.keywords.not` import fixes a long-standing semantic issue with negation in Rego.
@@ -95,13 +96,13 @@ Read more about it in the [Improved Negation Semantics](./not#improved-negation-
 
 [import future.keywords.and](./logical#and) enables the `and` logical operator
 (`x and y`).
-This import is independent of the [rego.v1 import](#importing-regov1).
+This import is independent of the [rego.v1 import](#importing-regov1), and implied by the [rego.v2 import](#importing-regov2).
 
 ### Importing `future.keywords.or`
 
 [import future.keywords.or](./logical#or) enables the `or` logical operator
 (`x or y`).
-This import is independent of the [rego.v1 import](#importing-regov1).
+This import is independent of the [rego.v1 import](#importing-regov1), and implied by the [rego.v2 import](#importing-regov2).
 
 ## Importing `rego.v1`
 
@@ -128,6 +129,24 @@ allow if count(deny) == 0
 
 deny contains "not admin" if input.user.role != "admin"
 ```
+
+## Importing `rego.v2`
+
+The `rego.v2` import enables the [and and or](./logical) keywords and the
+[improved negation semantics](./not#improved-negation-semantics) of `not`.
+It implies the `future.keywords.and`, `future.keywords.or`, and
+`future.keywords.not` imports.
+
+```rego
+package example
+
+// highlight-next-line
+import rego.v2
+
+allow if input.user.admin or not (input.user.suspended or input.user.locked)
+```
+
+In a v0 module, `rego.v2` also implies [rego.v1](#importing-regov1).
 
 ## Further Reading
 

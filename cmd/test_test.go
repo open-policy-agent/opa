@@ -2532,6 +2532,27 @@ Lines not covered:
 	%ROOT%/policy2.rego:8-9
 `,
 		},
+		{
+			note: "coverage threshold not met (verbose), rego.v2 import",
+			modules: map[string]string{
+				"test.rego": `package test
+
+					import rego.v2
+
+					p if {
+						input.a or input.b
+					}
+					q := 2 if not { input.c; input.d }
+					test_q if { q == 2 }`,
+			},
+			threshold:        100,
+			expectedExitCode: 2,
+			verbose:          true,
+			expectedErrOutput: `Code coverage threshold not met: got 50.00 instead of 100.00
+Lines not covered:
+	%ROOT%/test.rego:5-6
+`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -3269,6 +3290,44 @@ import rego.v1
 l1 := {1, 3, 5}
 l2 contains v if {
 	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v0 module, rego.v2 imported",
+			v0Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v2
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	some v in l1
+	v > 0 or not { v < 10 }
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v1 module, rego.v2 imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v2
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	some v in l1
+	v > 0 or not { v < 10 }
 }
 
 test_l if {

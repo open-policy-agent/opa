@@ -5831,6 +5831,61 @@ p contains 7 if {
 	input.x == 2
 }`,
 		},
+		{
+			note:               "v0.x manager, v0.x bundle, rego.v2 imported",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV0,
+			module: `package test
+import rego.v2
+p contains 7 if {
+	input.x == 2 or not { input.y }
+}`,
+		},
+		{
+			note:               "v0.x manager, v1.0 bundle, rego.v2 imported",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV1,
+			module: `package test
+import rego.v2
+p contains 7 if {
+	input.x == 2 or not { input.y }
+}`,
+		},
+		{
+			note:               "v1.0 manager, v0.x bundle, rego.v2 imported",
+			managerRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoV0,
+			module: `package test
+import rego.v2
+p contains 7 if {
+	input.x == 2 or not { input.y }
+}`,
+		},
+		{
+			note:               "v1.0 manager, v1.0 bundle, rego.v2 imported",
+			managerRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  ast.RegoV1,
+			module: `package test
+import rego.v2
+p contains 7 if {
+	input.x == 2 or not { input.y }
+}`,
+		},
+		{
+			note:               "v0.x manager, v0.x bundle, rego.v2 imported, shadowed import",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV0,
+			module: `package test
+import rego.v2
+import data.foo
+import data.bar as foo
+p contains 7 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
 	}
 
 	for _, tc := range tests {
