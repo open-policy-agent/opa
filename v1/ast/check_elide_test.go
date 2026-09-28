@@ -286,6 +286,45 @@ func TestUnificationErrDetailLines(t *testing.T) {
 			exp: []string{
 				"left  : object<age: number, name: string>",
 				"right : object<name: string>",
+				"hint  : both sides are objects but their types differ, so they can never be equal (see " + matchErrorDocsURL + ")",
+			},
+		},
+		{
+			note:  "arrays get a hint",
+			left:  types.NewArray([]types.Type{types.N}, nil),
+			right: types.NewArray([]types.Type{types.S}, nil),
+			exp: []string{
+				"left  : array<number>",
+				"right : array<string>",
+				"hint  : both sides are arrays but their types differ, so they can never be equal (see " + matchErrorDocsURL + ")",
+			},
+		},
+		{
+			note:  "sets get a hint",
+			left:  types.NewSet(types.N),
+			right: types.NewSet(types.S),
+			exp: []string{
+				"left  : set[number]",
+				"right : set[string]",
+				"hint  : both sides are sets but their types differ, so they can never be equal (see " + matchErrorDocsURL + ")",
+			},
+		},
+		{
+			note:  "different kinds get no hint",
+			left:  types.N,
+			right: types.S,
+			exp: []string{
+				"left  : number",
+				"right : string",
+			},
+		},
+		{
+			note:  "object and array get no hint",
+			left:  objType(staticProp("a", types.N)),
+			right: types.NewArray([]types.Type{types.N}, nil),
+			exp: []string{
+				"left  : object<a: number>",
+				"right : array<number>",
 			},
 		},
 		{
@@ -297,6 +336,7 @@ func TestUnificationErrDetailLines(t *testing.T) {
 			exp: []string{
 				"left  : object<manager: object<age: number, ...>, ...>",
 				"right : object<manager: object<age: string, ...>, ...>",
+				"hint  : both sides are objects but their types differ, so they can never be equal (see " + matchErrorDocsURL + ")",
 			},
 		},
 	}
@@ -343,6 +383,17 @@ y := concat(", ", x)
 			exp: `rego_type_error: concat: invalid argument(s)
 	have: (string, object<...>, ???)
 	want: (delimiter: string, collection: any<array[string], set[string]>, output: string)`,
+		},
+		{
+			note: "objects with different properties compared with ==",
+			module: `package test
+
+p if {"a": 1, "b": 2, "c": 3} == {"x": false}
+`,
+			exp: `rego_type_error: match error
+	left  : object<a: number, b: number, c: number>
+	right : object<x: boolean>
+	hint  : both sides are objects but their types differ, so they can never be equal (see ` + matchErrorDocsURL + `)`,
 		},
 	}
 
