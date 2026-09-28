@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -68,6 +69,63 @@ func BenchmarkArrayPlugging(b *testing.B) {
 				b.Fatal(err)
 			}
 		})
+	}
+}
+
+// A naked reference only checks that the array is defined, but on the default
+// store the whole array is still converted to AST on every evaluation.
+// See https://github.com/open-policy-agent/opa/issues/5946.
+//
+// BenchmarkNakedRefToBaseDocArray/mapStore/100-16         	   39771	     28472 ns/op	   55113 B/op	     874 allocs/op
+// BenchmarkNakedRefToBaseDocArray/astStore/100-16         	  508730	      2447 ns/op	    4019 B/op	      73 allocs/op
+// BenchmarkNakedRefToBaseDocArray/mapStore/10000-16       	     450	   2683955 ns/op	 5208429 B/op	   89564 allocs/op
+// BenchmarkNakedRefToBaseDocArray/astStore/10000-16       	  506754	      2337 ns/op	    4005 B/op	      73 allocs/op
+func BenchmarkNakedRefToBaseDocArray(b *testing.B) {
+	sizes := []int{100, 10000}
+	for _, n := range sizes {
+		data := make([]any, n)
+		for i := range data {
+			data[i] = map[string]any{"id": json.Number(strconv.Itoa(i)), "name": fmt.Sprintf("item%d", i)}
+		}
+		src := map[string]any{"slow_bundle": map[string]any{"index": map[string]any{"feeds": data}}}
+
+		stores := []struct {
+			name  string
+			store storage.Store
+		}{
+			{"mapStore", inmem.NewFromObject(src)},
+			{"astStore", inmem.NewFromObjectWithOpts(src, inmem.OptReturnASTValuesOnRead(true))},
+		}
+		compiler := ast.MustCompileModules(map[string]string{
+			"evaluator.rego": `package evaluator
+
+access := bar if {
+	data.slow_bundle.index.feeds
+	bar := "baz"
+}`,
+		})
+
+		for _, tc := range stores {
+			b.Run(fmt.Sprintf("%s/%d", tc.name, n), func(b *testing.B) {
+				ctx := b.Context()
+				err := storage.Txn(ctx, tc.store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+					q := NewQuery(ast.MustParseBody("data.evaluator.access")).
+						WithCompiler(compiler).
+						WithStore(tc.store).
+						WithTransaction(txn)
+
+					for b.Loop() {
+						if _, err := q.Run(ctx); err != nil {
+							return err
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					b.Fatal(err)
+				}
+			})
+		}
 	}
 }
 
