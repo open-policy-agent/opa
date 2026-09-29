@@ -63,7 +63,7 @@ provides good documentation for others, but also unlocks programmatic possibilit
 
 1. Your policy library may be compiled to WebAssembly without extra entrypoint arguments
 1. Your policy library may be compiled to an
-   [intermediate representation](https://blog.openpolicyagent.org/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d)
+   [intermediate representation](https://openpolicyagent.org/blog/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d)
    (IR) format without extra entrypoint arguments
 1. External applications may present your entrypoints as part of rendered documentation
 1. External applications may use your entrypoints to know what to evaluate
@@ -71,9 +71,9 @@ provides good documentation for others, but also unlocks programmatic possibilit
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   idiomatic:
     no-defined-entrypoint:

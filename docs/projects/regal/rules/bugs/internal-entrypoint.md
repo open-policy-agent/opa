@@ -36,9 +36,9 @@ or use another public rule as an entrypoint, which may reference the internal ru
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   bugs:
     internal-entrypoint:

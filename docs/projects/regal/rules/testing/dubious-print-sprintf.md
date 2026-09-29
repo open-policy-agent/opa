@@ -43,9 +43,9 @@ still wanting to avoid the use of `sprintf` in such cases.
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   testing:
     dubious-print-sprintf:

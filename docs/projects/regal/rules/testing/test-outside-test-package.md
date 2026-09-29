@@ -38,9 +38,9 @@ from production policy. This is easily done by placing tests in a separate packa
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   testing:
     test-outside-test-package:

@@ -41,9 +41,9 @@ rule (as it is by default), there's no point in enabling this rule.
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   custom:
     chained-rule-body:

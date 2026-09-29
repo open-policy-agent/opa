@@ -51,22 +51,32 @@ download_regal() {
   # https://github.com/open-policy-agent/regal/archive/refs/tags/v0.35.1.zip
   url="https://github.com/open-policy-agent/regal/archive/refs/$ref.zip"
 
-  curl --silent -L -o regal.zip "$url"
+  curl --silent -L -o "$regal_zip" "$url"
 }
+
+if [[ -n "${1:-}" ]]; then
+  VERSION="$1"
+fi
+
+regal_ref="main"
+if [[ -v VERSION ]]; then
+  regal_ref="$VERSION"
+fi
+regal_zip="regal-$regal_ref.zip"
 
 if [[ -v REGAL_LOCAL_PATH && -d "$REGAL_LOCAL_PATH" ]]; then
   echo "Using local Regal directory: $REGAL_LOCAL_PATH"
   regal_docs_src="$REGAL_LOCAL_PATH/docs"
 else
-  if [[ ! -e regal.zip ]]; then
+  if [[ ! -e "$regal_zip" ]]; then
     download_regal
   else
-    echo "Using existing regal.zip"
+    echo "Using existing $regal_zip"
   fi
 
   tempdir=$(mktemp -d)
 
-  unzip regal.zip -d "$tempdir" 2>&1 > /dev/null
+  unzip "$regal_zip" -d "$tempdir" 2>&1 > /dev/null
 
   mv $tempdir/*/* $tempdir
 

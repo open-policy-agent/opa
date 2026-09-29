@@ -26,9 +26,9 @@ a rule body in its place. This isn't too common, but can happen when either an e
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   bugs:
     if-object-literal:

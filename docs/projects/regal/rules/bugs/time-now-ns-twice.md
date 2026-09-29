@@ -49,9 +49,9 @@ introduction to these tools, as well as advice on how to write performant polici
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   bugs:
     time-now-ns-twice:

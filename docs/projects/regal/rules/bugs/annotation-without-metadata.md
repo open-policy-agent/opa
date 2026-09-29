@@ -33,9 +33,9 @@ A comment that starts with `<annotation-attribute>:` but is not part of a metada
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   bugs:
     annotation-without-metadata:
