@@ -14,7 +14,6 @@ import (
 var nothingResolver ast.Resolver = illegalResolver{}
 
 func builtinOPARuntime(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
-
 	if bctx.Runtime == nil {
 		return iter(ast.InternedEmptyObject)
 	}

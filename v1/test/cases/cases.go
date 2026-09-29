@@ -7,6 +7,7 @@ package cases
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -67,17 +68,11 @@ func MustLoad(path string) Set {
 }
 
 func loadRecursive(dirpath string) (Set, error) {
-
 	result := Set{}
 
-	err := filepath.Walk(dirpath, func(path string, info os.FileInfo, err error) error {
-
-		if err != nil {
+	err := filepath.WalkDir(dirpath, func(path string, info fs.DirEntry, err error) error {
+		if err != nil || info.IsDir() {
 			return err
-		}
-
-		if info.IsDir() {
-			return nil
 		}
 
 		bs, err := os.ReadFile(path)
