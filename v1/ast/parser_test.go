@@ -11881,3 +11881,18 @@ func TestOperandRenderRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestParseModuleTrailingMinus(t *testing.T) {
+	for _, input := range []string{
+		"package test-\n\nx := f(1)\ny := 2\n",
+		"package test-\n\nimport input.foo\n",
+		"package a.b-\n\nx := 1\n",
+		"package test\n\nimport input.foo-\n\nx := f(1)\n",
+		"package test\n\nimport input.foo as bar-\n\nx := f(1)\n",
+	} {
+		if _, err := ParseModule("", input); err == nil {
+			t.Errorf("expected error for %q", input)
+		}
+	}
+	MustParseModule("package test\nminus(x, y) := 1\np := -input.x\nq if { -input.x == 1 }")
+}

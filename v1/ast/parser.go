@@ -456,6 +456,12 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		if p.s.tok == tokens.Package {
 			s = p.save()
 			if pkg := p.parsePackage(); pkg != nil {
+				if p.s.tok == tokens.Sub {
+					// A trailing minus is not part of the path, and would
+					// otherwise be parsed as a unary minus on the next statement.
+					p.illegalToken()
+					break
+				}
 				stmts = append(stmts, pkg)
 				continue
 			} else if len(p.s.errors) > 0 {
@@ -467,6 +473,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		if p.s.tok == tokens.Import {
 			s = p.save()
 			if imp := p.parseImport(); imp != nil {
+				if p.s.tok == tokens.Sub {
+					p.illegalToken()
+					break
+				}
 				if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
 					p.regoImport(imp)
 					p.reclassifyKeyword()
