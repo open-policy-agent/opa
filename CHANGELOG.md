@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.21.1
+
+This release fixes a compiler regression introduced in OPA v1.21.0.
+
+### Fix `some … in`/`every` in comprehensions nested in object and set literals ([#9280](https://github.com/open-policy-agent/opa/issues/9280))
+
+A comprehension using `some … in` or `every` in its body, nested inside an object or set literal, was wrongly treated as ground, so the compiler skipped rewriting it. `some … in` then failed with `rego_unsafe_var_error`; `every` caused a compiler panic:
+
+```rego
+package example
+
+p := {"k": [r.a | some r in input.xs]}           # rego_unsafe_var_error: var r is unsafe
+
+q := {[1 | every x in input.xs { x > 0 }]}       # panic
+```
+
+Array literals weren't affected, and neither were literals that contain some other non-ground term.
+
+authored by @srenatus, reported by @tun0
+
 ## 1.21.0
 
 This release contains a mix of new features and bug fixes. Notably:
