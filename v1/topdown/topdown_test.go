@@ -1702,6 +1702,20 @@ func TestTopDownEvery(t *testing.T) {
 				}`,
 			notes: n("1", "input", "2", "input"),
 		},
+		{
+			note: "issue-9280 comprehension body, inside an object literal",
+			module: `package test
+				p := {"k": [1 | every x in [1, 2] { print(x) }]}
+			`,
+			notes: n("1", "2"),
+		},
+		{
+			note: "issue-9280 comprehension body, inside a set literal",
+			module: `package test
+				p := {[1 | every x in [1, 2] { print(x) }]}
+			`,
+			notes: n("1", "2"),
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {

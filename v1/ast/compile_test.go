@@ -2030,6 +2030,21 @@ f(x) := x + 1
 p := z if { y = f([v | v = x][0]); z = f(y); x = 2 }`,
 		},
 		{
+			note: "safe/issue-9280 some-in comprehension reading a field, inside an object literal",
+			module: `package t
+p := {"k": [r.a | some r in [{"a": 1}]]}`,
+		},
+		{
+			note: "safe/issue-9280 some-in comprehension whose output is the var itself, inside an object literal",
+			module: `package t
+p := {"k": [r | some r in [{"a": 1}]]}`,
+		},
+		{
+			note: "safe/issue-9280 some-in comprehension as a call argument, inside an object literal",
+			module: `package t
+p := {"k": array.concat([], [r.a | some r in input.xs])}`,
+		},
+		{
 			note: "unsafe/unbound var",
 			module: `package t
 p if { y = x }`,
