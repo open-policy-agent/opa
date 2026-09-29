@@ -54,9 +54,9 @@ It is possible that the rule will be improved to cover more cases in the future.
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   performance:
     defer-assignment:

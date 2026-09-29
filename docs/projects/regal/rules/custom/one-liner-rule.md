@@ -36,9 +36,9 @@ teams or organizations might want to standardize on. As such, it must be enabled
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   custom:
     one-liner-rule:

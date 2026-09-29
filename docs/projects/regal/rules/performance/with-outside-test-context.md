@@ -72,9 +72,9 @@ are done so outside of the scope of `with` to avoid performance issues.
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   performance:
     with-outside-test-context:

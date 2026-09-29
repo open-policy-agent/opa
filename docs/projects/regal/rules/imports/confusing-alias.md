@@ -43,9 +43,9 @@ Using two different aliases for the same import is also likely a mistake, and is
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   imports:
     confusing-alias:

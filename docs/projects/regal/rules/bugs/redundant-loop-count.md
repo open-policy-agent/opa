@@ -73,9 +73,9 @@ If you want to have empty collections fail on `every` conditions, do make sure t
 
 ## Configuration Options
 
-This linter rule provides the following configuration options:
+This linter rule provides the following [configuration options](https://www.openpolicyagent.org/projects/regal/configuration):
 
-```yaml
+```yaml title=".regal/config.yaml or .regal.yaml"
 rules:
   bugs:
     redundant-loop-count:
