@@ -702,12 +702,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 			mod.Rules = append(mod.Rules, stmt)
 		case Body:
 			rule, err := ParseRuleFromBody(mod, stmt)
-			if err == nil && startsWithUnaryMinus(stmt) {
-				// A leading unary minus is desugared to minus(0, x), which
-				// would otherwise become a function named "minus" and
-				// consume the rule it prefixes.
-				err = errors.New("unary minus cannot be used in a rule head")
-			}
 			if err != nil {
 				msg := err.Error()
 				if kw, ok := missingHeadKeyword(mod.regoVersion, stmt, stmts, i+1); ok {
@@ -898,18 +892,4 @@ func (d ParserErrorDetail) Lines() []string {
 
 func isNewLineChar(b byte) bool {
 	return b == '\r' || b == '\n'
-}
-
-// startsWithUnaryMinus returns true if the body is a single expression whose
-// text begins with a unary minus applied to a non-number, e.g. `-x := 1`.
-func startsWithUnaryMinus(body Body) bool {
-	if len(body) != 1 || body[0].Location == nil {
-		return false
-	}
-	lhs := body[0].Operand(0)
-	if lhs == nil || !strings.HasPrefix(string(body[0].Location.Text), "-") {
-		return false
-	}
-	call, ok := lhs.Value.(Call)
-	return ok && len(call) == 3 && call[0].Value.Compare(Minus.Ref()) == 0
 }

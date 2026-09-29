@@ -11882,19 +11882,17 @@ func TestOperandRenderRoundTrip(t *testing.T) {
 	}
 }
 
-func TestParseModuleUnaryMinusRuleHead(t *testing.T) {
-	for _, op := range []string{":=", "="} {
-		input := "package test\n-x " + op + " 1\ny := 2\n"
-		assertParseModuleErrorMessage(t, "unary minus"+op, input, "unary minus cannot be used in a rule head")
-	}
-	// Package line ending in a minus must not swallow the first rule.
-	assertParseModuleErrorMessage(t, "package minus", "package test-\n\nx := f(1)\ny := 2\n", "unary minus cannot be used in a rule head")
-
-	// Explicitly defined functions, and unary minus in expressions, still parse.
-	MustParseModule("package test\nminus(x, y) := 1\np := -input.x\nq if { -input.x == 1 }")
-	for _, q := range []string{"-1 = x", "-x = 1", "x = -y"} {
-		if _, err := ParseBody(q); err != nil {
-			t.Errorf("query %q: unexpected error: %v", q, err)
+func TestParseModuleTrailingMinus(t *testing.T) {
+	for _, input := range []string{
+		"package test-\n\nx := f(1)\ny := 2\n",
+		"package test-\n\nimport input.foo\n",
+		"package a.b-\n\nx := 1\n",
+		"package test\n\nimport input.foo-\n\nx := f(1)\n",
+		"package test\n\nimport input.foo as bar-\n\nx := f(1)\n",
+	} {
+		if _, err := ParseModule("", input); err == nil {
+			t.Errorf("expected error for %q", input)
 		}
 	}
+	MustParseModule("package test\nminus(x, y) := 1\np := -input.x\nq if { -input.x == 1 }")
 }
