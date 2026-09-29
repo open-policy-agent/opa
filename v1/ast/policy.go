@@ -1340,6 +1340,9 @@ func (expr *Expr) IsGround() bool {
 		return ts.Lhs.IsGround() && ts.Rhs.IsGround()
 	case *LogicalOr:
 		return ts.Lhs.IsGround() && ts.Rhs.IsGround()
+	case *SomeDecl, *Every:
+		// Both declare local variables, which are never ground.
+		return false
 	}
 	return true
 }
