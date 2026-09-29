@@ -7,41 +7,66 @@ package topdown
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
 var nothingResolver ast.Resolver = illegalResolver{}
 
+type redactedRuntime struct {
+	src, redacted *ast.Term
+}
+
+// lastRedactedRuntime memoizes the redaction of the most recently seen runtime
+// term. The runtime term is built once and shared by every evaluation (e.g. in
+// the server), while redacting it means round-tripping the whole object,
+// including all environment variables, through Go types.
+var lastRedactedRuntime atomic.Pointer[redactedRuntime]
+
 func builtinOPARuntime(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
 	if bctx.Runtime == nil {
 		return iter(ast.InternedEmptyObject)
 	}
 
-	if bctx.Runtime.Get(ast.InternedTerm("config")) != nil {
-		iface, err := ast.ValueToInterface(bctx.Runtime.Value, nothingResolver)
+	if last := lastRedactedRuntime.Load(); last != nil && last.src == bctx.Runtime {
+		return iter(last.redacted)
+	}
+
+	redacted, err := redactRuntime(bctx.Runtime)
+	if err != nil {
+		return err
+	}
+	lastRedactedRuntime.Store(&redactedRuntime{src: bctx.Runtime, redacted: redacted})
+
+	return iter(redacted)
+}
+
+func redactRuntime(runtime *ast.Term) (*ast.Term, error) {
+	if runtime.Get(ast.InternedTerm("config")) != nil {
+		iface, err := ast.ValueToInterface(runtime.Value, nothingResolver)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if object, ok := iface.(map[string]any); ok {
 			if cfgRaw, ok := object["config"]; ok {
 				if config, ok := cfgRaw.(map[string]any); ok {
 					configPurged, err := activeConfig(config)
 					if err != nil {
-						return err
+						return nil, err
 					}
 					object["config"] = configPurged
 					value, err := ast.InterfaceToValue(object)
 					if err != nil {
-						return err
+						return nil, err
 					}
-					return iter(ast.NewTerm(value))
+					return ast.NewTerm(value), nil
 				}
 			}
 		}
 	}
 
-	return iter(bctx.Runtime)
+	return runtime, nil
 }
 
 func init() {
