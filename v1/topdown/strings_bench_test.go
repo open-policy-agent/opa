@@ -49,6 +49,8 @@ result if {
 	}
 }
 
+// 149365 ns/op	  277926 B/op	    4505 allocs/op  // Before, with a patricia trie
+// 92848 ns/op	   85821 B/op	    1191 allocs/op  // After, with sort and binary search
 func BenchmarkBulkStartsWithOptimized(b *testing.B) {
 	data := generateBulkStartsWithInput()
 	ctx := b.Context()
