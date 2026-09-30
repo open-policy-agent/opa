@@ -13,6 +13,7 @@ The following table lists OPA project maintainers and areas of expertise in alph
 | Stephan Renatus | @srenatus | stephan.renatus@gmail.com | Apple | opa | 2024-03-31       |
 | Tim Hinrichs | @timothyhinrichs | timothy.l.hinrichs@gmail.com | Apple | all repositories | 2024-03-31       |
 | Torin Sandall | @tsandall | torinsandall@gmail.com | Apple | all repositories | 2024-03-31       |
+| James Alseth | @jalseth | james@jalseth.me | Independent | conftest | 2026-09-30       |
 
 ## Emeritus
 
