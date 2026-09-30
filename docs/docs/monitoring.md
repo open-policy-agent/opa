@@ -78,17 +78,27 @@ The Prometheus endpoint exports Go runtime metrics as well as HTTP request laten
 
 When Prometheus is enabled in the status plugin (see [Configuration](./configuration/#status)), the OPA instance's Prometheus endpoint also exposes these metrics:
 
-| Metric name                    | Metric type | Description                                            | Status |
-| ------------------------------ | ----------- | ------------------------------------------------------ | ------ |
-| opa_info                       | gauge       | Information about the OPA environment.                 | STABLE |
-| plugin_status_gauge            | gauge       | Number of plugins by name and status.                  | STABLE |
-| bundle_loaded_counter          | counter     | Number of bundles loaded with success.                 | STABLE |
-| bundle_failed_load_counter     | counter     | Number of bundles that failed to load.                 | STABLE |
-| last_bundle_request            | gauge       | Last bundle request in UNIX nanoseconds.               | STABLE |
-| last_success_bundle_activation | gauge       | Last successful bundle activation in UNIX nanoseconds. | STABLE |
-| last_success_bundle_download   | gauge       | Last successful bundle download in UNIX nanoseconds.   | STABLE |
-| last_success_bundle_request    | gauge       | Last successful bundle request in UNIX nanoseconds.    | STABLE |
-| bundle_loading_duration_ns     | histogram   | A histogram of duration for bundle loading.            | STABLE |
+| Metric name                                            | Metric type | Description                                                                                                     | Status |
+| ------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------- | ------ |
+| opa_info                                               | gauge       | Information about the OPA environment.                                                                          | STABLE |
+| plugin_status_gauge                                    | gauge       | Number of plugins by name and status.                                                                           | STABLE |
+| bundle_loaded_counter                                  | counter     | Number of bundles loaded with success.                                                                          | STABLE |
+| bundle_failed_load_counter                             | counter     | Number of bundles that failed to load.                                                                          | STABLE |
+| last_bundle_request                                    | gauge       | Last bundle request in UNIX nanoseconds.                                                                        | STABLE |
+| last_success_bundle_activation                         | gauge       | Last successful bundle activation in UNIX nanoseconds.                                                          | STABLE |
+| last_success_bundle_download                           | gauge       | Last successful bundle download in UNIX nanoseconds.                                                            | STABLE |
+| last_success_bundle_request                            | gauge       | Last successful bundle request in UNIX nanoseconds.                                                             | STABLE |
+| bundle_loading_duration_ns                             | histogram   | A histogram of duration for bundle loading.                                                                     | STABLE |
+| decision_logs_status_gauge                             | gauge       | Status of the last decision log upload, labeled by `code` and `http_code` (both empty on success).              | STABLE |
+| decision_logs_dropped_rate_limit_exceeded              | counter     | Incremented when decisions are dropped because `decision_logs.reporting.max_decisions_per_second` was exceeded. | STABLE |
+| decision_logs_dropped_buffer_size_limit_exceeded       | counter     | Incremented when decisions are dropped because the decision log buffer was full.                                | STABLE |
+| decision_logs_dropped_buffer_size_limit_bytes_exceeded | counter     | Incremented when decisions are dropped because `decision_logs.reporting.buffer_size_limit_bytes` was exceeded.  | STABLE |
+| decision_logs_encoding_failure                         | counter     | Number of decisions dropped because they could not be encoded or did not fit in `upload_size_limit_bytes`.      | STABLE |
+| decision_logs_nd_builtin_cache_dropped                 | counter     | Number of decisions logged without their non-deterministic builtin cache to fit in `upload_size_limit_bytes`.   | STABLE |
+| enc_log_exceeded_upload_size_limit_bytes               | counter     | Number of decisions whose encoded size exceeded `decision_logs.reporting.upload_size_limit_bytes`.              | STABLE |
+
+The `decision_logs_*` and `enc_*` metrics are updated with each status update and are
+only exported once the decision logs plugin has reported them.
 
 ## Health Checks
 
