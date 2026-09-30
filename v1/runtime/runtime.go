@@ -338,6 +338,11 @@ type LoggingConfig struct {
 	Level           string
 	Format          string
 	TimestampFormat string
+
+	// RequestLevel is the level at which the HTTP server's per-request
+	// access logs ("Received request."/"Sent response.") are emitted.
+	// Defaults to INFO.
+	RequestLevel string
 }
 
 // NewParams returns a new Params object.
@@ -367,6 +372,7 @@ type Runtime struct {
 	Manager *plugins.Manager
 
 	logger            logging.Logger
+	requestLogLevel   logging.Level
 	server            *server.Server
 	metrics           *prometheus.Provider
 	versionChecker    versioncheck.Checker
@@ -397,6 +403,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	level, err := internal_logging.GetLevel(params.Logging.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	requestLogLevel, err := internal_logging.GetLevel(params.Logging.RequestLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -608,6 +619,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		Params:            params,
 		Manager:           manager,
 		logger:            logger,
+		requestLogLevel:   requestLogLevel,
 		metrics:           metrics,
 		versionChecker:    versionChecker,
 		serverStatus:      ServerNotStarted,
@@ -789,7 +801,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 		}
 	}()
 
-	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
+	rt.server.Handler = NewLoggingHandlerWithLevel(rt.logger, rt.server.Handler, rt.requestLogLevel)
 	rt.server.DiagnosticHandler = NewDiagnosticLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
 	rt.setServerStatus(ServerWaitingForPlugins)

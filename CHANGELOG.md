@@ -5,6 +5,15 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Configurable log level for HTTP access logs
+
+Added `--log-level-request` (default `info`) to control the level at which the HTTP
+server's "Received request."/"Sent response." access log lines are emitted, independent
+of the general `--log-level`. Set it to `debug` to keep those lines out of logs unless
+`--log-level` is also turned up.
+
+Authored by @srenatus
+
 ### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224))
 
 `import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one

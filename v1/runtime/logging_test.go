@@ -403,6 +403,56 @@ func TestDiagnosticHandlerLoggingLevel(t *testing.T) {
 	}
 }
 
+func TestLoggingHandlerConfigurableLevel(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	for _, tc := range []struct {
+		name       string
+		loggerAt   logging.Level
+		wantLogged bool
+	}{
+		{name: "logger at error, below configured level", loggerAt: logging.Error, wantLogged: false},
+		{name: "logger at info, at configured level", loggerAt: logging.Info, wantLogged: true},
+		{name: "logger at debug, above configured level", loggerAt: logging.Debug, wantLogged: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := test.New()
+			logger.SetLevel(tc.loggerAt)
+
+			handler := NewLoggingHandlerWithLevel(logger, inner, logging.Warn)
+
+			req, err := http.NewRequest("GET", "/v1/data", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			var gotReceived, gotSent bool
+			for _, ent := range logger.Entries() {
+				switch ent.Message {
+				case "Received request.":
+					gotReceived = true
+					if ent.Level != logging.Warn {
+						t.Errorf("expected \"Received request.\" logged at warn, got %v", ent.Level)
+					}
+				case "Sent response.":
+					gotSent = true
+					if ent.Level != logging.Warn {
+						t.Errorf("expected \"Sent response.\" logged at warn, got %v", ent.Level)
+					}
+				}
+			}
+
+			if gotReceived != tc.wantLogged || gotSent != tc.wantLogged {
+				t.Errorf("expected logged=%v, got received=%v sent=%v", tc.wantLogged, gotReceived, gotSent)
+			}
+		})
+	}
+}
+
 func entriesForReq(ents []test.LogEntry, n uint64) []test.LogEntry {
 	var ret []test.LogEntry
 	for _, e := range ents {
