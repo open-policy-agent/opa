@@ -913,6 +913,15 @@ func TestReadWithSignatures(t *testing.T) {
 			NewVerificationConfig(map[string]*KeyConfig{}, "somekey", "", nil),
 			true, errors.New("bundle missing .signatures.json file"),
 		},
+		"suffix_match_not_used_as_signatures": {
+			[][2]string{
+				{"/.manifest", `{"revision": "quickbrownfaux"}`},
+				{"/foosignatures.json", `{"signatures": ["not-a-jwt"]}`},
+				{"/sub/extra.signatures.json", `{"signatures": ["not-a-jwt"]}`},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{}, "somekey", "", nil),
+			true, errors.New("bundle missing .signatures.json file"),
+		},
 		"no_signatures": {
 			[][2]string{{"/.signatures.json", `{"signatures": []}`}},
 			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
@@ -943,6 +952,18 @@ func TestReadWithSignatures(t *testing.T) {
 				{"/http/policy/policy.rego", `package example`},
 			},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", []string{".*", "a/b/c/data.json", "http/policy/policy.rego"}),
+			false, nil,
+		},
+		"extra_suffix_files_do_not_clobber_signatures": {
+			[][2]string{
+				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+				{"/.manifest", `{"revision": "quickbrownfaux"}`},
+				{"/a/b/c/data.json", "[1,2,3]"},
+				{"/http/policy/policy.rego", `package example`},
+				{"/foosignatures.json", `{"signatures": ["not-a-jwt"]}`},
+				{"/sub/extra.signatures.json", `{"signatures": ["not-a-jwt"]}`},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", []string{".*", "a/b/c/data.json", "http/policy/policy.rego", "foosignatures.json", "sub/extra.signatures.json"}),
 			false, nil,
 		},
 		"customer_signer_verifier": {

@@ -577,6 +577,12 @@ func TestFormatPathChrootedManifests(t *testing.T) {
 			root:     filepath.Join("a", "b"),
 			want:     sep + ".manifest.pb",
 		},
+		{
+			note:     "signatures at chroot .",
+			fileName: ".signatures.json",
+			root:     ".",
+			want:     sep + ".signatures.json",
+		},
 	}
 
 	for _, tc := range cases {

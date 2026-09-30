@@ -1790,6 +1790,14 @@ func IsStructuredDoc(name string) bool {
 	return base == dataFile || base == yamlDataFile || base == SignaturesFile || base == ManifestExt
 }
 
+// isRootSignaturesFile reports whether path is the bundle-root signatures
+// file (.signatures.json). Nested or similarly suffixed names must not be
+// treated as bundle signatures.
+func isRootSignaturesFile(name string) bool {
+	cleaned := strings.TrimPrefix(filepath.ToSlash(name), "/")
+	return path.Clean(cleaned) == "."+SignaturesFile
+}
+
 func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (*Bundle, []*Descriptor, error) {
 	bundle := &Bundle{}
 	descriptors := []*Descriptor{}
@@ -1803,7 +1811,7 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 			return bundle, nil, fmt.Errorf("bundle read failed: %w", err)
 		}
 
-		isSignaturesFile := strings.HasSuffix(f.Path(), SignaturesFile)
+		isSignaturesFile := isRootSignaturesFile(f.Path())
 
 		if !skipVerify && isSignaturesFile {
 			buf, err := readFile(f, sizeLimitBytes)

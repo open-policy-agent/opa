@@ -199,10 +199,11 @@ func formatPath(fileName string, root string, pathFormat PathFormat) string {
 	case Chrooted:
 		// Trim off the root directory and return path as if chrooted
 		result := strings.TrimPrefix(fileName, filepath.FromSlash(root))
-		// TrimPrefix at root="." strips the leading dot from dotfile manifests
-		// (".manifest" → "manifest"), which then misses the Reader's HasSuffix
-		// check. Restore the original name for both manifest forms.
-		if root == "." && (filepath.Base(fileName) == ManifestExt || filepath.Base(fileName) == ManifestProtoExt) {
+		// TrimPrefix at root="." strips the leading dot from bundle root
+		// dotfiles (".manifest" → "manifest"). Restore the original name so
+		// later exact-name checks still see the documented filenames.
+		base := filepath.Base(fileName)
+		if root == "." && (base == ManifestExt || base == ManifestProtoExt || base == "."+SignaturesFile) {
 			result = fileName
 		}
 		return util.WithPrefix(result, string(filepath.Separator))
