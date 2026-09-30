@@ -8,12 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/tchap/go-patricia/v2/patricia"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -21,8 +20,7 @@ import (
 )
 
 var (
-	trueAny                 any = true
-	errEmptySearchCharacter     = errors.New("empty search character")
+	errEmptySearchCharacter = errors.New("empty search character")
 )
 
 func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -101,17 +99,12 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 		return strings.HasPrefix(strs[0], prefixes[0])
 	}
 
-	// The trie is local, and only ever inserted into and searched, so it's safe
-	// to hand it byte slices aliasing the operand strings' memory. Note that
-	// patricia's compact() writes through the key slices it retains, so Delete
-	// and DeleteSubtree must not be used here: they'd corrupt those strings.
-	trie := patricia.NewTrie()
-	for i := range strs {
-		trie.Insert(util.StringToByteSlice(strs[i]), trueAny)
-	}
-
-	for i := range prefixes {
-		if trie.MatchSubtree(util.StringToByteSlice(prefixes[i])) {
+	// Strings sharing a prefix sort contiguously, directly after the prefix
+	// itself, so only the first string at or after each prefix needs to be
+	// checked. strs is sorted in place: callers pass slices they own.
+	slices.Sort(strs)
+	for _, prefix := range prefixes {
+		if i, _ := slices.BinarySearch(strs, prefix); i < len(strs) && strings.HasPrefix(strs[i], prefix) {
 			return true
 		}
 	}

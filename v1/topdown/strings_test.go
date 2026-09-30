@@ -5,6 +5,9 @@
 package topdown
 
 import (
+	"math/rand/v2"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -108,5 +111,57 @@ func TestBuiltinSprintf(t *testing.T) {
 				t.Fatalf("Expected result:\n\n%s\n\ngot:\n\n%s", exp, result)
 			}
 		})
+	}
+}
+
+func TestAnyStartsWithAny(t *testing.T) {
+	tests := []struct {
+		note     string
+		strs     []string
+		prefixes []string
+		exp      bool
+	}{
+		{note: "no strings", prefixes: []string{"a"}},
+		{note: "no prefixes", strs: []string{"a"}},
+		{note: "empty prefix", strs: []string{"a", "b"}, prefixes: []string{""}, exp: true},
+		{note: "empty string only matches empty prefix", strs: []string{"", "b"}, prefixes: []string{"a", "c"}},
+		{note: "prefix equals string", strs: []string{"abc", "x"}, prefixes: []string{"q", "abc"}, exp: true},
+		{note: "prefix longer than string", strs: []string{"ab", "x"}, prefixes: []string{"abc", "y"}},
+		{note: "match is not the nearest string", strs: []string{"ab", "abd", "abc"}, prefixes: []string{"q", "abc"}, exp: true},
+		{note: "prefix sorts after every string", strs: []string{"a", "b"}, prefixes: []string{"c", "d"}},
+		{note: "byte-wise comparison", strs: []string{"é", "e"}, prefixes: []string{"\xc3", "z"}, exp: true},
+		{note: "duplicates", strs: []string{"ab", "ab"}, prefixes: []string{"ab", "ab"}, exp: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			if got := anyStartsWithAny(tc.strs, tc.prefixes); got != tc.exp {
+				t.Errorf("expected %v, got %v", tc.exp, got)
+			}
+		})
+	}
+}
+
+func TestAnyStartsWithAnyMatchesBruteForce(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1, 2))
+	randStrings := func() []string {
+		strs := make([]string, rng.IntN(8))
+		for i := range strs {
+			b := make([]byte, rng.IntN(4))
+			for j := range b {
+				b[j] = "abc"[rng.IntN(3)]
+			}
+			strs[i] = string(b)
+		}
+		return strs
+	}
+
+	for range 10000 {
+		strs, prefixes := randStrings(), randStrings()
+		exp := slices.ContainsFunc(strs, func(s string) bool {
+			return slices.ContainsFunc(prefixes, func(p string) bool { return strings.HasPrefix(s, p) })
+		})
+		if got := anyStartsWithAny(slices.Clone(strs), prefixes); got != exp {
+			t.Fatalf("anyStartsWithAny(%q, %q): expected %v, got %v", strs, prefixes, exp, got)
+		}
 	}
 }

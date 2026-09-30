@@ -29,7 +29,6 @@ require (
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/tchap/go-patricia/v2 v2.3.3
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/vektah/gqlparser/v2 v2.5.37
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
