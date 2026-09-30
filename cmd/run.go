@@ -45,6 +45,7 @@ type runCmdParams struct {
 	authorization        *util.EnumFlag
 	minTLSVersion        *util.EnumFlag
 	logLevel             *util.EnumFlag
+	logLevelRequest      *util.EnumFlag
 	logFormat            *util.EnumFlag
 	logTimestampFormat   string
 	algorithm            string
@@ -59,12 +60,13 @@ type runCmdParams struct {
 
 func newRunParams() runCmdParams {
 	return runCmdParams{
-		rt:             runtime.NewParams(),
-		authentication: util.NewEnumFlag("off", []string{"token", "tls", "off"}),
-		authorization:  util.NewEnumFlag("off", []string{"basic", "off"}),
-		minTLSVersion:  util.NewEnumFlag("1.2", []string{"1.0", "1.1", "1.2", "1.3"}),
-		logLevel:       util.NewEnumFlag("info", []string{"debug", "info", "error"}),
-		logFormat:      util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
+		rt:              runtime.NewParams(),
+		authentication:  util.NewEnumFlag("off", []string{"token", "tls", "off"}),
+		authorization:   util.NewEnumFlag("off", []string{"basic", "off"}),
+		minTLSVersion:   util.NewEnumFlag("1.2", []string{"1.0", "1.1", "1.2", "1.3"}),
+		logLevel:        util.NewEnumFlag("info", []string{"debug", "info", "error"}),
+		logLevelRequest: util.NewEnumFlag("info", []string{"debug", "info", "error"}),
+		logFormat:       util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
 	}
 }
 
@@ -249,6 +251,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().Var(cmdParams.authorization, "authorization", "set authorization scheme")
 	runCommand.Flags().Var(cmdParams.minTLSVersion, "min-tls-version", "set minimum TLS version to be used by "+brand+"'s server")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
+	runCommand.Flags().Var(cmdParams.logLevelRequest, "log-level-request", "set log level for HTTP request/response access logs")
 	runCommand.Flags().Var(cmdParams.logFormat, "log-format", "set log format")
 	runCommand.Flags().StringVar(&cmdParams.logTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
@@ -351,6 +354,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	}
 	params.rt.Logging = runtime.LoggingConfig{
 		Level:           params.logLevel.String(),
+		RequestLevel:    params.logLevelRequest.String(),
 		Format:          params.logFormat.String(),
 		TimestampFormat: timestampFormat,
 	}
