@@ -1791,7 +1791,7 @@ func modulePathWithPrefix(bundleName string, modulePath string) string {
 // hashed as raw wire bytes on both the sign and verify paths.
 func IsStructuredDoc(name string) bool {
 	base := filepath.Base(name)
-	return base == dataFile || base == yamlDataFile || base == ManifestExt
+	return base == dataFile || base == yamlDataFile || base == ymlDataFile || base == ManifestExt
 }
 
 // IsSignaturesFile reports whether name is a bundle's signatures file, matched

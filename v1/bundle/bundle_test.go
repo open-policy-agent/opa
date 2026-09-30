@@ -1025,6 +1025,34 @@ func TestIsSignaturesFile(t *testing.T) {
 	}
 }
 
+func TestIsStructuredDoc(t *testing.T) {
+	// Structured docs are hashed over their canonical parsed structure (so the
+	// signature is whitespace/key-order independent). Everything else is hashed
+	// as raw bytes. data.yml must be treated the same as data.yaml.
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"data.json", true},
+		{"data.yaml", true},
+		{"data.yml", true},
+		{".manifest", true},
+		{"/a/b/data.yml", true}, // matched by base name, at any depth
+		{"/a/b/data.yaml", true},
+		{".manifest.pb", false}, // proto manifest is hashed as raw wire bytes
+		{"example.rego", false},
+		{"policy.wasm", false},
+		{"data.signatures.json", false},
+		{"foo.yml", false}, // only data.yml, not arbitrary YAML files
+		{"foo.yaml", false},
+	}
+	for _, tc := range cases {
+		if got := IsStructuredDoc(tc.name); got != tc.want {
+			t.Errorf("IsStructuredDoc(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 	// The signatures file is matched by basename (".signatures.json"), like the
 	// manifest, so it is found under any prefix. Similarly named files are
