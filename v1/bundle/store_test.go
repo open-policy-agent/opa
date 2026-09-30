@@ -1944,6 +1944,61 @@ func TestBundleLazyModeLifecycleRawInvalidData(t *testing.T) {
 	}
 }
 
+// TestBundleLazyModeActivateValidatesYAMLDataRoots ensures data.yml files are
+// subject to the same manifest-root boundary validation as data.yaml during
+// lazy-mode activation. data.yml was previously skipped, so data outside the
+// declared roots was not caught by this check.
+func TestBundleLazyModeActivateValidatesYAMLDataRoots(t *testing.T) {
+	tests := map[string]struct {
+		file    [2]string
+		wantErr string
+	}{
+		"yaml outside roots": {[2]string{"/b/data.yaml", `foo: 1`}, "manifest roots [a] do not permit data at path '/b/foo' (hint: check bundle directory structure)"},
+		"yml outside roots":  {[2]string{"/b/data.yml", `foo: 1`}, "manifest roots [a] do not permit data at path '/b/foo' (hint: check bundle directory structure)"},
+		"yaml within roots":  {[2]string{"/a/data.yaml", `foo: 1`}, ""},
+		"yml within roots":   {[2]string{"/a/data.yml", `foo: 1`}, ""},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			files := [][2]string{
+				{"/.manifest", `{"roots": ["a"]}`},
+				tc.file,
+			}
+
+			bundle := must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+				WithBundleEtag("bar").
+				WithLazyLoadingMode(true).
+				Read())(t)
+
+			mockStore := mock.New()
+			txn := storage.NewTransactionOrDie(t.Context(), mockStore, storage.WriteParams)
+
+			err := Activate(&ActivateOpts{
+				Ctx:      t.Context(),
+				Store:    mockStore,
+				Txn:      txn,
+				Compiler: ast.NewCompiler(),
+				Metrics:  metrics.NoOp(),
+				Bundles:  map[string]*Bundle{"bundle1": &bundle},
+			})
+
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected error but got none")
+			}
+			if err.Error() != tc.wantErr {
+				t.Fatalf("expected error %q but got %q", tc.wantErr, err.Error())
+			}
+		})
+	}
+}
+
 func TestBundleLazyModeLifecycle(t *testing.T) {
 	mockStore := mock.New()
 	compiler := ast.NewCompiler()
