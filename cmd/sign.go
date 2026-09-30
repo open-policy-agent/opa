@@ -209,7 +209,7 @@ func readBundleFiles(loaders []initload.BundleLoader, h bundle.SignatureHasher) 
 			}
 
 			// skip existing signatures file
-			if strings.HasSuffix(f.Path(), bundle.SignaturesFile) {
+			if bundle.IsSignaturesFile(f.Path()) {
 				continue
 			}
 
