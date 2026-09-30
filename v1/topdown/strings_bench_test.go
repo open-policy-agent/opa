@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -396,4 +397,47 @@ func BenchmarkSplitLenVsStringsCount(b *testing.B) {
 			}
 		}
 	})
+}
+
+// Compared with the patricia trie it replaced:
+//
+//	                            trie                          sort
+//	n=10/m=10/common=0          1162 ns       4104 B/op       208 ns       160 B/op
+//	n=10/m=1000/common=0        7200 ns       4600 B/op     13189 ns       160 B/op
+//	n=10/m=1000/common=32      25510 ns       5104 B/op     13850 ns       160 B/op
+//	n=1000/m=10/common=0      133860 ns     422943 B/op     27250 ns     16384 B/op
+//	n=1000/m=1000/common=32   186610 ns     420352 B/op     58930 ns     16384 B/op
+//	n=100000/m=1000/common=0  22341381 ns 31873430 B/op   9194262 ns   1605632 B/op
+//
+// The trie allocated a node per string on every call.
+func BenchmarkAnyStartsWithAny(b *testing.B) {
+	for _, n := range []int{10, 1000, 100000} {
+		for _, m := range []int{10, 1000} {
+			for _, common := range []int{0, 32} {
+				strs, prefixes := generateAnyStartsWithAnyInput(n, m, common)
+				b.Run(fmt.Sprintf("n=%d/m=%d/common=%d", n, m, common), func(b *testing.B) {
+					for b.Loop() {
+						if anyStartsWithAny(slices.Clone(strs), prefixes) {
+							b.Fatal("expected no match")
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+func generateAnyStartsWithAnyInput(n, m, common int) ([]string, []string) {
+	rng := rand.New(rand.NewPCG(uint64(n), uint64(m)))
+	root := strings.Repeat("x", common)
+	strs := make([]string, n)
+	for i := range strs {
+		strs[i] = fmt.Sprintf("%s/%08x/%04x", root, rng.Uint32(), i)
+	}
+	prefixes := make([]string, m)
+	for i := range prefixes {
+		// The trailing "z" can't follow a hex digit, so no prefix matches.
+		prefixes[i] = fmt.Sprintf("%s/%08x/z", root, rng.Uint32())
+	}
+	return strs, prefixes
 }
