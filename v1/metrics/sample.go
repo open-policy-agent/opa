@@ -19,8 +19,8 @@ const rescaleThreshold = time.Hour
 
 // expDecaySample is a forward-decaying priority reservoir, see Cormode et
 // al's "Forward Decay: A Practical Time Decay Model for Streaming Systems"
-// (http://dimacs.rutgers.edu/~graham/pubs/papers/fwddecay.pdf). It keeps a
-// fixed number of values, biased towards recent ones. The algorithm and its
+// (ICDE 2009). It keeps a fixed number of values, biased towards recent
+// ones. The algorithm and its
 // parameters follow github.com/rcrowley/go-metrics' ExpDecaySample, which
 // OPA used before that project was archived.
 type expDecaySample struct {
