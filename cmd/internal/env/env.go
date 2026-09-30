@@ -2,11 +2,11 @@ package env
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type cmdFlags interface {
@@ -23,21 +23,18 @@ var (
 const globalPrefix = "opa"
 
 func (cmdFlagsImpl) CheckEnvironmentVariables(command *cobra.Command) error {
-	var errs []string
-	v := viper.New()
-	v.AutomaticEnv()
-	if command.Name() == globalPrefix {
-		v.SetEnvPrefix(command.Name())
-	} else {
-		v.SetEnvPrefix(fmt.Sprintf("%s_%s", globalPrefix, command.Name()))
+	prefix := globalPrefix
+	if command.Name() != globalPrefix {
+		prefix = fmt.Sprintf("%s_%s", globalPrefix, command.Name())
 	}
+	prefix = strings.ToUpper(prefix) + "_"
+
+	var errs []string
 	command.Flags().VisitAll(func(f *pflag.Flag) {
-		configName := f.Name
-		configName = strings.ReplaceAll(configName, "-", "_")
-		if !f.Changed && v.IsSet(configName) {
-			val := v.Get(configName)
-			err := command.Flags().Set(f.Name, fmt.Sprintf("%v", val))
-			if err != nil {
+		name := prefix + strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
+		// Empty variables are treated as unset.
+		if val, ok := os.LookupEnv(name); ok && val != "" && !f.Changed {
+			if err := command.Flags().Set(f.Name, val); err != nil {
 				errs = append(errs, err.Error())
 			}
 		}

@@ -173,3 +173,34 @@ func TestCmdFlagsImpl_CheckEnvironmentVariables_ConfirmCommandFlagPrecedence(t *
 		t.Fatalf("expected flag values %q, got %q", expectation, out)
 	}
 }
+
+func TestCmdFlagsImpl_CheckEnvironmentVariables_EmptyEnvVarIgnored(t *testing.T) {
+	rootWriter := bytes.NewBuffer([]byte{})
+	root := mockRootCmd(rootWriter)
+	t.Setenv("OPA_INT", "")
+	if err := root.PreRunE(root, []string{}); err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+	root.Run(root, []string{})
+	out := rootWriter.String()
+	expectation := "0; ; false"
+	if out != expectation {
+		t.Fatalf("expected default flag values %q, got %q", expectation, out)
+	}
+}
+
+func TestCmdFlagsImpl_CheckEnvironmentVariables_NonUppercaseEnvVarIgnored(t *testing.T) {
+	rootWriter := bytes.NewBuffer([]byte{})
+	root := mockRootCmd(rootWriter)
+	t.Setenv("OPA_Int", "3")
+	t.Setenv("opa_bool", "true")
+	if err := root.PreRunE(root, []string{}); err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+	root.Run(root, []string{})
+	out := rootWriter.String()
+	expectation := "0; ; false"
+	if out != expectation {
+		t.Fatalf("expected default flag values %q, got %q", expectation, out)
+	}
+}
