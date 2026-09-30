@@ -116,6 +116,13 @@ type Config struct {
 // validate.rego): defaults are injected, fatal errors are returned, and warnings
 // are attached to the returned Config.
 func ParseConfig(raw []byte, id string) (*Config, error) {
+	return ParseConfigWithPolicy(raw, id, nil)
+}
+
+// ParseConfigWithPolicy is like ParseConfig, but additionally evaluates policy
+// (if non-nil) against the configuration once OPA's defaults are injected. Its
+// errors are returned and its warnings are added to the Config's.
+func ParseConfigWithPolicy(raw []byte, id string, policy *ValidationPolicy) (*Config, error) {
 	var rawConfig any
 	if err := util.Unmarshal(raw, &rawConfig); err != nil {
 		return nil, err
@@ -128,6 +135,14 @@ func ParseConfig(raw []byte, id string) (*Config, error) {
 	processed, warnings, err := evaluateConfigPolicy(context.TODO(), rawConfig, id)
 	if err != nil {
 		return nil, err
+	}
+
+	if policy != nil {
+		custom, err := policy.check(context.TODO(), processed, id)
+		if err != nil {
+			return nil, err
+		}
+		warnings = append(warnings, custom...)
 	}
 
 	// Build from the original bytes so unchanged sections keep their exact

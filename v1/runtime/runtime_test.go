@@ -2458,3 +2458,68 @@ func serve(ctx context.Context, t *testing.T, rt *Runtime) {
 	}()
 	t.Cleanup(func() { <-done })
 }
+
+func TestRuntimeWithConfigValidationPolicies(t *testing.T) {
+	root := test.TempDir(t, map[string]string{
+		"/config.yaml": `{"labels": {"team": "a"}}`,
+		"/policies/org.rego": `package system.config
+
+import data.org
+
+errors contains "labels.env must be set" if not input.config.labels.env
+errors contains "labels.team must be one of org.teams" if not input.config.labels.team in org.teams
+`,
+		"/policies/data.rego": `package org
+
+teams := {"a", "b"}
+`,
+		// Tests are skipped, so this conflicting rule doesn't fail compilation.
+		"/policies/org_test.rego": `package system.config
+
+errors := "not a set"
+`,
+	})
+	policies := filepath.Join(root, "policies")
+
+	tests := map[string]struct {
+		overrides []string
+		err       string
+	}{
+		"rejected": {err: "config error: labels.env must be set"},
+		"accepted": {overrides: []string{"labels.env=prod"}},
+		"both":     {overrides: []string{"labels.team=c"}, err: "config error: labels.env must be set; labels.team must be one of org.teams"},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			params := NewParams()
+			params.ConfigFile = filepath.Join(root, "config.yaml")
+			params.ConfigOverrides = tc.overrides
+			params.ConfigValidationPolicies = []string{policies}
+
+			_, err := NewRuntime(t.Context(), params)
+			if tc.err == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tc.err {
+				t.Fatalf("expected error %q, got %v", tc.err, err)
+			}
+		})
+	}
+}
+
+func TestRuntimeWithInvalidConfigValidationPolicies(t *testing.T) {
+	root := test.TempDir(t, map[string]string{
+		"/policies/org_test.rego": "package system.config\n",
+	})
+
+	params := NewParams()
+	params.ConfigValidationPolicies = []string{filepath.Join(root, "policies")}
+
+	_, err := NewRuntime(t.Context(), params)
+	if err == nil || !strings.Contains(err.Error(), "no module declares package system.config") {
+		t.Fatalf("expected error for a policy directory without a system.config module, got %v", err)
+	}
+}

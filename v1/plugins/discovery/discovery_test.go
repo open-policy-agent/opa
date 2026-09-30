@@ -19,6 +19,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/pluginset"
 	"github.com/open-policy-agent/opa/v1/ast"
 	bundleApi "github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/download"
 	"github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -316,6 +318,125 @@ func TestProcessBundleLogsConfigWarnings(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected warning %q to be logged, got entries: %+v", want, testLogger.Entries())
+	}
+}
+
+func TestProcessBundleConfigValidationPolicy(t *testing.T) {
+	ctx := t.Context()
+
+	policy, err := config.NewValidationPolicy(map[string]string{
+		"org.rego": `package system.config
+
+errors contains "decision_logs.console must be enabled" if not input.config.decision_logs.console
+
+warnings contains sprintf("bundle %s should be signed", [name]) if {
+	some name, bundle in input.config.bundles
+	not bundle.signing
+}
+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testLogger := test.New()
+	manager, err := plugins.New([]byte(`{
+		"services": {"default": {"url": "http://localhost:8181"}},
+		"discovery": {"name": "config"},
+		"decision_logs": {"console": true}
+	}`), "test-id", inmem.New(), plugins.Logger(testLogger), plugins.WithConfigValidationPolicy(policy))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager, BootConfig(map[string]any{"decision_logs": map[string]any{"console": true}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Boot configuration wins over discovered configuration, so the policy
+	// accepts a discovered config that tries to disable console logging.
+	bundle := makeDataBundle(1, `{"config": {"decision_logs": {"console": false}, "bundles": {"authz": {"resource": "authz.tar.gz"}}}}`)
+	if _, err := disco.processBundle(ctx, bundle); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "bundle authz should be signed"
+	if !slices.ContainsFunc(testLogger.Entries(), func(e test.LogEntry) bool { return e.Message == want }) {
+		t.Fatalf("expected warning %q to be logged, got entries: %+v", want, testLogger.Entries())
+	}
+}
+
+func TestProcessBundleDoesNotRelogBootConfigWarnings(t *testing.T) {
+	ctx := t.Context()
+
+	boot := `{
+		"services": {"default": {"url": "http://localhost:8181"}},
+		"discovery": {"name": "config"},
+		"foo": {}
+	}`
+
+	testLogger := test.New()
+	manager, err := plugins.New([]byte(boot), "test-id", inmem.New(), plugins.Logger(testLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var bootConfig map[string]any
+	if err := util.Unmarshal([]byte(boot), &bootConfig); err != nil {
+		t.Fatal(err)
+	}
+	disco, err := New(manager, BootConfig(bootConfig))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The runtime logs the boot config's warnings once at startup; discovery
+	// updates must not log them again.
+	for i := range 2 {
+		bundle := makeDataBundle(i+1, `{"config": {"bundle": {"name": "test1"}}}`)
+		if _, err := disco.processBundle(ctx, bundle); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	unwanted := `unknown configuration option "foo" encountered`
+	if slices.ContainsFunc(testLogger.Entries(), func(e test.LogEntry) bool { return e.Message == unwanted }) {
+		t.Fatalf("expected boot config warning %q not to be logged by discovery, got entries: %+v", unwanted, testLogger.Entries())
+	}
+}
+
+func TestProcessBundleConfigValidationPolicyRejects(t *testing.T) {
+	ctx := t.Context()
+
+	policy, err := config.NewValidationPolicy(map[string]string{
+		"org.rego": `package system.config
+
+errors contains "status.console must be enabled" if not input.config.status.console
+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager, err := plugins.New([]byte(`{
+		"services": {"default": {"url": "http://localhost:8181"}},
+		"discovery": {"name": "config"},
+		"status": {"console": true}
+	}`), "test-id", inmem.New(), plugins.WithConfigValidationPolicy(policy))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager, BootConfig(map[string]any{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bundle := makeDataBundle(1, `{"config": {"bundle": {"name": "test1"}}}`)
+	_, err = disco.processBundle(ctx, bundle)
+	if err == nil || err.Error() != "status.console must be enabled" {
+		t.Fatalf("expected the discovered config to be rejected, got %v", err)
 	}
 }
 

@@ -1111,6 +1111,54 @@ Configuration loaded later via [discovery](#discovery) is validated the same way
 defaults are injected and warnings are logged when the discovered configuration is
 applied.
 
+### Custom Validation Policies
+
+You can extend the built-in validation with your own Rego policies, for example
+to enforce requirements that make sense for your organization but not for OPA in
+general. Pass a policy file, or a directory of them, to `opa run` with
+`--config-policy` (repeatable). Test files (`_test.rego`) are skipped, so a
+policy's tests can live alongside it.
+
+At least one module must declare `package system.config`. OPA reports its
+`errors` and `warnings` sets:
+
+- **Errors** are fatal: OPA fails to start, and a configuration received via
+  discovery or [reloaded](#reloading-configuration) is rejected (the current
+  configuration stays in effect).
+- **Warnings** are logged, like the unrecognized option warnings above.
+
+The configuration is provided as `input.config`, with OPA's defaults already
+injected. For configuration received via discovery, this is the effective
+configuration, after local overrides from the boot configuration are applied.
+`input.runtime` holds the OPA instance's `id` and `version`.
+
+```rego title="org.rego"
+package system.config
+
+errors contains "decision logging must be enabled" if {
+    not input.config.decision_logs
+}
+
+warnings contains "labels.team should be set to the owning team" if {
+    not input.config.labels.team
+}
+```
+
+```bash
+opa run --server --config-file config.yaml --config-policy org.rego
+```
+
+The policies can also import `data.opa.config.util`, the helpers used by OPA's
+built-in validation policies (e.g. `util.absent(path)`, true when the option at
+`path` is missing or `null`).
+
+When embedding OPA as a Go library, compile the policies with
+`config.NewValidationPolicy` and pass them to the plugin manager with
+`plugins.WithConfigValidationPolicy`. At boot, the policies validate the
+configuration before any `hooks.ConfigHook` runs, so changes those hooks make
+aren't validated. For configuration received via discovery, they validate the
+result of any `hooks.ConfigDiscoveryHook`.
+
 ## Reloading Configuration
 
 > Only supported when OPA is run as a server (`opa run --server`).
@@ -1166,6 +1214,7 @@ edit to one is only picked up on the next change to the configuration file.
 
 - **Invalid configuration**: a file that fails to parse, fails the schema or a
   [config hook](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/hooks),
+  is rejected by a [custom validation policy](#custom-validation-policies),
   or has an invalid section (such as a `bundles` entry naming a service that
   does not exist) is rejected before anything is torn down. The error is
   logged and the running configuration keeps serving.
