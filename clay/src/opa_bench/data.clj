@@ -17,6 +17,10 @@
       (json/read-str (slurp f) :key-fn keyword)
       [])))
 
+(def latest-baseline-sha
+  "The commit the newest night was measured against."
+  (:baseline_sha (last (sort-by :date benchlab-raw))))
+
 (def ^:private max-commit-pages
   "Safety bound on pagination: 20 pages of 100 is 2000 commits of main."
   20)
@@ -48,37 +52,31 @@
         :else (recur (inc page) acc)))))
 
 (def commits-raw
-  (fetch-commits-covering (into #{} (map :head) benchlab-raw)))
+  (fetch-commits-covering (conj (into #{} (map :head) benchlab-raw) latest-baseline-sha)))
 
-(def commits
+(def commit-messages
+  (into {} (map (fn [{:keys [sha commit]}] [sha (:message commit)])) commits-raw))
+
+(def commit-dates
+  "sha -> java.util.Date the commit landed on main."
   (into {}
-        (map (fn [{:keys [sha commit author]}]
-               [sha {:message (:message commit)
-                     :author  (:login author)
-                     :date    (get-in commit [:author :date])}]))
+        (keep (fn [{:keys [sha commit]}]
+                (when-let [d (get-in commit [:committer :date])]
+                  [sha (java.util.Date/from (java.time.Instant/parse d))])))
         commits-raw))
 
-(defn commit-info
-  "Metadata for `sha`, falling back to a placeholder rather than nil.
+(defn commit-message
+  "Message for `sha`, falling back to a placeholder rather than nil.
 
    A point whose commit metadata could not be fetched should still appear on the
-   chart with a thinner hover panel; dropping it instead loses a real
-   measurement to an unrelated API shortfall."
+   chart; dropping it instead loses a real measurement to an unrelated API
+   shortfall."
   [sha]
-  (or (commits sha)
-      {:message "(commit details unavailable)"
-       :author  "unknown"
-       :date    nil}))
+  (get commit-messages sha "(commit details unavailable)"))
 
 (def commits-ordered
   "All known commits on main, oldest first. The GitHub API returns newest-first."
   (->> commits-raw (map :sha) reverse vec))
-
-(def tags-raw
-  (github-fetch "tags?per_page=100"))
-
-(def tag-map
-  (into {} (map (fn [{:keys [name commit]}] [(:sha commit) name])) tags-raw))
 
 (def latest-tag
   "The tag the newest night was measured against."
