@@ -56,7 +56,7 @@ warnings contains msg if {
 	_matches(parent, spec.pattern)
 	not key in spec.keys
 
-	msg := concat("", ["unknown configuration option "", _dotted(path), "" encountered"])
+	msg := concat("", ["unknown configuration option \"", _dotted(path), "\" encountered"])
 }
 
 # _matches tests a config path against a spec pattern; "*" matches any segment.
