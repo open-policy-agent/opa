@@ -32,9 +32,8 @@ cases:
           sum_float: "4"
           sum_mixed: "3.5"
           product_float: "3"
-  # Every element fits in a machine int, but the running sum does not. The sum
-  # fast path accumulated into a plain int and wrapped silently; it now falls
-  # back to exact big.Int accumulation, matching the plus builtin.
+  # Every element fits in a machine int, but the running sum does not. The
+  # result must match the plus builtin.
   - note: "aggregates/sum integer fast-path overflow (elements fit int64, sum does not)"
     query: data.generated.p = x
     modules:

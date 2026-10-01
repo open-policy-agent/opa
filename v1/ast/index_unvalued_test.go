@@ -56,16 +56,13 @@ func lookupValues(t *testing.T, index RuleIndex, r ValueResolver) []string {
 	for _, rule := range res.Rules {
 		values = append(values, rule.Head.Value.String())
 	}
-	// Which rules survive is the point; the order candidates come back in is a
-	// property of trie traversal, and this change moves some of them out of it.
+	// Sort, because the order candidates come back in is not part of what is tested.
 	slices.Sort(values)
 	return values
 }
 
-// TestIndexUnvaluedRefExcludesWhenAbsent is the behaviour partition must not give
-// up: a rule that reads a ref nothing constrains to a value is still excluded when
-// that ref is absent. Traversal used to answer this by branching on the ref; now
-// Lookup asks per candidate.
+// TestIndexUnvaluedRefExcludesWhenAbsent checks that a rule reading a ref that
+// nothing constrains to a value is still excluded when that ref is absent.
 func TestIndexUnvaluedRefExcludesWhenAbsent(t *testing.T) {
 	index := unvaluedIndex(t, `package test
 

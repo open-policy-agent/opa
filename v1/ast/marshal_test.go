@@ -1038,10 +1038,6 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 }
 
 func TestAnnotations_MarshalJSON_Compile(t *testing.T) {
-	// Regression: Annotations.MarshalJSON used to silently drop the
-	// `Compile` field even though the struct tag is `compile,omitempty`.
-	// Default-reflection unmarshal still reads `compile`, so the round-trip
-	// was asymmetric until this was fixed.
 	a := &Annotations{
 		Scope: "rule",
 		Compile: &CompileAnnotation{

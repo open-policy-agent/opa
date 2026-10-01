@@ -65,10 +65,7 @@ func membershipPolicy(k int) string {
 // a subject that every rule's collection holds, and an action that only one
 // does. The query names a subject and an action, so exactly one rule can hold.
 //
-// insertPath used to stop a rule's path at the first such reference, so the
-// second was not indexed and every rule stayed a candidate. Ranking those
-// references last cannot help here -- both are ranked last, and one of them is
-// still first of the two.
+// Both references rank last, so the index has to index both to rule out the others.
 func alternatingPolicy(n int) (string, *Term) {
 	var sb strings.Builder
 	sb.WriteString("package test\n\n")

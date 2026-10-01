@@ -33,10 +33,8 @@ func partialWithTracker(t *testing.T, src string, unknowns []string, input map[s
 	return tracker
 }
 
-// topdown.Query.PartialRun resolves an annotation set for the tracker, but the
-// rego layer used to build its partial query without passing one, so the
-// EvaluatedRuleTracker options were silently ignored. Rules resolved during
-// partial evaluation are now recorded, as they are during evaluation.
+// TestEvaluatedRuleTrackerPartial checks that rules resolved during partial
+// evaluation are recorded by the tracker, as they are during evaluation.
 func TestEvaluatedRuleTrackerPartial(t *testing.T) {
 	const module = `package test
 
