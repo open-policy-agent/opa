@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/prefixtrie"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -88,14 +89,14 @@ func (d *levelDetail) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		})
 	}
 
-	for _, p := range d.prefixes.walk() {
-		mermaidEdge(sb, counter, nodeIDs, from, p.prefix+"*", p.node, rules)
+	for _, p := range d.prefixes.Entries() {
+		mermaidEdge(sb, counter, nodeIDs, from, p.Key+"*", p.Value, rules)
 	}
 
-	// A suffix trie holds its bases reversed (see affixTries), so what it
+	// A suffix trie holds its bases reversed (see InsertSuffix), so what it
 	// walks back is what was written.
-	for _, p := range d.suffixes.walk() {
-		mermaidEdge(sb, counter, nodeIDs, from, "*"+reverseString(p.prefix), p.node, rules)
+	for _, p := range d.suffixes.Entries() {
+		mermaidEdge(sb, counter, nodeIDs, from, "*"+prefixtrie.Reverse(p.Key), p.Value, rules)
 	}
 
 	d.array.mermaidFormat(sb, counter, nodeIDs, from, "array", rules)
@@ -293,20 +294,20 @@ func (d *levelDetail) format(sb *strings.Builder, depth int) {
 		d.array.format(sb, depth+2)
 	}
 
-	for _, p := range d.prefixes.walk() {
+	for _, p := range d.prefixes.Entries() {
 		sb.WriteString(indent)
 		sb.WriteString(`  prefix "`)
-		sb.WriteString(p.prefix)
+		sb.WriteString(p.Key)
 		sb.WriteString("\":\n")
-		p.node.format(sb, depth+2)
+		p.Value.format(sb, depth+2)
 	}
 
-	for _, p := range d.suffixes.walk() {
+	for _, p := range d.suffixes.Entries() {
 		sb.WriteString(indent)
 		sb.WriteString(`  suffix "`)
-		sb.WriteString(reverseString(p.prefix))
+		sb.WriteString(prefixtrie.Reverse(p.Key))
 		sb.WriteString("\":\n")
-		p.node.format(sb, depth+2)
+		p.Value.format(sb, depth+2)
 	}
 }
 

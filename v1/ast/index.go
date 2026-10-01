@@ -1888,8 +1888,8 @@ func (d *levelDetail) do(walker trieWalker) {
 		child.Do(walker)
 	}
 
-	d.prefixes.do(walker)
-	d.suffixes.do(walker)
+	prefixTrieDo(d.prefixes, walker)
+	prefixTrieDo(d.suffixes, walker)
 	d.array.do(walker)
 }
 
@@ -1908,8 +1908,8 @@ func (d *levelDetail) compact() {
 		return
 	}
 
-	d.prefixes.compact()
-	d.suffixes.compact()
+	prefixTrieCompact(d.prefixes)
+	prefixTrieCompact(d.suffixes)
 
 	d.any.compact()
 	d.undefined.compact()
@@ -2348,11 +2348,11 @@ func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 		return err
 	}
 
-	if err := d.prefixes.traverseUnknown(resolver, tr); err != nil {
+	if err := prefixTrieTraverseUnknown(d.prefixes, resolver, tr); err != nil {
 		return err
 	}
 
-	if err := d.suffixes.traverseUnknown(resolver, tr); err != nil {
+	if err := prefixTrieTraverseUnknown(d.suffixes, resolver, tr); err != nil {
 		return err
 	}
 
