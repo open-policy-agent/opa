@@ -168,7 +168,7 @@ func TestReadBundleFilesTreatsMisnamedSignatureFilesAsContent(t *testing.T) {
 			t.Fatalf("WalkPaths: %v", err)
 		}
 
-		hash, err := bundle.NewSignatureHasher(bundle.HashingAlgorithm(defaultHashingAlg))
+		hash, err := bundle.NewSignatureHasher(defaultHashingAlg)
 		if err != nil {
 			t.Fatalf("NewSignatureHasher: %v", err)
 		}
