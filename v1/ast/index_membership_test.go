@@ -75,9 +75,8 @@ func TestBaseDocEqIndexCollectionMembership(t *testing.T) {
 			expect: 1,
 		},
 		{
-			// `in` asks whether the subject is one of the collection's values,
-			// which an object answers only by being walked -- so the rules stay
-			// candidates, as they did before this.
+			// `in` asks whether the subject is one of the collection's values. An object
+			// can only answer that by being walked, so the index cannot exclude any rules.
 			note:   "object, in: not indexed",
 			kind:   "object",
 			cond:   "input.subject in data.groups.g%d.members",

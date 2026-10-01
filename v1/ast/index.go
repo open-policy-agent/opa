@@ -135,8 +135,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			}
 
 			// Ids are minted in WalkRules' order, so they ascend with priority
-			// within a ruleset -- the (insertion, priority) pair a node used to
-			// carry, in one integer:
+			// within a ruleset:
 			//
 			//	f(x) := 1 if x == "a"  # group 0, id 0
 			//	else := 2 if x == "b"  #          id 1
@@ -1624,11 +1623,7 @@ func (i *baseDocEqIndex) defined(resolver ValueResolver, id int32, cache *resolv
 // skips making the call.
 type resolveCache struct {
 	// required is one entry per ref in the index's requiredRefs, so a memo is
-	// read at a position rather than searched for. It used to be one entry per
-	// ref asked about, found by scanning: refs no rule constrains to a value are
-	// usually the same few, but a rule reading one of its own gives a lookup as
-	// many distinct ones as there are candidates, and the scan then costs a
-	// comparison per pair of them.
+	// read at a position rather than searched for.
 	required []resolved
 	// keyRef and prefix are the last key and the last collection container asked
 	// for: a ruleset's rules test the same field, and their collections sit side
