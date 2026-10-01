@@ -37,7 +37,7 @@ errors contains msg if {
 	value := input.config[field]
 	value != null
 	not is_string(value)
-	msg := sprintf("%s must be a string", [field])
+	msg := $"{field} must be a string"
 }
 
 # warnings reports unrecognized options at any depth. _specs enumerates the known
@@ -56,7 +56,7 @@ warnings contains msg if {
 	_matches(parent, spec.pattern)
 	not key in spec.keys
 
-	msg := sprintf("unknown configuration option %q encountered", [_dotted(path)])
+	msg := $"unknown configuration option '{_dotted(path)}' encountered"
 }
 
 # _matches tests a config path against a spec pattern; "*" matches any segment.

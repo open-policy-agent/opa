@@ -12,13 +12,13 @@ package files
 
 # METADATA
 # entrypoint: true
-deny contains sprintf("%s is an invalid YAML file: %s", [filename, content]) if {
+deny contains $"{filename} is an invalid YAML file: {content}" if {
 	some filename, content in yaml_file_contents
 	changes[filename].status in {"added", "modified"}
 	not yaml.is_valid(content)
 }
 
-deny contains sprintf("%s is an invalid JSON file: %s", [filename, content]) if {
+deny contains $"{filename} is an invalid JSON file: {content}" if {
 	some filename, content in json_file_contents
 	changes[filename].status in {"added", "modified"}
 	not json.is_valid(content)
