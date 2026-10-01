@@ -155,8 +155,6 @@ func TestBundleSignVerification(t *testing.T) {
 }
 
 func TestReadBundleFilesTreatsMisnamedSignatureFilesAsContent(t *testing.T) {
-	// Only the root .signatures.json is skipped when signing. Similarly named
-	// files and nested .signatures.json are signed as content (issue #9289).
 	files := map[string]string{
 		"/data.json":            `{"x": 1}`,
 		"/.signatures.json":     `{"signatures": []}`,

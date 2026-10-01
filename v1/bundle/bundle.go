@@ -1791,11 +1791,9 @@ func IsStructuredDoc(name string) bool {
 	return base == dataFile || base == yamlDataFile || base == ManifestExt
 }
 
-// IsSignaturesFile reports whether name is a bundle's signatures file (its
-// basename is ".signatures.json"). We detect it by base name, regardless of any
-// directory prefix, matching how the manifest and data files are found, so a
-// bundle assembled under a wrapping directory still resolves its signatures
-// file.
+// IsSignaturesFile reports whether name is a bundle's signatures file, matched
+// by its exact basename ".signatures.json" so it is found regardless of any
+// directory prefix.
 func IsSignaturesFile(name string) bool {
 	return filepath.Base(name) == signaturesFilename
 }
@@ -1814,9 +1812,6 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 			return bundle, nil, fmt.Errorf("bundle read failed: %w", err)
 		}
 
-		// A well-formed bundle has at most one signatures file, matched by
-		// basename like the manifest so it is found under any directory prefix.
-		// It is a metadata file, not normal bundle content.
 		if IsSignaturesFile(f.Path()) {
 			if signaturesFilePath != "" {
 				return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
