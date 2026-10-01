@@ -71,7 +71,7 @@ _mismatch(path, pattern) if {
 	segment != path[i]
 }
 
-_dotted(path) := concat(".", [sprintf("%v", [segment]) | some segment in path])
+_dotted(path) := concat(".", [f | some segment in path; f := $"{segment}"])
 
 # _specs is the core specs combined with any specs registered by plugins or
 # subsystems (supplied as input.specs by the Go layer). Sections whose specs
