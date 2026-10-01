@@ -21,3 +21,11 @@ budgeting a quota across multiple Kubernetes resources from a single
 admission policy.
 
 <PlaygroundExample dir={require.context("../_examples/aggregates/sum/total_replicas")} />
+
+### `min` and `max`
+
+`min` and `max` pick the smallest or largest element from an array or set of
+values based on Rego's total ordering. They are often used to clamp numeric
+values into an allowed range or find the bounding element in a collection.
+
+<PlaygroundExample dir={require.context("../_examples/aggregates/min/clamp-replicas")} />

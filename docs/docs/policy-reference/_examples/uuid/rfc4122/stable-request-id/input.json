@@ -1,0 +1,5 @@
+{
+  "action": "read",
+  "path": "/api/v1/resource",
+  "request_id": "req-12345"
+}

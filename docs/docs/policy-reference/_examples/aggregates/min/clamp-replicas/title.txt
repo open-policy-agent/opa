@@ -1,0 +1,1 @@
+Clamp deployment replicas with min and max

@@ -1,0 +1,1 @@
+Reject values with the wrong JSON type
