@@ -7,7 +7,7 @@ labels:
 inventors:
 - styra
 code:
-- https://github.com/StyraInc/zed-rego
+- https://github.com/open-policy-agent/zed-rego
 software:
 - editors
 docs_features:
@@ -18,7 +18,7 @@ docs_features:
       via the [Regal Language Server](/integrations/regal/).
 ---
 
-The [zed-rego extension](https://github.com/StyraInc/zed-rego)
+The [zed-rego extension](https://github.com/open-policy-agent/zed-rego)
 is an extension for the [Zed editor](https://zed.dev/) that provides
 support for the Rego language and OPA functionality. The extension
 also includes support for the [Regal Language Server](/integrations/regal/).

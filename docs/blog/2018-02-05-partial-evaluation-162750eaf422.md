@@ -195,7 +195,7 @@ For more information on how to embed OPA as a library and leverage the partial e
 
 An immediate application for partial evaluation is [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) policy enforcement. RBAC provides a simple, coarse-grained way of granting permissions by groupings. Determining whether to allow requests under RBAC involves identifying whether the caller has been associated with a role that grants permission to the perform the operation.
 
-In projects like [Kubernetes](https://kubernetes.io/docs/admin/authorization/rbac/) and [Istio](https://istio.io/docs/concepts/security/rbac.html), RBAC configuration is specified using _roles_ and _role bindings_. Roles grant permission to perform operations and role bindings associate subjects (e.g., users or service accounts) to roles. Below is an example of some role and role binding data:
+In projects like [Kubernetes](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) and [Istio](https://istio.io/latest/docs/concepts/security/#authorization), RBAC configuration is specified using _roles_ and _role bindings_. Roles grant permission to perform operations and role bindings associate subjects (e.g., users or service accounts) to roles. Below is an example of some role and role binding data:
 
 ```json
 {

@@ -12,7 +12,7 @@ Happy September Everyone! This month's edition is coming in a little late, but d
 
 Don't forget to register for Cloud Native Policy Day with OPA! More info at bottom.
 
-[Register Today!](https://www.styra.com/cloud-native-policy-day-with-opa-2022/)
+[Register Today!](https://web.archive.org/web/https://www.styra.com/cloud-native-policy-day-with-opa-2022/)
 
 ## Community Updates
 
@@ -57,7 +57,7 @@ Open Policy Agent support for Fiber.
 
 Note: Requires Go 1.16 and above
 
-[Try it](https://github.com/gofiber/contrib/tree/main/opafiber)
+[Try it](https://github.com/gofiber/contrib/tree/main/v3/opa)
 
 ## Blogs
 

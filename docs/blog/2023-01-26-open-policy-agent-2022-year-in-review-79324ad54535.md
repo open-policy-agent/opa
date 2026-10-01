@@ -19,7 +19,7 @@ While we queried our nearest OPA instance for policy decisions, we also queried 
 
 ### Open Policy Day with OPA
 
-This year we were excited to see an entire event dedicated to OPA — the Open Policy Day with OPA co-located with KubeCon North America. During the course of the day, attendees got to hear end-user stories on using OPA in production, with speakers from organizations like Nvidia, T-Mobile. Capital One, Chime and Snowflake. If you couldn't attend in person, all the talks are up on [YouTube](https://www.youtube.com/@styra6251/videos)!
+This year we were excited to see an entire event dedicated to OPA — the Open Policy Day with OPA co-located with KubeCon North America. During the course of the day, attendees got to hear end-user stories on using OPA in production, with speakers from organizations like Nvidia, T-Mobile. Capital One, Chime and Snowflake. If you couldn't attend in person, all the talks are up on [YouTube](https://web.archive.org/web/https://www.youtube.com/@styra6251/videos)!
 
 ### Conferences and Meetups
 
@@ -179,11 +179,11 @@ The tooling around Conftest improved as well: when using the `--version` flag, t
 
 ### Integrations
 
-OPA would not be what it is without its massive ecosystem of tools, integrations and useful and fun projects. The year started out with some great news in the infrastructure space, with AWS opening up for the possibility of externalizing compliance checks of CloudFormation templates via hooks, and it did not take long for the [AWS CloudFormation hook for OPA](https://github.com/StyraInc/opa-aws-cloudformation-hook) to arrive on the scene. Later this year, Hashicorp announced [support for OPA](https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement) in their Terraform Cloud offering. A [Pulumi](https://github.com/pulumi/pulumi-policy-opa) integration was also added to the [ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/). The message seems clear — the tool to use for infrastructure as code (IaC) compliance is OPA, and the language to define IaC policies is Rego!
+OPA would not be what it is without its massive ecosystem of tools, integrations and useful and fun projects. The year started out with some great news in the infrastructure space, with AWS opening up for the possibility of externalizing compliance checks of CloudFormation templates via hooks, and it did not take long for the [AWS CloudFormation hook for OPA](https://github.com/open-policy-agent/contrib/tree/main/opa-aws-cloudformation-hook) to arrive on the scene. Later this year, Hashicorp announced [support for OPA](https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement) in their Terraform Cloud offering. A [Pulumi](https://github.com/pulumi/pulumi-policy-opa) integration was also added to the [ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/). The message seems clear — the tool to use for infrastructure as code (IaC) compliance is OPA, and the language to define IaC policies is Rego!
 
 Outside of the infrastructure space, we saw a number of interesting integrations being built by the community, like [Alfred](https://github.com/dolevf/Open-Policy-Agent-Alfred), a Rego Playground you can self host, a [CircleCI](https://circleci.com/docs/config-policy-management-overview/) integration for CI/CD pipeline policies, [fig](https://github.com/open-policy-agent/contrib/tree/main/opa_fig_autocomplete) support for command line auto-completion goodness, [self-sovereign identity](https://docs.walt.id/v/ssikit/ssi-kit/open-policy-agent) (SSI) integrations, and even policy-driven access to remote systems via [SansShell](https://github.com/Snowflake-Labs/sansshell). OPA-powered policy enforcement even made it to the desktop this year, with the CISA-developed [ScubaGear](https://github.com/cisagov/ScubaGear/) project using Rego for validating M365 tenant configurations!
 
-Finally, a much awaited addition to the OPA ecosystem — the [Rego Style Guide](https://github.com/StyraInc/rego-style-guide) now offers policy authors a comprehensive set of rules and best practices for authoring Rego.
+Finally, a much awaited addition to the OPA ecosystem — the [Rego Style Guide](https://github.com/open-policy-agent/rego-style-guide) now offers policy authors a comprehensive set of rules and best practices for authoring Rego.
 
 For a more comprehensive list of OPA integrations, check out the OPA [ecosystem page](https://www.openpolicyagent.org/docs/latest/ecosystem/), and the [Awesome OPA](https://github.com/anderseknert/awesome-opa) list.
 
