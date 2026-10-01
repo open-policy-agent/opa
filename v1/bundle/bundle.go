@@ -45,7 +45,6 @@ const (
 	PlanProtoFile         = "plan.pb"
 	ManifestExt           = ".manifest"
 	ManifestProtoExt      = ".manifest.pb"
-	SignaturesFile        = "signatures.json"
 	signaturesFilename    = ".signatures.json"
 	patchFile             = "patch.json"
 	dataFile              = "data.json"
@@ -55,6 +54,10 @@ const (
 	DefaultSizeLimitBytes = (1024 * 1024 * 1024) // limit bundle reads to 1GB to protect against gzip bombs
 	DeltaBundleType       = "delta"
 	SnapshotBundleType    = "snapshot"
+
+	// Deprecated: OPA now expects the exact filename ".signatures.json".
+	// Use IsSignaturesFile to detect it.
+	SignaturesFile = "signatures.json"
 )
 
 var (
