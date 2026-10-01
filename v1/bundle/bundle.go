@@ -1816,12 +1816,12 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 		}
 
 		if IsSignaturesFile(f.Path()) {
-			if signaturesFilePath != "" {
-				return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
-			}
-			signaturesFilePath = f.Path()
-
 			if !skipVerify {
+				if signaturesFilePath != "" {
+					return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
+				}
+				signaturesFilePath = f.Path()
+
 				buf, err := readFile(f, sizeLimitBytes)
 				if err != nil {
 					return bundle, nil, err

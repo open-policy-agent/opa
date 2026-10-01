@@ -1028,7 +1028,7 @@ func TestIsSignaturesFile(t *testing.T) {
 func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 	// The signatures file is matched by basename (".signatures.json"), like the
 	// manifest, so it is found under any prefix. Similarly named files are
-	// content, and a second signatures file is an error.
+	// content, and a second signatures file is rejected when verifying.
 	descriptorHasPath := func(descs []*Descriptor, want string) bool {
 		for _, d := range descs {
 			if d.Path() == want {
@@ -1085,7 +1085,7 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 		}
 	})
 
-	t.Run("multiple signatures files are rejected", func(t *testing.T) {
+	t.Run("multiple signatures files are rejected when verifying", func(t *testing.T) {
 		files := [][2]string{
 			{"/.signatures.json", `{"plugin":"real"}`},
 			{"/sub/.signatures.json", `{"plugin":"other"}`},
@@ -1094,6 +1094,30 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
 		if _, _, err := preProcessBundle(loader, false, DefaultSizeLimitBytes); err == nil || !strings.Contains(err.Error(), "multiple signatures files") {
 			t.Fatalf("expected multiple signatures files error, got %v", err)
+		}
+	})
+
+	t.Run("multiple signatures files are tolerated under skip-verify", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/sub/.signatures.json", `{"plugin":"other"}`},
+			{"/data.json", `{"x":1}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("skipVerify should tolerate multiple signatures files, got %v", err)
+		}
+		if !b.Signatures.isEmpty() {
+			t.Errorf("with skipVerify, Signatures must not be decoded, got %+v", b.Signatures)
+		}
+		for _, sig := range []string{"/.signatures.json", "/sub/.signatures.json"} {
+			if descriptorHasPath(descs, sig) {
+				t.Errorf("%q must not be a content descriptor under skipVerify", sig)
+			}
+		}
+		if !descriptorHasPath(descs, "/data.json") {
+			t.Error("/data.json must be content")
 		}
 	})
 
