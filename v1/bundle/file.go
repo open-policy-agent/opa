@@ -224,15 +224,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 				return nil
 			}
 
-			if info.Mode().IsRegular() {
-				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
-					return nil
-				}
-				if d.maxSizeLimitBytes > 0 && info.Size() > d.maxSizeLimitBytes {
-					return fmt.Errorf(maxSizeLimitBytesErrMsg, strings.TrimPrefix(path, "/"), info.Size(), d.maxSizeLimitBytes)
-				}
-				d.files = append(d.files, path)
-			} else if d.followSymlinks && info.Mode().Type()&fs.ModeSymlink == fs.ModeSymlink {
+			if info.Mode().IsRegular() || (d.followSymlinks && info.Mode().Type()&fs.ModeSymlink == fs.ModeSymlink) {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
 					return nil
 				}

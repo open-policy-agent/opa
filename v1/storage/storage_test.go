@@ -92,7 +92,7 @@ func TestNonEmptyer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if nonEmpty != true {
+			if !nonEmpty {
 				t.Errorf("Expected true for %v but got false", path)
 			}
 			return nil

@@ -197,19 +197,20 @@ func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 }
 
 func mergeWithOverwrite(objA, objB ast.Object) ast.Object {
-	merged, _ := objA.MergeWith(objB, func(v1, v2 *ast.Term) (*ast.Term, bool) {
-		originalValueObj, ok2 := v1.Value.(ast.Object)
-		updateValueObj, ok1 := v2.Value.(ast.Object)
-		if !ok1 || !ok2 {
-			// If we can't merge, stick with the right-hand value
-			return v2, false
-		}
-
-		// Recursively update the existing value
-		merged := mergeWithOverwrite(originalValueObj, updateValueObj)
-		return ast.NewTerm(merged), false
-	})
+	merged, _ := objA.MergeWith(objB, mergeOverwriteResolve)
 	return merged
+}
+
+func mergeOverwriteResolve(v1, v2 *ast.Term) (*ast.Term, bool) {
+	originalValueObj, ok2 := v1.Value.(ast.Object)
+	updateValueObj, ok1 := v2.Value.(ast.Object)
+	if !ok1 || !ok2 {
+		// If we can't merge, stick with the right-hand value
+		return v2, false
+	}
+
+	// Recursively update the existing value
+	return ast.NewTerm(mergeWithOverwrite(originalValueObj, updateValueObj)), false
 }
 
 // Modifies obj with any new keys from other, and recursively

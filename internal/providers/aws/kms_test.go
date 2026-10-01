@@ -44,7 +44,7 @@ func TestKMS_SignDigest(t *testing.T) {
 
 		creds := Credentials{}
 		signature, err := kms.SignDigest(t.Context(), []byte(tc.request.Message), tc.request.KeyID, tc.request.SigningAlgorithm, creds, "v4")
-		if err != nil && tc.wantErr == false {
+		if err != nil && !tc.wantErr {
 			t.Fatalf("expected no error, got: %s", err)
 		}
 

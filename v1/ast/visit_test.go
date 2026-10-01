@@ -190,9 +190,7 @@ func TestGenericVisitorLazyObject(t *testing.T) {
 	act := 0
 	WalkTerms(o, func(n *Term) bool {
 		switch n.Value {
-		case String("foo"):
-			act++
-		case Number("3"):
+		case String("foo"), Number("3"):
 			act++
 		}
 
@@ -212,9 +210,7 @@ func TestGenericBeforeAfterVisitorLazyObject(t *testing.T) {
 			return false
 		}
 		switch t.Value {
-		case String("foo"):
-			act++
-		case Number("3"):
+		case String("foo"), Number("3"):
 			act++
 		}
 

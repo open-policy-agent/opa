@@ -1100,7 +1100,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 			if indent {
 				if !indented {
 					w.up()
-					defer w.down() //nolint:errcheck
+					defer w.down() //nolint
 					indented = true
 				}
 				w.endLine()
@@ -1366,7 +1366,7 @@ func (w *writer) writeLogical(expr *ast.Expr, comments []*ast.Comment) ([]*ast.C
 		if s.breaksLine() {
 			if !indented {
 				w.up()
-				defer w.down() //nolint:errcheck
+				defer w.down() //nolint
 				indented = true
 			}
 			w.endLine()

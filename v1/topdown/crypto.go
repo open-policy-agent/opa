@@ -185,35 +185,30 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 		switch k {
 		case "DNSName":
 			dns, ok := options.Get(key).Value.(ast.String)
-			if ok {
-				verifyOpt.DNSName = strings.Trim(string(dns), "\"")
-			} else {
+			if !ok {
 				return verifyOpt, errors.New("'DNSName' should be a string")
 			}
+			verifyOpt.DNSName = strings.Trim(string(dns), "\"")
 		case "CurrentTime":
 			c, ok := options.Get(key).Value.(ast.Number)
-			if ok {
-				nanosecs, ok := c.Int64()
-				if ok {
-					verifyOpt.CurrentTime = time.Unix(0, nanosecs)
-				} else {
-					return verifyOpt, errors.New("'CurrentTime' should be a valid int64 number")
-				}
-			} else {
+			if !ok {
 				return verifyOpt, errors.New("'CurrentTime' should be a number")
 			}
+			nanosecs, ok := c.Int64()
+			if !ok {
+				return verifyOpt, errors.New("'CurrentTime' should be a valid int64 number")
+			}
+			verifyOpt.CurrentTime = time.Unix(0, nanosecs)
 		case "MaxConstraintComparisons":
 			c, ok := options.Get(key).Value.(ast.Number)
-			if ok {
-				maxComparisons, ok := c.Int()
-				if ok {
-					verifyOpt.MaxConstraintComparisions = maxComparisons
-				} else {
-					return verifyOpt, errors.New("'MaxConstraintComparisons' should be a valid number")
-				}
-			} else {
+			if !ok {
 				return verifyOpt, errors.New("'MaxConstraintComparisons' should be a number")
 			}
+			maxComparisons, ok := c.Int()
+			if !ok {
+				return verifyOpt, errors.New("'MaxConstraintComparisons' should be a valid number")
+			}
+			verifyOpt.MaxConstraintComparisions = maxComparisons
 		case "KeyUsages":
 			type forEach interface {
 				Foreach(func(*ast.Term))

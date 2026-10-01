@@ -50,15 +50,7 @@ func (vc *VerificationConfig) ValidateAndInjectDefaults(keys map[string]*KeyConf
 	vc.PublicKeys = keys
 
 	if vc.KeyID != "" {
-		found := false
-		for key := range keys {
-			if key == vc.KeyID {
-				found = true
-				break
-			}
-		}
-
-		if !found {
+		if _, found := keys[vc.KeyID]; !found {
 			return fmt.Errorf("key id %s not found", vc.KeyID)
 		}
 	}

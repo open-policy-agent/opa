@@ -176,28 +176,28 @@ func TestPluginPrometheus(t *testing.T) {
 
 	assertOpInformationGauge(t, registerMock)
 
-	if registerMock.Collectors[fixture.plugin.collectors.pluginStatus] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.pluginStatus] {
 		t.Fatal("Plugin status metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.loaded] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.loaded] {
 		t.Fatal("Loaded metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.failLoad] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.failLoad] {
 		t.Fatal("FailLoad metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastRequest] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastRequest] {
 		t.Fatal("Last request metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulActivation] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulActivation] {
 		t.Fatal("Last Successful Activation metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulDownload] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulDownload] {
 		t.Fatal("Last Successful Download metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulRequest] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulRequest] {
 		t.Fatal("Last Successful Request metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.bundleLoadDuration] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.bundleLoadDuration] {
 		t.Fatal("Bundle Load Duration metric was not registered on prometheus")
 	}
 	if registerMock.Collectors[fixture.plugin.collectors.decisionLogsStatus] != true {
@@ -250,7 +250,7 @@ func TestPluginPrometheus(t *testing.T) {
 		c.Prometheus = false
 	})
 	fixture.plugin.Reconfigure(ctx, prometheusDisabledConfig)
-	eventually(t, func() bool { return fixture.plugin.config.Prometheus == false })
+	eventually(t, func() bool { return !fixture.plugin.config.Prometheus })
 
 	if len(registerMock.Collectors) != 0 {
 		t.Fatalf("Number of collectors expected (%v), got %v", 0, len(registerMock.Collectors))
@@ -261,7 +261,7 @@ func TestPluginPrometheus(t *testing.T) {
 		c.Prometheus = true
 	})
 	fixture.plugin.Reconfigure(ctx, prometheusReenabledConfig)
-	eventually(t, func() bool { return fixture.plugin.config.Prometheus == true })
+	eventually(t, func() bool { return fixture.plugin.config.Prometheus })
 
 	if len(registerMock.Collectors) != 11 {
 		t.Fatalf("Number of collectors expected (%v), got %v", 11, len(registerMock.Collectors))

@@ -177,7 +177,7 @@ func BenchmarkArrayIteration(b *testing.B) {
 			b.Fatal("expected result")
 		}
 
-		if res[0].Bindings["x"].(bool) != true {
+		if !res[0].Bindings["x"].(bool) {
 			b.Fatalf("expected true, got %v", res[0].Bindings["x"])
 		}
 	}
@@ -218,7 +218,7 @@ func BenchmarkSetIteration(b *testing.B) {
 		if res == nil {
 			b.Fatal("expected result")
 		}
-		if res[0].Bindings["x"].(bool) != false {
+		if res[0].Bindings["x"].(bool) {
 			b.Fatalf("expected false, got %v", res[0].Bindings["x"])
 		}
 	}
@@ -260,7 +260,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 		if res == nil {
 			b.Fatal("expected result")
 		}
-		if res[0].Bindings["x"].(bool) != false {
+		if res[0].Bindings["x"].(bool) {
 			b.Fatalf("expected false, got %v", res[0].Bindings["x"])
 		}
 	}

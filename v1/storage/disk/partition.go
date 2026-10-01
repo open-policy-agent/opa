@@ -44,7 +44,6 @@ func (p *partitionTrie) Find(path storage.Path) (int, *partitionTrie) {
 }
 
 func (p *partitionTrie) insert(path storage.Path) {
-
 	if len(path) == 0 {
 		return
 	}

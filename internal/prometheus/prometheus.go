@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -225,4 +226,12 @@ func allocHandler(rsp http.ResponseWriter, req *http.Request) {
 
 	rsp.WriteHeader(200)
 	_, _ = fmt.Fprintln(rsp, alloc)
+}
+
+func collector() prometheus.Collector {
+	return collectors.NewGoCollector(
+		collectors.WithGoCollectorRuntimeMetrics(
+			collectors.MetricsAll,
+		),
+	)
 }

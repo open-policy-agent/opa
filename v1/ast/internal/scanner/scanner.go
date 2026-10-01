@@ -545,7 +545,7 @@ func (s *Scanner) scanComment() string {
 	end := s.offset - 1
 	// Trim carriage returns that precede the newline
 	if s.offset > 1 && s.bs[s.offset-2] == '\r' {
-		end -= 1
+		end--
 	}
 
 	return util.ByteSliceToString(s.bs[start:end])

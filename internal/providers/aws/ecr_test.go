@@ -64,7 +64,7 @@ func TestParseAWSTimestamp(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		got, err := parseTimestamp(tc.raw)
-		if err != nil && tc.wantErr == false {
+		if err != nil && !tc.wantErr {
 			t.Fatalf("expected no error, got: %s", err)
 		}
 

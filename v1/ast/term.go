@@ -1731,10 +1731,7 @@ func newset(n int) *set {
 
 // SetTerm returns a new Term representing a set containing terms t.
 func SetTerm(t ...*Term) *Term {
-	set := NewSet(t...)
-	return &Term{
-		Value: set,
-	}
+	return &Term{Value: NewSet(t...)}
 }
 
 type set struct {

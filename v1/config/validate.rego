@@ -37,7 +37,7 @@ errors contains msg if {
 	value := input.config[field]
 	value != null
 	not is_string(value)
-	msg := sprintf("%s must be a string", [field])
+	msg := $"{field} must be a string"
 }
 
 # warnings reports unrecognized options at any depth. _specs enumerates the known
@@ -56,7 +56,7 @@ warnings contains msg if {
 	_matches(parent, spec.pattern)
 	not key in spec.keys
 
-	msg := sprintf("unknown configuration option %q encountered", [_dotted(path)])
+	msg := $`unknown configuration option "{_dotted(path)}" encountered`
 }
 
 # _matches tests a config path against a spec pattern; "*" matches any segment.
@@ -71,7 +71,7 @@ _mismatch(path, pattern) if {
 	segment != path[i]
 }
 
-_dotted(path) := concat(".", [sprintf("%v", [segment]) | some segment in path])
+_dotted(path) := concat(".", [$"{segment}" | some segment in path])
 
 # _specs is the core specs combined with any specs registered by plugins or
 # subsystems (supplied as input.specs by the Go layer). Sections whose specs
