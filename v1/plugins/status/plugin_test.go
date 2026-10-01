@@ -371,12 +371,12 @@ decision_logs_status_gauge{code="decision_log_error",http_code="400"} 1
 	}
 
 	exp = `
-# HELP decision_logs_dropped_buffer_size_limit_exceeded Counter for the decision logs metric decision_logs_dropped_buffer_size_limit_exceeded.
-# TYPE decision_logs_dropped_buffer_size_limit_exceeded counter
-decision_logs_dropped_buffer_size_limit_exceeded 3
-# HELP decision_logs_encoding_failure Counter for the decision logs metric decision_logs_encoding_failure.
-# TYPE decision_logs_encoding_failure counter
-decision_logs_encoding_failure 1
+# HELP decision_logs_dropped_buffer_size_limit_exceeded_total Counter for the decision logs metric decision_logs_dropped_buffer_size_limit_exceeded.
+# TYPE decision_logs_dropped_buffer_size_limit_exceeded_total counter
+decision_logs_dropped_buffer_size_limit_exceeded_total 3
+# HELP decision_logs_encoding_failure_total Counter for the decision logs metric decision_logs_encoding_failure.
+# TYPE decision_logs_encoding_failure_total counter
+decision_logs_encoding_failure_total 1
 `
 	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsCounters, strings.NewReader(exp)); err != nil {
 		t.Fatal(err)
@@ -397,11 +397,11 @@ decision_logs_status_gauge{code="",http_code=""} 1
 	}
 
 	exp = `
-# HELP decision_logs_encoding_failure Counter for the decision logs metric decision_logs_encoding_failure.
-# TYPE decision_logs_encoding_failure counter
-decision_logs_encoding_failure 2
+# HELP decision_logs_encoding_failure_total Counter for the decision logs metric decision_logs_encoding_failure.
+# TYPE decision_logs_encoding_failure_total counter
+decision_logs_encoding_failure_total 2
 `
-	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsCounters, strings.NewReader(exp), "decision_logs_encoding_failure"); err != nil {
+	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsCounters, strings.NewReader(exp), "decision_logs_encoding_failure_total"); err != nil {
 		t.Fatal(err)
 	}
 }

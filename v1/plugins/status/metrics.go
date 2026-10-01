@@ -203,7 +203,8 @@ func (c *collectors) toList() []prometheus.Collector {
 
 // decisionLogsCounters exports the decision logs counters kept on the global
 // metrics provider. The Prometheus provider doesn't forward counters to its
-// registry, so the values are copied over on every status update.
+// registry, so the values are copied over on every status update. Exported
+// names carry the conventional _total suffix for Prometheus counters.
 type decisionLogsCounters struct {
 	mtx    sync.Mutex
 	descs  map[string]*prometheus.Desc
@@ -213,7 +214,7 @@ type decisionLogsCounters struct {
 func newDecisionLogsCounters() *decisionLogsCounters {
 	descs := make(map[string]*prometheus.Desc, len(decisionLogsCounterNames))
 	for _, name := range decisionLogsCounterNames {
-		descs[name] = prometheus.NewDesc(name, "Counter for the decision logs metric "+name+".", nil, nil)
+		descs[name] = prometheus.NewDesc(name+"_total", "Counter for the decision logs metric "+name+".", nil, nil)
 	}
 	return &decisionLogsCounters{descs: descs, values: map[string]float64{}}
 }
