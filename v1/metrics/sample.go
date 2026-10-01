@@ -5,7 +5,6 @@
 package metrics
 
 import (
-	"container/heap"
 	"math"
 	"math/rand/v2"
 	"slices"
@@ -37,19 +36,49 @@ type weightedValue struct {
 	v int64
 }
 
-// sampleHeap is a min-heap of weighted values ordered by priority.
+// sampleHeap is a min-heap of weighted values ordered by priority. It is
+// container/heap's algorithm on a concrete type, since boxing every value into
+// an any dominates the cost of Update.
 type sampleHeap []weightedValue
 
-func (h sampleHeap) Len() int           { return len(h) }
-func (h sampleHeap) Less(i, j int) bool { return h[i].k < h[j].k }
-func (h sampleHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *sampleHeap) Push(x any)        { *h = append(*h, x.(weightedValue)) }
-func (h *sampleHeap) Pop() any {
-	old := *h
-	n := len(old) - 1
-	x := old[n]
-	*h = old[:n]
-	return x
+func (h *sampleHeap) push(v weightedValue) {
+	*h = append(*h, v)
+	h.up(len(*h) - 1)
+}
+
+func (h *sampleHeap) pop() {
+	n := len(*h) - 1
+	(*h)[0], (*h)[n] = (*h)[n], (*h)[0]
+	h.down(0, n)
+	*h = (*h)[:n]
+}
+
+func (h sampleHeap) up(j int) {
+	for j > 0 {
+		i := (j - 1) / 2
+		if !(h[j].k < h[i].k) {
+			break
+		}
+		h[i], h[j] = h[j], h[i]
+		j = i
+	}
+}
+
+func (h sampleHeap) down(i, n int) {
+	for {
+		j := 2*i + 1
+		if j >= n {
+			break
+		}
+		if r := j + 1; r < n && !(h[j].k < h[r].k) {
+			j = r
+		}
+		if !(h[j].k < h[i].k) {
+			break
+		}
+		h[i], h[j] = h[j], h[i]
+		i = j
+	}
 }
 
 func newExpDecaySample(size int, alpha float64) *expDecaySample {
@@ -73,9 +102,9 @@ func (s *expDecaySample) update(t time.Time, v int64) {
 
 	s.count++
 	if len(s.values) == s.size {
-		heap.Pop(&s.values)
+		s.values.pop()
 	}
-	heap.Push(&s.values, weightedValue{
+	s.values.push(weightedValue{
 		k: math.Exp(t.Sub(s.t0).Seconds()*s.alpha) / rand.Float64(),
 		v: v,
 	})
