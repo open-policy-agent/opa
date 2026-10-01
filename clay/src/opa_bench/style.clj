@@ -63,7 +63,6 @@ code { background: var(--blue); padding: 1px 4px; }
   color: var(--fg) !important;
   padding: 8px 10px;
 }
-.interval-box-header { font-weight: bold; margin-bottom: 4px; }
 .interval-box ul { margin: 4px 0 0 0; padding-left: 18px; }
 .interval-box li { margin: 2px 0; }
 

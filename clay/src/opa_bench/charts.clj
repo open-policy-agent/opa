@@ -34,50 +34,15 @@
      :message (:message c)
      :url     (commit-url commit)}))
 
-(defn- x-label
-  "Categorical x value for a commit: its tag if it has one, else a short sha."
-  [commit tag]
-  (or tag (data/tag-map commit) (subs commit 0 7)))
+(defn- night-x
+  "Plotly date-axis value for a night's unix-seconds timestamp, in UTC."
+  [epoch-seconds]
+  (-> (java.time.Instant/ofEpochSecond epoch-seconds)
+      (.atZone java.time.ZoneOffset/UTC)
+      (.format (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss"))))
 
 (defn- commit-index [labelled]
   (into {} (map (fn [{:keys [x commit]}] [x (commit-detail commit)])) labelled))
-
-(def ^:private max-gap-ticks
-  "How many intermediate commits get an axis tick for a single gap between two
-   samples. One tick per commit in a busy gap would blow up the axis width far
-   more than it clarifies; a handful spread evenly through the gap is enough
-   to show a gap exists without diluting the density of the real points."
-  3)
-
-(defn- thin
-  "At most n elements from coll, evenly spaced, in order, always including
-   the first and last."
-  [n coll]
-  (let [v (vec coll) c (count v)]
-    (cond
-      (<= c n) v
-      (<= n 1) (subvec v 0 1)
-      :else (->> (range n)
-                 (map #(Math/round (double (* % (/ (dec c) (dec n))))))
-                 distinct
-                 (map v)
-                 vec))))
-
-(defn- benchlab-axis-commits
-  "Every commit backing an axis tick, in order: each sampled commit, plus up
-   to max-gap-ticks evenly spaced commits from the gap right after it --
-   enough to show where the gaps are without one tick per intervening commit
-   spreading the real points thin across the axis.
-
-   Kept as shas rather than labels: the tick-label click handler needs each
-   one's GitHub URL, which is derived from the sha, not the display text.
-
-   `intervals` is interval-commits' raw output (not the by-commit map built
-   from it for the hover panel)."
-  [labelled intervals]
-  (let [gap-after (into {} (map (fn [{:keys [after commits]}] [after commits])) intervals)
-        samples   (->> labelled distinct (sort-by :date) (map :commit))]
-    (vec (mapcat (fn [sha] (cons sha (thin max-gap-ticks (get gap-after sha)))) samples))))
 
 (defn- interval-commits
   "Runs of commits carrying no measurement for a benchmark, sitting strictly
@@ -174,11 +139,6 @@
     }
     intervalInfo.style.display = '';
     intervalInfo.innerHTML = '';
-    var header = document.createElement('div');
-    header.className = 'interval-box-header';
-    header.textContent = interval.commits.length + ' commit' + (interval.commits.length === 1 ? '' : 's') +
-      ' landed since the previous sample at ' + interval.after.slice(0, 7);
-    intervalInfo.appendChild(header);
     var ul = document.createElement('ul');
     interval.commits.forEach(function(c) {
       var li = document.createElement('li');
@@ -253,7 +213,6 @@
         night-shas     (into #{} (map :commit) points)
         raw-intervals  (interval-commits data/commits-ordered night-shas)
         intervals-map  (intervals-by-commit raw-intervals)
-        axis-commits   (benchlab-axis-commits labelled raw-intervals)
         traces (for [measure measure-order
                      :let [ps    (get series measure)
                            color (measure-colors measure)]
@@ -297,12 +256,9 @@
      :commit-by-x (commit-index labelled)
      :intervals intervals-map
      :show-commit-info false
-     :tick-urls (into {} (map (fn [sha] [(x-label sha nil) (commit-url sha)])) axis-commits)
      :layout (merge base-layout
                     {:yaxis {:title (str "% vs " data/latest-tag) :zeroline true}
-                     :xaxis {:title "" :tickangle -45
-                             :categoryorder "array"
-                             :categoryarray (mapv #(x-label % nil) axis-commits)}
+                     :xaxis {:title "" :type "date"}
                      :height 360
                      :margin {:b 110}
                      :shapes [{:type "line" :xref "paper" :x0 0 :x1 1
@@ -313,7 +269,7 @@
                      (keep (fn [measure]
                              (when-let [ps (seq (data/benchlab-series
                                                   [pkg bench-name measure]))]
-                               [measure (mapv #(assoc % :x (x-label (:commit %) nil)) ps)])))
+                               [measure (mapv #(assoc % :x (night-x (:date %))) ps)])))
                      measure-order)]
     (kind/hiccup
       [:div [:script {:src plotly-cdn}]
