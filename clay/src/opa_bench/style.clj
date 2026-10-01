@@ -14,10 +14,6 @@
   --fg: #000;
   --fg-muted: #444;
   --link: #268bd2;
-  --chart-bg: #ffffea;
-  --chart-grid: #e0e0c8;
-  --chart-baseline: #aaa;
-  --tag-line: rgba(0,0,0,0.15);
 }
 
 body {
@@ -46,13 +42,9 @@ a:hover { text-decoration: underline; }
 p, code { font-family: 'Go Mono', monospace !important; font-size: 13px; }
 code { background: var(--blue); padding: 1px 4px; }
 
-.commit-panel {
-  font-family: 'Go Mono', monospace !important;
-  font-size: 12px;
-  background: var(--blue) !important;
-  border: 1px solid var(--border) !important;
-  color: var(--fg) !important;
-}
+/* plotje draws a fixed-size inline-block svg; let it fill the page and scale */
+div:has(> svg.plotje-plot) { display: block !important; }
+svg.plotje-plot { width: 100%; height: auto; }
 
 .interval-box {
   font-family: 'Go Mono', monospace !important;
@@ -65,6 +57,7 @@ code { background: var(--blue); padding: 1px 4px; }
 }
 .interval-box ul { margin: 4px 0 0 0; padding-left: 18px; }
 .interval-box li { margin: 2px 0; }
+.interval-box li.head { font-weight: bold; }
 
 /* datatables */
 table.dataTable { font-size: 12px !important; }

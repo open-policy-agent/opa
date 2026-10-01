@@ -2,6 +2,7 @@
   (:require [scicloj.kindly.v4.kind :as kind]
             [clojure.data.json :as json]
             [clojure.string :as str]
+            [scicloj.plotje.api :as pj]
             [opa-bench.data :as data]))
 
 (def measure-labels
@@ -18,31 +19,8 @@
    "AllocsPerOp" "#d33682"
    "BytesPerOp"  "#859900"})
 
-(def ^:private plotly-cdn
-  "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.20.0/plotly.min.js")
-
 (defn- commit-url [sha]
   (str "https://github.com/open-policy-agent/opa/commit/" sha))
-
-(defn- commit-detail
-  "Commit details for the hover panel and click-through."
-  [commit]
-  (let [c (data/commit-info commit)]
-    {:sha     commit
-     :author  (:author c)
-     :date    (:date c)
-     :message (:message c)
-     :url     (commit-url commit)}))
-
-(defn- night-x
-  "Plotly date-axis value for a night's unix-seconds timestamp, in UTC."
-  [epoch-seconds]
-  (-> (java.time.Instant/ofEpochSecond epoch-seconds)
-      (.atZone java.time.ZoneOffset/UTC)
-      (.format (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss"))))
-
-(defn- commit-index [labelled]
-  (into {} (map (fn [{:keys [x commit]}] [x (commit-detail commit)])) labelled))
 
 (defn- interval-commits
   "Runs of commits carrying no measurement for a benchmark, sitting strictly
@@ -71,10 +49,14 @@
 
 (defn- commit-title
   "First line of a commit message: git's convention for the title/subject.
-   Interval lists can run to dozens of commits, so only the title is shown --
-   the full message belongs to the single-commit hover panel, not a list."
+   Interval lists can run to dozens of commits, so only the title is shown."
   [message]
   (first (str/split-lines message)))
+
+(defn- commit-entry [sha]
+  {:sha     sha
+   :message (commit-title (data/commit-message sha))
+   :url     (commit-url sha)})
 
 (defn- intervals-by-commit
   "Maps the sha of the sample ending an interval to
@@ -83,197 +65,156 @@
   [intervals]
   (into {}
         (map (fn [{:keys [after before commits]}]
-               [before {:after after
-                        :commits (mapv (fn [sha]
-                                         {:sha     sha
-                                          :message (commit-title (:message (data/commit-info sha)))
-                                          :url     (commit-url sha)})
-                                       commits)}]))
+               [before {:after after :commits (mapv commit-entry commits)}]))
         intervals))
 
-(def ^:private chart-js "
+(def ^:private acme-theme
+  {:bg "#ffffea" :grid "#e0e0c8" :font-size 11})
+
+(defn- night-instant [epoch-seconds]
+  (java.util.Date. (* 1000 (long epoch-seconds))))
+
+(def ^:private interval-js "
 (function() {
-  var el = document.getElementById('%s');
-  var info = document.getElementById('%s');
-  var intervalInfo = document.getElementById('%s');
-  var commitByX = %s;
-  var intervalsByCommit = %s;
-  var traces = %s;
-  var baseLayout = %s;
-  var tickUrlByLabel = %s;
-
-  var s = getComputedStyle(document.documentElement);
-  var cv = function(v) { return s.getPropertyValue(v).trim(); };
-  var layout = Object.assign({}, baseLayout, {
-    paper_bgcolor: cv('--chart-bg'),
-    plot_bgcolor: cv('--chart-bg'),
-    font: Object.assign({}, baseLayout.font, {color: cv('--fg')}),
-    yaxis: Object.assign({}, baseLayout.yaxis, {gridcolor: cv('--chart-grid'), color: cv('--fg')}),
-    xaxis: Object.assign({}, baseLayout.xaxis, {gridcolor: cv('--chart-grid'), color: cv('--fg')}),
-  });
-  if (layout.shapes && layout.shapes.length) {
-    layout.shapes[0].line = {color: cv('--chart-baseline'), width: 1, dash: 'dash'};
-    for (var i = 1; i < layout.shapes.length; i++) {
-      layout.shapes[i].line.color = cv('--tag-line');
-    }
-  }
-
-  Plotly.newPlot(el, traces, layout, {responsive: true});
-
-  function linkTickLabels() {
-    el.querySelectorAll('.xaxislayer-above .xtick text').forEach(function(t) {
-      var url = tickUrlByLabel[t.textContent];
-      if (!url) return;
-      t.style.cursor = 'pointer';
-      t.onclick = function(ev) { ev.stopPropagation(); window.open(url, '_blank'); };
-    });
-  }
-  el.on('plotly_afterplot', linkTickLabels);
-
-  function renderInterval(interval) {
-    if (!intervalInfo) return;
-    if (!interval) {
-      intervalInfo.style.display = 'none';
-      intervalInfo.innerHTML = '';
-      return;
-    }
-    intervalInfo.style.display = '';
-    intervalInfo.innerHTML = '';
+  var box = document.getElementById('%s');
+  var commitsByRow = %s;
+  document.querySelector('.plotje-plot').addEventListener('mouseover', function(e) {
+    var el = e.target.closest('[data-row-idx]');
+    if (!el) return;
+    var commits = commitsByRow[+el.getAttribute('data-row-idx')];
+    box.innerHTML = '';
+    box.style.display = commits ? '' : 'none';
+    if (!commits) return;
     var ul = document.createElement('ul');
-    interval.commits.forEach(function(c) {
+    commits.forEach(function(c) {
       var li = document.createElement('li');
       var a = document.createElement('a');
       a.href = c.url;
       a.target = '_blank';
       a.textContent = c.sha.slice(0, 7);
+      if (c.head) li.className = 'head';
       li.appendChild(a);
       li.appendChild(document.createTextNode(' ' + c.message));
       ul.appendChild(li);
     });
-    intervalInfo.appendChild(ul);
-  }
-
-  el.on('plotly_hover', function(d) {
-    var x = d.points[0].x;
-    var cd = commitByX[x];
-    if (cd && info) {
-      info.textContent = 'Commit: ' + cd.sha + '\\n' +
-                         'Author: ' + cd.author + '\\n' +
-                         'Date:   ' + cd.date + '\\n\\n' +
-                         cd.message;
-    }
-    renderInterval(cd && intervalsByCommit[cd.sha]);
-  });
-
-  el.on('plotly_click', function(d) {
-    var x = d.points[0].x;
-    var cd = commitByX[x];
-    if (cd && cd.url) window.open(cd.url, '_blank');
+    box.appendChild(ul);
   });
 })();
 ")
 
-(defn- chart-panel
-  "One Plotly chart, optionally paired with a single-commit details panel."
-  [{:keys [id heading caption traces layout commit-by-x intervals show-commit-info tick-urls]
-    :or   {show-commit-info true}}]
-  [:div {:style "margin-bottom:26px"}
-   [:h3 {:style "font-size:14px;margin:0 0 2px 0"} heading]
-   [:p {:style "font-size:12px;margin:0 0 6px 0;opacity:0.75"} caption]
-   [:div {:id id}]
-   (when show-commit-info
-     [:pre {:id (str id "-commit") :class "commit-panel"
-            :style "margin-top:10px;padding:10px;min-height:64px;font-size:13px;white-space:pre-wrap"}
-      "Hover over a point to see commit details. Click to open on GitHub."])
-   (when intervals
-     [:div {:id (str id "-interval") :class "interval-box" :style "display:none"}])
-   [:script {:type "text/javascript"}
-    (format chart-js
-            id
-            (str id "-commit")
-            (str id "-interval")
-            (json/write-str commit-by-x)
-            (json/write-str (or intervals {}))
-            (json/write-str (vec traces))
-            (json/write-str layout)
-            (json/write-str (or tick-urls {})))]])
+(defn- tooltip-text [measure p commits since]
+  (str/join "\n"
+            (concat
+              [(format "%s: %+.2f%% vs %s%s" (measure-labels measure)
+                       (* 100 (- (:ratio p) 1)) data/latest-tag
+                       (if (:significant p) "" " (within noise)"))]
+              (when-let [c (:calibration p)]
+                [(format "night drift %.2f%%" (double (:median_abs_drift_pct c)))])
+              (when-let [n (some-> commits count)]
+                [(format "%d commit%s since %s" n (if (= n 1) "" "s") since)]))))
 
-(def ^:private base-layout
-  {:hoverlabel {:bgcolor "#eaffff" :bordercolor "#888"
-                :font {:family "Go Mono, monospace" :size 11 :color "#000"}}
-   :hovermode "x unified"
-   :font {:family "Go Mono, monospace" :size 11}
-   :showlegend true})
+(defn- head-entry [sha]
+  (assoc (commit-entry sha) :head true))
 
-(defn- benchlab-panel
-  "The nightly experiment, as percent difference from the baseline tag."
-  [series]
-  (let [points         (apply concat (vals series))
-        labelled       (mapv #(select-keys % [:x :date :commit]) points)
-        night-shas     (into #{} (map :commit) points)
-        raw-intervals  (interval-commits data/commits-ordered night-shas)
-        intervals-map  (intervals-by-commit raw-intervals)
-        traces (for [measure measure-order
-                     :let [ps    (get series measure)
-                           color (measure-colors measure)]
-                     :when (seq ps)]
-                 {:x (mapv :x ps)
-                  :y (mapv #(* 100 (- (:ratio %) 1)) ps)
-                  ;; benchstat reports an interval for the commit's own samples,
-                  ;; not one for the difference, so this shows spread rather than
-                  ;; testing significance. In percentage-point space the
-                  ;; half-width is ratio * ci-pct.
-                  :error_y {:type "data"
-                            :array (mapv #(* (:ratio %) (:ci-pct %)) ps)
-                            :visible true :thickness 1 :width 3 :color color}
-                  :text (mapv (fn [p]
-                                (str (format "%+.2f%% vs %s"
-                                             (* 100 (- (:ratio p) 1)) data/latest-tag)
-                                     (when-not (:significant p) " (within noise)")
-                                     (when-let [c (:calibration p)]
-                                       (format " | night drift %.2f%%"
-                                               (double (:median_abs_drift_pct c))))
-                                     (when-let [n (some-> (get intervals-map (:commit p))
-                                                          :commits count)]
-                                       (format " | %d commit%s since previous night"
-                                               n (if (= n 1) "" "s")))))
-                              ps)
-                  :customdata (mapv #(commit-detail (:commit %)) ps)
-                  :name (measure-labels measure measure)
-                  :type "scatter"
-                  :mode "lines+markers"
-                  :line {:color color}
-                  :marker {:color color :symbol "diamond" :size 7}
-                  :hovertemplate "%{text}<extra>%{fullData.name}</extra>"})]
-    {:id "chart-benchlab"
-     :heading "Nightly benchlab run"
-     :caption (str "Percent difference from " data/latest-tag
-                   ", with both measured side by side on one machine each night. "
-                   "Error bars are benchstat's interval for the commit's own samples; "
-                   "\"within noise\" in the hover is its significance verdict. Hover a "
-                   "point to see which commits landed since the previous night's run.")
-     :traces traces
-     :commit-by-x (commit-index labelled)
-     :intervals intervals-map
-     :show-commit-info false
-     :layout (merge base-layout
-                    {:yaxis {:title (str "% vs " data/latest-tag) :zeroline true}
-                     :xaxis {:title "" :type "date"}
-                     :height 360
-                     :margin {:b 110}
-                     :shapes [{:type "line" :xref "paper" :x0 0 :x1 1
-                               :yref "y" :y0 0 :y1 0}]})}))
+(defn- baseline-row
+  "The release itself: zero by definition, since every night measures it
+   alongside the head. Nil when the tag commit's date is unknown."
+  [measure]
+  (when-let [date (data/commit-dates data/latest-baseline-sha)]
+    {:date    date
+     :measure (measure-labels measure)
+     :pct     0.0 :lo 0.0 :hi 0.0
+     :tip     (str data/latest-tag " (baseline)")
+     :commits [(head-entry data/latest-baseline-sha)]}))
+
+(defn- benchlab-rows
+  "One row per measure and night, in the order the interval script indexes them."
+  [series intervals-map]
+  (vec (for [measure measure-order
+             :when (seq (get series measure))
+             row (cons (baseline-row measure)
+                       (for [p (get series measure)
+                             :let [pct     (* 100 (- (:ratio p) 1))
+                                   half    (* (:ratio p) (:ci-pct p))
+                                   {:keys [after commits]} (get intervals-map (:commit p))
+                                   since   (if (= after data/latest-baseline-sha)
+                                             data/latest-tag
+                                             "previous night")]]
+                         ;; benchstat reports an interval for the commit's own samples,
+                         ;; not one for the difference, so the bars show spread rather
+                         ;; than significance.
+                         {:date    (night-instant (:date p))
+                          :measure (measure-labels measure)
+                          :pct     pct
+                          :lo      (- pct half)
+                          :hi      (+ pct half)
+                          :tip     (tooltip-text measure p commits since)
+                          ;; The night's own commit closes the list, marked as the sampled one.
+                          :commits (conj (vec commits) (head-entry (:commit p)))}))
+             :when row]
+         row)))
+
+(def ^:private max-date-ticks 20)
+
+(defn- date-ticks
+  "Ticks at the nights themselves, labelled by day and thinned to fit."
+  [rows]
+  (let [nights (->> rows (map :date) distinct sort vec)
+        step   (max 1 (long (Math/ceil (/ (count nights) (double max-date-ticks)))))
+        shown  (vec (take-nth step nights))
+        fmt    (java.time.format.DateTimeFormatter/ofPattern "MMM d" java.util.Locale/ENGLISH)]
+    {:breaks      shown
+     :tick-labels (mapv #(.format fmt (.atZone (.toInstant ^java.util.Date %) java.time.ZoneOffset/UTC))
+                        shown)}))
+
+(defn- benchlab-pose [rows]
+  (let [measures (into [] (comp (map :measure) (distinct)) rows)]
+    (-> (into {} (map (fn [k] [k (mapv k rows)])) [:date :measure :pct :lo :hi :tip])
+        (pj/lay-line :date :pct {:color :measure})
+        (pj/lay-point :date :pct {:color :measure :shape :diamond :size 6 :tooltip :tip})
+        (pj/lay-errorbar {:y-min :lo :y-max :hi :color :measure})
+        (pj/lay-rule-h {:y-intercept 0})
+        (pj/scale :color {:domain measures})
+        (pj/scale :x (date-ticks rows))
+        (pj/options {:width 1200 :height 400
+                     :x-label "" :y-label (str "% vs " data/latest-tag)
+                     :theme acme-theme
+                     :rule-color "#aaa"
+                     :color-values (into {} (map (fn [m] [(measure-labels m) (measure-colors m)]))
+                                         measure-order)}))))
 
 (defn benchmark-chart [pkg bench-name]
-  (let [series (into {}
-                     (keep (fn [measure]
-                             (when-let [ps (seq (data/benchlab-series
-                                                  [pkg bench-name measure]))]
-                               [measure (mapv #(assoc % :x (night-x (:date %))) ps)])))
-                     measure-order)]
-    (kind/hiccup
-      [:div [:script {:src plotly-cdn}]
-       (chart-panel (benchlab-panel series))])))
+  (let [series        (into {}
+                            (keep (fn [measure]
+                                    (when-let [ps (seq (data/benchlab-series [pkg bench-name measure]))]
+                                      [measure (vec ps)])))
+                            measure-order)
+        night-shas    (into #{data/latest-baseline-sha}
+                            (comp (mapcat val) (map :commit))
+                            series)
+        intervals-map (intervals-by-commit
+                        (interval-commits data/commits-ordered night-shas))
+        rows          (benchlab-rows series intervals-map)
+        box-id        "interval-box"]
+    ;; The pose is plotted here and its parts spliced into our fragment: a
+    ;; fragment nested in a fragment is printed as data rather than rendered.
+    (let [plot (pj/plot (benchlab-pose rows))]
+      (kind/fragment
+        (-> [(kind/hiccup
+               [:div
+                [:h3 {:style "font-size:14px;margin:0 0 2px 0"} "Nightly benchlab run"]
+                [:p {:style "font-size:12px;margin:0 0 6px 0;opacity:0.75"}
+                 (str "Percent difference from " data/latest-tag
+                      ", with both measured side by side on one machine each night. "
+                      "Error bars are benchstat's interval for the commit's own samples; "
+                      "\"within noise\" in the hover is its significance verdict. Hover a "
+                      "point to see which commits landed since the previous night's run.")]])]
+            (into (if (= :kind/fragment (:kindly/kind (meta plot))) plot [plot]))
+            (conj (kind/hiccup
+                    [:div
+                     [:div {:id box-id :class "interval-box" :style "display:none"}]
+                     [:script {:type "text/javascript"}
+                      (format interval-js box-id (json/write-str (mapv :commits rows)))]])))))))
 
 (defn color-for-ratio [ratio]
   (let [t (max -1.0 (min 1.0 (Math/log ratio)))
