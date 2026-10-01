@@ -169,6 +169,10 @@ linters:
           disabled: true
         - name: early-return
           disabled: true # sometimes valid, but too noisy
+        - name: multiline-if-init
+          disabled: true
+        - name: marshal-receiver
+          disabled: true
     staticcheck:
       checks:
         # https://staticcheck.dev/docs/checks/#<check-id> for more details on these rules
