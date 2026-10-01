@@ -101,7 +101,7 @@ Starts at 3:23:20 as part of the Kubehuddle Edinburgh event.
 - [I have a plan! Exploring the OPA Intermediate Representation (IR) format](/blog/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d)
 - [5 Application Authorization Best Practices for Better Cybersecurity](https://thenewstack.io/5-application-authorization-best-practices-for-better-cybersecurity/)
 - [Intro to sets in Rego](https://qjuanp.dev/post/introduction-sets-rego-open-policy-agent)
-- [OPA into WASM](https://inspektor.cloud/blog/evaluating-open-policy-agent-in-rust-using-wasm/)
+- [OPA into WASM](https://web.archive.org/web/https://inspektor.cloud/blog/evaluating-open-policy-agent-in-rust-using-wasm/)
 - [Opa for k8s](https://dev.to/thenjdevopsguy/open-policy-agent-opa-for-kubernetes-5895)
 - [Spring Security Authorization with OPA](https://www.baeldung.com/spring-security-authorization-opa)
 - [Programming Your Policies: Justin Cormack at QCon San Francisco 2022](https://www.infoq.com/news/2022/10/programming-policy-code/)

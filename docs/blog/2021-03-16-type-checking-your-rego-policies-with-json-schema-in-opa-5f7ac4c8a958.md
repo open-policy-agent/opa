@@ -84,7 +84,7 @@ If we fix the Rego code and change `input.request.kind.kinds` to `input.request.
 
 With this feature, it is possible to pass a schema to `opa eval`, written in JSON Schema.
 
-Consider the [Kubernetes admission review input schema](https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/admission-schema.json). We can pass this schema to the evaluator as follows:
+Consider the [Kubernetes admission review input schema](https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json). We can pass this schema to the evaluator as follows:
 
 ```bash
 % opa eval -format pretty -i admission-review.json -d pod.rego -s admission-schema.json

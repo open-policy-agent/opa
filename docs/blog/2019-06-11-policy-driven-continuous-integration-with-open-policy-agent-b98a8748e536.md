@@ -126,9 +126,9 @@ _The doomed-to-fail package.json_
 }
 ```
 
-I've included two dependencies here — `event-stream` and `left-pad` — that very obviously violate the blacklist. You can see the [resulting CI failure run](https://github.com/lucperkins/opa-ci-example/runs/142847261). Let's fix this!
+I've included two dependencies here — `event-stream` and `left-pad` — that very obviously violate the blacklist. You can see the [resulting CI failure run](https://web.archive.org/web/https://github.com/lucperkins/opa-ci-example/runs/142847261). Let's fix this!
 
-[This pull request](https://github.com/lucperkins/opa-ci-example/pull/2) gets the job done. It removes the offending dependencies from the `package.json`. As you can see from the [results](https://github.com/lucperkins/opa-ci-example/runs/142848310) of the `evaluate` action, the `opa eval …` command returns `undefined` instead of a table listing violations. And because the `evaluate` action has passed, the [`install` action](https://github.com/lucperkins/opa-ci-example/runs/142848384) has been successfully invoked.
+[This pull request](https://github.com/lucperkins/opa-ci-example/pull/2) gets the job done. It removes the offending dependencies from the `package.json`. As you can see from the [results](https://web.archive.org/web/https://github.com/lucperkins/opa-ci-example/runs/142848310) of the `evaluate` action, the `opa eval …` command returns `undefined` instead of a table listing violations. And because the `evaluate` action has passed, the [`install` action](https://web.archive.org/web/https://github.com/lucperkins/opa-ci-example/runs/142848384) has been successfully invoked.
 
 > You can see the failing policy and input in action in the [Open Policy Agent Playground](https://play.openpolicyagent.org/p/kipUorP7ui). Correct the inputs on your own to fix the build!
 

@@ -25,4 +25,6 @@ exclude_path = [
     'vendor',
     'internal',
     'CHANGELOG\.md',
+    # release notes tool fixtures use placeholder github.com/example links
+    'build/release/testdata',
 ]
