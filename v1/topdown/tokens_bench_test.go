@@ -5,9 +5,19 @@
 package topdown
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"maps"
+	"math/big"
 	"testing"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v3/jwk"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
@@ -33,65 +43,86 @@ const publicKey = `{
 
 const keys = `{"keys": [` + publicKey + `]}`
 
+// concurrency:_1,_JWT_count:_1-16                              27595       43449 ns/op     18555 B/op    217 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_100-16                            27784       43247 ns/op     18548 B/op    217 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16        4021      301697 ns/op    263249 B/op   1633 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16      3932      303247 ns/op    263244 B/op   1633 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_1-16                              38950       29902 ns/op      7656 B/op     97 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_100-16                            39981       29833 ns/op      7656 B/op     97 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16       39172       30709 ns/op      7656 B/op     97 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16     38886       30736 ns/op      7656 B/op     97 allocs/op // caching parsed keys
 func BenchmarkTokens(b *testing.B) {
 	ctx := b.Context()
 	iter := func(*ast.Term) error { return nil }
 
+	// The default configuration, as used by the server: the io_jwt cache is
+	// disabled and the io_jwt_keys cache is enabled.
 	bctx := BuiltinContext{
-		Context: ctx,
-		Time:    ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		Context:                     ctx,
+		Time:                        ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(ctx, &cache.Config{}),
 	}
 
-	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
+	for _, ks := range benchmarkKeySets(b) {
+		keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(ks.jwks)))
 
-	worker := func(jobs <-chan string, results chan<- bool) {
-		for jwt := range jobs {
-			err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
-			if err != nil {
-				results <- false
+		worker := func(jobs <-chan string, results chan<- bool) {
+			for jwt := range jobs {
+				err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
+				if err != nil {
+					results <- false
+				}
+				results <- true
 			}
-			results <- true
-		}
-	}
-
-	jwtCounts := []int{1, 5, 6, 10, 100}
-	concurrencyLevels := []int{1, 1000}
-	for _, jwtCount := range jwtCounts {
-		jwts := make([]string, jwtCount)
-
-		for i := range jwtCount {
-			jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
 		}
 
-		for _, concurrencyLevel := range concurrencyLevels {
-			b.Run(fmt.Sprintf("concurrency: %d, JWT count: %d", concurrencyLevel, jwtCount), func(b *testing.B) {
-				count := b.N
-				jobs := make(chan string, count)
-				results := make(chan bool, count)
+		jwtCounts := []int{1, 5, 6, 10, 100}
+		concurrencyLevels := []int{1, 1000}
+		for _, jwtCount := range jwtCounts {
+			jwts := make([]string, jwtCount)
 
-				for range concurrencyLevel {
-					go worker(jobs, results)
-				}
+			for i := range jwtCount {
+				jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
+			}
 
-				b.ResetTimer()
+			for _, concurrencyLevel := range concurrencyLevels {
+				b.Run(fmt.Sprintf("concurrency: %d, JWT count: %d%s", concurrencyLevel, jwtCount, ks.suffix), func(b *testing.B) {
+					count := b.N
+					jobs := make(chan string, count)
+					results := make(chan bool, count)
 
-				for i := range count {
-					jobs <- jwts[i%jwtCount]
-				}
-
-				close(jobs)
-
-				for range count {
-					r := <-results
-					if !r {
-						b.Fatal("failed to verify JWT")
+					for range concurrencyLevel {
+						go worker(jobs, results)
 					}
-				}
-			})
+
+					b.ResetTimer()
+
+					for i := range count {
+						jobs <- jwts[i%jwtCount]
+					}
+
+					close(jobs)
+
+					for range count {
+						r := <-results
+						if !r {
+							b.Fatal("failed to verify JWT")
+						}
+					}
+				})
+			}
 		}
 	}
 }
 
+// concurrency:_1,_JWT_count:_1-16                              79759       15198 ns/op     12428 B/op    151 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_100-16                            26868       44637 ns/op     18933 B/op    229 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16        4292      282278 ns/op    257131 B/op   1567 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16      3916      310075 ns/op    263635 B/op   1645 allocs/op // parsing keys on every call
+// concurrency:_1,_JWT_count:_1-16                            1000000        1059 ns/op      1536 B/op     31 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_100-16                            38684       31180 ns/op      8040 B/op    109 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16      550896        2094 ns/op      1536 B/op     31 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16     37188       32376 ns/op      8040 B/op    109 allocs/op // caching parsed keys
 func BenchmarkTokens_Cache(b *testing.B) {
 	ctx := b.Context()
 	iter := func(*ast.Term) error { return nil }
@@ -110,49 +141,51 @@ func BenchmarkTokens_Cache(b *testing.B) {
 		}),
 	}
 
-	keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(keys)))
+	for _, ks := range benchmarkKeySets(b) {
+		keysTerm := ast.ObjectTerm(ast.Item(ast.StringTerm("cert"), ast.StringTerm(ks.jwks)))
 
-	worker := func(jobs <-chan string, results chan<- bool) {
-		for jwt := range jobs {
-			err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
-			if err != nil {
-				results <- false
+		worker := func(jobs <-chan string, results chan<- bool) {
+			for jwt := range jobs {
+				err := builtinJWTDecodeVerify(bctx, []*ast.Term{ast.NewTerm(ast.String(jwt)), keysTerm}, iter)
+				if err != nil {
+					results <- false
+				}
+				results <- true
 			}
-			results <- true
-		}
-	}
-
-	jwtCounts := []int{1, 5, 6, 10, 100}
-	concurrencyLevels := []int{1, 1000}
-	for _, jwtCount := range jwtCounts {
-		jwts := make([]string, jwtCount)
-
-		for i := range jwtCount {
-			jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
 		}
 
-		for _, concurrencyLevel := range concurrencyLevels {
-			b.Run(fmt.Sprintf("concurrency: %d, JWT count: %d", concurrencyLevel, jwtCount), func(b *testing.B) {
-				count := b.N
-				jobs := make(chan string, count)
-				results := make(chan bool, count)
+		jwtCounts := []int{1, 5, 6, 10, 100}
+		concurrencyLevels := []int{1, 1000}
+		for _, jwtCount := range jwtCounts {
+			jwts := make([]string, jwtCount)
 
-				for range concurrencyLevel {
-					go worker(jobs, results)
-				}
+			for i := range jwtCount {
+				jwts[i] = createJwtB(b, fmt.Sprintf(`{"i": %d}`, i))
+			}
 
-				b.ResetTimer()
+			for _, concurrencyLevel := range concurrencyLevels {
+				b.Run(fmt.Sprintf("concurrency: %d, JWT count: %d%s", concurrencyLevel, jwtCount, ks.suffix), func(b *testing.B) {
+					count := b.N
+					jobs := make(chan string, count)
+					results := make(chan bool, count)
 
-				for i := range count {
-					jobs <- jwts[i%jwtCount]
-				}
+					for range concurrencyLevel {
+						go worker(jobs, results)
+					}
 
-				close(jobs)
+					b.ResetTimer()
 
-				for range count {
-					<-results
-				}
-			})
+					for i := range count {
+						jobs <- jwts[i%jwtCount]
+					}
+
+					close(jobs)
+
+					for range count {
+						<-results
+					}
+				})
+			}
 		}
 	}
 }
@@ -166,4 +199,73 @@ func createJwtB(b *testing.B, payload string) string {
 	}
 
 	return jwt
+}
+
+type benchmarkKeySet struct {
+	jwks   string
+	suffix string
+}
+
+// benchmarkKeySets returns the key sets the token benchmarks verify against:
+// the single key the benchmarks have always used, keeping their names
+// unchanged, and a JWKS shaped like an identity provider's, with several keys
+// each carrying an x5c certificate chain.
+func benchmarkKeySets(b *testing.B) []benchmarkKeySet {
+	b.Helper()
+
+	return []benchmarkKeySet{
+		{jwks: keys},
+		{jwks: largeJWKS(b, 8), suffix: ", JWKS: 8 keys with x5c"},
+	}
+}
+
+// largeJWKS returns a JWKS of n copies of publicKey, each with its own kid and
+// a self-signed certificate in x5c. The copies share a key so that whichever
+// one verifies the token, only parsing grows with n.
+func largeJWKS(b *testing.B, n int) string {
+	b.Helper()
+
+	key, err := jwk.ParseKey([]byte(privateKey))
+	if err != nil {
+		b.Fatal(err)
+	}
+	var raw any
+	if err := jwk.Export(key, &raw); err != nil {
+		b.Fatal(err)
+	}
+	pk := raw.(*rsa.PrivateKey)
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "opa-benchmark"},
+		NotBefore:    time.Unix(0, 0),
+		NotAfter:     time.Unix(0, 0).Add(100 * 365 * 24 * time.Hour),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &pk.PublicKey, pk)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var base map[string]any
+	if err := json.Unmarshal([]byte(publicKey), &base); err != nil {
+		b.Fatal(err)
+	}
+
+	set := make([]map[string]any, n)
+	for i := range n {
+		k := map[string]any{
+			"kid": fmt.Sprintf("key-%d", i),
+			"use": "sig",
+			"alg": "RS256",
+			"x5c": []string{base64.StdEncoding.EncodeToString(der)},
+		}
+		maps.Copy(k, base)
+		set[i] = k
+	}
+
+	bs, err := json.Marshal(map[string]any{"keys": set})
+	if err != nil {
+		b.Fatal(err)
+	}
+	return string(bs)
 }

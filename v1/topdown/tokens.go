@@ -303,10 +303,47 @@ type verificationKey struct {
 	key any
 }
 
-// getKeysFromCertOrJWK returns the public key found in a X.509 certificate or JWK key(s).
+const (
+	tokenKeysCacheName          = "io_jwt_keys"
+	tokenKeysCacheMaxNumEntries = 100
+)
+
+// getKeysFromCertOrJWK returns the keys parsed from certificate, caching the
+// result in the io_jwt_keys named inter-query value cache since policies
+// typically verify many tokens against the same few certificates or key sets,
+// and parsing a JWKS is comparatively expensive. The returned slice is shared
+// and must not be modified.
+func getKeysFromCertOrJWK(bctx BuiltinContext, certificate string) ([]verificationKey, error) {
+	if bctx.InterQueryBuiltinValueCache == nil {
+		return parseKeysFromCertOrJWK(certificate)
+	}
+
+	c := bctx.InterQueryBuiltinValueCache.GetCache(tokenKeysCacheName)
+	if c == nil {
+		// The named cache has been disabled.
+		return parseKeysFromCertOrJWK(certificate)
+	}
+
+	key := ast.String(certificate)
+	if v, ok := c.Get(key); ok {
+		if keys, ok := v.([]verificationKey); ok {
+			return keys, nil
+		}
+	}
+
+	keys, err := parseKeysFromCertOrJWK(certificate)
+	if err != nil {
+		return nil, err
+	}
+	c.Insert(key, keys)
+
+	return keys, nil
+}
+
+// parseKeysFromCertOrJWK returns the public key found in a X.509 certificate or JWK key(s).
 // A valid PEM block is never valid JSON (and vice versa), hence can try parsing both.
 // When provided a JWKS, each key additionally likely contains a key ID and the key algorithm.
-func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
+func parseKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 	if block, rest := pem.Decode([]byte(certificate)); block != nil {
 		if len(rest) > 0 {
 			return nil, errors.New("extra data after a PEM certificate block")
@@ -399,7 +436,7 @@ func builtinJWTVerify(bctx BuiltinContext, jwt ast.Value, keyStr ast.Value, hash
 		return false, err
 	}
 
-	keys, err := getKeysFromCertOrJWK(string(s))
+	keys, err := getKeysFromCertOrJWK(bctx, string(s))
 	if err != nil {
 		return false, err
 	}
@@ -547,34 +584,34 @@ type tokenConstraints struct {
 }
 
 // tokenConstraintHandler is the handler type for JWT verification constraints.
-type tokenConstraintHandler func(value ast.Value, parameters *tokenConstraints) error
+type tokenConstraintHandler func(bctx BuiltinContext, value ast.Value, parameters *tokenConstraints) error
 
 // tokenConstraintTypes maps known JWT verification constraints to handlers.
 var tokenConstraintTypes = map[string]tokenConstraintHandler{
 	"cert": tokenConstraintCert,
-	"secret": func(value ast.Value, constraints *tokenConstraints) error {
+	"secret": func(_ BuiltinContext, value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("secret", value, &constraints.secret)
 	},
-	"alg": func(value ast.Value, constraints *tokenConstraints) error {
+	"alg": func(_ BuiltinContext, value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("alg", value, &constraints.alg)
 	},
-	"iss": func(value ast.Value, constraints *tokenConstraints) error {
+	"iss": func(_ BuiltinContext, value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("iss", value, &constraints.iss)
 	},
-	"aud": func(value ast.Value, constraints *tokenConstraints) error {
+	"aud": func(_ BuiltinContext, value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("aud", value, &constraints.aud)
 	},
 	"time": tokenConstraintTime,
 }
 
 // tokenConstraintCert handles the `cert` constraint.
-func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) error {
+func tokenConstraintCert(bctx BuiltinContext, value ast.Value, constraints *tokenConstraints) error {
 	s, ok := value.(ast.String)
 	if !ok {
 		return errors.New("cert constraint: must be a string")
 	}
 
-	keys, err := getKeysFromCertOrJWK(string(s))
+	keys, err := getKeysFromCertOrJWK(bctx, string(s))
 	if err != nil {
 		return err
 	}
@@ -584,7 +621,7 @@ func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) error {
 }
 
 // tokenConstraintTime handles the `time` constraint.
-func tokenConstraintTime(value ast.Value, constraints *tokenConstraints) error {
+func tokenConstraintTime(_ BuiltinContext, value ast.Value, constraints *tokenConstraints) error {
 	t, err := timeFromValue(value)
 	if err != nil {
 		return err
@@ -619,7 +656,7 @@ func tokenConstraintString(name string, value ast.Value, where *string) error {
 }
 
 // parseTokenConstraints parses the constraints argument.
-func parseTokenConstraints(o ast.Object, wallclock *ast.Term) (*tokenConstraints, error) {
+func parseTokenConstraints(bctx BuiltinContext, o ast.Object) (*tokenConstraints, error) {
 	constraints := tokenConstraints{
 		time: -1,
 	}
@@ -627,7 +664,7 @@ func parseTokenConstraints(o ast.Object, wallclock *ast.Term) (*tokenConstraints
 		name := string(k.Value.(ast.String))
 		handler, ok := tokenConstraintTypes[name]
 		if ok {
-			return handler(v.Value, &constraints)
+			return handler(bctx, v.Value, &constraints)
 		}
 		// Anything unknown is rejected.
 		return fmt.Errorf("unknown token validation constraint: %s", name)
@@ -635,7 +672,7 @@ func parseTokenConstraints(o ast.Object, wallclock *ast.Term) (*tokenConstraints
 		return nil, err
 	}
 	if constraints.time == -1 { // no time provided in constraint object
-		t, err := timeFromValue(wallclock.Value)
+		t, err := timeFromValue(bctx.Time.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -973,7 +1010,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		ast.InternedEmptyObject,
 		ast.InternedEmptyObject,
 	)
-	constraints, err := parseTokenConstraints(b, bctx.Time)
+	constraints, err := parseTokenConstraints(bctx, b)
 	if err != nil {
 		return err
 	}
@@ -1295,6 +1332,13 @@ func init() {
 		Disabled: &disabled,
 	}
 	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(tokenCacheName, &tokenCache)
+
+	// The parsed keys cache is enabled by default, as keys depend only on the
+	// certificate string and so can never be stale.
+	keysCacheEntries := tokenKeysCacheMaxNumEntries
+	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(tokenKeysCacheName, &cache.NamedValueCacheConfig{
+		MaxNumEntries: &keysCacheEntries,
+	})
 
 	RegisterBuiltinFunc(ast.JWTDecode.Name, builtinJWTDecode)
 	RegisterBuiltinFunc(ast.JWTVerifyRS256.Name, builtinJWTVerifyRS256)
