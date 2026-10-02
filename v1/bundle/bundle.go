@@ -46,6 +46,7 @@ const (
 	ManifestExt           = ".manifest"
 	ManifestProtoExt      = ".manifest.pb"
 	SignaturesFile        = "signatures.json"
+	signaturesFilename    = ".signatures.json"
 	patchFile             = "patch.json"
 	dataFile              = "data.json"
 	yamlDataFile          = "data.yaml"
@@ -1068,7 +1069,7 @@ func writeSignatures(tw *archive.TarGzWriter, bundle Bundle) error {
 		return err
 	}
 
-	return tw.WriteFile(util.WithPrefix(SignaturesFile, "/."), bs)
+	return tw.WriteFile(util.WithPrefix(signaturesFilename, "/"), bs)
 }
 
 func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
@@ -1787,12 +1788,22 @@ func modulePathWithPrefix(bundleName string, modulePath string) string {
 // hashed as raw wire bytes on both the sign and verify paths.
 func IsStructuredDoc(name string) bool {
 	base := filepath.Base(name)
-	return base == dataFile || base == yamlDataFile || base == SignaturesFile || base == ManifestExt
+	return base == dataFile || base == yamlDataFile || base == ymlDataFile || base == ManifestExt
+}
+
+// IsSignaturesFile reports whether name is a bundle's signatures file (its
+// basename is ".signatures.json"). We detect it by base name, regardless of any
+// directory prefix, matching how the manifest and data files are found, so a
+// bundle assembled under a wrapping directory still resolves its signatures
+// file.
+func IsSignaturesFile(name string) bool {
+	return filepath.Base(name) == signaturesFilename
 }
 
 func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (*Bundle, []*Descriptor, error) {
 	bundle := &Bundle{}
 	descriptors := []*Descriptor{}
+	signaturesFilePath := ""
 
 	for {
 		f, err := loader.NextFile()
@@ -1803,37 +1814,41 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 			return bundle, nil, fmt.Errorf("bundle read failed: %w", err)
 		}
 
-		isSignaturesFile := strings.HasSuffix(f.Path(), SignaturesFile)
-
-		if !skipVerify && isSignaturesFile {
-			buf, err := readFile(f, sizeLimitBytes)
-			if err != nil {
-				return bundle, nil, err
+		// A well-formed bundle has at most one signatures file, matched by
+		// basename like the manifest so it is found under any directory prefix.
+		// It is a metadata file, not normal bundle content.
+		if IsSignaturesFile(f.Path()) {
+			if signaturesFilePath != "" {
+				return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
 			}
+			signaturesFilePath = f.Path()
 
-			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Signatures); err != nil {
-				return bundle, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
-			}
-		} else if !isSignaturesFile {
-			descriptors = append(descriptors, f)
-
-			base := filepath.Base(f.Path())
-
-			if base == patchFile {
-				b := new(bytes.Buffer)
-				f.reader = io.TeeReader(f.reader, b)
-
+			if !skipVerify {
 				buf, err := readFile(f, sizeLimitBytes)
 				if err != nil {
 					return bundle, nil, err
 				}
-
-				if err := util.NewJSONDecoder(&buf).Decode(&bundle.Patch); err != nil {
-					return bundle, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
+				if err := util.NewJSONDecoder(&buf).Decode(&bundle.Signatures); err != nil {
+					return bundle, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
 				}
-
-				f.reader = b
 			}
+			continue
+		}
+
+		descriptors = append(descriptors, f)
+
+		if filepath.Base(f.Path()) == patchFile {
+			b := new(bytes.Buffer)
+			f.reader = io.TeeReader(f.reader, b)
+
+			buf, err := readFile(f, sizeLimitBytes)
+			if err != nil {
+				return bundle, nil, err
+			}
+			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Patch); err != nil {
+				return bundle, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
+			}
+			f.reader = b
 		}
 	}
 

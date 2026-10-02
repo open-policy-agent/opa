@@ -1001,6 +1001,153 @@ func TestReadWithSignaturesWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestIsSignaturesFile(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"/.signatures.json", true},
+		{".signatures.json", true},
+		{"./.signatures.json", true},
+		{"sub/.signatures.json", true},
+		{"/a/b/.signatures.json", true},
+		{"mybundle/.signatures.json", true},
+		{"foosignatures.json", false},
+		{"data.signatures.json", false},
+		{"/foo/data.signatures.json", false},
+		{"signatures.json", false},
+		{"/signatures.json", false},
+	}
+	for _, tc := range cases {
+		if got := IsSignaturesFile(tc.path); got != tc.want {
+			t.Errorf("IsSignaturesFile(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestIsStructuredDoc(t *testing.T) {
+	// Structured docs are hashed over their canonical parsed structure (so the
+	// signature is whitespace/key-order independent). Everything else is hashed
+	// as raw bytes. data.yml must be treated the same as data.yaml.
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"data.json", true},
+		{"data.yaml", true},
+		{"data.yml", true},
+		{".manifest", true},
+		{"/a/b/data.yml", true}, // matched by base name, at any depth
+		{"/a/b/data.yaml", true},
+		{".manifest.pb", false}, // proto manifest is hashed as raw wire bytes
+		{"example.rego", false},
+		{"policy.wasm", false},
+		{"data.signatures.json", false},
+		{"foo.yml", false}, // only data.yml, not arbitrary YAML files
+		{"foo.yaml", false},
+	}
+	for _, tc := range cases {
+		if got := IsStructuredDoc(tc.name); got != tc.want {
+			t.Errorf("IsStructuredDoc(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
+	// The signatures file is matched by basename (".signatures.json"), like the
+	// manifest, so it is found under any prefix. Similarly named files are
+	// content, and a second signatures file is an error.
+	descriptorHasPath := func(descs []*Descriptor, want string) bool {
+		for _, d := range descs {
+			if d.Path() == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("misnamed files are content, signatures file is metadata", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/foosignatures.json", `{"x":1}`},
+			{"/data.signatures.json", `{"x":2}`},
+			{"/signatures.json", `{"x":3}`},
+			{"/data.json", `{"x":4}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("preProcessBundle: %v", err)
+		}
+		if b.Signatures.Plugin != "real" {
+			t.Fatalf("expected /.signatures.json decoded into Signatures, got %+v", b.Signatures)
+		}
+		for _, want := range []string{"/foosignatures.json", "/data.signatures.json", "/signatures.json", "/data.json"} {
+			if !descriptorHasPath(descs, want) {
+				t.Errorf("expected %q to be treated as content (present in descriptors)", want)
+			}
+		}
+		if descriptorHasPath(descs, "/.signatures.json") {
+			t.Error("/.signatures.json must not be a content descriptor")
+		}
+	})
+
+	t.Run("signatures file is found under a wrapping directory", func(t *testing.T) {
+		files := [][2]string{
+			{"/mybundle/.signatures.json", `{"plugin":"real"}`},
+			{"/mybundle/data.json", `{"x":1}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("preProcessBundle: %v", err)
+		}
+		if b.Signatures.Plugin != "real" {
+			t.Fatalf("expected wrapped .signatures.json decoded into Signatures, got %+v", b.Signatures)
+		}
+		if !descriptorHasPath(descs, "/mybundle/data.json") {
+			t.Error("expected /mybundle/data.json to be content")
+		}
+		if descriptorHasPath(descs, "/mybundle/.signatures.json") {
+			t.Error("wrapped .signatures.json must not be a content descriptor")
+		}
+	})
+
+	t.Run("multiple signatures files are rejected", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/sub/.signatures.json", `{"plugin":"other"}`},
+			{"/data.json", `{"x":1}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		if _, _, err := preProcessBundle(loader, false, DefaultSizeLimitBytes); err == nil || !strings.Contains(err.Error(), "multiple signatures files") {
+			t.Fatalf("expected multiple signatures files error, got %v", err)
+		}
+	})
+
+	t.Run("skip-verify keeps misnamed files as content", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/data.signatures.json", `{"x":1}`},
+			{"/data.json", `{"x":2}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("preProcessBundle: %v", err)
+		}
+		if !b.Signatures.isEmpty() {
+			t.Errorf("with skipVerify, Signatures must not be decoded, got %+v", b.Signatures)
+		}
+		if !descriptorHasPath(descs, "/data.signatures.json") {
+			t.Error("/data.signatures.json must remain content even with skipVerify")
+		}
+		if descriptorHasPath(descs, "/.signatures.json") {
+			t.Error("/.signatures.json must not be a content descriptor")
+		}
+	})
+}
+
 func TestReadWithPatch(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux",  "roots": ["a"]}`},

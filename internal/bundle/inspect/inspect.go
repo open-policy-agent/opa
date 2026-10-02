@@ -151,7 +151,7 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 			return fmt.Errorf("bundle read failed: %w", err)
 		}
 
-		if strings.HasSuffix(f.Path(), bundle.SignaturesFile) {
+		if bundle.IsSignaturesFile(f.Path()) {
 			var buf bytes.Buffer
 			n, err := f.Read(&buf, bundle.DefaultSizeLimitBytes+1)
 			f.Close()
@@ -169,7 +169,7 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 			bi.Signatures = signatures
 		}
 
-		if filepath.Base(f.Path()) == "data.json" || filepath.Base(f.Path()) == "data.yaml" {
+		if filepath.Base(f.Path()) == "data.json" || filepath.Base(f.Path()) == "data.yaml" || filepath.Base(f.Path()) == "data.yml" {
 			descriptors = append(descriptors, f)
 		}
 	}
