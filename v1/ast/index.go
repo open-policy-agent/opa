@@ -1219,7 +1219,10 @@ func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lval Value
 		if ok {
 			lval = val
 		}
-	} else if !IsScalar(lval) {
+	}
+	// A collection would land in the array trie, which tests the value at rref
+	// for equality, not for holding it as an element.
+	if _, ok := lval.(Var); !ok && !IsScalar(lval) {
 		return
 	}
 

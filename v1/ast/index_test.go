@@ -1084,6 +1084,19 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
+			note: "internal.member_2: lhs = constant collection",
+			module: module(`package test
+			p if {
+				x = ["a"]
+				x in input.foo
+			}`),
+			ruleset: "p",
+			input:   `{"foo": [["a"]]}`,
+			expectedRS: []string{
+				`p if { x = ["a"]; x in input.foo }`,
+			},
+		},
+		{
 			note: "internal.member_2: rhs = value (2 out of 3)",
 			module: module(`package test
 			p if {
