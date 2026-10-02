@@ -654,6 +654,9 @@ type refindex struct {
 	// their strings.any_*_match forms contribute. Several of them for one ref
 	// are alternatives, as for `in`.
 	Affix affix
+	// Member says the value at ref has to be a collection holding Value, as
+	// `"v" in input.x` and `input.x[_] == "v"` require, rather than equal it.
+	Member bool
 }
 
 // affix is which end of the value at a reference a refindex constrains, if it
@@ -674,6 +677,9 @@ func (i *refindex) insertInto(node *trieNode, ref Ref) *trieNode {
 		return node.InsertPrefix(ref, i.Value)
 	case affixSuffix:
 		return node.InsertSuffix(ref, i.Value)
+	}
+	if i.Member {
+		return node.InsertMember(ref, i.Value)
 	}
 	return node.Insert(ref, i.Value, i.Mapper)
 }
@@ -1161,7 +1167,7 @@ func (i *refindices) tryIndexWildcardRef(rule *Rule, a, b Value, constants map[V
 		return false
 	}
 
-	i.insert(rule, &refindex{ref: i.table.intern(groundPrefix), Value: resolvedValue})
+	i.insert(rule, &refindex{ref: i.table.intern(groundPrefix), Value: resolvedValue, Member: true})
 	return true
 }
 
@@ -1231,7 +1237,7 @@ func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lval Value
 		return
 	}
 
-	i.insert(rule, &refindex{ref: i.table.intern(rref), Value: lval})
+	i.insert(rule, &refindex{ref: i.table.intern(rref), Value: lval, Member: !valueIsVar(lval)})
 }
 
 func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, constants map[Var]Value) {
@@ -1332,7 +1338,7 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 		if !other.isVar() {
 			concrete++
 		}
-		if other.Affix == affixNone {
+		if other.Affix == affixNone && !other.Member {
 			seen.Put(other.Value, struct{}{})
 		}
 	}
@@ -1550,7 +1556,7 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 	for pos, other := range i.rules[rule] {
 		if other.ref == index.ref {
 			seen = true
-			if other.Affix == index.Affix && ValueEqual(other.Value, index.Value) {
+			if other.Affix == index.Affix && other.Member == index.Member && ValueEqual(other.Value, index.Value) {
 				return
 			}
 			otherValueIsVar := other.isVar()
@@ -1773,6 +1779,7 @@ type levelDetail struct {
 	undefined    *trieNode
 	array        *arrayTrie
 	scalars      *util.HasherMap[Value, *trieNode]
+	members      *util.HasherMap[Value, *trieNode]
 	mappers      []*valueMapper
 	prefixes     *prefixTrie
 	suffixes     *prefixTrie
@@ -1783,18 +1790,22 @@ type levelDetail struct {
 // values continue from. The two fields hold the same nodes for two different
 // jobs, and neither does the other's:
 //
-// members answers "which nodes does this value reach", which is what a lookup
+// values answers "which nodes does this value reach", which is what a lookup
 // asks. A node is in it under every one of the values that reaches it, so a
 // rule with a thousand-member collection puts its one node under a thousand
 // keys, and several rules sharing a value put several nodes under that one.
 //
 // converged answers "which nodes are below this level", which is what the
 // walks over the whole trie ask -- traverseUnknown, Do and compact. Reading
-// that off members would visit a node once per value that reaches it: correct,
+// that off values would visit a node once per value that reaches it: correct,
 // since trieTraversalResult.Add folds a rule reached twice into one, but a
 // thousand times the work for the collection above. So the nodes are listed
 // once each here as they are created.
+//
+// members does the job of values for the rules requiring a member of the
+// collection at the level's ref; see refindex.Member.
 type alternativeChildren struct {
+	values    *util.HasherMap[Value, []*trieNode]
 	members   *util.HasherMap[Value, []*trieNode]
 	converged []*trieNode
 }
@@ -1868,6 +1879,10 @@ func (d *levelDetail) do(walker trieWalker) {
 		child.Do(walker)
 		return false
 	})
+	d.members.Iter(func(_ Value, child *trieNode) bool {
+		child.Do(walker)
+		return false
+	})
 
 	for _, child := range d.converged() {
 		child.Do(walker)
@@ -1908,6 +1923,10 @@ func (d *levelDetail) compact() {
 		child.compact()
 		return false
 	})
+	d.members.Iter(func(_ Value, child *trieNode) bool {
+		child.compact()
+		return false
+	})
 
 	if d.alternatives != nil {
 		d.alternatives.converged = slices.Clip(d.alternatives.converged)
@@ -1931,8 +1950,15 @@ func (node *trieNode) insertAlternatives(ref Ref, values []*refindex) *trieNode 
 		if val.Mapper != nil {
 			level.addMapper(val.Mapper)
 		}
-		nodes, _ := alt.members.Get(val.Value)
-		alt.members.Put(val.Value, append(nodes, converge))
+		keys := alt.values
+		if val.Member {
+			alt.members = util.Or(alt.members, newNodesByValue)
+			keys = alt.members
+			// Set so that a lookup asks traverseMembers by testing one field.
+			level.members = util.Or(level.members, newScalarChildren)
+		}
+		nodes, _ := keys.Get(val.Value)
+		keys.Put(val.Value, append(nodes, converge))
 	}
 
 	return converge
@@ -1940,8 +1966,27 @@ func (node *trieNode) insertAlternatives(ref Ref, values []*refindex) *trieNode 
 
 func newAlternativeChildren() *alternativeChildren {
 	return &alternativeChildren{
-		members: util.NewHasherMap[Value, []*trieNode](ValueEqual),
+		values: newNodesByValue(),
 	}
+}
+
+func newNodesByValue() *util.HasherMap[Value, []*trieNode] {
+	return util.NewHasherMap[Value, []*trieNode](ValueEqual)
+}
+
+// InsertMember returns the node that the rules requiring value as a member of
+// the collection at ref continue from.
+func (node *trieNode) InsertMember(ref Ref, value Value) *trieNode {
+	level := node.level()
+	level.ref = ref
+
+	level.members = util.Or(level.members, newScalarChildren)
+	child, ok := level.members.Get(value)
+	if !ok {
+		child = newTrieNodeImpl()
+		level.members.Put(value, child)
+	}
+	return child
 }
 
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
@@ -2162,6 +2207,14 @@ func (d *levelDetail) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
+	// Members are looked for in the value as it is: what a mapper makes of a
+	// string is not a collection the rule could have iterated.
+	if d.members != nil {
+		if err = d.traverseMembers(resolver, tr, v); err != nil {
+			return err
+		}
+	}
+
 	// Prefix constraints are tested against the value as it is, never against
 	// what a mapper makes of it: the glob mapper turns a string into the array
 	// of its segments, and matching prefixes against those segments would
@@ -2196,13 +2249,6 @@ func (d *levelDetail) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 				}
 			}
 		}
-		// Alternatives as well as scalars: a level every rule reaches by
-		// several values has its children under alternatives and none under
-		// scalars, and a collection at the reference still has to be tested
-		// against them.
-		if d.scalars.Len() > 0 || d.alternatives != nil {
-			return d.traverseCollectionMembership(resolver, tr, value)
-		}
 	case Null, Boolean, Number, String:
 		if child, ok := d.scalars.Get(value); ok {
 			if err := child.Traverse(resolver, tr); err != nil {
@@ -2222,7 +2268,7 @@ func (d *levelDetail) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 // traverse visits the nodes that the rules reaching this level by value
 // continue from.
 func (alt *alternativeChildren) traverse(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
-	nodes, ok := alt.members.Get(value)
+	nodes, ok := alt.values.Get(value)
 	if !ok {
 		return nil
 	}
@@ -2236,16 +2282,26 @@ func (alt *alternativeChildren) traverse(resolver ValueResolver, tr *trieTravers
 	return nil
 }
 
-func (d *levelDetail) traverseCollectionMembership(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
-	alt := d.alternatives
+// traverseMembers visits the nodes of the rules requiring a member of the
+// collection at the level's ref, which only a collection can satisfy.
+func (d *levelDetail) traverseMembers(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
+	var alt *util.HasherMap[Value, []*trieNode]
+	if d.alternatives != nil {
+		alt = d.alternatives.members
+	}
+
 	checkMember := func(t *Term) error {
-		if IsScalar(t.Value) {
-			child, _ := d.scalars.Get(t.Value)
+		if !IsScalar(t.Value) {
+			return nil
+		}
+		child, _ := d.members.Get(t.Value)
+		if err := child.Traverse(resolver, tr); err != nil {
+			return err
+		}
+		nodes, _ := alt.Get(t.Value)
+		for _, child := range nodes {
 			if err := child.Traverse(resolver, tr); err != nil {
 				return err
-			}
-			if alt != nil {
-				return alt.traverse(resolver, tr, t.Value)
 			}
 		}
 		return nil
@@ -2308,6 +2364,13 @@ func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 
 	var iterErr error
 	d.scalars.Iter(func(_ Value, child *trieNode) bool {
+		iterErr = child.Traverse(resolver, tr)
+		return iterErr != nil
+	})
+	if iterErr != nil {
+		return iterErr
+	}
+	d.members.Iter(func(_ Value, child *trieNode) bool {
 		iterErr = child.Traverse(resolver, tr)
 		return iterErr != nil
 	})
