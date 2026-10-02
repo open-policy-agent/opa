@@ -2,20 +2,9 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package prefixtrie implements a compressed (radix) trie over string keys that
-// answers "which of the keys does this string start with" in one walk of the
-// string. It backs both the rule index's `startswith`/`strings.any_prefix_match`
-// constraints and the `strings.any_prefix_match` builtin itself.
-//
-// Testing a string against every key in turn costs O(p) string comparisons for
-// p keys. A lookup here walks the string once and costs O(len(s)) byte
-// comparisons whatever p is. Compressed rather than one node per byte because
-// the node count is then bounded by 2p-1 rather than by the total length of all
-// keys -- 10k keys cost thousands of nodes, not hundreds of thousands.
-//
-// Suffixes are handled by the same structure: a trie holding its keys reversed
-// (see Reverse) answers "which keys does s end with" by walking s from its last
-// byte back (see SuffixesOf), which needs no reversed copy of s per lookup.
+// Package prefixtrie implements a compressed (radix) trie that finds the keys a
+// string starts with in one O(len(s)) walk, however many keys there are. A trie
+// of reversed keys (see Reverse) finds the keys a string ends with.
 package prefixtrie
 
 import (
@@ -24,12 +13,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// Trie maps string keys to values of type V. The zero value is an empty trie
-// ready to use. Each key has one *V, allocated with new(V) when the key is first
-// inserted; callers hang whatever they need off it.
+// Trie maps string keys to values of type V. The zero value is an empty trie.
 type Trie[V any] struct {
-	// edges are sorted by the first byte of their label, which is unique among
-	// them, so a step down the trie is a binary search.
+	// edges are sorted by the first byte of their label, which is unique.
 	edges []edge[V]
 	// child is the value of the key ending exactly here.
 	child *V
@@ -37,23 +23,20 @@ type Trie[V any] struct {
 
 type edge[V any] struct {
 	label string
-	// node is the trie under this edge; leaf stands in for it when nothing is
-	// recorded past the edge's label, which is almost every edge.
+	// node is the trie under this edge, or nil if nothing is below it, in which
+	// case leaf is the value of the key ending at the edge.
 	node *Trie[V]
 	leaf *V
 }
 
-// find locates the edge labelled with first byte b, or the position a new one
-// would be inserted at to keep edges sorted. Only that byte is matched; labels
-// are compressed, so comparing the rest of one is left to the caller.
+// find locates the edge whose label starts with b, or where it would go.
 func (p *Trie[V]) find(b byte) (int, bool) {
 	return slices.BinarySearchFunc(p.edges, b, func(e edge[V], b byte) int {
 		return int(e.label[0]) - int(b)
 	})
 }
 
-// Insert returns the value for key, creating it if this is the first time the
-// key is inserted.
+// Insert returns the value for key, creating it with new(V) if key is new.
 func (p *Trie[V]) Insert(key string) *V {
 	node := p
 
@@ -76,9 +59,7 @@ func (p *Trie[V]) Insert(key string) *V {
 		common := commonPrefixLen(e.label, key)
 
 		switch {
-		// The two diverge inside this edge -- "/api/v1" meeting "/api/v2" --
-		// so the edge is split where they stop agreeing and what used to hang
-		// off it moves down onto the tail, whichever kind it is.
+		// The key diverges inside the edge: split it.
 		case common < len(e.label):
 			tail := edge[V]{label: e.label[common:], node: e.node, leaf: e.leaf}
 			node.edges[pos] = edge[V]{
@@ -86,13 +67,11 @@ func (p *Trie[V]) Insert(key string) *V {
 				node:  &Trie[V]{edges: []edge[V]{tail}},
 			}
 
-		// The key ends where an edge does with nothing past it, so its value is
-		// already the answer.
+		// The key ends with a leaf edge.
 		case common == len(key) && e.leaf != nil:
 			return e.leaf
 
-		// Something is recorded past the edge now, so its value becomes the
-		// child of a trie of its own.
+		// The key continues past a leaf edge: give it a trie of its own.
 		case e.node == nil:
 			node.edges[pos] = edge[V]{
 				label: e.label,
@@ -105,10 +84,8 @@ func (p *Trie[V]) Insert(key string) *V {
 	}
 }
 
-// PrefixesOf calls visit with the value of every key that s starts with,
-// shortest key first. One walk down the trie finds all of them: the keys that
-// are prefixes of s are exactly the ends-of-key passed on the way down. It
-// stops at the first error visit returns.
+// PrefixesOf calls visit with the value of every key s starts with, shortest
+// first, stopping at the first error.
 func (p *Trie[V]) PrefixesOf(s string, visit func(*V) error) error {
 	for node := p; node != nil; {
 		if node.child != nil {
@@ -141,8 +118,7 @@ func (p *Trie[V]) PrefixesOf(s string, visit func(*V) error) error {
 	return nil
 }
 
-// SuffixesOf is PrefixesOf over the end of s, for a trie whose keys were
-// inserted reversed (see Reverse).
+// SuffixesOf is PrefixesOf for the end of s, in a trie of reversed keys.
 func (p *Trie[V]) SuffixesOf(s string, visit func(*V) error) error {
 	for node := p; node != nil; {
 		if node.child != nil {
@@ -206,8 +182,7 @@ func (p *Trie[V]) HasPrefixOf(s string) bool {
 	return false
 }
 
-// HasSuffixOf reports whether s ends with any key in a trie whose keys were
-// inserted reversed (see Reverse).
+// HasSuffixOf reports whether s ends with any key, in a trie of reversed keys.
 func (p *Trie[V]) HasSuffixOf(s string) bool {
 	for node := p; node != nil; {
 		if node.child != nil {
@@ -238,9 +213,7 @@ func (p *Trie[V]) HasSuffixOf(s string) bool {
 	return false
 }
 
-// Values calls visit with every value in the trie, stopping at the first error
-// visit returns. A value is visited before the values below it, and siblings in
-// the byte order of their labels.
+// Values calls visit with every value in the trie, stopping at the first error.
 func (p *Trie[V]) Values(visit func(*V) error) error {
 	if p == nil {
 		return nil
@@ -266,15 +239,14 @@ func (p *Trie[V]) Values(visit func(*V) error) error {
 	return nil
 }
 
-// Entry is a key the trie holds, spelled out, with its value.
+// Entry is a key in the trie and its value.
 type Entry[V any] struct {
 	Key   string
 	Value *V
 }
 
-// Entries returns the keys the trie holds, in lexicographic order. Building the
-// keys back up costs an allocation per key, so this is meant for debugging and
-// tests rather than lookups.
+// Entries returns the trie's keys in lexicographic order. It allocates a string
+// per key, so is meant for debugging and tests.
 func (p *Trie[V]) Entries() []Entry[V] {
 	if p == nil {
 		return nil
@@ -303,11 +275,8 @@ func (p *Trie[V]) Entries() []Entry[V] {
 	return entries
 }
 
-// Compact releases the spare capacity in the edge slices. Edges arrive in
-// arbitrary order, so they are placed by insertion and grow the way append does
-// -- which leaves 60% of the slots unused across a large key set. Call it once
-// nothing more will be inserted. slices.Clip only caps the capacity; releasing
-// the block means copying out of it.
+// Compact releases the edge slices' spare capacity, often more than half of it.
+// Call it once nothing more will be inserted.
 func (p *Trie[V]) Compact() {
 	if p == nil {
 		return
@@ -324,17 +293,13 @@ func (p *Trie[V]) Compact() {
 	}
 }
 
-// Reverse returns s with its bytes reversed, for inserting a key into a trie
-// queried with SuffixesOf or HasSuffixOf. Suffix matching is a byte comparison,
-// so reversing bytes rather than runes is what makes a suffix of s a prefix of
-// reversed s.
+// Reverse returns s with its bytes, not runes, reversed: the form of a key in a
+// trie queried with SuffixesOf or HasSuffixOf.
 func Reverse(s string) string {
 	b := []byte(s)
 	slices.Reverse(b)
 
-	// b was made here and is not written to again, so it can be handed over
-	// rather than copied a second time.
-	return util.ByteSliceToString(b)
+	return util.ByteSliceToString(b) // b isn't written to again
 }
 
 // equalReversed reports whether tail read backwards is reversed.
