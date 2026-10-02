@@ -165,3 +165,74 @@ func TestAnyStartsWithAnyMatchesBruteForce(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinReverse(t *testing.T) {
+	long := strings.Repeat("ab\xffé", 100) // past the 255-byte stack buffer
+	tests := []struct {
+		note string
+		s    string
+		exp  string
+	}{
+		{note: "empty", s: "", exp: ""},
+		{note: "ascii", s: "abc", exp: "cba"},
+		{note: "multi-byte runes", s: "añb€", exp: "€bña"},
+		{note: "invalid byte first", s: "\xffab", exp: "ba\xff"},
+		{note: "invalid byte last", s: "ab\xff", exp: "\xffba"},
+		{note: "invalid byte between runes", s: "é\xff€", exp: "€\xffé"},
+		{note: "truncated rune", s: "a\xe2\x82", exp: "\x82\xe2a"},
+		{note: "encoded replacement character", s: "a�b", exp: "b�a"},
+		{note: "long", s: long, exp: strings.Repeat("é\xffba", 100)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var got string
+			if err := builtinReverse(BuiltinContext{}, []*ast.Term{ast.StringTerm(tc.s)}, func(r *ast.Term) error {
+				got = string(r.Value.(ast.String))
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.exp {
+				t.Errorf("expected %q, got %q", tc.exp, got)
+			}
+		})
+	}
+}
+
+func TestReverseStringArbitraryBytes(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 4))
+	for range 10000 {
+		b := make([]byte, rng.IntN(300))
+		for i := range b {
+			b[i] = byte(rng.Uint32())
+		}
+		s := string(b)
+
+		got := reverseString(s)
+
+		// Whatever the input, the output holds the same bytes.
+		if !slices.Equal(slices.Sorted(slices.Values([]byte(got))), slices.Sorted(slices.Values(b))) {
+			t.Fatalf("reverseString(%q) = %q: not a rearrangement of the input", s, got)
+		}
+		// And a valid string comes back out as its runes in reverse.
+		if valid := strings.ToValidUTF8(s, ""); reverseString(reverseString(valid)) != valid {
+			t.Fatalf("reverseString is not its own inverse for %q", valid)
+		}
+	}
+}
+
+func TestBuiltinAnySuffixMatchInvalidUTF8(t *testing.T) {
+	// Suffix matching reverses the strings, which used to panic on bytes that
+	// aren't valid UTF-8.
+	var got bool
+	err := builtinAnySuffixMatch(BuiltinContext{}, []*ast.Term{ast.StringTerm("a\xff"), ast.StringTerm("\xff")}, func(r *ast.Term) error {
+		got = bool(r.Value.(ast.Boolean))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Error("expected a match")
+	}
+}
