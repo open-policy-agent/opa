@@ -26,6 +26,12 @@ var (
 func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
+	if s, ok := a.(ast.String); ok {
+		if found, ok := anyStringMatch(string(s), b, strings.HasPrefix); ok {
+			return iter(ast.InternedTerm(found))
+		}
+	}
+
 	var strs []string
 	switch a := a.(type) {
 	case ast.String:
@@ -60,6 +66,12 @@ func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
+	if s, ok := a.(ast.String); ok {
+		if found, ok := anyStringMatch(string(s), b, strings.HasSuffix); ok {
+			return iter(ast.InternedTerm(found))
+		}
+	}
+
 	var strsReversed []string
 	switch a := a.(type) {
 	case ast.String:
@@ -89,6 +101,34 @@ func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 	}
 
 	return iter(ast.InternedTerm(anyStartsWithAny(strsReversed, suffixesReversed)))
+}
+
+// anyStringMatch tests one string against each member of an array or set of
+// strings, without copying them out first. ok is false for any other operand,
+// which is left to the general path to handle or reject.
+func anyStringMatch(s string, b ast.Value, match func(s, affix string) bool) (found, ok bool) {
+	// An array or a set; an object's Until takes keys and values.
+	col, ok := b.(interface {
+		Until(func(*ast.Term) bool) bool
+	})
+	if !ok {
+		return false, false
+	}
+
+	// Every member is checked before any is matched, so that a non-string
+	// after a match is still the type error it always was.
+	if col.Until(func(t *ast.Term) bool {
+		_, ok := t.Value.(ast.String)
+		return !ok
+	}) {
+		return false, false
+	}
+
+	col.Until(func(t *ast.Term) bool {
+		found = match(s, string(t.Value.(ast.String)))
+		return found
+	})
+	return found, true
 }
 
 func anyStartsWithAny(strs []string, prefixes []string) bool {
