@@ -593,77 +593,8 @@ func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
 	}
 }
 
-func TestGetKeysFromCertOrJWKCache(t *testing.T) {
-	// Not parallel: the cache is process-wide, and a concurrent insert into a
-	// full cache could evict an entry between the lookups asserted on below.
-	// Sequential tests run before any parallel ones resume, so nothing else
-	// touches the cache while this test runs.
-	verificationKeysCacheLock.Lock()
-	clear(verificationKeysCache)
-	verificationKeysCacheLock.Unlock()
-
-	t.Run("hit returns parsed keys", func(t *testing.T) {
-		cert := strings.Replace(publicKey, `"kty"`, `"kid":"cache-hit","kty"`, 1)
-
-		first, err := getKeysFromCertOrJWK(BuiltinContext{}, cert)
-		if err != nil {
-			t.Fatal(err)
-		}
-		second, err := getKeysFromCertOrJWK(BuiltinContext{}, cert)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(second) != 1 || second[0].kid != "cache-hit" {
-			t.Fatalf("unexpected keys: %+v", second)
-		}
-		if &first[0] != &second[0] {
-			t.Fatal("expected second lookup to return the cached keys")
-		}
-	})
-
-	t.Run("errors are not cached", func(t *testing.T) {
-		cert := `{"kty":"cache-invalid"}`
-		for range 2 {
-			if _, err := getKeysFromCertOrJWK(BuiltinContext{}, cert); err == nil {
-				t.Fatal("expected error")
-			}
-		}
-
-		verificationKeysCacheLock.RLock()
-		_, ok := verificationKeysCache[cert]
-		verificationKeysCacheLock.RUnlock()
-		if ok {
-			t.Fatal("expected invalid certificate not to be cached")
-		}
-	})
-
-	t.Run("size is bounded", func(t *testing.T) {
-		for i := range verificationKeysCacheMaxSize * 2 {
-			cert := strings.Replace(publicKey, `"kty"`, fmt.Sprintf(`"kid":"cache-bound-%d","kty"`, i), 1)
-			if _, err := getKeysFromCertOrJWK(BuiltinContext{}, cert); err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		verificationKeysCacheLock.RLock()
-		size := len(verificationKeysCache)
-		verificationKeysCacheLock.RUnlock()
-		if size > verificationKeysCacheMaxSize {
-			t.Fatalf("expected at most %d cached entries, got %d", verificationKeysCacheMaxSize, size)
-		}
-	})
-}
-
 func TestGetKeysFromCertOrJWKNamedCache(t *testing.T) {
 	t.Parallel()
-
-	inGlobalCache := func(cert string) bool {
-		verificationKeysCacheLock.RLock()
-		defer verificationKeysCacheLock.RUnlock()
-		_, ok := verificationKeysCache[cert]
-		return ok
-	}
 
 	t.Run("enabled by default", func(t *testing.T) {
 		t.Parallel()
@@ -687,9 +618,6 @@ func TestGetKeysFromCertOrJWKNamedCache(t *testing.T) {
 		}
 		if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenKeysCacheName).Get(ast.String(cert)); !ok {
 			t.Fatalf("expected keys in the %s cache", tokenKeysCacheName)
-		}
-		if inGlobalCache(cert) {
-			t.Fatal("expected process-wide cache not to be used")
 		}
 	})
 
@@ -720,8 +648,40 @@ func TestGetKeysFromCertOrJWKNamedCache(t *testing.T) {
 		if &first[0] == &second[0] {
 			t.Fatal("expected keys to be parsed on every lookup")
 		}
-		if inGlobalCache(cert) {
-			t.Fatal("expected process-wide cache not to be used")
+	})
+
+	t.Run("no inter-query cache", func(t *testing.T) {
+		t.Parallel()
+
+		cert := strings.Replace(publicKey, `"kty"`, `"kid":"named-none","kty"`, 1)
+
+		first, err := getKeysFromCertOrJWK(BuiltinContext{}, cert)
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := getKeysFromCertOrJWK(BuiltinContext{}, cert)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if &first[0] == &second[0] {
+			t.Fatal("expected keys to be parsed on every lookup")
+		}
+	})
+
+	t.Run("errors are not cached", func(t *testing.T) {
+		t.Parallel()
+
+		cert := `{"kty":"named-invalid"}`
+		bctx := BuiltinContext{
+			InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(t.Context(), &cache.Config{}),
+		}
+
+		if _, err := getKeysFromCertOrJWK(bctx, cert); err == nil {
+			t.Fatal("expected error")
+		}
+		if _, ok := bctx.InterQueryBuiltinValueCache.GetCache(tokenKeysCacheName).Get(ast.String(cert)); ok {
+			t.Fatal("expected invalid certificate not to be cached")
 		}
 	})
 

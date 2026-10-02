@@ -47,17 +47,20 @@ const keys = `{"keys": [` + publicKey + `]}`
 // concurrency:_1,_JWT_count:_100-16                            27784       43247 ns/op     18548 B/op    217 allocs/op // parsing keys on every call
 // concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16        4021      301697 ns/op    263249 B/op   1633 allocs/op // parsing keys on every call
 // concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16      3932      303247 ns/op    263244 B/op   1633 allocs/op // parsing keys on every call
-// concurrency:_1,_JWT_count:_1-16                              39312       30266 ns/op      7640 B/op     96 allocs/op // caching parsed keys
-// concurrency:_1,_JWT_count:_100-16                            39793       30349 ns/op      7640 B/op     96 allocs/op // caching parsed keys
-// concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16       38724       30864 ns/op      7640 B/op     96 allocs/op // caching parsed keys
-// concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16     38776       30867 ns/op      7640 B/op     96 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_1-16                              38950       29902 ns/op      7656 B/op     97 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_100-16                            39981       29833 ns/op      7656 B/op     97 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_1,_JWKS:_8_keys_with_x5c-16       39172       30709 ns/op      7656 B/op     97 allocs/op // caching parsed keys
+// concurrency:_1,_JWT_count:_100,_JWKS:_8_keys_with_x5c-16     38886       30736 ns/op      7656 B/op     97 allocs/op // caching parsed keys
 func BenchmarkTokens(b *testing.B) {
 	ctx := b.Context()
 	iter := func(*ast.Term) error { return nil }
 
+	// The default configuration, as used by the server: the io_jwt cache is
+	// disabled and the io_jwt_keys cache is enabled.
 	bctx := BuiltinContext{
-		Context: ctx,
-		Time:    ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		Context:                     ctx,
+		Time:                        ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano())),
+		InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(ctx, &cache.Config{}),
 	}
 
 	for _, ks := range benchmarkKeySets(b) {

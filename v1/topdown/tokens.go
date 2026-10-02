@@ -23,7 +23,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
@@ -305,24 +304,18 @@ type verificationKey struct {
 }
 
 const (
-	tokenKeysCacheName           = "io_jwt_keys"
-	verificationKeysCacheMaxSize = 100
-)
-
-var (
-	verificationKeysCacheLock = sync.RWMutex{}
-	verificationKeysCache     = make(map[string][]verificationKey)
+	tokenKeysCacheName          = "io_jwt_keys"
+	tokenKeysCacheMaxNumEntries = 100
 )
 
 // getKeysFromCertOrJWK returns the keys parsed from certificate, caching the
-// result since policies typically verify many tokens against the same few
-// certificates or key sets, and parsing a JWKS is comparatively expensive.
-// The named inter-query value cache is used when available, so operators can
-// size or disable it; without an inter-query cache, a process-wide cache is
-// used instead. The returned slice is shared and must not be modified.
+// result in the io_jwt_keys named inter-query value cache since policies
+// typically verify many tokens against the same few certificates or key sets,
+// and parsing a JWKS is comparatively expensive. The returned slice is shared
+// and must not be modified.
 func getKeysFromCertOrJWK(bctx BuiltinContext, certificate string) ([]verificationKey, error) {
 	if bctx.InterQueryBuiltinValueCache == nil {
-		return verificationKeysCacheGet(certificate)
+		return parseKeysFromCertOrJWK(certificate)
 	}
 
 	c := bctx.InterQueryBuiltinValueCache.GetCache(tokenKeysCacheName)
@@ -343,34 +336,6 @@ func getKeysFromCertOrJWK(bctx BuiltinContext, certificate string) ([]verificati
 		return nil, err
 	}
 	c.Insert(key, keys)
-
-	return keys, nil
-}
-
-func verificationKeysCacheGet(certificate string) ([]verificationKey, error) {
-	verificationKeysCacheLock.RLock()
-	keys, ok := verificationKeysCache[certificate]
-	verificationKeysCacheLock.RUnlock()
-	if ok {
-		return keys, nil
-	}
-
-	keys, err := parseKeysFromCertOrJWK(certificate)
-	if err != nil {
-		return nil, err
-	}
-
-	verificationKeysCacheLock.Lock()
-	for len(verificationKeysCache) >= verificationKeysCacheMaxSize {
-		// Go map iteration is semi-random, so this deletes a
-		// more or less arbitrary key.
-		for k := range verificationKeysCache {
-			delete(verificationKeysCache, k)
-			break
-		}
-	}
-	verificationKeysCache[certificate] = keys
-	verificationKeysCacheLock.Unlock()
 
 	return keys, nil
 }
@@ -1370,7 +1335,7 @@ func init() {
 
 	// The parsed keys cache is enabled by default, as keys depend only on the
 	// certificate string and so can never be stale.
-	keysCacheEntries := verificationKeysCacheMaxSize
+	keysCacheEntries := tokenKeysCacheMaxNumEntries
 	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(tokenKeysCacheName, &cache.NamedValueCacheConfig{
 		MaxNumEntries: &keysCacheEntries,
 	})
