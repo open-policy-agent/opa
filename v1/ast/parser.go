@@ -28,33 +28,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// RegoVersion defines the Rego syntax requirements for a module.
-type RegoVersion uint8
-
 const (
-	// DefaultRegoVersion is the default Rego version for this OPA version.
-	DefaultRegoVersion = RegoV1
-
 	// DefaultMaxParsingRecursionDepth is the default maximum recursion depth for the parser
 	DefaultMaxParsingRecursionDepth = 100000
-)
-
-const (
-	// RegoUndefined represents a Rego version unknown to OPA, like for a policy that has
-	// yet to be parsed and a no version information has been provided by other means.
-	RegoUndefined RegoVersion = iota
-	// RegoV0 is the original Rego syntax, which was used by default in OPA < 1.0.
-	RegoV0
-	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1
-	// syntax (requiring Rego v1 imports in a module to use v1 keywords).
-	// For more information, see https://www.openpolicyagent.org/docs/v0-compatibility
-	RegoV0CompatV1
-	// RegoV1 is the Rego syntax enforced by OPA 1.0 and later versions, including the following changes:
-	// - Keywords `in`, `every`, `ìf` and `contains` now part of the default set, and don't require explicit import
-	// - Using 'if' and 'contains' now required in rule heads
-	// - Most compiler checks previously enabled in "strict mode" now enabled by default
-	// For more information, see https://www.openpolicyagent.org/docs/v0-upgrade
-	RegoV1
 )
 
 var (
@@ -76,33 +52,6 @@ var (
 	metadataParserPool = util.NewSyncPool[metadataParser]()
 	noScanOptions      []scanner.ScanOption
 )
-
-func (v RegoVersion) Int() int {
-	if v == RegoV1 {
-		return 1
-	}
-	return 0
-}
-
-func (v RegoVersion) String() string {
-	switch v {
-	case RegoV0:
-		return "v0"
-	case RegoV1:
-		return "v1"
-	case RegoV0CompatV1:
-		return "v0v1"
-	default:
-		return "unknown"
-	}
-}
-
-func RegoVersionFromInt(i int) RegoVersion {
-	if i == 1 {
-		return RegoV1
-	}
-	return RegoV0
-}
 
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
