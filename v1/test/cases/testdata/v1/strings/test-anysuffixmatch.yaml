@@ -501,3 +501,75 @@ cases:
         - a/b/c
     want_result:
       - x: true
+  - note: strings/any_suffix_match/single string match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /d
+        - /c
+      strings: a/b/c
+    want_result:
+      - x: true
+  - note: strings/any_suffix_match/single string nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /d
+      strings: a/b/c
+    want_result: []
+  - note: strings/any_suffix_match/single string match in set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match("a/b/c", {"/d", "/c"})
+        }
+    want_result:
+      - x: true
+  - note: strings/any_suffix_match/single string type_error_nostrict after match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /c
+        - 1
+      strings: a/b/c
+    want_result: []
+  - note: strings/any_suffix_match/single string type_error_strict after match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /c
+        - 1
+      strings: a/b/c
+    want_error: "test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 2 must be array of strings but got array containing number"
+    strict_error: true

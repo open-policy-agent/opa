@@ -441,3 +441,30 @@ func generateAnyStartsWithAnyInput(n, m, common int) ([]string, []string) {
 	}
 	return strs, prefixes
 }
+
+// BenchmarkAnyAffixMatchOneString is the shape a rule body has, one value
+// checked against a literal list, matching only on the last member.
+func BenchmarkAnyAffixMatchOneString(b *testing.B) {
+	for _, m := range []int{10, 1000, 10000} {
+		affixes := make([]*ast.Term, m)
+		for i := range affixes {
+			affixes[i] = ast.StringTerm(fmt.Sprintf("/svc/p%d/", i))
+		}
+		operands := []*ast.Term{ast.StringTerm(fmt.Sprintf("/svc/p%d/", m-1)), ast.ArrayTerm(affixes...)}
+
+		for name, f := range map[string]BuiltinFunc{"prefix": builtinAnyPrefixMatch, "suffix": builtinAnySuffixMatch} {
+			b.Run(fmt.Sprintf("%s/m=%d", name, m), func(b *testing.B) {
+				for b.Loop() {
+					if err := f(BuiltinContext{}, operands, func(t *ast.Term) error {
+						if t.Value != ast.Boolean(true) {
+							b.Fatal("expected a match")
+						}
+						return nil
+					}); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
+	}
+}
