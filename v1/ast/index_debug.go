@@ -68,10 +68,21 @@ func (d *levelDetail) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		return false
 	})
 
+	d.members.Iter(func(key Value, child *trieNode) bool {
+		mermaidEdge(sb, counter, nodeIDs, from, "has "+key.String(), child, rules)
+		return false
+	})
+
 	if d.alternatives != nil {
-		d.alternatives.members.Iter(func(key Value, nodes []*trieNode) bool {
+		d.alternatives.values.Iter(func(key Value, nodes []*trieNode) bool {
 			for _, child := range nodes {
 				mermaidEdge(sb, counter, nodeIDs, from, key.String(), child, rules)
+			}
+			return false
+		})
+		d.alternatives.members.Iter(func(key Value, nodes []*trieNode) bool {
+			for _, child := range nodes {
+				mermaidEdge(sb, counter, nodeIDs, from, "has "+key.String(), child, rules)
 			}
 			return false
 		})
@@ -224,27 +235,53 @@ func (d *levelDetail) format(sb *strings.Builder, depth int) {
 		}
 	}
 
+	if d.members.Len() > 0 {
+		members := make([]Value, 0, d.members.Len())
+		d.members.Iter(func(key Value, _ *trieNode) bool {
+			members = append(members, key)
+			return false
+		})
+		slices.SortFunc(members, Value.Compare)
+		for _, k := range members {
+			child, _ := d.members.Get(k)
+			sb.WriteString(indent)
+			sb.WriteString("  has ")
+			sb.WriteString(k.String())
+			sb.WriteString(":\n")
+			child.format(sb, depth+2)
+		}
+	}
+
 	// Several values reaching one node, so the node is printed once and the
 	// values that reach it are named together (see alternativeChildren).
 	if d.alternatives != nil {
 		for i, conv := range d.alternatives.converged {
-			var keys []Value
-			d.alternatives.members.Iter(func(k Value, nodes []*trieNode) bool {
+			var keys, members []Value
+			d.alternatives.values.Iter(func(k Value, nodes []*trieNode) bool {
 				if slices.Contains(nodes, conv) {
 					keys = append(keys, k)
 				}
 				return false
 			})
+			d.alternatives.members.Iter(func(k Value, nodes []*trieNode) bool {
+				if slices.Contains(nodes, conv) {
+					members = append(members, k)
+				}
+				return false
+			})
 			slices.SortFunc(keys, Value.Compare)
+			slices.SortFunc(members, Value.Compare)
 
+			labels := make([]string, 0, len(keys)+len(members))
+			for _, k := range keys {
+				labels = append(labels, k.String())
+			}
+			for _, k := range members {
+				labels = append(labels, "has "+k.String())
+			}
 			sb.WriteString(indent)
 			sb.WriteString("  any of ")
-			for j, k := range keys {
-				if j > 0 {
-					sb.WriteString(", ")
-				}
-				sb.WriteString(k.String())
-			}
+			sb.WriteString(strings.Join(labels, ", "))
 			fmt.Fprintf(sb, " -> #%d:\n", i)
 			conv.format(sb, depth+2)
 		}
