@@ -146,6 +146,11 @@ type Server struct {
 	cipherSuites                *[]uint16
 	hooks                       hooks.Hooks
 
+	// Set by Init, so Shutdown can take the reload trigger back off the store.
+	// A server that is replaced rather than shut down would otherwise leave a
+	// trigger behind pointing at itself.
+	storeTriggerHandle storage.TriggerHandle
+
 	compileUnknownsCache     *lru.Cache[string, []ast.Ref]
 	compileMaskingRulesCache *lru.Cache[string, ast.Ref]
 }
@@ -223,10 +228,12 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	config := storage.TriggerConfig{
 		OnCommit: s.reload,
 	}
-	if _, err := s.store.Register(ctx, txn, config); err != nil {
+	handle, err := s.store.Register(ctx, txn, config)
+	if err != nil {
 		s.store.Abort(ctx, txn)
 		return nil, err
 	}
+	s.storeTriggerHandle = handle
 
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
@@ -257,10 +264,28 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	return s, s.store.Commit(ctx, txn)
 }
 
+// unregisterStoreTrigger takes the reload trigger registered by Init back off
+// the store. A no-op if Init never ran, or if the server has already shut down.
+func (s *Server) unregisterStoreTrigger(ctx context.Context) {
+	if s.storeTriggerHandle == nil {
+		return
+	}
+
+	if err := storage.Txn(ctx, s.store, storage.WriteParams, func(txn storage.Transaction) error {
+		s.storeTriggerHandle.Unregister(ctx, txn)
+		return nil
+	}); err != nil {
+		s.manager.Logger().Error("Error unregistering store trigger: %v", err)
+	}
+	s.storeTriggerHandle = nil
+}
+
 // Shutdown will attempt to gracefully shutdown each of the http servers
 // currently in use by the OPA Server. If any exceed the deadline specified
 // by the context an error will be returned.
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.unregisterStoreTrigger(ctx)
+
 	errChan := make(chan error)
 	for _, srvr := range s.httpListeners {
 		go func(s httpListener) {

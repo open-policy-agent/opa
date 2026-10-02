@@ -213,6 +213,7 @@ type Manager struct {
 	initFiles                    loader.Result
 	maxErrors                    int
 	initialized                  bool
+	stopped                      bool
 	interQueryBuiltinCacheConfig *cache.Config
 	gracefulShutdownPeriod       int
 	registeredCacheTriggers      []func(*cache.Config)
@@ -242,6 +243,17 @@ type Manager struct {
 	bundleActivatorPlugin        string
 	externalSources              *util.HasherMap[ast.Ref, ast.ExternalRuleSource]
 	externalSourcesMux           sync.RWMutex
+
+	// Set while the manager is started, so Stop can take its commit trigger back
+	// off the store. Without this a manager that is replaced rather than shut
+	// down leaves a trigger behind pointing at itself.
+	storeTriggerHandle storage.TriggerHandle
+
+	// Whether Stop closes the store. The manager never creates the store, so the
+	// caller owns it; this stays on by default because callers have relied on it,
+	// but a caller that swaps one manager for another over the same store must
+	// turn it off.
+	closeStoreOnStop bool
 }
 
 type pluginStatusMsg interface {
@@ -422,6 +434,19 @@ func EnablePrintStatements(yes bool) func(*Manager) {
 	}
 }
 
+// WithStoreCloseOnStop sets whether Stop closes the store. Callers that keep the
+// store across managers -- replacing one manager with another built from a new
+// configuration, say -- must pass false and close the store themselves once they
+// are done with it.
+//
+// Note that sdk.OPA.Configure replaces managers over a shared store and does not
+// pass this yet, so a store handed to the SDK is closed on reconfiguration.
+func WithStoreCloseOnStop(yes bool) func(*Manager) {
+	return func(m *Manager) {
+		m.closeStoreOnStop = yes
+	}
+}
+
 func PrintHook(h print.Hook) func(*Manager) {
 	return func(m *Manager) {
 		m.printHook = h
@@ -551,6 +576,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		pluginStatusCh:        make(chan pluginStatusMsg),
 		stopPluginStatusCh:    make(chan chan struct{}),
 		pluginStatusDoneCh:    make(chan struct{}),
+		closeStoreOnStop:      true,
 	}
 
 	for _, f := range opts {
@@ -656,7 +682,7 @@ func (m *Manager) Init(ctx context.Context) error {
 		}
 		SetWasmResolversOnContext(params.Context, resolvers)
 
-		_, err = m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: m.onCommit})
+		m.storeTriggerHandle, err = m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: m.onCommit})
 		return err
 	})
 	if err != nil {
@@ -922,18 +948,29 @@ func (m *Manager) Start(ctx context.Context) error {
 // of the graceful shutdown period passed with the context as a timeout.
 // Note that a graceful shutdown period configured with the Manager instance
 // will override the timeout of the passed in context (if applicable).
-// NOTE: You cannot call this twice, or it will hang.
+// Stopping a manager that is already stopped is a no-op.
 func (m *Manager) Stop(ctx context.Context) {
 	var toStop []Plugin
 
-	func() {
+	// The goroutines signalled at the end of this are stopped for good, so a
+	// second pass would block on them forever. A restart that fails part-way
+	// leaves a manager stopped and then comes back through here to fall back to
+	// the previous configuration.
+	if stopped := func() bool {
 		m.mtx.Lock()
 		defer m.mtx.Unlock()
+		if m.stopped {
+			return true
+		}
+		m.stopped = true
 		toStop = make([]Plugin, len(m.plugins))
 		for i := range m.plugins {
 			toStop[i] = m.plugins[i].plugin
 		}
-	}()
+		return false
+	}(); stopped {
+		return
+	}
 
 	var cancel context.CancelFunc
 	if m.gracefulShutdownPeriod > 0 {
@@ -945,9 +982,17 @@ func (m *Manager) Stop(ctx context.Context) {
 	for i := range toStop {
 		toStop[i].Stop(ctx)
 	}
-	if c, ok := m.Store.(interface{ Close(context.Context) error }); ok {
-		if err := c.Close(ctx); err != nil {
-			m.Logger().Error("Error closing store: %v", err)
+
+	// Taken off before the store is closed, and before another manager takes this
+	// one's place: a trigger left behind would keep calling into a manager whose
+	// plugins have stopped.
+	m.unregisterStoreTrigger(ctx)
+
+	if m.closeStoreOnStop {
+		if c, ok := m.Store.(interface{ Close(context.Context) error }); ok {
+			if err := c.Close(ctx); err != nil {
+				m.Logger().Error("Error closing store: %v", err)
+			}
 		}
 	}
 
@@ -1029,6 +1074,22 @@ func (m *Manager) Reconfigure(newCfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// unregisterStoreTrigger takes the commit trigger registered by Start back off
+// the store. A no-op if the manager was never started, or has already stopped.
+func (m *Manager) unregisterStoreTrigger(ctx context.Context) {
+	if m.storeTriggerHandle == nil {
+		return
+	}
+
+	if err := storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		m.storeTriggerHandle.Unregister(ctx, txn)
+		return nil
+	}); err != nil {
+		m.Logger().Error("Error unregistering store trigger: %v", err)
+	}
+	m.storeTriggerHandle = nil
 }
 
 // PluginStatus returns the current statuses of any plugins registered.
