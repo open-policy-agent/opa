@@ -10,23 +10,11 @@ import (
 )
 
 // This file holds the indexing of both ends of a string: `startswith` and
-// `strings.any_prefix_match`, and `endswith` and `strings.any_suffix_match`.
-// One structure answers both -- a suffix trie is a prefix trie over the base
-// strings reversed (see InsertSuffix and traverseSuffixes).
+// `strings.any_prefix_match`, and `endswith` and `strings.any_suffix_match`. A
+// suffix trie is a prefix trie over the base strings reversed.
 //
-// prefixTrie holds the string-prefix constraints recorded for one level of the
-// rule index: what `startswith(input.x, "/api/")` and
-// `strings.any_prefix_match(input.x, [...])` contribute. Each prefix's value is
-// the trieNode its rules hang off, an ordinary one, so whatever a rule
-// constrains below a prefix constraint indexes as usual.
-//
-// A scalar constraint is answered with a map lookup, but a prefix constraint
-// has to answer "which of the recorded prefixes does this value start with",
-// and the answer is a set, not a single entry. Testing the value against every
-// recorded prefix in turn would cost O(p) string comparisons per lookup -- the
-// work strings.any_prefix_match exists to avoid doing in the rule body -- so
-// this is a compressed trie that walks the value once instead (see
-// internal/prefixtrie).
+// prefixTrie holds one level's prefix constraints, each prefix's value being the
+// trieNode its rules hang off.
 type prefixTrie = prefixtrie.Trie[trieNode]
 
 func prefixTrieDo(p *prefixTrie, walker trieWalker) {
@@ -91,8 +79,7 @@ func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 		return nil
 	}
 
-	// Each call is given a closure of its own: one shared with checkMember
-	// would escape along with it, and cost every lookup an allocation.
+	// A closure shared with checkMember would escape, allocating per lookup.
 	if s, ok := value.(String); ok {
 		return prefixes.PrefixesOf(string(s), func(node *trieNode) error {
 			return node.Traverse(resolver, tr)
@@ -135,8 +122,7 @@ func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversal
 		return nil
 	}
 
-	// Each call is given a closure of its own: one shared with checkMember
-	// would escape along with it, and cost every lookup an allocation.
+	// A closure shared with checkMember would escape, allocating per lookup.
 	if s, ok := value.(String); ok {
 		return suffixes.SuffixesOf(string(s), func(node *trieNode) error {
 			return node.Traverse(resolver, tr)

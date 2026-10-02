@@ -11,11 +11,14 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/open-policy-agent/opa/internal/prefixtrie"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -23,84 +26,171 @@ var (
 	errEmptySearchCharacter = errors.New("empty search character")
 )
 
-func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	a, b := operands[0].Value, operands[1].Value
+// Named inter-query value caches for the tries built over the base strings of
+// strings.any_prefix_match and strings.any_suffix_match, keyed by collection,
+// and for the hashes of the collections matched against once, kept apart so
+// that marking a collection never evicts a trie.
+const (
+	anyPrefixMatchCacheName     = "any_prefix_match"
+	anySuffixMatchCacheName     = "any_suffix_match"
+	anyPrefixMatchSeenCacheName = "any_prefix_match_seen"
+	anySuffixMatchSeenCacheName = "any_suffix_match_seen"
+)
 
-	if s, ok := a.(ast.String); ok {
-		if found, ok := anyStringMatch(string(s), b, strings.HasPrefix); ok {
-			return iter(ast.InternedTerm(found))
-		}
+type affixCaches struct {
+	tries, seen string
+}
+
+var (
+	anyPrefixMatchCaches = affixCaches{tries: anyPrefixMatchCacheName, seen: anyPrefixMatchSeenCacheName}
+	anySuffixMatchCaches = affixCaches{tries: anySuffixMatchCacheName, seen: anySuffixMatchSeenCacheName}
+)
+
+func builtinAnyPrefixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	found, err := anyAffixMatch(bctx, operands[0].Value, operands[1].Value, anyPrefixMatchCaches, false)
+	if err != nil {
+		return err
+	}
+	return iter(ast.InternedTerm(found))
+}
+
+func builtinAnySuffixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	found, err := anyAffixMatch(bctx, operands[0].Value, operands[1].Value, anySuffixMatchCaches, true)
+	if err != nil {
+		return err
+	}
+	return iter(ast.InternedTerm(found))
+}
+
+// affixSeen marks a collection that has been matched against once. The first
+// call to see it again builds the collection's trie, while any others wait.
+type affixSeen struct {
+	once sync.Once
+}
+
+// anyAffixMatch reports whether any string in a starts with (or with suffix set,
+// ends with) any string in base.
+//
+// A collection's trie is built the second time it is seen, so that one built
+// per query (from input, say) never pays for it. Collections are marked by hash,
+// so as not to hold on to them: a collision only builds a trie a call early.
+// Cached tries are shared by concurrent evaluations and never written to.
+func anyAffixMatch(bctx BuiltinContext, a, base ast.Value, caches affixCaches, suffix bool) (bool, error) {
+	match := strings.HasPrefix
+	if suffix {
+		match = strings.HasSuffix
 	}
 
+	// The search strings are checked first, so that their type errors come first.
+	s, single := a.(ast.String)
 	var strs []string
 	switch a := a.(type) {
 	case ast.String:
-		strs = []string{string(a)}
 	case *ast.Array, ast.Set:
 		var err error
-		strs, err = builtins.StringSliceOperand(a, 1)
-		if err != nil {
-			return err
+		if strs, err = builtins.StringSliceOperand(a, 1); err != nil {
+			return false, err
 		}
 	default:
-		return builtins.NewOperandTypeErr(1, a, "string", "set", "array")
+		return false, builtins.NewOperandTypeErr(1, a, "string", "set", "array")
 	}
 
-	var prefixes []string
-	switch b := b.(type) {
+	switch base := base.(type) {
 	case ast.String:
-		prefixes = []string{string(b)}
-	case *ast.Array, ast.Set:
-		var err error
-		prefixes, err = builtins.StringSliceOperand(b, 2)
-		if err != nil {
-			return err
+		if single {
+			return match(string(s), string(base)), nil
 		}
+		return slices.ContainsFunc(strs, func(s string) bool { return match(s, string(base)) }), nil
+	case *ast.Array, ast.Set:
 	default:
-		return builtins.NewOperandTypeErr(2, b, "string", "set", "array")
+		return false, builtins.NewOperandTypeErr(2, base, "string", "set", "array")
 	}
 
-	return iter(ast.InternedTerm(anyStartsWithAny(strs, prefixes)))
+	var tries, seen cache.InterQueryValueCacheBucket
+	if bctx.InterQueryBuiltinValueCache != nil {
+		tries = bctx.InterQueryBuiltinValueCache.GetCache(caches.tries)
+		seen = bctx.InterQueryBuiltinValueCache.GetCache(caches.seen)
+	}
+
+	var key ast.Value
+	var marker *affixSeen
+	if tries != nil && seen != nil {
+		if v, ok := tries.Get(base); ok {
+			if trie, ok := v.(*prefixtrie.Trie[struct{}]); ok {
+				return matchAffixTrie(trie, s, single, strs, suffix), nil
+			}
+		}
+		key = ast.Number(strconv.Itoa(base.Hash()))
+		if v, ok := seen.Get(key); ok {
+			marker, _ = v.(*affixSeen)
+		}
+	}
+
+	if single && marker == nil {
+		// Declined only for a non-string member, reported below.
+		if found, ok := anyStringMatch(string(s), base, match); ok {
+			if key != nil {
+				seen.Insert(key, &affixSeen{})
+			}
+			return found, nil
+		}
+	}
+
+	bases, err := builtins.StringSliceOperand(base, 2)
+	if err != nil {
+		return false, err
+	}
+
+	if marker != nil {
+		var trie *prefixtrie.Trie[struct{}]
+		marker.once.Do(func() {
+			trie = buildAffixTrie(bases, suffix)
+			tries.Insert(base, trie)
+		})
+		if trie == nil {
+			// Built by another call, for this collection or one with the same hash.
+			if v, ok := tries.Get(base); ok {
+				trie, _ = v.(*prefixtrie.Trie[struct{}])
+			}
+		}
+		if trie != nil {
+			return matchAffixTrie(trie, s, single, strs, suffix), nil
+		}
+		// Since evicted, or never built for this collection: built next time.
+	}
+
+	if key != nil {
+		seen.Insert(key, &affixSeen{})
+	}
+
+	if suffix {
+		// Bytes, not runes, so that invalid UTF-8 matches like endswith.
+		return anyStartsWithAny(util.Map(strs, prefixtrie.Reverse), util.Map(bases, prefixtrie.Reverse)), nil
+	}
+	return anyStartsWithAny(strs, bases), nil
 }
 
-func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	a, b := operands[0].Value, operands[1].Value
-
-	if s, ok := a.(ast.String); ok {
-		if found, ok := anyStringMatch(string(s), b, strings.HasSuffix); ok {
-			return iter(ast.InternedTerm(found))
+func buildAffixTrie(bases []string, suffix bool) *prefixtrie.Trie[struct{}] {
+	trie := &prefixtrie.Trie[struct{}]{}
+	for _, b := range bases {
+		if suffix {
+			b = prefixtrie.Reverse(b)
 		}
+		trie.Insert(b)
 	}
+	trie.Compact()
+	return trie
+}
 
-	var strsReversed []string
-	switch a := a.(type) {
-	case ast.String:
-		strsReversed = []string{reverseString(string(a))}
-	case *ast.Array, ast.Set:
-		strs, err := builtins.StringSliceOperand(a, 1)
-		if err != nil {
-			return err
-		}
-		strsReversed = util.Map(strs, reverseString)
-	default:
-		return builtins.NewOperandTypeErr(1, a, "string", "set", "array")
+func matchAffixTrie(trie *prefixtrie.Trie[struct{}], s ast.String, single bool, strs []string, suffix bool) bool {
+	hasAffix := trie.HasPrefixOf
+	if suffix {
+		hasAffix = trie.HasSuffixOf
 	}
-
-	var suffixesReversed []string
-	switch b := b.(type) {
-	case ast.String:
-		suffixesReversed = []string{reverseString(string(b))}
-	case *ast.Array, ast.Set:
-		suffixes, err := builtins.StringSliceOperand(b, 2)
-		if err != nil {
-			return err
-		}
-		suffixesReversed = util.Map(suffixes, reverseString)
-	default:
-		return builtins.NewOperandTypeErr(2, b, "string", "set", "array")
+	if single {
+		return hasAffix(string(s))
 	}
-
-	return iter(ast.InternedTerm(anyStartsWithAny(strsReversed, suffixesReversed)))
+	return slices.ContainsFunc(strs, hasAffix)
 }
 
 // anyStringMatch tests one string against each member of an array or set of
@@ -901,6 +991,16 @@ func reverseString(str string) string {
 }
 
 func init() {
+	defaultCacheEntries, defaultSeenCacheEntries := 10, 1000
+	for _, c := range []affixCaches{anyPrefixMatchCaches, anySuffixMatchCaches} {
+		cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(c.tries, &cache.NamedValueCacheConfig{
+			MaxNumEntries: &defaultCacheEntries,
+		})
+		cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(c.seen, &cache.NamedValueCacheConfig{
+			MaxNumEntries: &defaultSeenCacheEntries,
+		})
+	}
+
 	RegisterBuiltinFunc(ast.FormatInt.Name, builtinFormatInt)
 	RegisterBuiltinFunc(ast.Concat.Name, builtinConcat)
 	RegisterBuiltinFunc(ast.IndexOf.Name, builtinIndexOf)
