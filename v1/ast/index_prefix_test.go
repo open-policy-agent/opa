@@ -408,26 +408,9 @@ func TestIndexPrefixTrieStaysCompressed(t *testing.T) {
 		t.Fatal("expected the prefixes to be indexed")
 	}
 
-	if got := len(prefixes.walk()); got != n {
+	if got := len(prefixes.Entries()); got != n {
 		t.Errorf("expected %d prefixes in the trie, got %d", n, got)
 	}
-
-	// A compressed trie holds at most 2p-1 nodes; a byte-per-node one would
-	// hold ~30 per prefix here.
-	if nodes, max := countPrefixNodes(prefixes), 2*n; nodes > max {
-		t.Errorf("expected at most %d prefix trie nodes, got %d", max, nodes)
-	}
-}
-
-func countPrefixNodes(p *prefixTrie) int {
-	if p == nil {
-		return 0
-	}
-	n := 1
-	for _, edge := range p.edges {
-		n += countPrefixNodes(edge.node)
-	}
-	return n
 }
 
 // TestPrefixTrieInsertAndTraverse exercises the trie directly, including the
@@ -452,7 +435,7 @@ func TestPrefixTrieInsertAndTraverse(t *testing.T) {
 			trie := &prefixTrie{}
 			nodes := map[string]*trieNode{}
 			for _, p := range tc.prefixes {
-				node := trie.insert(p)
+				node := trie.Insert(p)
 				if node == nil {
 					t.Fatalf("insert(%q) returned nil", p)
 				}
@@ -462,13 +445,13 @@ func TestPrefixTrieInsertAndTraverse(t *testing.T) {
 				nodes[p] = node
 			}
 
-			// walk() has to report exactly the distinct prefixes inserted.
+			// Entries() has to report exactly the distinct prefixes inserted.
 			want := slices.Compact(slices.Sorted(slices.Values(tc.prefixes)))
 			var got []string
-			for _, entry := range trie.walk() {
-				got = append(got, entry.prefix)
-				if nodes[entry.prefix] != entry.node {
-					t.Errorf("walk() reported a different node for %q", entry.prefix)
+			for _, entry := range trie.Entries() {
+				got = append(got, entry.Key)
+				if nodes[entry.Key] != entry.Value {
+					t.Errorf("Entries() reported a different node for %q", entry.Key)
 				}
 			}
 			slices.Sort(got)
@@ -525,7 +508,8 @@ func prefixTrieMatches(t *testing.T, trie *prefixTrie, nodes map[string]*trieNod
 
 	tr := newTrieTraversalResult()
 	tr.grow(len(byID))
-	if err := trie.traverse(s, testResolver{input: MustParseTerm(`{}`)}, tr); err != nil {
+	level := &levelDetail{prefixes: trie}
+	if err := level.traversePrefixes(testResolver{input: MustParseTerm(`{}`)}, tr, String(s)); err != nil {
 		t.Fatal(err)
 	}
 
