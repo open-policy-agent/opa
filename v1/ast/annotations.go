@@ -70,6 +70,7 @@ type (
 		byPackage map[int]*Annotations
 		byPath    *annotationTreeNode
 		modules   []*Module // Modules this set was constructed from
+		hasLabels bool
 	}
 
 	annotationTreeNode struct {
@@ -620,6 +621,10 @@ func BuildAnnotationSet(modules []*Module) (*AnnotationSet, Errors) {
 // stripped away from the annotations, leading to nil deref panics. We
 // silently ignore these cases for now, as a workaround.
 func (as *AnnotationSet) add(a *Annotations) *Error {
+	// Only ever set, never cleared: it may already be true from an earlier annotation.
+	if len(a.Labels) > 0 {
+		as.hasLabels = true
+	}
 	switch a.Scope {
 	case annotationScopeRule:
 		if rule, ok := a.node.(*Rule); ok {
@@ -756,11 +761,20 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 	return refs
 }
 
+// HasLabels reports whether any annotation in the set declares labels.
+func (as *AnnotationSet) HasLabels() bool {
+	return as != nil && as.hasLabels
+}
+
 // MergedLabels returns the inner-scope-wins merged labels for the given rule
 // along with a stable JSON string suitable for content-based deduplication.
 // labels is nil when the rule has no labels anywhere in its annotation chain.
 func (as *AnnotationSet) MergedLabels(rule *Rule) (labels map[string]any, key string) {
 	if as == nil {
+		return nil, ""
+	}
+	// Rules from an ExternalRuleSource carry annotations the set doesn't track.
+	if !as.hasLabels && !slices.ContainsFunc(rule.Annotations, func(a *Annotations) bool { return len(a.Labels) > 0 }) {
 		return nil, ""
 	}
 	labels = mergeChainLabels(as.Chain(rule))
