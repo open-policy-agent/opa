@@ -890,6 +890,10 @@ func reverseString(str string) string {
 	for start := 0; start < size; {
 		r, n := utf8.DecodeRuneInString(str[start:])
 		start += n
+		if r == utf8.RuneError && n == 1 {
+			buf[size-start] = str[start-1]
+			continue
+		}
 		utf8.EncodeRune(buf[size-start:], r)
 	}
 
