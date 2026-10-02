@@ -45,7 +45,7 @@ const (
 	PlanProtoFile         = "plan.pb"
 	ManifestExt           = ".manifest"
 	ManifestProtoExt      = ".manifest.pb"
-	SignaturesFile        = "signatures.json"
+	signaturesFilename    = ".signatures.json"
 	patchFile             = "patch.json"
 	dataFile              = "data.json"
 	yamlDataFile          = "data.yaml"
@@ -54,6 +54,10 @@ const (
 	DefaultSizeLimitBytes = (1024 * 1024 * 1024) // limit bundle reads to 1GB to protect against gzip bombs
 	DeltaBundleType       = "delta"
 	SnapshotBundleType    = "snapshot"
+
+	// Deprecated: OPA now expects the exact filename ".signatures.json".
+	// Use IsSignaturesFile to detect it.
+	SignaturesFile = "signatures.json"
 )
 
 var (
@@ -1068,7 +1072,7 @@ func writeSignatures(tw *archive.TarGzWriter, bundle Bundle) error {
 		return err
 	}
 
-	return tw.WriteFile(util.WithPrefix(SignaturesFile, "/."), bs)
+	return tw.WriteFile(util.WithPrefix(signaturesFilename, "/"), bs)
 }
 
 func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
@@ -1787,12 +1791,20 @@ func modulePathWithPrefix(bundleName string, modulePath string) string {
 // hashed as raw wire bytes on both the sign and verify paths.
 func IsStructuredDoc(name string) bool {
 	base := filepath.Base(name)
-	return base == dataFile || base == yamlDataFile || base == SignaturesFile || base == ManifestExt
+	return base == dataFile || base == yamlDataFile || base == ManifestExt
+}
+
+// IsSignaturesFile reports whether name is a bundle's signatures file, matched
+// by its exact basename ".signatures.json" so it is found regardless of any
+// directory prefix.
+func IsSignaturesFile(name string) bool {
+	return filepath.Base(name) == signaturesFilename
 }
 
 func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (*Bundle, []*Descriptor, error) {
 	bundle := &Bundle{}
 	descriptors := []*Descriptor{}
+	signaturesFilePath := ""
 
 	for {
 		f, err := loader.NextFile()
@@ -1803,37 +1815,38 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 			return bundle, nil, fmt.Errorf("bundle read failed: %w", err)
 		}
 
-		isSignaturesFile := strings.HasSuffix(f.Path(), SignaturesFile)
-
-		if !skipVerify && isSignaturesFile {
-			buf, err := readFile(f, sizeLimitBytes)
-			if err != nil {
-				return bundle, nil, err
-			}
-
-			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Signatures); err != nil {
-				return bundle, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
-			}
-		} else if !isSignaturesFile {
-			descriptors = append(descriptors, f)
-
-			base := filepath.Base(f.Path())
-
-			if base == patchFile {
-				b := new(bytes.Buffer)
-				f.reader = io.TeeReader(f.reader, b)
+		if IsSignaturesFile(f.Path()) {
+			if !skipVerify {
+				if signaturesFilePath != "" {
+					return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
+				}
+				signaturesFilePath = f.Path()
 
 				buf, err := readFile(f, sizeLimitBytes)
 				if err != nil {
 					return bundle, nil, err
 				}
-
-				if err := util.NewJSONDecoder(&buf).Decode(&bundle.Patch); err != nil {
-					return bundle, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
+				if err := util.NewJSONDecoder(&buf).Decode(&bundle.Signatures); err != nil {
+					return bundle, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
 				}
-
-				f.reader = b
 			}
+			continue
+		}
+
+		descriptors = append(descriptors, f)
+
+		if filepath.Base(f.Path()) == patchFile {
+			b := new(bytes.Buffer)
+			f.reader = io.TeeReader(f.reader, b)
+
+			buf, err := readFile(f, sizeLimitBytes)
+			if err != nil {
+				return bundle, nil, err
+			}
+			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Patch); err != nil {
+				return bundle, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
+			}
+			f.reader = b
 		}
 	}
 
