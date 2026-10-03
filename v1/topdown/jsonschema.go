@@ -61,6 +61,9 @@ func newResultTerm(valid bool, data *ast.Term) *ast.Term {
 // outbound requests from wherever OPA happens to be deployed. The query's
 // context comes along so that those fetches are abandoned when evaluation is
 // cancelled.
+//
+// File references are always denied, independent of allow_net, because schemas
+// reaching these built-ins may be attacker-controlled.
 func newPatternValidatingSchemaLoader(bctx BuiltinContext) *gojsonschema.SchemaLoader {
 	sl := gojsonschema.NewSchemaLoader()
 	sl.ValidatePatterns = true

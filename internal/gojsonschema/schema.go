@@ -50,7 +50,9 @@ var (
 
 // NewSchema instances a schema using the given JSONLoader
 func NewSchema(l JSONLoader) (*Schema, error) {
-	return NewSchemaLoader().Compile(l)
+	sl := NewSchemaLoader()
+	sl.AllowFilesystem = true
+	return sl.Compile(l)
 }
 
 // Schema holds a schema
