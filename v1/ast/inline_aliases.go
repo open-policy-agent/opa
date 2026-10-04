@@ -158,7 +158,12 @@ type inlinedAlias struct {
 }
 
 type aliasCache struct {
-	entries map[string]inlinedAlias
+	entries map[int][]aliasCacheEntry
+}
+
+type aliasCacheEntry struct {
+	ref   Ref
+	alias inlinedAlias
 }
 
 func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache *aliasCache) {
@@ -167,9 +172,11 @@ func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache *aliasCac
 			continue
 		}
 
+		hasComprehensions := false
 		WalkTerms(expr, func(term *Term) bool {
 			switch term.Value.(type) {
 			case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
+				hasComprehensions = true
 				return true
 			}
 
@@ -183,6 +190,10 @@ func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache *aliasCac
 			}
 			return false
 		})
+
+		if !hasComprehensions {
+			continue
+		}
 
 		WalkClosures(expr, func(x any) bool {
 			switch x := x.(type) {
@@ -205,13 +216,15 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache *aliasCache) (Re
 		return nil, false
 	}
 
-	if !c.isVirtual(ref) {
-		return nil, false
+	key := ref.Hash()
+	for _, entry := range cache.entries[key] {
+		if entry.ref.Equal(ref) {
+			return entry.alias.resolved, entry.alias.ok
+		}
 	}
 
-	key := ref.String()
-	if hit, ok := cache.entries[key]; ok {
-		return hit.resolved, hit.ok
+	if !c.isVirtual(ref) {
+		return nil, false
 	}
 
 	resolved, sources := c.resolveRefAlias(ref)
@@ -229,9 +242,12 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache *aliasCache) (Re
 	}
 
 	if cache.entries == nil {
-		cache.entries = map[string]inlinedAlias{}
+		cache.entries = map[int][]aliasCacheEntry{}
 	}
-	cache.entries[key] = inlinedAlias{resolved: resolved, ok: ok}
+	cache.entries[key] = append(cache.entries[key], aliasCacheEntry{
+		ref:   ref,
+		alias: inlinedAlias{resolved: resolved, ok: ok},
+	})
 
 	return resolved, ok
 }

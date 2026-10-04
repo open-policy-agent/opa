@@ -327,6 +327,23 @@ p := xs if {
 		[]string{"input.x"})
 }
 
+func TestInlineAliasesInEveryWithoutComprehension(t *testing.T) {
+	c := compileForInlining(t, map[string]string{
+		"alias.rego": `package alias
+
+v := input.x
+`,
+		"policy.rego": `package test
+
+p if every x in input.xs { data.alias.v == x }
+`,
+	})
+
+	assertRefs(t, c, "policy.rego", "p",
+		[]string{"input.x", "input.xs"},
+		[]string{"data.alias.v"})
+}
+
 func TestInlineAliasesProcessesTestRules(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"alias.rego": `package alias
