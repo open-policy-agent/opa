@@ -102,12 +102,16 @@
 })();
 ")
 
+(defn- verdict [p]
+  (if (:significant p) "significant" "within noise"))
+
 (defn- tooltip-text [measure p commits since]
   (str/join "\n"
             (concat
-              [(format "%s: %+.2f%% vs %s%s" (measure-labels measure)
-                       (* 100 (- (:ratio p) 1)) data/latest-tag
-                       (if (:significant p) "" " (within noise)"))]
+              [(format "%s: %+.2f%% vs %s (%s)" (measure-labels measure)
+                       (* 100 (- (:ratio p) 1)) data/latest-tag (verdict p))
+               ;; benchstat's interval for the head's own samples, not for the delta.
+               (format "spread of samples: +/-%.1f%%" (* (:ratio p) (:ci-pct p)))]
               (when-let [c (:calibration p)]
                 [(format "night drift %.2f%%" (double (:median_abs_drift_pct c)))])
               (when-let [n (some-> commits count)]
@@ -123,7 +127,8 @@
   (when-let [date (data/commit-dates data/latest-baseline-sha)]
     {:date    date
      :measure (measure-labels measure)
-     :pct     0.0 :lo 0.0 :hi 0.0
+     :pct     0.0
+     :verdict "baseline"
      :tip     (str data/latest-tag " (baseline)")
      :commits [(head-entry data/latest-baseline-sha)]}))
 
@@ -143,19 +148,14 @@
              row (cons (baseline-row measure)
                        (for [p (get series measure)
                              :let [pct     (* 100 (- (:ratio p) 1))
-                                   half    (* (:ratio p) (:ci-pct p))
                                    {:keys [after commits]} (get intervals-map (:commit p))
                                    since   (if (= after data/latest-baseline-sha)
                                              data/latest-tag
                                              "previous night")]]
-                         ;; benchstat reports an interval for the commit's own samples,
-                         ;; not one for the difference, so the bars show spread rather
-                         ;; than significance.
                          {:date    (night-instant (:date p))
                           :measure (measure-labels measure)
                           :pct     pct
-                          :lo      (- pct half)
-                          :hi      (+ pct half)
+                          :verdict (verdict p)
                           :tip     (tooltip-text measure p commits since)
                           ;; The night's own commit closes the list, marked as the sampled one.
                           :commits (conj (vec commits) (head-entry (:commit p)))}))
@@ -175,14 +175,19 @@
      :tick-labels (mapv #(.format fmt (.atZone (.toInstant ^java.util.Date %) java.time.ZoneOffset/UTC))
                         shown)}))
 
+(def ^:private verdict-shapes
+  "Filled where benchstat found a change, hollow where it did not."
+  {"significant" :circle "within noise" :circle-open "baseline" :square})
+
 (defn- benchlab-pose [rows]
-  (let [measures (into [] (comp (map :measure) (distinct)) rows)]
-    (-> (into {} (map (fn [k] [k (mapv k rows)])) [:date :measure :pct :lo :hi :tip])
+  (let [measures (into [] (comp (map :measure) (distinct)) rows)
+        verdicts (filterv (set (map :verdict rows)) ["significant" "within noise" "baseline"])]
+    (-> (into {} (map (fn [k] [k (mapv k rows)])) [:date :measure :pct :verdict :tip])
         (pj/lay-line :date :pct {:color :measure})
-        (pj/lay-point :date :pct {:color :measure :shape :diamond :size 6 :tooltip :tip})
-        (pj/lay-errorbar {:y-min :lo :y-max :hi :color :measure})
+        (pj/lay-point :date :pct {:color :measure :shape :verdict :size 8 :tooltip :tip})
         (pj/lay-rule-h {:y-intercept 0})
         (pj/scale :color {:domain measures})
+        (pj/scale :shape {:domain verdicts :values (mapv verdict-shapes verdicts) :label "verdict"})
         (pj/scale :x (date-ticks rows))
         (pj/options {:width 1200 :height 400
                      :x-label "" :y-label (str "% vs " data/latest-tag)
@@ -214,9 +219,9 @@
                 [:p {:style "font-size:12px;margin:0 0 6px 0;opacity:0.75"}
                  (str "Percent difference from " data/latest-tag
                       ", with both measured side by side on one machine each night. "
-                      "Error bars are benchstat's interval for the commit's own samples; "
-                      "\"within noise\" in the hover is its significance verdict. Hover a "
-                      "point to see which commits landed since the previous night's run.")]])]
+                      "A filled marker is a change benchstat found significant, a hollow one "
+                      "is within noise. Hover a point for its sample spread and the commits "
+                      "that landed since the previous night's run.")]])]
             (into (if (= :kind/fragment (:kindly/kind (meta plot))) plot [plot]))
             (conj (kind/hiccup
                     [:div
