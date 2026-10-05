@@ -179,6 +179,23 @@
   "Filled where benchstat found a change, hollow where it did not."
   {"significant" :circle "within noise" :circle-open "baseline" :square})
 
+(def ^:private min-y-span
+  "Half-width in percent the y-axis never goes below, so noise stays flat."
+  5.0)
+
+(defn- y-scale
+  "Symmetric about zero, at least min-y-span either way, ticked in whole
+   percents."
+  [rows]
+  (let [m      (max min-y-span (* 1.1 (apply max 0.0 (map #(Math/abs (double (:pct %))) rows))))
+        step   (first (filter #(<= (/ (* 2 m) %) 8) [1 2 5 10 20 50 100 200 500 1000]))
+        k      (long (Math/floor (/ m step)))
+        breaks (mapv #(* step %) (range (- k) (inc k)))]
+    {:domain      [(- m) m]
+     :breaks      breaks
+     :tick-labels (mapv #(cond (pos? %) (format "+%d%%" %) (neg? %) (format "%d%%" %) :else "0%")
+                        breaks)}))
+
 (defn- benchlab-pose [rows]
   (let [measures (into [] (comp (map :measure) (distinct)) rows)
         verdicts (filterv (set (map :verdict rows)) ["significant" "within noise" "baseline"])]
@@ -189,6 +206,7 @@
         (pj/scale :color {:domain measures})
         (pj/scale :shape {:domain verdicts :values (mapv verdict-shapes verdicts) :label "verdict"})
         (pj/scale :x (date-ticks rows))
+        (pj/scale :y (y-scale rows))
         (pj/options {:width 1200 :height 400
                      :x-label "" :y-label (str "% vs " data/latest-tag)
                      :theme acme-theme
