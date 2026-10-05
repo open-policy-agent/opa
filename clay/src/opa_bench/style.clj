@@ -45,6 +45,8 @@ code { background: var(--blue); padding: 1px 4px; }
 /* plotje draws a fixed-size inline-block svg; let it fill the page and scale */
 div:has(> svg.plotje-plot) { display: block !important; }
 svg.plotje-plot { width: 100%; height: auto; }
+/* hollow markers have fill=none, so only their ring would take the hover */
+svg.plotje-plot g[data-row-idx] rect[fill=none] { pointer-events: all; }
 
 .interval-box {
   font-family: 'Go Mono', monospace !important;
