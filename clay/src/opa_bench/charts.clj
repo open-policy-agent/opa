@@ -322,23 +322,40 @@
                      :stroke "#268bd2"
                      :stroke-width "1.5"}]]))))
 
+(defn- rank
+  "Hidden sort key: rows with a significant change in any measure come first,
+   by the largest such change, then the rest by how far time moved."
+  [{:keys [pkg name] :as b}]
+  (let [moves (for [m measure-order
+                    :let [r (get b m)]
+                    :when (and r (significant? pkg name m))]
+                (Math/abs (- (double r) 1.0)))]
+    (if (seq moves)
+      (+ 1000.0 (apply max moves))
+      (Math/abs (- (double (get b "NsPerOp" 1.0)) 1.0)))))
+
+(def ^:private rank-column 6)
+
 (defn index-table [benchmarks]
   (kind/fragment
     [(kind/hiccup
        [:p (str "Latest night against " data/latest-tag " (1.00 is unchanged). Bold, tinted cells "
-                "are changes benchstat found significant; grey ones are within noise.")])
+                "are changes benchstat found significant; grey ones are within noise. "
+                "Rows start with the significant changes, largest first.")])
      (kind/table
-       {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
+       {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp" "Rank"]
         :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
                     {"Pkg"        pkg
                      "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
                      "Trend"      (or (sparkline spark) "")
                      "NsPerOp"    (ratio-cell (get b "NsPerOp") (significant? pkg name "NsPerOp"))
                      "AllocsPerOp" (ratio-cell (get b "AllocsPerOp") (significant? pkg name "AllocsPerOp"))
-                     "BytesPerOp" (ratio-cell (get b "BytesPerOp") (significant? pkg name "BytesPerOp"))})}
+                     "BytesPerOp" (ratio-cell (get b "BytesPerOp") (significant? pkg name "BytesPerOp"))
+                     "Rank"       (rank b)})}
        {:use-datatables true
         :datatables {:pageLength 25
-                     :order [[3 "desc"]]}})
+                     :columnDefs [{:targets rank-column :visible false}]
+                     :order [[rank-column "desc"]]}})
      (kind/hiccup
        [:script "
 document.addEventListener('DOMContentLoaded', function() {
