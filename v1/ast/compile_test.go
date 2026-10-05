@@ -11227,6 +11227,50 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 			}`,
 			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
 		},
+		{
+			note: "assignment after the ref, recursion",
+			policy: `package p
+			r if {
+				data[root].r
+				root = "foo"
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "enumeration after the ref, recursion",
+			policy: `package p
+			r if {
+				data[root].r
+				root = ["foo", "bar"][_]
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "binding reordered after the ref, recursion",
+			policy: `package p
+			r if {
+				root = roots[_]
+				data[root].r
+				roots = ["foo", "bar"]
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "binding chain ahead of the ref, no recursion",
+			policy: `package p
+			r if {
+				roots := ["foo", "bar"]
+				some root in roots
+				data[root].r
+			}`,
+		},
+		{
+			note: "ref in the head, no recursion",
+			policy: `package p
+			r := data[root].r if {
+				root := "foo"
+			}`,
+		},
 	}
 
 	for _, tc := range tests {
