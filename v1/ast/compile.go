@@ -1335,18 +1335,332 @@ func (c *Compiler) checkRecursion() {
 	})
 }
 
+// checkSelfPath reports a cycle from a back to b. A cycle that passes through a
+// ref's variable term is only reported as possible: the compiler cannot tell
+// whether the variable ever selects the rule that closes it.
 func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
-	tr := NewGraphTraversal(c.Graph)
-	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
-		rw := rewriteVarsInRef(c.RewrittenVars)
-		n := make([]string, 0, len(p))
-		for _, x := range p {
-			n = append(n, astNodeToString(rw, x))
-		}
-		if !c.err(NewError(RecursionErr, loc, "rule %v is recursive: %v", astNodeToString(rw, a), strings.Join(n, " -> "))) {
-			return
+	p := util.DFSPath(NewGraphTraversal(c.Graph), eq, a, b)
+	if len(p) == 0 {
+		return
+	}
+
+	rw := rewriteVarsInRef(c.RewrittenVars)
+
+	msg := "rule %v is recursive: %v"
+	var cause string
+	if !c.Graph.isStatic(p) {
+		// The search above may have found a dynamic cycle ahead of a static one.
+		if sp := util.DFSPath(staticGraphTraversal{NewGraphTraversal(c.Graph)}, eq, a, b); len(sp) > 0 {
+			p = sp
+		} else {
+			msg = "rule %v may be recursive: %v"
+			cause = c.Graph.dynamicCause(rw, p)
 		}
 	}
+
+	n := make([]string, 0, len(p))
+	for _, x := range p {
+		n = append(n, astNodeToString(rw, x))
+	}
+	c.err(NewError(RecursionErr, loc, msg+cause, astNodeToString(rw, a), strings.Join(n, " -> ")))
+}
+
+// maxCauseConditions bounds how many term conditions a recursion error spells
+// out. Past it, the error only names the ref.
+const maxCauseConditions = 2
+
+// dynamicCause describes the first dynamic edge on path: the ref that closes
+// the cycle and, where short enough, the values its terms need for that.
+func (g *Graph) dynamicCause(rw varRewriter, path []util.T) string {
+	for i := 1; i < len(path); i++ {
+		edge := g.dynamicCauseOf(path[i-1], path[i])
+		if edge == nil {
+			continue
+		}
+
+		// Past the target's length, the ref only reads from the rule's value.
+		target := path[i].(*Rule)
+		ref := rw(edge.ref[:min(len(edge.ref), len(target.Ref()))].CopyNonGround())
+
+		var b strings.Builder
+		b.WriteString(" (")
+		b.WriteString(ref.String())
+		if i > 1 {
+			b.WriteString(" in ")
+			b.WriteString(astNodeToString(rw, path[i-1]))
+		}
+
+		var positions []int
+		refSelectsRule(edge.sel, target, edge.bound, &positions)
+		conds, ok := causeConditions(ref, target.Ref(), positions)
+		unchecked := uncheckedCondition(edge, conds)
+
+		switch {
+		case !ok || unchecked != nil || len(conds) == 0 || len(conds) > maxCauseConditions:
+			b.WriteString(" could refer to ")
+			b.WriteString(astNodeToString(rw, target))
+		default:
+			b.WriteString(" refers to ")
+			b.WriteString(astNodeToString(rw, target))
+			for j, cond := range conds {
+				if j == 0 {
+					b.WriteString(" if ")
+				} else {
+					b.WriteString(" and ")
+				}
+				fmt.Fprintf(&b, "%v is %v", cond.term, cond.value)
+				if note := originNote(rw, edge, path[i-1].(*Rule), cond); note != "" {
+					b.WriteString(" (")
+					b.WriteString(note)
+					b.WriteString(")")
+				}
+			}
+		}
+		b.WriteString(")")
+
+		return b.String()
+	}
+
+	return ""
+}
+
+// causeCondition is the term at pos of a ref, shown with rewritten vars, and
+// the value it needs to select a rule.
+type causeCondition struct {
+	pos         int
+	term, value *Term
+}
+
+// causeConditions pairs the terms of ref at positions with the values ruleRef
+// needs there, once per term. A term needing two values can't select ruleRef,
+// so there is no condition to give.
+func causeConditions(ref, ruleRef Ref, positions []int) ([]causeCondition, bool) {
+	conds := make([]causeCondition, 0, len(positions))
+
+	for _, pos := range positions {
+		i := slices.IndexFunc(conds, func(c causeCondition) bool { return c.term.Equal(ref[pos]) })
+		switch {
+		case i < 0:
+			conds = append(conds, causeCondition{pos: pos, term: ref[pos], value: ruleRef[pos]})
+		case !conds[i].value.Equal(ruleRef[pos]):
+			return nil, false
+		}
+	}
+
+	return conds, true
+}
+
+type originKind int
+
+const (
+	originInput originKind = iota + 1
+	originRule
+	originCollection
+	originBuiltin
+	originHeadKey
+	originHeadArg
+)
+
+// varOrigin is where a variable gets its value.
+type varOrigin struct {
+	kind       originKind
+	ref        Ref   // originInput, originRule
+	collection Value // originCollection
+	builtin    string
+}
+
+// maxOriginMembers bounds how many values of a collection an error lists.
+const maxOriginMembers = 5
+
+// originNote says where cond's term gets its value, if that is known.
+func originNote(rw varRewriter, edge *dynamicEdge, rule *Rule, cond causeCondition) string {
+	switch v := edge.ref[cond.pos].Value.(type) {
+	case Ref:
+		if v.HasPrefix(DefaultRootRef) {
+			return "rule values aren't known at compile time"
+		}
+		return ""
+	case Var:
+		o, ok := edge.origins[v]
+		if !ok {
+			return ""
+		}
+
+		switch o.kind {
+		case originInput:
+			return fmt.Sprintf("%v comes from %v", cond.term, rw(o.ref.CopyNonGround()))
+		case originRule:
+			return fmt.Sprintf("%v comes from rule %v, whose value isn't known at compile time", cond.term, o.ref)
+		case originCollection:
+			members, _ := valueMembers(o.collection)
+			if len(members) > maxOriginMembers {
+				return fmt.Sprintf("%v is one of %d values", cond.term, len(members))
+			}
+			return fmt.Sprintf("%v is one of %v", cond.term, o.collection)
+		case originBuiltin:
+			return fmt.Sprintf("%v is computed by %v", cond.term, o.builtin)
+		case originHeadKey:
+			return fmt.Sprintf("%v is a key of %v", cond.term, astNodeToString(rw, rule))
+		case originHeadArg:
+			return fmt.Sprintf("%v is an argument of %v", cond.term, astNodeToString(rw, rule))
+		}
+	}
+
+	return ""
+}
+
+// uncheckedCondition returns a condition on a variable from a collection that
+// doesn't hold the value: narrowing gave up on the collection, so the
+// condition can't be met as stated.
+func uncheckedCondition(edge *dynamicEdge, conds []causeCondition) *causeCondition {
+	for i, cond := range conds {
+		v, ok := edge.ref[cond.pos].Value.(Var)
+		if !ok {
+			continue
+		}
+		o, ok := edge.origins[v]
+		if !ok || o.kind != originCollection {
+			continue
+		}
+		members, _ := valueMembers(o.collection)
+		if !slices.ContainsFunc(members, func(m Value) bool { return m.Compare(cond.value.Value) == 0 }) {
+			return &conds[i]
+		}
+	}
+
+	return nil
+}
+
+// varOrigins finds where the variables in ref, in the body expression at index,
+// get their values: from the rule's head, or the expressions ahead of it. It
+// runs as the graph is built, before later stages rewrite the rule's body.
+func varOrigins(rule *Rule, index int, ref Ref) map[Var]varOrigin {
+	bindings := map[Var]*Term{}
+	outputs := map[Var]string{}
+
+	for _, expr := range rule.Body[:min(index, len(rule.Body))] {
+		if expr.Negated || len(expr.With) > 0 {
+			continue
+		}
+
+		if expr.IsEquality() {
+			lhs, rhs := expr.Operand(0), expr.Operand(1)
+			if v, ok := lhs.Value.(Var); ok {
+				if _, seen := bindings[v]; !seen {
+					bindings[v] = rhs
+				}
+			}
+			if v, ok := rhs.Value.(Var); ok {
+				if _, seen := bindings[v]; !seen {
+					bindings[v] = lhs
+				}
+			}
+			continue
+		}
+
+		// A builtin's output is its extra, last operand.
+		if !expr.IsCall() {
+			continue
+		}
+		name := expr.Operator().String()
+		bi, ok := BuiltinMap[name]
+		operands := expr.Operands()
+		if !ok || len(operands) != len(bi.Decl.FuncArgs().Args)+1 {
+			continue
+		}
+		if v, ok := operands[len(operands)-1].Value.(Var); ok {
+			outputs[v] = name
+		}
+	}
+
+	head := map[Var]originKind{}
+	for _, t := range rule.Head.Ref()[1:] {
+		if v, ok := t.Value.(Var); ok {
+			head[v] = originHeadKey
+		}
+	}
+	if rule.Head.Key != nil {
+		if v, ok := rule.Head.Key.Value.(Var); ok {
+			head[v] = originHeadKey
+		}
+	}
+	for _, t := range rule.Head.Args {
+		if v, ok := t.Value.(Var); ok {
+			head[v] = originHeadArg
+		}
+	}
+
+	// A binding chain is followed only as far as it can be in a body of this
+	// size; anything longer loops.
+	var resolve func(v Var, depth int) (varOrigin, bool)
+	resolve = func(v Var, depth int) (varOrigin, bool) {
+		if depth > len(rule.Body) {
+			return varOrigin{}, false
+		}
+
+		if name, ok := outputs[v]; ok {
+			return varOrigin{kind: originBuiltin, builtin: name}, true
+		}
+
+		if t, ok := bindings[v]; ok {
+			switch x := t.Value.(type) {
+			case Var:
+				return resolve(x, depth+1)
+			case Ref:
+				// Show where values come from, not the index the body reads them by.
+				switch {
+				case x.HasPrefix(InputRootRef):
+					return varOrigin{kind: originInput, ref: x.ConstantPrefix().CopyNonGround()}, true
+				case x.HasPrefix(DefaultRootRef):
+					return varOrigin{kind: originRule, ref: x.ConstantPrefix().CopyNonGround()}, true
+				case len(x) == 2 && !IsConstant(x[1].Value):
+					if c, ok := collectionValue(x[0], bindings, depth); ok {
+						return varOrigin{kind: originCollection, collection: c}, true
+					}
+				}
+			}
+		}
+
+		if kind, ok := head[v]; ok {
+			return varOrigin{kind: kind}, true
+		}
+
+		return varOrigin{}, false
+	}
+
+	origins := map[Var]varOrigin{}
+	for _, t := range ref[1:] {
+		if v, ok := t.Value.(Var); ok {
+			if o, ok := resolve(v, 0); ok {
+				origins[v] = o
+			}
+		}
+	}
+
+	return origins
+}
+
+// collectionValue resolves term to a constant collection, directly or through
+// a variable bound to one.
+func collectionValue(term *Term, bindings map[Var]*Term, depth int) (Value, bool) {
+	for ; depth <= len(bindings); depth++ {
+		v, ok := term.Value.(Var)
+		if !ok {
+			break
+		}
+		if term, ok = bindings[v]; !ok {
+			return nil, false
+		}
+	}
+
+	switch term.Value.(type) {
+	case *Array, Set, Object:
+		if IsConstant(term.Value) {
+			return term.Value, true
+		}
+	}
+
+	return nil, false
 }
 
 func astNodeToString(rw varRewriter, x any) string {
@@ -4840,6 +5154,42 @@ type Graph struct {
 	radj   map[util.T]map[util.T]struct{}
 	nodes  map[util.T]struct{}
 	sorted []util.T
+
+	// dynamic holds, for rules with edges that no ref selects outright, the
+	// refs behind those edges. Only recursion errors read it.
+	dynamic map[util.T]*dynamicDeps
+	causes  map[util.T]map[util.T]*dynamicEdge
+}
+
+// dynamicDeps are the refs in a rule that may select rules only through a
+// variable term. The rule's AST is rewritten after the graph is built, so
+// everything here is worked out on, or copied from, the AST as it was then.
+type dynamicDeps struct {
+	refs []dynamicRef
+}
+
+// dynamicRef is a ref as written, to show in errors, and the ref that selects
+// its rules, which narrowing may have made more specific. bound holds the
+// variables that may have a value when the ref is evaluated, and origins where
+// the ref's variables get theirs.
+type dynamicRef struct {
+	ref, sel Ref
+	at       int
+	bound    VarSet
+	origins  map[Var]varOrigin
+	rules    []*Rule
+}
+
+// dynamicEdge is the ref that may select a dependency.
+type dynamicEdge = dynamicRef
+
+// ruleDependency is a ref and a rule it selects, while building the graph.
+type ruleDependency struct {
+	src, sel Ref
+	at       int
+	bound    VarSet
+	rule     *Rule
+	static   bool
 }
 
 // NewGraph returns a new Graph based on modules. The list function must return
@@ -4860,11 +5210,41 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		sorted: nil,
 	}
 
+	// Reused across rules, so rules without dynamic refs don't allocate.
+	var deps []ruleDependency
+
 	// Walk over all rules, add them to graph, and build adjacency lists.
 	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
-			graph.addRuleDependencies(a, list)
+
+			deps = deps[:0]
+			dynamic := false
+
+			// bound is cached for the expression at index; refs in one
+			// expression share it.
+			var bound VarSet
+			index := -1
+
+			walkRuleDependencies(a, list, func(src, sel Ref, hasVar bool, at int, b *Rule) {
+				for node := b; node != nil; node = node.Else {
+					graph.addDependency(a, node)
+				}
+
+				static := true
+				if hasVar {
+					if index != at {
+						bound, index = varsBefore(a, at), at
+					}
+					static = refSelectsRule(sel, b, bound, nil)
+					dynamic = dynamic || !static
+				}
+				deps = append(deps, ruleDependency{src: src, sel: sel, at: at, bound: bound, rule: b, static: static})
+			})
+
+			if dynamic {
+				graph.addDynamic(a, deps)
+			}
 			return false
 		})
 	}
@@ -4872,9 +5252,60 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 	return graph
 }
 
-// addRuleDependencies adds an edge from rule to every rule its refs may select.
-// Else clauses are rules of their own, so they aren't walked here.
-func (g *Graph) addRuleDependencies(rule *Rule, list func(Ref) []*Rule) {
+// addDynamic records the refs in u that may select rules only through a
+// variable term, leaving out rules another ref selects outright.
+func (g *Graph) addDynamic(u util.T, deps []ruleDependency) {
+	static := map[*Rule]struct{}{}
+	for _, dep := range deps {
+		if dep.static {
+			static[dep.rule] = struct{}{}
+		}
+	}
+
+	dd := &dynamicDeps{}
+	for _, dep := range deps {
+		if _, ok := static[dep.rule]; ok {
+			continue
+		}
+
+		// A ref's dependencies are consecutive, one run per expansion.
+		if n := len(dd.refs); n == 0 || !sameRef(dd.refs[n-1].ref, dep.src) {
+			dd.refs = append(dd.refs, dynamicRef{ref: dep.src, sel: dep.sel, at: dep.at, bound: dep.bound})
+		}
+		last := &dd.refs[len(dd.refs)-1]
+		last.rules = append(last.rules, dep.rule)
+	}
+
+	// Copied once per ref, after the dependencies are grouped by identity.
+	for i := range dd.refs {
+		r := &dd.refs[i]
+		r.origins = varOrigins(u.(*Rule), r.at, r.sel)
+		same := sameRef(r.ref, r.sel)
+		r.ref = r.ref.CopyNonGround()
+		if same {
+			r.sel = r.ref
+		} else {
+			r.sel = r.sel.CopyNonGround()
+		}
+	}
+
+	if g.dynamic == nil {
+		g.dynamic = map[util.T]*dynamicDeps{}
+	}
+	g.dynamic[u] = dd
+}
+
+// sameRef reports whether a and b are the same ref value, not equal ones.
+func sameRef(a, b Ref) bool {
+	return len(a) == len(b) && len(a) > 0 && &a[0] == &b[0]
+}
+
+// walkRuleDependencies calls f with each ref in rule, as written, the ref
+// narrowed if that leaves a single ref (src otherwise), whether src has a
+// variable term, the index of the body expression it's in (len(rule.Body) for
+// the head, evaluated after the body), and each rule the ref may select. Else
+// clauses are rules of their own, so they aren't walked here.
+func walkRuleDependencies(rule *Rule, list func(Ref) []*Rule, f func(src, sel Ref, hasVar bool, at int, b *Rule)) {
 	// Most rules have no ref with a variable term; don't resolve until one
 	// turns up.
 	var bindings []varBindingAt
@@ -4885,17 +5316,13 @@ func (g *Graph) addRuleDependencies(rule *Rule, list func(Ref) []*Rule) {
 	var known map[Var][]Value
 	index := -1
 
-	addDependencies := func(ref Ref) {
+	at := 0
+	dependencies := func(src, sel, ref Ref, hasVar bool) {
 		for _, b := range list(ref) {
-			for node := b; node != nil; node = node.Else {
-				g.addDependency(rule, node)
-			}
+			f(src, sel, hasVar, at, b)
 		}
 	}
 
-	// at is the index of the body expression being walked; the head, evaluated
-	// after the body, is at len(rule.Body).
-	at := 0
 	vis := NewGenericVisitor(func(x any) bool {
 		ref, ok := x.(Ref)
 		if !ok {
@@ -4903,7 +5330,7 @@ func (g *Graph) addRuleDependencies(rule *Rule, list func(Ref) []*Rule) {
 		}
 
 		if !refHasVarTerm(ref) {
-			addDependencies(ref)
+			dependencies(ref, ref, ref, false)
 			return false
 		}
 
@@ -4916,12 +5343,20 @@ func (g *Graph) addRuleDependencies(rule *Rule, list func(Ref) []*Rule) {
 		}
 
 		if len(known) == 0 {
-			addDependencies(ref)
+			dependencies(ref, ref, ref, true)
 			return false
 		}
 
-		for _, ref := range expandRefVars(ref, known) {
-			addDependencies(ref)
+		// A variable narrowed to one value selects exactly what that value
+		// does; several values may or may not each be reached.
+		expanded := expandRefVars(ref, known)
+		sel := ref
+		if len(expanded) == 1 {
+			sel = expanded[0]
+		}
+
+		for _, e := range expanded {
+			dependencies(ref, sel, e, true)
 		}
 		return false
 	})
@@ -5110,6 +5545,94 @@ func valueMembers(value Value) ([]Value, bool) {
 	return members, true
 }
 
+// varsBefore returns the variables that may have a value when the body
+// expression at index is evaluated: those in rule's head, which a caller or
+// query can bind, and in the expressions ahead of it.
+func varsBefore(rule *Rule, index int) VarSet {
+	vars := NewVarSet()
+	add := func(v Var) bool {
+		vars.Add(v)
+		return false
+	}
+
+	WalkVars(rule.Head, add)
+	for _, expr := range rule.Body[:min(index, len(rule.Body))] {
+		WalkVars(expr, add)
+	}
+
+	return vars
+}
+
+// refSelectsRule reports whether ref selects rule whatever its variable terms
+// hold. A variable not in bound that occurs once in ref has no value when ref
+// is evaluated, so it enumerates every child like a wildcard; any other
+// variable may or may not select the rule. Variable terms in the rule's own
+// ref match anything.
+//
+// If positions is non-nil, it collects the terms of ref that must equal rule's
+// ref for ref to select it.
+func refSelectsRule(ref Ref, rule *Rule, bound VarSet, positions *[]int) bool {
+	// rule.Ref() without allocating it: this runs for every dependency. Like
+	// rule.Ref(), it reads the rule's name, the head's first term, as a string.
+	pkg, head := rule.Module.Package.Path, rule.Head.Ref()
+	ruleTerm := func(i int) (*Term, bool) {
+		if i < len(pkg) {
+			return pkg[i], IsConstant(pkg[i].Value)
+		}
+		if i == len(pkg) {
+			return head[0], true
+		}
+		return head[i-len(pkg)], IsConstant(head[i-len(pkg)].Value)
+	}
+	equal := func(term *Term, i int) bool {
+		rt, _ := ruleTerm(i)
+		if name, ok := rt.Value.(Var); ok && i == len(pkg) {
+			s, ok := term.Value.(String)
+			return ok && string(s) == string(name)
+		}
+		return term.Equal(rt)
+	}
+
+	static := true
+
+	for i := 1; i < min(len(ref), len(pkg)+len(head)); i++ {
+		if _, constant := ruleTerm(i); !constant {
+			continue
+		}
+
+		if v, ok := ref[i].Value.(Var); ok && !bound.Contains(v) && refVarCount(ref, v) == 1 {
+			continue
+		}
+
+		if IsConstant(ref[i].Value) {
+			if !equal(ref[i], i) {
+				return false
+			}
+			continue
+		}
+
+		if positions == nil {
+			return false
+		}
+		static = false
+		*positions = append(*positions, i)
+	}
+
+	return static
+}
+
+// refVarCount counts the terms of ref that are v.
+func refVarCount(ref Ref, v Var) int {
+	n := 0
+	for _, t := range ref {
+		if x, ok := t.Value.(Var); ok && x == v {
+			n++
+		}
+	}
+
+	return n
+}
+
 // refHasVarTerm reports whether any term past the base is non-constant.
 func refHasVarTerm(ref Ref) bool {
 	for _, term := range ref[1:] {
@@ -5226,6 +5749,44 @@ func (g *Graph) addDependency(u util.T, v util.T) {
 	edges[u] = struct{}{}
 }
 
+// dynamicCauseOf returns the ref that may make u depend on v, or nil if the
+// edge is static.
+func (g *Graph) dynamicCauseOf(u, v util.T) *dynamicEdge {
+	dd, ok := g.dynamic[u]
+	if !ok {
+		return nil
+	}
+
+	causes, ok := g.causes[u]
+	if !ok {
+		causes = map[util.T]*dynamicEdge{}
+		for i := len(dd.refs) - 1; i >= 0; i-- { // first ref wins
+			for _, b := range dd.refs[i].rules {
+				for node := b; node != nil; node = node.Else {
+					causes[node] = &dd.refs[i]
+				}
+			}
+		}
+		if g.causes == nil {
+			g.causes = map[util.T]map[util.T]*dynamicEdge{}
+		}
+		g.causes[u] = causes
+	}
+
+	return causes[v]
+}
+
+// isStatic reports whether every edge along path is static.
+func (g *Graph) isStatic(path []util.T) bool {
+	for i := 1; i < len(path); i++ {
+		if g.dynamicCauseOf(path[i-1], path[i]) != nil {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (g *Graph) addNode(n util.T) {
 	g.nodes[n] = struct{}{}
 }
@@ -5309,6 +5870,22 @@ func (g *GraphTraversal) Visited(u util.T) bool {
 	_, ok := g.visited[u]
 	g.visited[u] = struct{}{}
 	return ok
+}
+
+// staticGraphTraversal is a GraphTraversal over static edges only.
+type staticGraphTraversal struct {
+	*GraphTraversal
+}
+
+func (g staticGraphTraversal) Edges(x util.T) []util.T {
+	var edges []util.T
+	for v := range g.graph.Dependencies(x) {
+		if g.graph.dynamicCauseOf(x, v) == nil {
+			edges = append(edges, v)
+		}
+	}
+
+	return edges
 }
 
 type unsafePair struct {

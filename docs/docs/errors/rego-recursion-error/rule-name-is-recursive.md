@@ -11,9 +11,10 @@ reasonably provide such guarantees, and are therefore not allowed in Rego. Recur
 rule (or function, which is a special type of rule) makes a reference to either itself, or another rule that references
 the rule that made the original reference.
 
-| Stage         | Category               | Message                                         |
-| ------------- | ---------------------- | ----------------------------------------------- |
-| `compilation` | `rego_recursion_error` | `rule {name} is recursive: ref -> ref [-> ...]` |
+| Stage         | Category               | Message                                                                 |
+| ------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `compilation` | `rego_recursion_error` | `rule {name} is recursive: ref -> ref [-> ...]`                         |
+| `compilation` | `rego_recursion_error` | `rule {name} may be recursive: ref -> ref [-> ...] ({ref} refers to …)` |
 
 ## Examples
 
@@ -64,6 +65,31 @@ package policy
 # recursive (as `input.path` could be "policy") and as such flagged by the compiler
 rule := data[input.path]
 ```
+
+```txt
+1 error occurred: policy.rego:5: rego_recursion_error: rule data.policy.rule may be recursive: data.policy.rule -> data.policy.rule (data[input.path] refers to data.policy.rule if input.path is "policy")
+```
+
+The compiler reports `may be recursive` when the cycle passes through a dynamic part of a reference, like
+`input.path` above, or a variable that is bound elsewhere in the rule. It can't rule the recursion out, so the
+policy is still rejected. The part in parentheses names the reference that closes the cycle and, when it can, the
+values that would make it do so, and where those values come from:
+
+```rego
+package policy
+
+deny contains message if {
+    some name in ["policy", "other"]
+    some message in data[name].deny
+}
+```
+
+```txt
+1 error occurred: policy.rego:3: rego_recursion_error: rule data.policy.deny may be recursive: data.policy.deny -> data.policy.deny (data[name].deny refers to data.policy.deny if name is "policy" (name is one of ["policy", "other"]))
+```
+
+Here `"policy"` is in the list, so the rule is recursive whenever it's evaluated. If a later condition excluded
+`"policy"`, it wouldn't be, but the compiler doesn't analyze those conditions and rejects the policy either way.
 
 ## How To Fix It
 

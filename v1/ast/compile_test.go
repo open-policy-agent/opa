@@ -11055,8 +11055,8 @@ dataref = true if { data }`,
 		makeRuleErrMsg("rec", "b", "b", "c", "e", "a", "b"),
 		makeRuleErrMsg("rec", "c", "c", "e", "a", "b", "c"),
 		makeRuleErrMsg("rec", "e", "e", "a", "b", "c", "e"),
-		`rego_recursion_error: rule data.rec3.p[x] is recursive: data.rec3.p[x] -> data.rec4.q[x] -> data.rec3.p[x]`, // NOTE(sr): these two are hardcoded: they are
-		`rego_recursion_error: rule data.rec4.q[x] is recursive: data.rec4.q[x] -> data.rec3.p[x] -> data.rec4.q[x]`, // the only ones not fitting the pattern.
+		`rego_recursion_error: rule data.rec3.p[x] may be recursive: data.rec3.p[x] -> data.rec4.q[x] -> data.rec3.p[x] (data.rec4[x][y] refers to data.rec4.q[x] if x is "q" (x is a key of data.rec3.p[x]))`,                   // NOTE(sr): these two are hardcoded: they are
+		`rego_recursion_error: rule data.rec4.q[x] may be recursive: data.rec4.q[x] -> data.rec3.p[x] -> data.rec4.q[x] (data.rec4[x][y] in data.rec3.p[x] refers to data.rec4.q[x] if x is "q" (x is a key of data.rec3.p[x]))`, // the only ones not fitting the pattern.
 		makeRuleErrMsg("rec5", "acq", "acq", "acp", "acq"),
 		makeRuleErrMsg("rec5", "acp", "acp", "acq", "acp"),
 		makeRuleErrMsg("rec6", "np[x]", "np[x]", "nq[x]", "np[x]"),
@@ -11107,7 +11107,7 @@ foo contains x if {
 	data[pkg]["foo"][x]
 }
 `),
-			err: "rego_recursion_error: rule data.recursion.foo is recursive: data.recursion.foo -> data.recursion.foo",
+			err: "rego_recursion_error: rule data.recursion.foo may be recursive: data.recursion.foo -> data.recursion.foo (data[data.recursion.pkg].foo refers to data.recursion.foo if data.recursion.pkg is \"recursion\" (rule values aren't known at compile time))",
 		},
 		{note: "system.main",
 			mod: module(`
@@ -11116,7 +11116,7 @@ foo if {
 	data[input]
 }
 `),
-			err: "rego_recursion_error: rule data.system.main.foo is recursive: data.system.main.foo -> data.system.main.foo",
+			err: "rego_recursion_error: rule data.system.main.foo may be recursive: data.system.main.foo -> data.system.main.foo (data[input] refers to data.system.main.foo if input is \"system\")",
 		},
 	} {
 		t.Run(tc.note, func(t *testing.T) {
@@ -11187,7 +11187,7 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 				some root in ["p", "bar"]
 				data[root].r
 			}`,
-			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+			expected: []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r refers to data.p.r if root is \"p\" (root is one of [\"p\", \"bar\"]))"},
 		},
 		{
 			note: "enumeration is not ground, recursion",
@@ -11196,7 +11196,7 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 				some root in ["foo", input.x]
 				data[root].r
 			}`,
-			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+			expected: []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r refers to data.p.r if root is \"p\")"},
 		},
 		{
 			note: "root is a builtin output, recursion",
@@ -11205,7 +11205,7 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 				root := sprintf("%v", ["foo"])
 				data[root].r
 			}`,
-			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+			expected: []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r refers to data.p.r if root is \"p\" (root is computed by sprintf))"},
 		},
 		{
 			note: "enumeration over a rule value, recursion",
@@ -11215,7 +11215,7 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 				some root in roots
 				data[root].r
 			}`,
-			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+			expected: []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r refers to data.p.r if root is \"p\" (root comes from rule data.p.roots, whose value isn't known at compile time))"},
 		},
 		{
 			note: "empty value set falls back to a dynamic lookup, recursion",
@@ -11225,7 +11225,7 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 				root := xs[5]
 				data[root].r
 			}`,
-			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+			expected: []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r refers to data.p.r if root is \"p\")"},
 		},
 		{
 			note: "assignment after the ref, recursion",
@@ -11253,7 +11253,7 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 				data[root].r
 				roots = ["foo", "bar"]
 			}`,
-			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+			expected: []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r refers to data.p.r if root is \"p\")"},
 		},
 		{
 			note: "binding chain ahead of the ref, no recursion",
@@ -11287,6 +11287,300 @@ func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
 	}
 }
 
+func TestCompilerCheckRecursionStaticOrDynamic(t *testing.T) {
+	tests := []struct {
+		note     string
+		policy   string
+		expected string
+	}{
+		{
+			note: "parent of the rule",
+			policy: `package p
+			r if data.p`,
+			expected: "rule data.p.r is recursive: data.p.r -> data.p.r",
+		},
+		{
+			note: "variable past the rule",
+			policy: `package p
+			r contains x if {
+				some x in ["a"]
+				r[x]
+			}`,
+			expected: "rule data.p.r is recursive: data.p.r -> data.p.r",
+		},
+		{
+			note: "wildcard enumerates every child",
+			policy: `package p
+			r contains x if {
+				some x in data[_].r
+			}`,
+			expected: "rule data.p.r is recursive: data.p.r -> data.p.r",
+		},
+		{
+			note: "unbound variable enumerates every child",
+			policy: `package p
+			r if data[x].r`,
+			expected: "rule data.p.r is recursive: data.p.r -> data.p.r",
+		},
+		{
+			note: "variable bound by input",
+			policy: `package p
+			r if {
+				x := input.x
+				data[x].r
+			}`,
+			expected: "rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r refers to data.p.r if x is \"p\" (x comes from input.x))",
+		},
+		{
+			note: "ref term",
+			policy: `package p
+			r if data[input.x].r`,
+			expected: "rule data.p.r may be recursive: data.p.r -> data.p.r (data[input.x].r refers to data.p.r if input.x is \"p\")",
+		},
+		{
+			note: "ref term past a general ref head variable",
+			policy: `package p
+			r[k].a := 1 if {
+				k := "x"
+				data.p.r.x[input.z]
+			}`,
+			expected: "rule data.p.r[k].a may be recursive: data.p.r[k].a -> data.p.r[k].a (data.p.r.x[input.z] refers to data.p.r[k].a if input.z is \"a\")",
+		},
+		{
+			note: "bound variable past a general ref head variable",
+			policy: `package p
+			r[k].a := 1 if {
+				k := "x"
+				z := input.z
+				data.p.r.x[z]
+			}`,
+			expected: "rule data.p.r[k].a may be recursive: data.p.r[k].a -> data.p.r[k].a (data.p.r.x[z] refers to data.p.r[k].a if z is \"a\" (z comes from input.z))",
+		},
+		{
+			note: "constant past a general ref head variable",
+			policy: `package p
+			r[k].a := 1 if {
+				k := "x"
+				data.p.r.x.a
+			}`,
+			expected: "rule data.p.r[k].a is recursive: data.p.r[k].a -> data.p.r[k].a",
+		},
+		{
+			note: "static cycle reported over a dynamic one",
+			policy: `package p
+			r if {
+				x := input.x
+				data[x].r
+				s
+			}
+			s if r`,
+			expected: "rule data.p.r is recursive: data.p.r -> data.p.s -> data.p.r",
+		},
+		{
+			note: "dynamic edge anywhere on the cycle",
+			policy: `package p
+			r if s
+			s if {
+				x := input.x
+				data[x].r
+			}`,
+			expected: "rule data.p.r may be recursive: data.p.r -> data.p.s -> data.p.r (data[x].r in data.p.s refers to data.p.r if x is \"p\" (x comes from input.x))",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test": module(tc.policy)}
+			compileStages(c, StageCheckRecursion)
+
+			var found bool
+			for _, err := range c.Errors {
+				if err.Code == RecursionErr && (strings.HasPrefix(err.Message, "rule data.p.r ") || strings.HasPrefix(err.Message, "rule data.p.r[")) {
+					found = true
+					if err.Message != tc.expected {
+						t.Errorf("Expected %q but got: %q", tc.expected, err.Message)
+					}
+				}
+			}
+			if !found {
+				t.Errorf("Expected %q but got: %v", tc.expected, c.Errors)
+			}
+		})
+	}
+}
+
+func TestCompilerCheckRecursionDynamicCause(t *testing.T) {
+	tests := []struct {
+		note     string
+		policy   string
+		expected []string
+	}{
+		{
+			note: "generated iteration var past the target is not shown",
+			policy: `package p
+			deny contains m if {
+				x := input.x
+				some m in data[x].deny
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.deny may be recursive: data.p.deny -> data.p.deny (data[x].deny refers to data.p.deny if x is "p" (x comes from input.x))`},
+		},
+		{
+			note: "two conditions",
+			policy: `package a.b
+			r if {
+				x := input.x
+				y := input.y
+				data[x][y].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.a.b.r may be recursive: data.a.b.r -> data.a.b.r (data[x][y].r refers to data.a.b.r if x is "a" (x comes from input.x) and y is "b" (y comes from input.y))`},
+		},
+		{
+			note: "variable with a single value",
+			policy: `package p
+			r if {
+				x := "p"
+				data[x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r`},
+		},
+		{
+			note: "variable with a single value next to a dynamic one",
+			policy: `package a.b
+			r if {
+				x := "a"
+				y := input.y
+				data[x][y].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.a.b.r may be recursive: data.a.b.r -> data.a.b.r (data[x][y].r refers to data.a.b.r if y is "b" (y comes from input.y))`},
+		},
+		{
+			note: "same variable needing one value twice",
+			policy: `package p.p
+			r if {
+				x := input.x
+				data[x][x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.p.r may be recursive: data.p.p.r -> data.p.p.r (data[x][x].r refers to data.p.p.r if x is "p" (x comes from input.x))`},
+		},
+		{
+			note: "same variable needing two values",
+			policy: `package p
+			r if {
+				x := input.a
+				data[x][x]
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x][x] could refer to data.p.r)`},
+		},
+		{
+			note: "variable computed by a builtin",
+			policy: `package p
+			r if {
+				x := lower(input.x)
+				data[x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r refers to data.p.r if x is "p" (x is computed by lower))`},
+		},
+		{
+			note: "variable from a function argument",
+			policy: `package p
+			f(x) := y if y := data[x].g
+			g := f("q")`,
+			expected: []string{
+				`rego_recursion_error: rule data.p.f may be recursive: data.p.f -> data.p.g -> data.p.f (data[x].g refers to data.p.g if x is "p" (x is an argument of data.p.f))`,
+				`rego_recursion_error: rule data.p.g may be recursive: data.p.g -> data.p.f -> data.p.g (data[x].g in data.p.f refers to data.p.g if x is "p" (x is an argument of data.p.f))`,
+			},
+		},
+		{
+			note: "variable from a collection in a variable",
+			policy: `package p
+			r if {
+				xs := ["p", "q"]
+				some x in xs
+				data[x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r refers to data.p.r if x is "p" (x is one of ["p", "q"]))`},
+		},
+		{
+			note: "variable from a long collection",
+			policy: `package p
+			r if {
+				some x in ["a", "b", "c", "d", "e", "p"]
+				data[x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r refers to data.p.r if x is "p" (x is one of 6 values))`},
+		},
+		{
+			note: "variable bound only after the ref",
+			policy: `package p
+			r if {
+				data[x].r
+				x = input.x
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r`},
+		},
+		{
+			note: "origin ignores bindings after the ref",
+			policy: `package p
+			q[x] := 1 if {
+				data.p[x]
+				x = input.y
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.q[x] may be recursive: data.p.q[x] -> data.p.q[x] (data.p[x] refers to data.p.q[x] if x is "q" (x is a key of data.p.q[x]))`},
+		},
+		{
+			note: "too many conditions",
+			policy: `package a.b.c
+			r if {
+				x := input.x
+				y := input.y
+				z := input.z
+				data[x][y][z].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.a.b.c.r may be recursive: data.a.b.c.r -> data.a.b.c.r (data[x][y][z].r could refer to data.a.b.c.r)`},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test": module(tc.policy)}
+			compileStages(c, StageCheckRecursion)
+
+			result := compilerErrsToStringSlice(c.Errors)
+			if !slices.Equal(result, tc.expected) {
+				t.Errorf("Expected %v but got: %v", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestCompilerCheckRecursionDynamicCauseSkipsStaticEdge(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"p": module(`package p
+		a if {
+			k := input.k
+			data.q[k]
+			data.q.b
+		}`),
+		"q": module(`package q
+		b if data.p[input.z]`),
+	}
+	compileStages(c, StageCheckRecursion)
+
+	// data.q[k] also reaches data.q.b, but data.q.b names that edge outright.
+	expected := []string{
+		`rego_recursion_error: rule data.p.a may be recursive: data.p.a -> data.q.b -> data.p.a (data.p[input.z] in data.q.b refers to data.p.a if input.z is "a")`,
+		`rego_recursion_error: rule data.q.b may be recursive: data.q.b -> data.p.a -> data.q.b (data.p[input.z] refers to data.p.a if input.z is "a")`,
+	}
+
+	result := compilerErrsToStringSlice(c.Errors)
+	if !slices.Equal(result, expected) {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
 func TestCompilerCheckRecursionRefVarEnumerationAcrossPackages(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
@@ -11303,8 +11597,8 @@ func TestCompilerCheckRecursionRefVarEnumerationAcrossPackages(t *testing.T) {
 	compileStages(c, StageCheckRecursion)
 
 	expected := []string{
-		"rego_recursion_error: rule data.a.r is recursive: data.a.r -> data.b.r -> data.a.r",
-		"rego_recursion_error: rule data.b.r is recursive: data.b.r -> data.a.r -> data.b.r",
+		"rego_recursion_error: rule data.a.r may be recursive: data.a.r -> data.b.r -> data.a.r (data[root].r refers to data.b.r if root is \"b\" (root is one of [\"b\", \"unrelated\"]))",
+		"rego_recursion_error: rule data.b.r may be recursive: data.b.r -> data.a.r -> data.b.r (data[root].r in data.a.r refers to data.b.r if root is \"b\" (root is one of [\"b\", \"unrelated\"]))",
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -11329,7 +11623,7 @@ func TestCompilerCheckRecursionRefVarEnumerationExceedsLimit(t *testing.T) {
 
 	// None of the roots name package p, but the enumeration is too large to
 	// expand, so the check falls back to the imprecise dynamic lookup.
-	expected := []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"}
+	expected := []string{"rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[root].r could refer to data.p.r)"}
 
 	result := compilerErrsToStringSlice(c.Errors)
 	if !slices.Equal(result, expected) {

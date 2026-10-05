@@ -21,6 +21,7 @@ The errors currently documented are:
 | parsing     | `rego_parse_error`      | [unexpected `}` token](./errors/rego-parse-error/unexpected-right-curly-token)                                                       |
 | parsing     | `rego_parse_error`      | [unexpected string token](./errors/rego-parse-error/unexpected-string-token)                                                         |
 | compilation | `rego_recursion_error`  | [rule `{name}` is recursive](./errors/rego-recursion-error/rule-name-is-recursive)                                                   |
+| compilation | `rego_recursion_error`  | [rule `{name}` may be recursive](./errors/rego-recursion-error/rule-name-is-recursive)                                               |
 | compilation | `rego_type_error`       | [conflicting rules `{name}` found](./errors/rego-type-error/conflicting-rules-name-found)                                            |
 | compilation | `rego_type_error`       | [match error](./errors/rego-type-error/match-error)                                                                                  |
 | compilation | `rego_type_error`       | [arity mismatch](./errors/rego-type-error/arity-mismatch)                                                                            |
