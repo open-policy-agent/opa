@@ -247,19 +247,41 @@
                      [:script {:type "text/javascript"}
                       (format interval-js box-id (json/write-str (mapv :commits rows)))]])))))))
 
-(defn color-for-ratio [ratio]
-  (let [t (max -1.0 (min 1.0 (Math/log ratio)))
+(def ^:private sparkline-amplitude
+  "Ratio deviation from 1.0 that maps to the top/bottom of a sparkline and
+   a fully tinted table cell, clamped beyond that. Fixed rather than fit to each row's own min/max so a benchmark
+   with a 1% noise wobble doesn't draw the same full-height swing as one that
+   actually moved 80% -- most benchlab NsPerOp ranges are single-digit percent,
+   so a wobble should look flat, matching how little it moves on the real
+   per-benchmark chart."
+  0.05)
+
+(defn- tint
+  "Green for t < 0 (faster) to red for t > 0 (slower), saturating at +/-1."
+  [t]
+  (let [t (max -1.0 (min 1.0 t))
         r (if (pos? t) 255 (int (* 255 (+ 1 t))))
         g (if (neg? t) 255 (int (* 255 (- 1 t))))]
     (format "rgb(%d,%d,120)" r g)))
 
-(defn ratio-cell [v]
+(defn ratio-cell
+  "Ratios are small, so a significant change is tinted on the sparkline's scale
+   and set apart by weight and outline; one within noise stays plain and grey."
+  [v significant?]
   (if v
     (kind/hiccup
-      [:span {:style (str "background:" (color-for-ratio v)
-                          ";color:black;padding:2px 6px;display:block;text-align:right")}
+      [:span {:style (str "display:block;text-align:right;padding:2px 6px;"
+                          (if significant?
+                            (str "background:" (tint (/ (- v 1.0) sparkline-amplitude))
+                                 ";color:black;font-weight:bold;box-shadow:inset 0 0 0 1px #000")
+                            "color:#999"))}
        (format "%.2f" (double v))])
     ""))
+
+(defn- significant?
+  "Whether benchstat found the latest night's change significant."
+  [pkg bench-name measure]
+  (boolean (:significant (last (get data/benchlab-series [pkg bench-name measure])))))
 
 (defn clay-output-path
   "Matches Clay's actual output naming for ns `benchmarks.<id>`."
@@ -279,15 +301,6 @@
            (str "\"func " func-name "\" repo:open-policy-agent/opa path:" path)
            "UTF-8")
          "&type=code")))
-
-(def ^:private sparkline-amplitude
-  "Ratio deviation from 1.0 that maps to the top/bottom of a sparkline, clamped
-   beyond that. Fixed rather than fit to each row's own min/max so a benchmark
-   with a 1% noise wobble doesn't draw the same full-height swing as one that
-   actually moved 80% -- most benchlab NsPerOp ranges are single-digit percent,
-   so a wobble should look flat, matching how little it moves on the real
-   per-benchmark chart."
-  0.05)
 
 (defn sparkline [values]
   (when (and values (> (count values) 1))
@@ -311,15 +324,18 @@
 
 (defn index-table [benchmarks]
   (kind/fragment
-    [(kind/table
+    [(kind/hiccup
+       [:p (str "Latest night against " data/latest-tag " (1.00 is unchanged). Bold, tinted cells "
+                "are changes benchstat found significant; grey ones are within noise.")])
+     (kind/table
        {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
         :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
                     {"Pkg"        pkg
                      "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
                      "Trend"      (or (sparkline spark) "")
-                     "NsPerOp"    (ratio-cell (get b "NsPerOp"))
-                     "AllocsPerOp" (ratio-cell (get b "AllocsPerOp"))
-                     "BytesPerOp" (ratio-cell (get b "BytesPerOp"))})}
+                     "NsPerOp"    (ratio-cell (get b "NsPerOp") (significant? pkg name "NsPerOp"))
+                     "AllocsPerOp" (ratio-cell (get b "AllocsPerOp") (significant? pkg name "AllocsPerOp"))
+                     "BytesPerOp" (ratio-cell (get b "BytesPerOp") (significant? pkg name "BytesPerOp"))})}
        {:use-datatables true
         :datatables {:pageLength 25
                      :order [[3 "desc"]]}})
