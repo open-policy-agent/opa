@@ -183,11 +183,16 @@
   "Half-width in percent the y-axis never goes below, so noise stays flat."
   5.0)
 
+(defn- y-half-span
+  "How far, in percent, the y-axis reaches either side of zero."
+  [pcts]
+  (max min-y-span (* 1.1 (apply max 0.0 (map #(Math/abs (double %)) pcts)))))
+
 (defn- y-scale
   "Symmetric about zero, at least min-y-span either way, ticked in whole
    percents."
   [rows]
-  (let [m      (max min-y-span (* 1.1 (apply max 0.0 (map #(Math/abs (double (:pct %))) rows))))
+  (let [m      (y-half-span (map :pct rows))
         step   (first (filter #(<= (/ (* 2 m) %) 8) [1 2 5 10 20 50 100 200 500 1000]))
         k      (long (Math/floor (/ m step)))
         breaks (mapv #(* step %) (range (- k) (inc k)))]
@@ -247,13 +252,10 @@
                      [:script {:type "text/javascript"}
                       (format interval-js box-id (json/write-str (mapv :commits rows)))]])))))))
 
-(def ^:private sparkline-amplitude
-  "Ratio deviation from 1.0 that maps to the top/bottom of a sparkline and
-   a fully tinted table cell, clamped beyond that. Fixed rather than fit to each row's own min/max so a benchmark
-   with a 1% noise wobble doesn't draw the same full-height swing as one that
-   actually moved 80% -- most benchlab NsPerOp ranges are single-digit percent,
-   so a wobble should look flat, matching how little it moves on the real
-   per-benchmark chart."
+(def ^:private tint-amplitude
+  "Ratio deviation from 1.0 at which a significant table cell is fully tinted.
+   Most benchlab NsPerOp changes are single-digit percent, so a wider scale
+   would leave them all pale."
   0.05)
 
 (defn- tint
@@ -265,14 +267,14 @@
     (format "rgb(%d,%d,120)" r g)))
 
 (defn ratio-cell
-  "Ratios are small, so a significant change is tinted on the sparkline's scale
+  "Ratios are small, so a significant change is tinted on a fixed scale
    and set apart by weight and outline; one within noise stays plain and grey."
   [v significant?]
   (if v
     (kind/hiccup
       [:span {:style (str "display:block;text-align:right;padding:2px 6px;"
                           (if significant?
-                            (str "background:" (tint (/ (- v 1.0) sparkline-amplitude))
+                            (str "background:" (tint (/ (- v 1.0) tint-amplitude))
                                  ";color:black;font-weight:bold;box-shadow:inset 0 0 0 1px #000")
                             "color:#999"))}
        (format "%.2f" (double v))])
@@ -302,25 +304,46 @@
            "UTF-8")
          "&type=code")))
 
-(defn sparkline [values]
-  (when (and values (> (count values) 1))
-    (let [w 80 h 20
-          vs (vec values)
-          n (count vs)
-          y-of (fn [v]
-                 (let [d (max -1.0 (min 1.0 (/ (- v 1.0) sparkline-amplitude)))]
-                   (- (/ h 2.0) (* d (/ h 2.0)))))
-          points (str/join " "
-                   (for [i (range n)]
-                     (str (double (* (/ i (max 1 (dec n))) w))
-                          ","
-                          (double (y-of (nth vs i))))))]
-      (kind/hiccup
-        [:svg {:width w :height h :style "vertical-align:middle"}
-         [:polyline {:points points
-                     :fill "none"
-                     :stroke "#268bd2"
-                     :stroke-width "1.5"}]]))))
+(def ^:private baseline-time
+  "Epoch seconds of the release the percentages are against, if known."
+  (some-> (data/commit-dates data/latest-baseline-sha) ^java.util.Date (.getTime) (quot 1000)))
+
+(def ^:private spark-time-range
+  "[earliest latest] in epoch seconds over every plotted night and the
+   baseline, so all sparklines share the chart's time axis."
+  (let [ts (cond-> (mapv :date data/benchlab-nights) baseline-time (conj baseline-time))]
+    (when (seq ts) [(apply min ts) (apply max ts)])))
+
+(defn sparkline
+  "The chart in miniature: the same y-range rule, nights placed by date from
+   the baseline, a zero line, and a marker per night that is filled when
+   significant and hollow when within noise."
+  [points]
+  (when (and (seq points) spark-time-range)
+    (let [w 96 h 24 pad 3
+          [t0 t1] spark-time-range
+          pts   (cond->> (mapv (fn [p] {:t (:date p) :pct (* 100 (- (:ratio p) 1)) :p p}) points)
+                  baseline-time (cons {:t baseline-time :pct 0.0}))
+          m     (y-half-span (map :pct pts))
+          x-of  (fn [t] (if (= t0 t1)
+                          (/ w 2.0)
+                          (+ pad (* (- w (* 2 pad)) (/ (double (- t t0)) (- t1 t0))))))
+          y-of  (fn [pct] (- (/ h 2.0) (* (/ pct m) (- (/ h 2.0) pad))))]
+      (when (> (count pts) 1)
+        (kind/hiccup
+          (into [:svg {:width w :height h :style "vertical-align:middle"}
+                 [:line {:x1 0 :x2 w :y1 (/ h 2.0) :y2 (/ h 2.0) :stroke "#aaa" :stroke-width "1"}]
+                 [:polyline {:points (str/join " " (for [{:keys [t pct]} pts]
+                                                     (str (double (x-of t)) "," (double (y-of pct)))))
+                             :fill "none"
+                             :stroke "#268bd2"
+                             :stroke-width "1.5"}]]
+                (for [{:keys [t pct p]} pts
+                      :when p]
+                  [:circle {:cx (double (x-of t)) :cy (double (y-of pct))
+                            :r 2 :stroke "#268bd2" :stroke-width "1"
+                            :style (str "fill:" (if (:significant p) "#268bd2" "var(--yellow)"))}
+                   [:title (format "%+.2f%% (%s)" (double pct) (verdict p))]])))))))
 
 (defn- rank
   "Hidden sort key: rows with a significant change in any measure come first,
@@ -344,10 +367,10 @@
                 "Rows start with the significant changes, largest first.")])
      (kind/table
        {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp" "Rank"]
-        :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
+        :row-maps (for [{:keys [pkg name id] :as b} benchmarks]
                     {"Pkg"        pkg
                      "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
-                     "Trend"      (or (sparkline spark) "")
+                     "Trend"      (or (sparkline (get data/benchlab-series [pkg name "NsPerOp"])) "")
                      "NsPerOp"    (ratio-cell (get b "NsPerOp") (significant? pkg name "NsPerOp"))
                      "AllocsPerOp" (ratio-cell (get b "AllocsPerOp") (significant? pkg name "AllocsPerOp"))
                      "BytesPerOp" (ratio-cell (get b "BytesPerOp") (significant? pkg name "BytesPerOp"))
