@@ -4847,9 +4847,11 @@ type Graph struct {
 //
 // Variable terms in a ref are narrowed to the values they can hold when those
 // are known at compile time, so `some root in ["foo", "bar"]; data[root].p` does
-// not depend on every rule under data. Modules must have been through
-// RewriteLocalVars: without it, a comprehension shadowing an outer variable gets
-// narrowed with the outer variable's values.
+// not depend on every rule under data. Only bindings ahead of the ref in the
+// body count: a variable the ref reaches first is unbound there, and the ref
+// enumerates it. Modules must have been through RewriteLocalVars: without it, a
+// comprehension shadowing an outer variable gets narrowed with the outer
+// variable's values.
 func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 	graph := &Graph{
 		adj:    map[util.T]map[util.T]struct{}{},
@@ -4858,61 +4860,11 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		sorted: nil,
 	}
 
-	// Create visitor to walk a rule AST and add edges to the rule graph for
-	// each dependency.
-	vis := func(a *Rule) *GenericVisitor {
-		stop := false
-
-		// Most rules have no ref with a variable term; don't resolve until one
-		// turns up.
-		var known map[Var][]Value
-		resolved := false
-
-		addDependencies := func(ref Ref) {
-			for _, b := range list(ref) {
-				for node := b; node != nil; node = node.Else {
-					graph.addDependency(a, node)
-				}
-			}
-		}
-
-		return NewGenericVisitor(func(x any) bool {
-			switch x := x.(type) {
-			case Ref:
-				if !refHasVarTerm(x) {
-					addDependencies(x)
-					break
-				}
-
-				if !resolved {
-					known, resolved = knownVarValues(a), true
-				}
-
-				if len(known) == 0 {
-					addDependencies(x)
-					break
-				}
-
-				for _, ref := range expandRefVars(x, known) {
-					addDependencies(ref)
-				}
-			case *Rule:
-				if stop {
-					// Do not recurse into else clauses (which will be handled
-					// by the outer visitor.)
-					return true
-				}
-				stop = true
-			}
-			return false
-		})
-	}
-
 	// Walk over all rules, add them to graph, and build adjacency lists.
 	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
-			vis(a).Walk(a)
+			graph.addRuleDependencies(a, list)
 			return false
 		})
 	}
@@ -4920,48 +4872,130 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 	return graph
 }
 
+// addRuleDependencies adds an edge from rule to every rule its refs may select.
+// Else clauses are rules of their own, so they aren't walked here.
+func (g *Graph) addRuleDependencies(rule *Rule, list func(Ref) []*Rule) {
+	// Most rules have no ref with a variable term; don't resolve until one
+	// turns up.
+	var bindings []varBindingAt
+	resolved := false
+
+	// known is cached for the expression at index; refs in one expression
+	// share it.
+	var known map[Var][]Value
+	index := -1
+
+	addDependencies := func(ref Ref) {
+		for _, b := range list(ref) {
+			for node := b; node != nil; node = node.Else {
+				g.addDependency(rule, node)
+			}
+		}
+	}
+
+	// at is the index of the body expression being walked; the head, evaluated
+	// after the body, is at len(rule.Body).
+	at := 0
+	vis := NewGenericVisitor(func(x any) bool {
+		ref, ok := x.(Ref)
+		if !ok {
+			return false
+		}
+
+		if !refHasVarTerm(ref) {
+			addDependencies(ref)
+			return false
+		}
+
+		if !resolved {
+			bindings, resolved = orderedVarBindings(rule.Body), true
+		}
+
+		if index != at {
+			known, index = knownBefore(bindings, at), at
+		}
+
+		if len(known) == 0 {
+			addDependencies(ref)
+			return false
+		}
+
+		for _, ref := range expandRefVars(ref, known) {
+			addDependencies(ref)
+		}
+		return false
+	})
+
+	for i, expr := range rule.Body {
+		at = i
+		vis.Walk(expr)
+	}
+
+	at = len(rule.Body)
+	vis.Walk(rule.Head)
+}
+
 // maxRefExpansion bounds how many concrete refs one ref is narrowed into.
 // Larger enumerations fall back to the dynamic lookup.
 const maxRefExpansion = 64
 
-// knownVarValues returns the variables in rule's body that range over a finite
-// set of constant values. Only the top-level body is read, and only the first
-// binding per variable: a body is a conjunction, so any one binding already
-// over-approximates what the variable can hold.
-func knownVarValues(rule *Rule) map[Var][]Value {
-	var eqs []*Expr
-	for _, expr := range rule.Body {
-		if expr.IsEquality() && !expr.Negated && len(expr.With) == 0 {
-			eqs = append(eqs, expr)
-		}
-	}
+// varBindingAt is a variable the body expression at index binds to a finite
+// set of constant values.
+type varBindingAt struct {
+	index  int
+	v      Var
+	values []Value
+}
 
-	if len(eqs) == 0 {
-		return nil
-	}
-
+// orderedVarBindings returns the variables in body that range over a finite set
+// of constant values, in body order. Only the top-level body is read, and only
+// the first binding per variable: a body is a conjunction, so any one binding
+// already over-approximates what the variable can hold.
+//
+// A binding counts only if what it reads is bound ahead of it, so it is safe
+// where it stands and reordering for safety keeps it ahead of everything after
+// it. Bindings that chain backwards (`x = xs[_]` before `xs = [...]`) are not
+// followed: reordering moves them after refs between the two.
+func orderedVarBindings(body Body) []varBindingAt {
+	var bindings []varBindingAt
 	var known map[Var][]Value
 
-	// Bindings chain (`xs = [...]` then `x = xs[_]`) and a body is unordered, so
-	// iterate to a fixpoint. An expression that yielded a binding is spent, so
-	// drop it.
-	for progress := true; progress && len(eqs) > 0; {
-		progress = false
+	for i, expr := range body {
+		if !expr.IsEquality() || expr.Negated || len(expr.With) > 0 {
+			continue
+		}
 
-		eqs = slices.DeleteFunc(eqs, func(expr *Expr) bool {
-			v, values, ok := varBinding(expr, known)
-			if !ok {
-				return false
-			}
-			if _, seen := known[v]; !seen {
-				if known == nil {
-					known = map[Var][]Value{}
-				}
-				known[v] = values
-			}
-			progress = true
-			return true
-		})
+		v, values, ok := varBinding(expr, known)
+		if !ok {
+			continue
+		}
+		if _, seen := known[v]; seen {
+			continue
+		}
+
+		if known == nil {
+			known = map[Var][]Value{}
+		}
+		known[v] = values
+		bindings = append(bindings, varBindingAt{index: i, v: v, values: values})
+	}
+
+	return bindings
+}
+
+// knownBefore returns the values of the variables bound ahead of the body
+// expression at index.
+func knownBefore(bindings []varBindingAt, index int) map[Var][]Value {
+	var known map[Var][]Value
+
+	for _, b := range bindings {
+		if b.index >= index {
+			break
+		}
+		if known == nil {
+			known = map[Var][]Value{}
+		}
+		known[b.v] = b.values
 	}
 
 	return known
