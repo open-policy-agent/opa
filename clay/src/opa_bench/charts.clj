@@ -127,11 +127,19 @@
      :tip     (str data/latest-tag " (baseline)")
      :commits [(head-entry data/latest-baseline-sha)]}))
 
+(defn- shown?
+  "Time always plots. Another measure plots only once it has moved: a series
+   pinned at zero adds a line that hides the others and says nothing."
+  [measure points]
+  (and (seq points)
+       (or (= measure "NsPerOp")
+           (some #(not= 1.0 (double (:ratio %))) points))))
+
 (defn- benchlab-rows
   "One row per measure and night, in the order the interval script indexes them."
   [series intervals-map]
   (vec (for [measure measure-order
-             :when (seq (get series measure))
+             :when (shown? measure (get series measure))
              row (cons (baseline-row measure)
                        (for [p (get series measure)
                              :let [pct     (* 100 (- (:ratio p) 1))
