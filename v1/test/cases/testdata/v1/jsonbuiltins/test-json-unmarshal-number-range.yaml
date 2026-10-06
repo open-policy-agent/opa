@@ -1,0 +1,32 @@
+---
+# The parser rejects these as literals (and so would input_term), so they come in as JSON
+# text through json.unmarshal.
+cases:
+  - note: jsonbuiltins/unmarshal number beyond the supported exponent is undefined
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := json.unmarshal(`{"a": 1e2147483648}`)
+    data: {}
+    want_result: []
+  - note: jsonbuiltins/unmarshal number with too big an exponent is undefined
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := json.unmarshal(`{"a": [1e40000]}`)
+    data: {}
+    want_result: []
+  - note: jsonbuiltins/unmarshal number with large exponent within limits
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := json.unmarshal(`{"a": 1e400}`).a > 1
+    data: {}
+    want_result:
+      - x: true

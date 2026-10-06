@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/url"
 	"slices"
 	"strconv"
@@ -79,6 +80,12 @@ func InterfaceToValue(x any) (Value, error) {
 	case json.Number:
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
+		}
+		// Only the exponent forms can be out of range, and only large ones.
+		if i := exponentIndex(string(x)); i >= 0 && !smallExponent(string(x), i) {
+			if err := validateNumber(string(x)); err != nil {
+				return nil, fmt.Errorf("invalid number: %w", err)
+			}
 		}
 		return Number(x), nil
 	case int:
@@ -836,6 +843,48 @@ func newInt64NumberValue(i int64) Value {
 
 func newUint64NumberValue(u uint64) Value {
 	return Number(strconv.FormatUint(u, 10))
+}
+
+// maxNumberExp is the limit on the binary exponent of a number. It is arbitrary.
+const maxNumberExp = 1e5
+
+var (
+	errInvalidFloat = errors.New("invalid float")
+	errNumberTooBig = errors.New("number too big")
+)
+
+// validateNumber checks that s is a number that can be handled when evaluating: parsed as a
+// big.Float, and with an exponent small enough to not cause non-linear cost of String() on
+// big.Float: https://github.com/golang/go/issues/11068
+func validateNumber(s string) error {
+	f, ok := new(big.Float).SetString(s)
+	if !ok {
+		return errInvalidFloat
+	}
+
+	// n == sign * mantissa * 2^exp
+	// 0.5 <= mantissa < 1.0
+	exp := f.MantExp(nil)
+	if exp > maxNumberExp || exp < -maxNumberExp || f.IsInf() { // +/- inf, exp is 0
+		return errNumberTooBig
+	}
+
+	return nil
+}
+
+func exponentIndex(s string) int {
+	if i := strings.IndexByte(s, 'e'); i >= 0 {
+		return i
+	}
+	return strings.IndexByte(s, 'E')
+}
+
+// smallExponent reports whether the number s, with its exponent marker at i, is certainly
+// below 2^maxNumberExp: a decimal digit takes at most 4 bits, and the digits are counted
+// with the exponent, so that leading zeros and a long mantissa are covered too.
+func smallExponent(s string, i int) bool {
+	exp, err := strconv.Atoi(s[i+1:])
+	return err == nil && i+max(exp, -exp) <= maxNumberExp/4
 }
 
 func floatNumber(f float64) Number {

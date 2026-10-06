@@ -1842,3 +1842,75 @@ func TestRefCopyNonGround(t *testing.T) {
 		}
 	}
 }
+
+func TestInterfaceToValueNumberRange(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		input string
+		err   string
+	}{
+		{input: "1e3"},
+		{input: "1E-3"},
+		{input: "-1.5e+2"},
+		{input: "1e400"},
+		{input: "1e-400"},
+		{input: "1e30000"},
+		{input: "12345678901234567890123456789012345678901234567890"},
+		{input: "1e40000", err: "invalid number: number too big"},
+		{input: "-1e40000", err: "invalid number: number too big"},
+		{input: "1e-40000", err: "invalid number: number too big"},
+		{input: "1e2147483648", err: "invalid number: invalid float"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			v, err := InterfaceToValue(json.Number(tc.input))
+			if tc.err != "" {
+				if err == nil || err.Error() != tc.err {
+					t.Fatalf("expected error %q but got %v", tc.err, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v.Compare(Number(tc.input)) != 0 {
+				t.Fatalf("expected %v but got %v", tc.input, v)
+			}
+		})
+	}
+
+	var x any
+	if err := util.UnmarshalJSON([]byte(`{"x": [1e2147483648]}`), &x); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InterfaceToValue(x); err == nil {
+		t.Fatal("expected error for number nested in a document")
+	}
+}
+
+// The shortcut for small exponents must agree with the full check around the limit.
+func TestInterfaceToValueNumberRangeShortcut(t *testing.T) {
+	t.Parallel()
+
+	var inputs []string
+	for _, from := range []int{24990, 29990} {
+		for exp := from; exp <= from+120; exp++ {
+			inputs = append(inputs, fmt.Sprintf("1e%d", exp), fmt.Sprintf("1e-%d", exp), fmt.Sprintf("-9.99e+%d", exp))
+		}
+	}
+	inputs = append(inputs,
+		"1"+strings.Repeat("0", 24990)+"e20",
+		"1"+strings.Repeat("0", 24990)+"e5",
+		"0."+strings.Repeat("0", 24990)+"1e-20",
+		"1"+strings.Repeat("0", 29990)+"e20",
+	)
+
+	for _, in := range inputs {
+		_, err := InterfaceToValue(json.Number(in))
+		if (err != nil) != (validateNumber(in) != nil) {
+			t.Fatalf("%.40s: InterfaceToValue error %v but validateNumber says %v", in, err, validateNumber(in))
+		}
+	}
+}
