@@ -1962,12 +1962,22 @@ func escapedPathValue(r *http.Request) string {
 		return pathValue
 	}
 
-	i := strings.Index(r.URL.Path, pathValue)
-	if i == -1 || i > len(escaped) {
+	// pathValue is the decoded remainder of the path after the route's fixed
+	// segments, so skip the same number of segments in the escaped path.
+	prefix, ok := strings.CutSuffix(r.URL.Path, pathValue)
+	if !ok {
 		return pathValue
 	}
 
-	return escaped[i:]
+	for range strings.Count(prefix, "/") {
+		i := strings.IndexByte(escaped, '/')
+		if i == -1 {
+			return pathValue
+		}
+		escaped = escaped[i+1:]
+	}
+
+	return escaped
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
