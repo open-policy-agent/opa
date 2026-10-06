@@ -1,0 +1,87 @@
+---
+title: Agent Tool Calling
+---
+
+LLM models can call tools, which is sometimes called tool use. The LLM does not run a tool itself, but
+returns a structured request that names the tool and its parameters, and the program around the LLM,
+often called the harness or AI agent, runs the tool. For example, an LLM that needs to get the latest
+OPA release might search online for it with this tool call:
+
+```json
+{
+  "tool": "WebSearch",
+  "params": {
+    "query": "open policy agent latest release",
+    "num_results": 5
+  }
+}
+```
+
+Tool calls are structured data, so they are a good fit for policy based approval with OPA and Rego. You can write rules about
+which tools are allowed and which parameters are safe.
+
+## Policy enforcement flow
+
+The harness is the Policy Enforcement Point (PEP), which enforces decisions. Before the harness runs a
+tool call, the harness asks OPA, the Policy Decision Point (PDP), for a decision.
+
+1. The LLM returns one or more tool calls.
+2. The harness sends the tool calls to OPA as `input`.
+3. OPA returns a decision. In the example below, the decision is a set of reasons to deny.
+4. If the set is empty, the harness runs the tools. If the set has reasons, the harness refuses to run
+   the tools.
+
+:::info
+The harness can pass the reasons to deny back to the LLM, which helps the LLM make better tool calls
+later. The harness can also hide the reasons from the LLM for security reasons. The right choice
+depends on your use case.
+:::
+
+## Example policy
+
+This policy denies the `Bash` tool. The policy also denies `WebFetch` calls that load a URL that does not
+start with `https://`. To see how the output changes, edit the input or the policy and select
+**Evaluate**.
+
+<PlaygroundExample dir={require.context('../src/pages/_examples/ai')} />
+
+## Using OPA as a decision point
+
+The harness can ask OPA for a decision with the [REST API](./rest-api.md). This request queries the
+`deny` rule from the policy above. The request has one `WebFetch` call with an `http://` URL.
+
+```shell
+curl -s localhost:8181/v1/data/coding/tools/deny -d '{
+  "input": {
+    "tool_calls": [
+      {"tool": "WebFetch", "params": {"url": "http://example.com", "timeout": 5000}}
+    ]
+  }
+}'
+```
+
+```json
+{
+  "result": [
+    "WebFetch can only load from HTTPS URLs"
+  ]
+}
+```
+
+If `result` is empty, OPA denied nothing, and the harness runs the tool calls. If `result` has
+reasons, the harness must not run the tool calls.
+
+## Operational benefits
+
+AI agents often run for a long time, and you do not want to restart them to change a rule. OPA
+[bundles](./management-bundles/index.md) solve this. OPA downloads new policy from a server on a
+schedule, and OPA checks the next tool call against the new policy. The AI agent and the harness do
+not change.
+
+OPA [decision logs](./management-decision-logs.md) record each decision with its input and result.
+You can use these logs to audit which tool calls AI agents tried to make and which ones OPA denied.
+
+## Further reading
+
+- [Function calling](https://developers.openai.com/api/docs/guides/function-calling) in the OpenAI
+  developer docs.
