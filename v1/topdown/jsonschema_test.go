@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestAstValueToJSONSchemaLoader(t *testing.T) {
@@ -630,6 +632,77 @@ func TestBuiltinJSONSchemaAllowNet(t *testing.T) {
 			}
 			if !fetched {
 				t.Fatal("expected a request to reach the server")
+			}
+		})
+	}
+}
+
+func TestBuiltinJSONSchemaDeniesFileReferences(t *testing.T) {
+	root := test.TempDirOf(t, "schema.json", `{"required": ["pwned"]}`)
+	filename := filepath.Join(root, "schema.json")
+	fileSchema := ast.String(fmt.Sprintf(`{"$ref": %q}`, "file://"+filepath.ToSlash(filename)))
+
+	cases := []struct {
+		note         string
+		capabilities *ast.Capabilities
+	}{
+		{
+			note:         "no capabilities",
+			capabilities: nil,
+		},
+		{
+			note:         "unset allow_net",
+			capabilities: &ast.Capabilities{},
+		},
+		{
+			note:         "empty allow_net",
+			capabilities: &ast.Capabilities{AllowNet: []string{}},
+		},
+		{
+			note:         "populated allow_net",
+			capabilities: &ast.Capabilities{AllowNet: []string{"example.com"}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run("json.match_schema/"+tc.note, func(t *testing.T) {
+			err := builtinJSONMatchSchema(
+				BuiltinContext{Capabilities: tc.capabilities},
+				[]*ast.Term{ast.NewTerm(ast.String(`{"id": 5}`)), ast.NewTerm(fileSchema)},
+				func(*ast.Term) error { return nil },
+			)
+			if err == nil {
+				t.Fatal("expected file reference to be denied, got no error")
+			}
+			if !strings.Contains(err.Error(), "file reference loading disabled") {
+				t.Fatalf("expected file reference loading to be disabled, got %v", err)
+			}
+		})
+
+		t.Run("json.verify_schema/"+tc.note, func(t *testing.T) {
+			var result ast.Value
+			err := builtinJSONSchemaVerify(
+				BuiltinContext{Capabilities: tc.capabilities},
+				[]*ast.Term{ast.NewTerm(fileSchema)},
+				func(term *ast.Term) error {
+					result = term.Value
+					return nil
+				},
+			)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			arr, ok := result.(*ast.Array)
+			if !ok {
+				t.Fatalf("Unexpected result type, expected array, got %T", result)
+			}
+			valid := arr.Elem(0).Value.Compare(ast.Boolean(true)) == 0
+			if valid {
+				t.Fatalf("expected schema verification to fail, got %s", arr)
+			}
+			if !strings.Contains(arr.Elem(1).String(), "file reference loading disabled") {
+				t.Fatalf("expected file reference loading to be disabled, got %s", arr)
 			}
 		})
 	}
