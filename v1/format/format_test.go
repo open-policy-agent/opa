@@ -1627,6 +1627,82 @@ deny if  input.y
 	}
 }
 
+func TestFormatFailFastReportsFormatErrors(t *testing.T) {
+	cases := []struct {
+		note           string
+		module         string
+		expErrs        []string
+		expUnformatted bool
+	}{
+		{
+			note: "arity error",
+			module: `package p
+
+r if {
+	x := count(plus(1, 2, 3))
+}
+`,
+			expErrs: []string{"plus: arity mismatch"},
+		},
+		{
+			note: "arity errors in two rules",
+			module: `package p
+
+r if {
+	x := count(plus(1, 2, 3))
+}
+
+q   :=   1
+
+s if {
+	x := count(minus(1, 2, 3))
+}
+`,
+			expErrs: []string{"plus: arity mismatch", "minus: arity mismatch"},
+		},
+		{
+			note: "difference before the arity error",
+			module: `package p
+
+q   :=   1
+
+r if {
+	x := count(plus(1, 2, 3))
+}
+`,
+			expUnformatted: true,
+		},
+	}
+
+	opts := Opts{
+		RegoVersion:   ast.RegoV1,
+		ParserOptions: &ast.ParserOptions{RegoVersion: ast.RegoV1},
+		FailFast:      true,
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := SourceWithOpts("test.rego", []byte(tc.module), opts)
+
+			if _, ok := errors.AsType[UnformattedError](err); ok != tc.expUnformatted {
+				t.Fatalf("Expected UnformattedError: %t, got: %v", tc.expUnformatted, err)
+			}
+
+			if len(tc.expErrs) == 0 {
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%d error", len(tc.expErrs))) {
+				t.Fatalf("Expected %d errors, got: %v", len(tc.expErrs), err)
+			}
+			for _, exp := range tc.expErrs {
+				if !strings.Contains(err.Error(), exp) {
+					t.Errorf("Expected error to contain %q, got: %v", exp, err)
+				}
+			}
+		})
+	}
+}
+
 // 3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
 // 1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
 // 1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef

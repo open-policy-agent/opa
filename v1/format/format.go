@@ -530,7 +530,8 @@ func (c *srcChecker) check(out []byte, loc *ast.Location) error {
 // be replaced, and a comment registered for the end of a line is written when the line ends, which can be
 // after the element that registered it.
 func (w *writer) checkFormatted(loc *ast.Location) error {
-	if w.check == nil || w.beforeEnd != nil {
+	// Once the writer has an error the output is discarded, so finish the layout to report every error.
+	if w.check == nil || w.beforeEnd != nil || len(w.errs) > 0 {
 		return nil
 	}
 
