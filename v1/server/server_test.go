@@ -131,6 +131,21 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
+func TestUnversionedGetHealthCheckNamesNotActivatedBundles(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+
+	bp := pluginBundle.New(&pluginBundle.Config{Bundles: map[string]*pluginBundle.Source{
+		"authz": {},
+		"data":  {},
+	}}, f.server.manager)
+	f.server.manager.Register(pluginBundle.Name, bp)
+
+	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"one or more bundles are not activated: authz, data"}`)
+}
+
 func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 	t.Parallel()
 
