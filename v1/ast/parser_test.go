@@ -11896,3 +11896,11 @@ func TestParseModuleTrailingMinus(t *testing.T) {
 	}
 	MustParseModule("package test\nminus(x, y) := 1\np := -input.x\nq if { -input.x == 1 }")
 }
+
+func TestParseUnaryMinusLeavesInternedTermsUntouched(t *testing.T) {
+	MustParseExpr("y := -x")
+
+	if loc := IntNumberTerm(0).Location; loc != nil {
+		t.Fatalf("interned 0 term has location %v", loc)
+	}
+}
