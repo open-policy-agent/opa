@@ -1913,14 +1913,17 @@ Content-Type: application/json
 
 ```json
 {
-  "error": "not all plugins in OK state"
+  "error": "one or more bundles are not activated: authz, data"
 }
 ```
+
+When the `bundles` option is specified, the error lists the names of the
+configured bundles that have not been activated yet.
 
 Other error messages include:
 
 - `"unable to perform evaluation"`
-- `"not all configured bundles have been activated"`
+- `"one or more plugins are not up"`
 
 ### Custom Health Checks
 

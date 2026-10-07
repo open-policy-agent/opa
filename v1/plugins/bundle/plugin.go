@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -330,6 +331,26 @@ func (p *Plugin) UnregisterBulkListener(name any) {
 	delete(p.bulkListeners, name)
 }
 
+// NotActivated returns the sorted names of configured bundles that are keeping
+// the plugin from becoming ready, i.e. bundles that have not been activated yet.
+func (p *Plugin) NotActivated() []string {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	var names []string
+	for name, status := range p.status {
+		if !activated(status) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
+func activated(status *Status) bool {
+	return len(status.Errors) == 0 && !status.LastSuccessfulActivation.IsZero()
+}
+
 // Config returns the plugins current configuration
 func (p *Plugin) Config() *Config {
 	p.cfgMtx.RLock()
@@ -591,7 +612,7 @@ func (p *Plugin) checkPluginReadiness() {
 	if !p.ready {
 		readyNow := true // optimistically
 		for _, status := range p.status {
-			if len(status.Errors) > 0 || status.LastSuccessfulActivation.IsZero() {
+			if !activated(status) {
 				readyNow = false // Not ready yet, check again on next bundle activation.
 				break
 			}

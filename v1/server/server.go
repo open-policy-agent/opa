@@ -1185,6 +1185,18 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
+// bundlesNotActivatedError names the bundles that have not been activated yet,
+// if the bundle plugin is available to report them.
+func (s *Server) bundlesNotActivatedError() error {
+	const msg = "one or more bundles are not activated"
+	if bp := bundlePlugin.Lookup(s.manager); bp != nil {
+		if names := bp.NotActivated(); len(names) > 0 {
+			return fmt.Errorf("%s: %s", msg, strings.Join(names, ", "))
+		}
+	}
+	return errors.New(msg)
+}
+
 func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 	// Look for a discovery plugin first, if it exists and isn't ready
 	// then don't bother with the others.
@@ -1229,7 +1241,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	// normal bundles that are configured.
 	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
 		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
-		writeHealthResponse(w, errors.New("one or more bundles are not activated"))
+		writeHealthResponse(w, s.bundlesNotActivatedError())
 		return
 	}
 
