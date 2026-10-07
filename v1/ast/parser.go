@@ -2650,7 +2650,7 @@ func (p *Parser) parseTerm() *Term {
 
 	term = p.parseTermFinish(term, false)
 	if unaryMinusLoc != nil && term != nil {
-		zero := IntNumberTerm(0).SetLocation(unaryMinusLoc)
+		zero := NewTerm(IntNumberTerm(0).Value).SetLocation(unaryMinusLoc)
 		term = p.setLoc(Minus.Call(zero, term), unaryMinusLoc, unaryMinusLoc.Offset, p.s.lastEnd)
 	}
 	p.parsedTermCachePush(term, s0)
