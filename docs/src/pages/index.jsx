@@ -1,6 +1,6 @@
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
@@ -26,12 +26,14 @@ const EXAMPLE_TABS = [
 const Index = (props) => {
   const title = "Open Policy Agent - Homepage";
   const [initialTab, setInitialTab] = useState(EXAMPLE_TABS[0].value);
+  const examplesRef = useRef(null);
 
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     const tab = EXAMPLE_TABS.find((t) => EXAMPLE_HASH_PREFIX + t.value === hash);
     if (tab) {
       setInitialTab(tab.value);
+      examplesRef.current?.scrollIntoView();
     }
   }, []);
 
@@ -206,7 +208,7 @@ const Index = (props) => {
             output changes.
           </p>
 
-          <div onClick={rememberTab}>
+          <div ref={examplesRef} onClick={rememberTab} style={{ scrollMarginTop: "var(--ifm-navbar-height)" }}>
             <Tabs
               key={initialTab}
               defaultValue={initialTab}
