@@ -1001,6 +1001,149 @@ func TestReadWithSignaturesWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestIsSignaturesFile(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"/.signatures.json", true},
+		{".signatures.json", true},
+		{"./.signatures.json", true},
+		{"sub/.signatures.json", true},
+		{"/a/b/.signatures.json", true},
+		{"mybundle/.signatures.json", true},
+		{"foosignatures.json", false},
+		{"data.signatures.json", false},
+		{"/foo/data.signatures.json", false},
+		{"signatures.json", false},
+		{"/signatures.json", false},
+	}
+	for _, tc := range cases {
+		if got := IsSignaturesFile(tc.path); got != tc.want {
+			t.Errorf("IsSignaturesFile(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
+	// The signatures file is matched by basename (".signatures.json"), like the
+	// manifest, so it is found under any prefix. Similarly named files are
+	// content, and a second signatures file is rejected when verifying.
+	descriptorHasPath := func(descs []*Descriptor, want string) bool {
+		for _, d := range descs {
+			if d.Path() == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("misnamed files are content, signatures file is metadata", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/foosignatures.json", `{"x":1}`},
+			{"/data.signatures.json", `{"x":2}`},
+			{"/signatures.json", `{"x":3}`},
+			{"/data.json", `{"x":4}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("preProcessBundle: %v", err)
+		}
+		if b.Signatures.Plugin != "real" {
+			t.Fatalf("expected /.signatures.json decoded into Signatures, got %+v", b.Signatures)
+		}
+		for _, want := range []string{"/foosignatures.json", "/data.signatures.json", "/signatures.json", "/data.json"} {
+			if !descriptorHasPath(descs, want) {
+				t.Errorf("expected %q to be treated as content (present in descriptors)", want)
+			}
+		}
+		if descriptorHasPath(descs, "/.signatures.json") {
+			t.Error("/.signatures.json must not be a content descriptor")
+		}
+	})
+
+	t.Run("signatures file is found under a wrapping directory", func(t *testing.T) {
+		files := [][2]string{
+			{"/mybundle/.signatures.json", `{"plugin":"real"}`},
+			{"/mybundle/data.json", `{"x":1}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("preProcessBundle: %v", err)
+		}
+		if b.Signatures.Plugin != "real" {
+			t.Fatalf("expected wrapped .signatures.json decoded into Signatures, got %+v", b.Signatures)
+		}
+		if !descriptorHasPath(descs, "/mybundle/data.json") {
+			t.Error("expected /mybundle/data.json to be content")
+		}
+		if descriptorHasPath(descs, "/mybundle/.signatures.json") {
+			t.Error("wrapped .signatures.json must not be a content descriptor")
+		}
+	})
+
+	t.Run("multiple signatures files are rejected when verifying", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/sub/.signatures.json", `{"plugin":"other"}`},
+			{"/data.json", `{"x":1}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		if _, _, err := preProcessBundle(loader, false, DefaultSizeLimitBytes); err == nil || !strings.Contains(err.Error(), "multiple signatures files") {
+			t.Fatalf("expected multiple signatures files error, got %v", err)
+		}
+	})
+
+	t.Run("multiple signatures files are tolerated under skip-verify", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/sub/.signatures.json", `{"plugin":"other"}`},
+			{"/data.json", `{"x":1}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("skipVerify should tolerate multiple signatures files, got %v", err)
+		}
+		if !b.Signatures.isEmpty() {
+			t.Errorf("with skipVerify, Signatures must not be decoded, got %+v", b.Signatures)
+		}
+		for _, sig := range []string{"/.signatures.json", "/sub/.signatures.json"} {
+			if descriptorHasPath(descs, sig) {
+				t.Errorf("%q must not be a content descriptor under skipVerify", sig)
+			}
+		}
+		if !descriptorHasPath(descs, "/data.json") {
+			t.Error("/data.json must be content")
+		}
+	})
+
+	t.Run("skip-verify keeps misnamed files as content", func(t *testing.T) {
+		files := [][2]string{
+			{"/.signatures.json", `{"plugin":"real"}`},
+			{"/data.signatures.json", `{"x":1}`},
+			{"/data.json", `{"x":2}`},
+		}
+		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
+		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes)
+		if err != nil {
+			t.Fatalf("preProcessBundle: %v", err)
+		}
+		if !b.Signatures.isEmpty() {
+			t.Errorf("with skipVerify, Signatures must not be decoded, got %+v", b.Signatures)
+		}
+		if !descriptorHasPath(descs, "/data.signatures.json") {
+			t.Error("/data.signatures.json must remain content even with skipVerify")
+		}
+		if descriptorHasPath(descs, "/.signatures.json") {
+			t.Error("/.signatures.json must not be a content descriptor")
+		}
+	})
+}
+
 func TestReadWithPatch(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux",  "roots": ["a"]}`},
