@@ -210,6 +210,7 @@ const (
 	StageRewriteLocalVars           StageID = "RewriteLocalVars"
 	StageRewriteTemplateStrings     StageID = "RewriteTemplateStrings"
 	StageCheckVoidCalls             StageID = "CheckVoidCalls"
+	StageCheckImpossibleNegations   StageID = "CheckImpossibleNegations"
 	StageRewritePrintCalls          StageID = "RewritePrintCalls"
 	StageRewriteExprTerms           StageID = "RewriteExprTerms"
 	StageParseMetadataBlocks        StageID = "ParseMetadataBlocks"
@@ -253,6 +254,7 @@ func AllStages() []StageID {
 		StageRewriteLocalVars,
 		StageRewriteTemplateStrings,
 		StageCheckVoidCalls,
+		StageCheckImpossibleNegations,
 		StageRewritePrintCalls,
 		StageRewriteExprTerms,
 		StageParseMetadataBlocks,
@@ -475,6 +477,7 @@ func NewCompiler() *Compiler {
 		{StageRewriteLocalVars, "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
 		{StageRewriteTemplateStrings, "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
 		{StageCheckVoidCalls, "compile_stage_check_void_calls", c.checkVoidCalls},
+		{StageCheckImpossibleNegations, "compile_stage_check_impossible_negations", c.checkImpossibleNegations}, // must run before operands are hoisted into locals
 		{StageRewritePrintCalls, "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
 		{StageRewriteExprTerms, "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{StageParseMetadataBlocks, "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
@@ -2430,6 +2433,63 @@ func (c *Compiler) builtinLoc(ref Ref) *Builtin {
 		return b
 	}
 	return nil
+}
+
+// checkImpossibleNegations rejects `not x` when x is never undefined or false
+// (e.g. a multi-value rule), as the negation always fails. Rules that some
+// `with` in the modules replaces are exempt.
+func (c *Compiler) checkImpossibleNegations() {
+	var mocked []Ref
+	for _, name := range c.sorted {
+		WalkWiths(c.Modules[name], func(w *With) bool {
+			if ref, ok := w.Target.Value.(Ref); ok && ref.HasPrefix(DefaultRootRef) {
+				mocked = append(mocked, ref)
+			}
+			return false
+		})
+	}
+
+	for _, name := range c.sorted {
+		WalkExprs(c.Modules[name], func(expr *Expr) bool {
+			operand := negatedOperand(expr)
+			if operand == nil {
+				return false
+			}
+			switch v := operand.Value.(type) {
+			case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
+				c.err(NewError(CompileErr, expr.Loc(), "negation of a comprehension is always false, as it is never undefined"))
+			case Ref:
+				if v.IsGround() && c.isRefToMultiValueRule(v) && !slices.ContainsFunc(mocked, v.HasPrefix) {
+					c.err(NewError(CompileErr, expr.Loc(), "negation of multi-value rule %v is always false, as it is never undefined (hint: use count(%v) == 0 to check for an empty set)", v, v))
+				}
+			case Null, Boolean, Number, String, *Array, *object, Set:
+				// A ref (or call) in a collection may be undefined, making the collection undefined.
+				if v.IsGround() && !ContainsRefs(v) && !operand.Equal(InternedTerm(false)) {
+					c.err(NewError(CompileErr, expr.Loc(), "negation of %v is always false, as it is never undefined or false", operand))
+				}
+			}
+			return false
+		})
+	}
+}
+
+// negatedOperand returns the operand of a negated expression consisting of a
+// single term, in both legacy (`not x`) and `future.keywords.not` form.
+func negatedOperand(expr *Expr) *Term {
+	if expr.Negated {
+		t, _ := expr.Terms.(*Term)
+		return t
+	}
+	if not, ok := expr.Terms.(*Not); ok && len(not.Body) == 1 && !not.Body[0].Negated && len(not.Body[0].With) == 0 {
+		t, _ := not.Body[0].Terms.(*Term)
+		return t
+	}
+	return nil
+}
+
+func (c *Compiler) isRefToMultiValueRule(ref Ref) bool {
+	node := c.RuleTree.Find(ref)
+	return node != nil && len(node.Values) > 0 && node.Values[0].Head.RuleKind() == MultiValue
 }
 
 // isRefToKnownDefinedRule answers whether a rule (counting all incremental definitions) reference
