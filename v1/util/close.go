@@ -20,3 +20,10 @@ func Close(resp *http.Response) {
 		resp.Body.Close()
 	}
 }
+
+// CloseIgnore closes the given io.Closer, ignoring if nil or errors occur.
+func CloseIgnore(c io.Closer) {
+	if c != nil {
+		_ = c.Close()
+	}
+}

@@ -44,18 +44,6 @@ videos:
     organization: google
   venue: Kubecon Barcelona 2019
   link: https://kccnceu19.sched.com/event/MPiM/intro-open-policy-agent-rita-zhang-microsoft-max-smythe-google
-- title: Policy Enabled Kubernetes and CICD
-  speakers:
-  - name: Jimmy Ray
-    organization: capitalone
-  venue: OPA Summit at Kubecon San Diego 2019
-  link: https://www.youtube.com/watch?v=vkvWZuqSk5M
-- title: 'TripAdvisor: Building a Testing Framework for Integrating OPA into K8s'
-  speakers:
-  - name: Luke Massa
-    organization: tripadvisor
-  venue: OPA Summit at Kubecon San Diego 2019
-  link: https://www.youtube.com/watch?v=X09c1eXvCFM
 - title: Enforcing automatic mTLS with Linkerd and OPA Gatekeeper
   speakers:
   - name: Ivan Sim

@@ -3,13 +3,6 @@ title: Chef Automate
 subtitle: Operational Visibility Dashboard
 tutorials:
 - https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa
-videos:
-- title: 'OPA in Practice: From Angular to OPA in Chef Automate'
-  speakers:
-  - name: Michael Sorens
-    organization: chef
-  venue: OPA Summit at Kubecon San Diego 2019
-  link: https://www.youtube.com/watch?v=jrrW855xL3s
 docs_features:
   go-integration:
     note: |

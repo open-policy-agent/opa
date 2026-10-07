@@ -92,8 +92,6 @@ func (h *gcpMetadataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, h.identityToken)
 	case "/status/bad/request":
 		http.Error(w, "", http.StatusBadRequest)
-	case "/status/not/found":
-		http.Error(w, "", http.StatusNotFound)
 	case "/status/internal/server/error":
 		http.Error(w, "", http.StatusInternalServerError)
 	default:

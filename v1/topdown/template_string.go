@@ -21,7 +21,7 @@ func builtinTemplateString(bctx BuiltinContext, operands []*ast.Term, iter func(
 
 	var count int
 	err = builtinPrintCrossProductOperands(bctx.Location, buf, arr, 0, func([]string) error {
-		count += 1
+		count++
 		// Precautionary run-time assertion that template-strings can't produce multiple outputs; e.g. for custom relation type built-ins not known at compile-time.
 		if count > 1 {
 			return Halt{Err: &Error{

@@ -6,8 +6,6 @@ labels:
   layer: editor
 code:
 - https://github.com/open-policy-agent/vscode-opa
-videos:
-- https://www.youtube.com/watch?v=BpMttxuPv6Y
 tutorials:
 - https://www.openpolicyagent.org/projects/regal/editor-support#visual-studio-code
 software:

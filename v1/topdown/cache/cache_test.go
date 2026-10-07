@@ -257,6 +257,58 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 			t.Fatalf("Expected 5 max entries, got %d", act)
 		}
 	})
+
+	t.Run("enabled without max_num_entries uses default max_num_entries", func(t *testing.T) {
+		config, err := ParseCachingConfig([]byte(`{"inter_query_builtin_value_cache": {"named": {"qux": {"disabled": false}}}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("qux", &NamedValueCacheConfig{
+			MaxNumEntries: &[]int{3}[0],
+		})
+
+		c := NewInterQueryValueCache(t.Context(), config)
+		nc := c.GetCache("qux").(*interQueryValueCacheBucket)
+		nc.Insert(ast.String("a"), "b")
+		if act := nc.maxNumEntries(); act != 3 {
+			t.Fatalf("Expected 3 max entries, got %d", act)
+		}
+	})
+
+	t.Run("enabled without max_num_entries or default is unlimited", func(t *testing.T) {
+		config, err := ParseCachingConfig([]byte(`{"inter_query_builtin_value_cache": {"named": {"quux": {"disabled": false}}}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c := NewInterQueryValueCache(t.Context(), config)
+		nc := c.GetCache("quux").(*interQueryValueCacheBucket)
+		nc.Insert(ast.String("a"), "b")
+		if act := nc.maxNumEntries(); act != 0 {
+			t.Fatalf("Expected unlimited max entries, got %d", act)
+		}
+	})
+
+	t.Run("updated to enabled without max_num_entries uses default max_num_entries", func(t *testing.T) {
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("corge", &NamedValueCacheConfig{
+			MaxNumEntries: &[]int{3}[0],
+		})
+
+		c := NewInterQueryValueCache(t.Context(), &Config{})
+		nc := c.GetCache("corge").(*interQueryValueCacheBucket)
+
+		config, err := ParseCachingConfig([]byte(`{"inter_query_builtin_value_cache": {"named": {"corge": {"disabled": false}}}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.UpdateConfig(config)
+
+		nc.Insert(ast.String("a"), "b")
+		if act := nc.maxNumEntries(); act != 3 {
+			t.Fatalf("Expected 3 max entries, got %d", act)
+		}
+	})
 }
 
 func TestInterValueCache_NamedCaches(t *testing.T) {

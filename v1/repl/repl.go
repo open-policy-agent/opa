@@ -785,11 +785,7 @@ func (r *REPL) profilerEnabled() bool {
 }
 
 func (r *REPL) cmdProfile() error {
-	if r.profiler {
-		r.profiler = false
-	} else {
-		r.profiler = true
-	}
+	r.profiler = !r.profiler
 	return nil
 }
 

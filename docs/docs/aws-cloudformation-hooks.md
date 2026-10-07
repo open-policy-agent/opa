@@ -13,7 +13,7 @@ AWS currently supports hooks written in either Java or Python, and provides a
 written in both languages. Since OPA is preferred for this purpose, some code is needed to process the requests
 handled by the hook and send them forward to OPA for policy decisions via its
 [REST API](https://www.openpolicyagent.org/docs/rest-api) using
-the [OPA AWS CloudFormation Hook](https://github.com/StyraOSS/opa-aws-cloudformation-hook).
+the [OPA AWS CloudFormation Hook](https://github.com/open-policy-agent/contrib/tree/main/opa-aws-cloudformation-hook).
 
 ## Goals
 
@@ -42,11 +42,11 @@ In order to complete this tutorial, the following prerequisites needs to be met:
 
 ### 1. Install the CloudFormation Hook
 
-To start out, clone the OPA AWS CloudFormation Hook repository:
+To start out, clone the OPA contrib repository, which contains the OPA AWS CloudFormation Hook:
 
 ```shell
-git clone https://github.com/StyraOSS/opa-aws-cloudformation-hook.git
-cd opa-aws-cloudformation-hook
+git clone https://github.com/open-policy-agent/contrib.git
+cd contrib/opa-aws-cloudformation-hook
 ```
 
 To install (but not activate) the hook provided in this repository into your AWS account, cd into the `hooks` directory
@@ -446,7 +446,7 @@ bucket_is_private if {
 Note that the `bucket_create_or_update` rule is no longer needed, as that is already asserted by the main policy.
 Quite an improvement in terms of readability, and a good foundation for further policy authoring. If you'd like to see
 more examples of policy utilizing this pattern, check out the
-[policy directory](https://github.com/StyraOSS/opa-aws-cloudformation-hook/tree/main/examples/policy) in the OPA AWS
+[policy directory](https://github.com/open-policy-agent/contrib/tree/main/opa-aws-cloudformation-hook/examples/policy) in the OPA AWS
 CloudFormation Hook repo.
 
 ### OPA Authentication via AWS Secrets

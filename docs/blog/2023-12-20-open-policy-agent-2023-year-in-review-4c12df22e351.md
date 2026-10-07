@@ -13,7 +13,7 @@ As 2023 draws to a close, the time has come to reflect on another important year
 
 While OPA users and maintainers predominantly collaborate online, there were a good number of occasions where OPA existed very much in the physical realm this year too.
 
-KubeCon EU enabled a few OPA events in Amsterdam early this summer. For the first time ever, an OPA-themed ContribFest session was held, where OPA, [Conftest](https://www.conftest.dev) and [OPA Gatekeeper](https://github.com/open-policy-agent/gatekeeper) maintainers worked with new contributors to the different OPA projects. In Amsterdam we also saw an OPA meet-up where speakers from [Miro](https://medium.com/miro-engineering/how-miro-leverages-open-policy-agent-to-implement-authorization-as-a-service-763f08469e5), [Bankdata](https://www.bankdata.dk) and [Styra](http://styra.com) presented. At this KubeCon EU there were four OPA talks:
+KubeCon EU enabled a few OPA events in Amsterdam early this summer. For the first time ever, an OPA-themed ContribFest session was held, where OPA, [Conftest](https://www.conftest.dev) and [OPA Gatekeeper](https://github.com/open-policy-agent/gatekeeper) maintainers worked with new contributors to the different OPA projects. In Amsterdam we also saw an OPA meet-up where speakers from [Miro](https://medium.com/miro-engineering/how-miro-leverages-open-policy-agent-to-implement-authorization-as-a-service-763f08469e5), [Bankdata](https://www.bankdata.dk) and [Styra](https://web.archive.org/web/https://www.styra.com/) presented. At this KubeCon EU there were four OPA talks:
 
 - [The Compliance Business Case for Kubernetes in the EU: Anders Eknert](https://www.youtube.com/watch?v=XoWf4QcSbDw)
 - [Open Policy Agent. (OPA) Intro & Deep Dive — Charlie Egan, Rita Zhang](https://www.youtube.com/watch?v=6RNp3m_THw4)
@@ -152,7 +152,7 @@ Meanwhile, other integrations went deeper and applied Rego in previously unexplo
 
 The aforementioned linter, [Regal](https://www.openpolicyagent.org/integrations/regal/) also pushes the boundaries of where Rego can be used to write policies. Using the JSON representation of the Rego abstract syntax tree, this project implements a range of [linting rules](https://www.openpolicyagent.org/projects/regal/rules)… in Rego! Regal has already been deployed by a number of open source Rego policy libraries and now supports over 60 rules. Integrated with the [Rego Playground](https://play.openpolicyagent.org) the linter is already available to everyone. There's no doubt that this will be a great tool for OPA learners and long-timers alike while continuing to help [scale](https://thenewstack.io/scaling-open-source-community-by-getting-closer-to-users/) the OPA community.
 
-If you're interested in listing your OPA integration or project, please see [the instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem) or stop by the #ecosystem channel in the [OPA slack](https://communityinviter.com/apps/openpolicyagent/signup) if you have any questions.
+If you're interested in listing your OPA integration or project, please see [the instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem) or stop by the #ecosystem channel in the [OPA slack](https://slack.openpolicyagent.org/) if you have any questions.
 
 ## Thanks
 

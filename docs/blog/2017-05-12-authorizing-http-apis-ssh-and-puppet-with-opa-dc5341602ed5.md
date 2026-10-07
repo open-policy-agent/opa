@@ -14,7 +14,7 @@ When you write authorization policy in Rego, you're writing assertions over the 
 Recently we built a handful of authorization integrations that use OPA at different points in the stack. As part of this effort we're reaching out to other projects that are looking to solve authorization in their domain. We've already built several integrations and examples spanning multiple layers:
 
 - [Micro-service API authorization with Linkerd](https://github.com/open-policy-agent/contrib/tree/master/linkerd_authz)
-- [SSH and sudo authorization with a custom PAM module](https://github.com/open-policy-agent/contrib/tree/master/pam_authz)
+- [SSH and sudo authorization with a custom PAM module](https://github.com/open-policy-agent/contrib/tree/main/pam_opa)
 - [Provisioning authorization with Puppet](https://github.com/open-policy-agent/contrib/tree/master/puppet_example)
 
 Let's look at some examples.

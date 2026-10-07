@@ -1530,7 +1530,6 @@ func (p *Parser) parseWith() []*With {
 
 		switch with.Target.Value.(type) {
 		case Ref, Var:
-			break
 		default:
 			p.illegal("expected with target path")
 		}
@@ -2718,7 +2717,6 @@ func (p *Parser) parseNumber() *Term {
 		p.scan()
 		switch p.s.tok {
 		case tokens.Number, tokens.Dot:
-			break
 		default:
 			p.illegal("expected number")
 			return nil
@@ -3982,7 +3980,7 @@ func parseAuthorString(s string) (*AuthorAnnotation, error) {
 		strings.HasSuffix(trailing, emailSuffix) {
 		email = trailing[len(emailPrefix):]
 		email = email[:len(email)-len(emailSuffix)]
-		namePartCount -= 1
+		namePartCount--
 	}
 
 	name := strings.Join(parts[0:namePartCount], " ")

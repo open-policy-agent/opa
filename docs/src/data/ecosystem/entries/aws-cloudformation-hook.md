@@ -8,7 +8,7 @@ labels:
 tutorials:
 - https://www.openpolicyagent.org/docs/latest/aws-cloudformation-hooks/
 code:
-- https://github.com/StyraOSS/opa-aws-cloudformation-hook
+- https://github.com/open-policy-agent/contrib/tree/main/opa-aws-cloudformation-hook
 blogs:
 - https://web.archive.org/web/https://www.styra.com/blog/the-opa-aws-cloudformation-hook/
 inventors:

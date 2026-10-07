@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"math"
 
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 )
@@ -473,7 +474,12 @@ func newChunkDecoder(raw []byte) *chunkDecoder {
 }
 
 func (dec *chunkDecoder) decode() ([]EventV1, error) {
-	gr, err := gzip.NewReader(bytes.NewReader(dec.raw))
+	buf := ast.BytesReaderPool.Get()
+	defer ast.BytesReaderPool.Put(buf)
+
+	buf.Reset(dec.raw)
+
+	gr, err := gzip.NewReader(buf)
 	if err != nil {
 		return nil, err
 	}

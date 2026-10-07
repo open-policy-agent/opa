@@ -12,7 +12,7 @@ October is here, the leaves are changing colors, and weather is starting to beco
 
 The OPA community will be at KubeCon NA, so don't forget to register for Cloud Native Policy Day with OPA!
 
-[Register Today!](https://www.styra.com/cloud-native-policy-day-with-opa-2022/)
+[Register Today!](https://web.archive.org/web/https://www.styra.com/cloud-native-policy-day-with-opa-2022/)
 
 ## Community Updates
 
@@ -50,7 +50,7 @@ Speaker: Charles Daniels, Backend Software Engineer, Styra Inc.
 
 - [How DoorDash Ensures Velocity and Reliability through Policy Automation](https://doordash.engineering/2022/09/20/how-doordash-ensures-velocity-and-reliability-through-policy-automation/)
 - [Deploying Gatekeeper policies as OCI artifacts, the GitOps way](https://medium.com/google-cloud/deploying-gatekeeper-policies-as-oci-artifacts-the-gitops-way-e1233429ae2)
-- [Rego — The unified policy language for better policy management](https://amazic.com/rego-the-unified-policy-language-for-better-policy-management/)
+- [Rego — The unified policy language for better policy management](https://web.archive.org/web/https://amazic.com/rego-the-unified-policy-language-for-better-policy-management/)
 - [Creating Custom OPA Policies with Azure Policy](https://jfarrell.net/2022/09/16/creating-custom-opa-policies-with-azure-policy/)
 - [Use OPA Gatekeeper to prohibit specific IAM users from creating resources in a specific Namespace](https://qiita.com/ipppppei/items/07cb80329bd3a9d1732a)
 - [\[Copy and paste OK\] Procedure for linking Open Policy Agent with Python](http://kakedashi-xx.com:25214/index.php/2021/08/15/post-3024/)

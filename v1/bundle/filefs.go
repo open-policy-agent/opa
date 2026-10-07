@@ -55,17 +55,7 @@ func (d *dirLoaderFS) walkDir(path string, dirEntry fs.DirEntry, err error) erro
 			return err
 		}
 
-		if dirEntry.Type().IsRegular() {
-			if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
-				return nil
-			}
-
-			if d.maxSizeLimitBytes > 0 && info.Size() > d.maxSizeLimitBytes {
-				return fmt.Errorf("file %s size %d exceeds limit of %d", path, info.Size(), d.maxSizeLimitBytes)
-			}
-
-			d.files = append(d.files, path)
-		} else if dirEntry.Type()&fs.ModeSymlink != 0 && d.followSymlinks {
+		if dirEntry.Type().IsRegular() || (dirEntry.Type()&fs.ModeSymlink != 0 && d.followSymlinks) {
 			if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
 				return nil
 			}

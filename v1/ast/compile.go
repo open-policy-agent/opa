@@ -2843,7 +2843,6 @@ func checkVoidCalls(env *TypeEnv, x any) Errors {
 //
 //	print({__local0__ | __local0__ = "the value of x is:"}, {__local1__ | __local1__ = input.x})
 func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, rewritten map[Var]Var, body Body) (bool, Errors) {
-
 	var errs Errors
 	var modified bool
 
@@ -2895,8 +2894,10 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 		}
 	}
 
-	for i := range body {
+	vis := varVisitorPool.Get()
+	defer varVisitorPool.Put(vis)
 
+	for i := range body {
 		if !isPrintCall(body[i]) {
 			continue
 		}
@@ -2916,12 +2917,6 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 		})
 
 		args := body[i].Operands()
-
-		var vis *VarVisitor
-		if len(args) > 0 {
-			vis = varVisitorPool.Get()
-			defer varVisitorPool.Put(vis)
-		}
 
 		for j := range args {
 			// Note: we don't care about not exprs here
@@ -4849,6 +4844,14 @@ type Graph struct {
 
 // NewGraph returns a new Graph based on modules. The list function must return
 // the rules referred to directly by the ref.
+//
+// Variable terms in a ref are narrowed to the values they can hold when those
+// are known at compile time, so `some root in ["foo", "bar"]; data[root].p` does
+// not depend on every rule under data. Only bindings ahead of the ref in the
+// body count: a variable the ref reaches first is unbound there, and the ref
+// enumerates it. Modules must have been through RewriteLocalVars: without it, a
+// comprehension shadowing an outer variable gets narrowed with the outer
+// variable's values.
 func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 	graph := &Graph{
 		adj:    map[util.T]map[util.T]struct{}{},
@@ -4857,40 +4860,306 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		sorted: nil,
 	}
 
-	// Create visitor to walk a rule AST and add edges to the rule graph for
-	// each dependency.
-	vis := func(a *Rule) *GenericVisitor {
-		stop := false
-		return NewGenericVisitor(func(x any) bool {
-			switch x := x.(type) {
-			case Ref:
-				for _, b := range list(x) {
-					for node := b; node != nil; node = node.Else {
-						graph.addDependency(a, node)
-					}
-				}
-			case *Rule:
-				if stop {
-					// Do not recurse into else clauses (which will be handled
-					// by the outer visitor.)
-					return true
-				}
-				stop = true
-			}
-			return false
-		})
-	}
-
 	// Walk over all rules, add them to graph, and build adjacency lists.
 	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
-			vis(a).Walk(a)
+			graph.addRuleDependencies(a, list)
 			return false
 		})
 	}
 
 	return graph
+}
+
+// addRuleDependencies adds an edge from rule to every rule its refs may select.
+// Else clauses are rules of their own, so they aren't walked here.
+func (g *Graph) addRuleDependencies(rule *Rule, list func(Ref) []*Rule) {
+	// Most rules have no ref with a variable term; don't resolve until one
+	// turns up.
+	var bindings []varBindingAt
+	resolved := false
+
+	// known is cached for the expression at index; refs in one expression
+	// share it.
+	var known map[Var][]Value
+	index := -1
+
+	addDependencies := func(ref Ref) {
+		for _, b := range list(ref) {
+			for node := b; node != nil; node = node.Else {
+				g.addDependency(rule, node)
+			}
+		}
+	}
+
+	// at is the index of the body expression being walked; the head, evaluated
+	// after the body, is at len(rule.Body).
+	at := 0
+	vis := NewGenericVisitor(func(x any) bool {
+		ref, ok := x.(Ref)
+		if !ok {
+			return false
+		}
+
+		if !refHasVarTerm(ref) {
+			addDependencies(ref)
+			return false
+		}
+
+		if !resolved {
+			bindings, resolved = orderedVarBindings(rule.Body), true
+		}
+
+		if index != at {
+			known, index = knownBefore(bindings, at), at
+		}
+
+		if len(known) == 0 {
+			addDependencies(ref)
+			return false
+		}
+
+		for _, ref := range expandRefVars(ref, known) {
+			addDependencies(ref)
+		}
+		return false
+	})
+
+	for i, expr := range rule.Body {
+		at = i
+		vis.Walk(expr)
+	}
+
+	at = len(rule.Body)
+	vis.Walk(rule.Head)
+}
+
+// maxRefExpansion bounds how many concrete refs one ref is narrowed into.
+// Larger enumerations fall back to the dynamic lookup.
+const maxRefExpansion = 64
+
+// varBindingAt is a variable the body expression at index binds to a finite
+// set of constant values.
+type varBindingAt struct {
+	index  int
+	v      Var
+	values []Value
+}
+
+// orderedVarBindings returns the variables in body that range over a finite set
+// of constant values, in body order. Only the top-level body is read, and only
+// the first binding per variable: a body is a conjunction, so any one binding
+// already over-approximates what the variable can hold.
+//
+// A binding counts only if what it reads is bound ahead of it, so it is safe
+// where it stands and reordering for safety keeps it ahead of everything after
+// it. Bindings that chain backwards (`x = xs[_]` before `xs = [...]`) are not
+// followed: reordering moves them after refs between the two.
+func orderedVarBindings(body Body) []varBindingAt {
+	var bindings []varBindingAt
+	var known map[Var][]Value
+
+	for i, expr := range body {
+		if !expr.IsEquality() || expr.Negated || len(expr.With) > 0 {
+			continue
+		}
+
+		v, values, ok := varBinding(expr, known)
+		if !ok {
+			continue
+		}
+		if _, seen := known[v]; seen {
+			continue
+		}
+
+		if known == nil {
+			known = map[Var][]Value{}
+		}
+		known[v] = values
+		bindings = append(bindings, varBindingAt{index: i, v: v, values: values})
+	}
+
+	return bindings
+}
+
+// knownBefore returns the values of the variables bound ahead of the body
+// expression at index.
+func knownBefore(bindings []varBindingAt, index int) map[Var][]Value {
+	var known map[Var][]Value
+
+	for _, b := range bindings {
+		if b.index >= index {
+			break
+		}
+		if known == nil {
+			known = map[Var][]Value{}
+		}
+		known[b.v] = b.values
+	}
+
+	return known
+}
+
+// varBinding returns the variable expr unifies with a finite set of constant
+// values, if it does.
+func varBinding(expr *Expr, known map[Var][]Value) (Var, []Value, bool) {
+	lhs, rhs := expr.Operand(0), expr.Operand(1)
+	if lhs == nil || rhs == nil {
+		return "", nil, false
+	}
+
+	if v, ok := lhs.Value.(Var); ok {
+		if values, ok := termValues(rhs, known); ok {
+			return v, values, true
+		}
+	}
+
+	if v, ok := rhs.Value.(Var); ok {
+		if values, ok := termValues(lhs, known); ok {
+			return v, values, true
+		}
+	}
+
+	return "", nil, false
+}
+
+// termValues resolves the constant values term can take. The bool separates
+// "cannot resolve" from "provably no value".
+func termValues(term *Term, known map[Var][]Value) ([]Value, bool) {
+	switch v := term.Value.(type) {
+	case Var:
+		values, ok := known[v]
+		return values, ok
+	case Ref:
+		return refValues(v, known)
+	default:
+		if IsConstant(v) {
+			return []Value{v}, true
+		}
+	}
+
+	return nil, false
+}
+
+// refValues resolves a ref by indexing into its base one term at a time. A
+// constant term selects one member, anything else selects them all.
+func refValues(ref Ref, known map[Var][]Value) ([]Value, bool) {
+	values, ok := termValues(ref[0], known)
+	if !ok {
+		return nil, false
+	}
+
+	for _, term := range ref[1:] {
+		var next []Value
+
+		if IsConstant(term.Value) {
+			for _, value := range values {
+				if member := NewTerm(value).Get(term); member != nil {
+					next = append(next, member.Value)
+				}
+			}
+		} else {
+			for _, value := range values {
+				members, ok := valueMembers(value)
+				if !ok {
+					return nil, false
+				}
+				next = append(next, members...)
+			}
+		}
+
+		if len(next) > maxRefExpansion {
+			return nil, false
+		}
+
+		values = next
+	}
+
+	return values, true
+}
+
+// valueMembers returns every member of a constant collection: array or set
+// elements, object values.
+func valueMembers(value Value) ([]Value, bool) {
+	var (
+		foreach func(func(*Term))
+		n       int
+	)
+
+	switch col := value.(type) {
+	case *Array:
+		foreach, n = col.Foreach, col.Len()
+	case Set:
+		foreach, n = col.Foreach, col.Len()
+	case Object:
+		members := make([]Value, 0, col.Len())
+		col.Foreach(func(_, value *Term) {
+			members = append(members, value.Value)
+		})
+		return members, true
+	default:
+		return nil, false
+	}
+
+	members := make([]Value, 0, n)
+	foreach(func(elem *Term) {
+		members = append(members, elem.Value)
+	})
+
+	return members, true
+}
+
+// refHasVarTerm reports whether any term past the base is non-constant.
+func refHasVarTerm(ref Ref) bool {
+	for _, term := range ref[1:] {
+		if !IsConstant(term.Value) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// expandRefVars returns the concrete refs ref can resolve to, replacing each
+// variable term whose values are known. Unresolvable terms, and expansions that
+// would not pay for themselves, are left as-is, so the result is never narrower
+// than what the policy can reference, and never empty. known must be non-empty.
+func expandRefVars(ref Ref, known map[Var][]Value) []Ref {
+	expanded := []Ref{ref}
+
+	for i := 1; i < len(ref); i++ {
+		if IsConstant(ref[i].Value) {
+			continue
+		}
+
+		values, ok := termValues(ref[i], known)
+
+		// No values means the body cannot be satisfied. Narrowing to zero refs
+		// would drop every edge on the strength of this analysis alone.
+		if !ok || len(values) == 0 {
+			continue
+		}
+
+		// Leave this term dynamic rather than discard earlier narrowing.
+		if len(expanded)*len(values) > maxRefExpansion {
+			continue
+		}
+
+		next := make([]Ref, 0, len(expanded)*len(values))
+		for _, prefix := range expanded {
+			for _, value := range values {
+				// Only position i changes, and these refs are never stored.
+				cp := slices.Clone(prefix)
+				cp[i] = NewTerm(value)
+				next = append(next, cp)
+			}
+		}
+
+		expanded = next
+	}
+
+	return expanded
 }
 
 // Dependencies returns the set of rules that x depends on.

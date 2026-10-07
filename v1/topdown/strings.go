@@ -8,12 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/tchap/go-patricia/v2/patricia"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -21,12 +20,17 @@ import (
 )
 
 var (
-	trueAny                 any = true
-	errEmptySearchCharacter     = errors.New("empty search character")
+	errEmptySearchCharacter = errors.New("empty search character")
 )
 
 func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
+
+	if s, ok := a.(ast.String); ok {
+		if found, ok := anyStringMatch(string(s), b, strings.HasPrefix); ok {
+			return iter(ast.InternedTerm(found))
+		}
+	}
 
 	var strs []string
 	switch a := a.(type) {
@@ -62,6 +66,12 @@ func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
+	if s, ok := a.(ast.String); ok {
+		if found, ok := anyStringMatch(string(s), b, strings.HasSuffix); ok {
+			return iter(ast.InternedTerm(found))
+		}
+	}
+
 	var strsReversed []string
 	switch a := a.(type) {
 	case ast.String:
@@ -93,6 +103,34 @@ func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*as
 	return iter(ast.InternedTerm(anyStartsWithAny(strsReversed, suffixesReversed)))
 }
 
+// anyStringMatch tests one string against each member of an array or set of
+// strings, without copying them out first. ok is false for any other operand,
+// which is left to the general path to handle or reject.
+func anyStringMatch(s string, b ast.Value, match func(s, affix string) bool) (found, ok bool) {
+	// An array or a set; an object's Until takes keys and values.
+	col, ok := b.(interface {
+		Until(func(*ast.Term) bool) bool
+	})
+	if !ok {
+		return false, false
+	}
+
+	// Every member is checked before any is matched, so that a non-string
+	// after a match is still the type error it always was.
+	if col.Until(func(t *ast.Term) bool {
+		_, ok := t.Value.(ast.String)
+		return !ok
+	}) {
+		return false, false
+	}
+
+	col.Until(func(t *ast.Term) bool {
+		found = match(s, string(t.Value.(ast.String)))
+		return found
+	})
+	return found, true
+}
+
 func anyStartsWithAny(strs []string, prefixes []string) bool {
 	if len(strs) == 0 || len(prefixes) == 0 {
 		return false
@@ -101,17 +139,12 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 		return strings.HasPrefix(strs[0], prefixes[0])
 	}
 
-	// The trie is local, and only ever inserted into and searched, so it's safe
-	// to hand it byte slices aliasing the operand strings' memory. Note that
-	// patricia's compact() writes through the key slices it retains, so Delete
-	// and DeleteSubtree must not be used here: they'd corrupt those strings.
-	trie := patricia.NewTrie()
-	for i := range strs {
-		trie.Insert(util.StringToByteSlice(strs[i]), trueAny)
-	}
-
-	for i := range prefixes {
-		if trie.MatchSubtree(util.StringToByteSlice(prefixes[i])) {
+	// Strings sharing a prefix sort contiguously, directly after the prefix
+	// itself, so only the first string at or after each prefix needs to be
+	// checked. strs is sorted in place: callers pass slices they own.
+	slices.Sort(strs)
+	for _, prefix := range prefixes {
+		if i, _ := slices.BinarySearch(strs, prefix); i < len(strs) && strings.HasPrefix(strs[i], prefix) {
 			return true
 		}
 	}
@@ -857,6 +890,10 @@ func reverseString(str string) string {
 	for start := 0; start < size; {
 		r, n := utf8.DecodeRuneInString(str[start:])
 		start += n
+		if r == utf8.RuneError && n == 1 {
+			buf[size-start] = str[start-1]
+			continue
+		}
 		utf8.EncodeRune(buf[size-start:], r)
 	}
 

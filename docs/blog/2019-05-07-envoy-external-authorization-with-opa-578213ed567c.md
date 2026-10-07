@@ -21,7 +21,7 @@ The [Open Policy Agent (OPA)](https://www.openpolicyagent.org/docs/v0.10.7/get-s
 
 ## OPA as an External Authorization Service
 
-We will walkthrough an example of using Envoy's [External authorization filter](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/ext_authz_filter) with OPA as an authorization service.
+We will walkthrough an example of using Envoy's [External authorization filter](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter) with OPA as an authorization service.
 
 ![Envoy-OPA External Authorization](/img/blog/envoy-external-authorization-with-opa-578213ed567c/4.png)
 
@@ -29,7 +29,7 @@ The example consists of three services (web, backend and db) colocated with a ru
 
 The web service receives all inbound requests from api-server-1 and api-server-2 which are deployed in different subnets. The request is forwarded to the backend service which then calls the db service.
 
-Secure communication between the web, backend and db service is established by configuring the Envoy proxies in each container to establish a mTLS connection with each other. Envoy retrieves client and server TLS certificates and trusted CA roots for mTLS communication from a SPIRE Agent which implements an [Envoy SDS](https://www.envoyproxy.io/docs/envoy/v1.10.0/configuration/secret#). The agent in-turn fetches this information from the SPIRE Server and makes it available to an identified workload. In the following example, SPIRE provides each workload an identity, in the form of a **SPIFFE ID** embedded in the TLS certificate, to facilitate mTLS communication. The SPIFFE ID of each workload can then be used by OPA to build the authorization policy. More information on [SPIRE](https://spiffe.io/spire/overview/) can be found **here**.
+Secure communication between the web, backend and db service is established by configuring the Envoy proxies in each container to establish a mTLS connection with each other. Envoy retrieves client and server TLS certificates and trusted CA roots for mTLS communication from a SPIRE Agent which implements an [Envoy SDS](https://www.envoyproxy.io/docs/envoy/v1.10.0/configuration/secret#). The agent in-turn fetches this information from the SPIRE Server and makes it available to an identified workload. In the following example, SPIRE provides each workload an identity, in the form of a **SPIFFE ID** embedded in the TLS certificate, to facilitate mTLS communication. The SPIFFE ID of each workload can then be used by OPA to build the authorization policy. More information on [SPIRE](https://web.archive.org/web/https://spiffe.io/spire/overview/) can be found **here**.
 
 - Envoy is listening for ingress on port 8001 in each container.
 - api-server-1 and api-server-2 are flask apps running on port 5000 and 5001 respectively and forward requests to the web service.
@@ -72,7 +72,7 @@ opa-envoy-spiffe-ext-authz_web_1            /bin/sh -c /usr/local/bin/ ...   Up 
 
 **Step 3: Start SPIRE Infrastructure**
 
-Start the SPIRE Agents and register the web, backend and db servers with the SPIRE Server. More information on the registration process can be found in the [SPIRE workload registration guide](https://spiffe.io/spire/overview/#workload-registration).
+Start the SPIRE Agents and register the web, backend and db servers with the SPIRE Server. More information on the registration process can be found in the [SPIRE workload registration guide](https://web.archive.org/web/https://spiffe.io/spire/overview/#workload-registration).
 
 ```bash
 ./configure-spire.sh
@@ -203,7 +203,7 @@ X-Forwarded-Client-Cert header is injected by the Envoy proxy of the originating
 
 ## Example Envoy configuration
 
-Here's an example configuration for an Envoy proxy that listens for HTTP client connections on port 80 and then calls OPA's gRPC server that implements the [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/ext_authz_filter).
+Here's an example configuration for an Envoy proxy that listens for HTTP client connections on port 80 and then calls OPA's gRPC server that implements the [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter).
 
 ```yaml
 static_resources:

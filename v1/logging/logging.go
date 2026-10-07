@@ -106,9 +106,7 @@ func (l *StandardLogger) getFields() map[string]any {
 func (l *StandardLogger) SetLevel(level Level) {
 	var logrusLevel logrus.Level
 	switch level {
-	case Error: // set logging level report Warn or higher (includes Error)
-		logrusLevel = logrus.WarnLevel
-	case Warn:
+	case Error, Warn: // set logging level report Warn or higher (includes Error)
 		logrusLevel = logrus.WarnLevel
 	case Info:
 		logrusLevel = logrus.InfoLevel
@@ -337,8 +335,6 @@ func (h *SlogHandler) Handle(ctx context.Context, record slog.Record) error {
 	switch record.Level {
 	case slog.LevelDebug:
 		logger.Debug("%s", msg)
-	case slog.LevelInfo:
-		logger.Info("%s", msg)
 	case slog.LevelWarn:
 		logger.Warn("%s", msg)
 	case slog.LevelError:

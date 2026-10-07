@@ -801,9 +801,7 @@ func (t *Function) Union(other *Function) *Function {
 	aIsVariadic := tfa.Variadic != nil
 	bIsVariadic := ofa.Variadic != nil
 
-	if aIsVariadic && !bIsVariadic {
-		return nil
-	} else if bIsVariadic && !aIsVariadic {
+	if aIsVariadic != bIsVariadic {
 		return nil
 	}
 

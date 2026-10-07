@@ -17,15 +17,6 @@ code:
 inventors:
 - ticketmaster
 - styra
-videos:
-- title: 'OPA at Scale: How Pinterest Manages Policy Distribution'
-  speakers:
-  - name: Will Fu
-    organization: pinterest
-  - name: Jeremy Krach
-    organization: pinterest
-  venue: OPA Summit at Kubecon San Diego 2019
-  link: https://www.youtube.com/watch?v=LhgxFICWsA8
 docs_features:
   rest-api-integration:
     note: |

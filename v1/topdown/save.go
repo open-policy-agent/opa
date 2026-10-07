@@ -469,9 +469,7 @@ func saveRequired(compilerTree *ast.TreeNode, extStack *externalTreeStack, ic *i
 					found = true
 				}
 			case ast.Ref:
-				if ss.ContainsOverlapping(node, b) {
-					found = true
-				} else if ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
+				if ss.ContainsOverlapping(node, b) || ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
 					found = true
 				} else {
 					// Only terms from the call site can be plugged: once traversal

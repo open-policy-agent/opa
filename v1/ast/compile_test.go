@@ -11134,6 +11134,235 @@ foo if {
 	}
 }
 
+func TestCompilerCheckRecursionRefVarEnumeration(t *testing.T) {
+	tests := []struct {
+		note     string
+		policy   string
+		expected []string
+	}{
+		{
+			note: "array enumeration, no recursion",
+			policy: `package p
+			r if {
+				some root in ["foo", "bar"]
+				data[root].r
+			}`,
+		},
+		{
+			note: "set enumeration, no recursion",
+			policy: `package p
+			r if {
+				some root in {"foo", "bar"}
+				data[root].r
+			}`,
+		},
+		{
+			note: "object enumeration, no recursion",
+			policy: `package p
+			r if {
+				some _, root in {"a": "foo", "b": "bar"}
+				data[root].r
+			}`,
+		},
+		{
+			note: "assignment, no recursion",
+			policy: `package p
+			r if {
+				root := "foo"
+				data[root].r
+			}`,
+		},
+		{
+			note: "enumeration indexed inline, no recursion",
+			policy: `package p
+			roots := ["foo", "bar"]
+			r if {
+				data[["foo", "bar"][_]].r
+			}`,
+		},
+		{
+			note: "enumeration includes own package, recursion",
+			policy: `package p
+			r if {
+				some root in ["p", "bar"]
+				data[root].r
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "enumeration is not ground, recursion",
+			policy: `package p
+			r if {
+				some root in ["foo", input.x]
+				data[root].r
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "root is a builtin output, recursion",
+			policy: `package p
+			r if {
+				root := sprintf("%v", ["foo"])
+				data[root].r
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "enumeration over a rule value, recursion",
+			policy: `package p
+			roots := ["foo", "bar"]
+			r if {
+				some root in roots
+				data[root].r
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "empty value set falls back to a dynamic lookup, recursion",
+			policy: `package p
+			r if {
+				xs := ["a"]
+				root := xs[5]
+				data[root].r
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "assignment after the ref, recursion",
+			policy: `package p
+			r if {
+				data[root].r
+				root = "foo"
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "enumeration after the ref, recursion",
+			policy: `package p
+			r if {
+				data[root].r
+				root = ["foo", "bar"][_]
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "binding reordered after the ref, recursion",
+			policy: `package p
+			r if {
+				root = roots[_]
+				data[root].r
+				roots = ["foo", "bar"]
+			}`,
+			expected: []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"},
+		},
+		{
+			note: "binding chain ahead of the ref, no recursion",
+			policy: `package p
+			r if {
+				roots := ["foo", "bar"]
+				some root in roots
+				data[root].r
+			}`,
+		},
+		{
+			note: "ref in the head, no recursion",
+			policy: `package p
+			r := data[root].r if {
+				root := "foo"
+			}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test": module(tc.policy)}
+			compileStages(c, StageCheckRecursion)
+
+			result := compilerErrsToStringSlice(c.Errors)
+			if !slices.Equal(result, tc.expected) {
+				t.Errorf("Expected %v but got: %v", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestCompilerCheckRecursionRefVarEnumerationAcrossPackages(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"a": module(`package a
+		r if {
+			some root in ["b", "unrelated"]
+			data[root].r
+		}`),
+		"b": module(`package b
+		r if { data.a.r }`),
+		"unrelated": module(`package unrelated
+		r := true`),
+	}
+	compileStages(c, StageCheckRecursion)
+
+	expected := []string{
+		"rego_recursion_error: rule data.a.r is recursive: data.a.r -> data.b.r -> data.a.r",
+		"rego_recursion_error: rule data.b.r is recursive: data.b.r -> data.a.r -> data.b.r",
+	}
+
+	result := compilerErrsToStringSlice(c.Errors)
+	if !slices.Equal(result, expected) {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestCompilerCheckRecursionRefVarEnumerationExceedsLimit(t *testing.T) {
+	roots := make([]string, 0, maxRefExpansion+1)
+	for i := range maxRefExpansion + 1 {
+		roots = append(roots, fmt.Sprintf("%q", fmt.Sprintf("root%d", i)))
+	}
+
+	c := NewCompiler()
+	c.Modules = map[string]*Module{"test": module(fmt.Sprintf(`package p
+	r if {
+		some root in [%s]
+		data[root].r
+	}`, strings.Join(roots, ", ")))}
+	compileStages(c, StageCheckRecursion)
+
+	// None of the roots name package p, but the enumeration is too large to
+	// expand, so the check falls back to the imprecise dynamic lookup.
+	expected := []string{"rego_recursion_error: rule data.p.r is recursive: data.p.r -> data.p.r"}
+
+	result := compilerErrsToStringSlice(c.Errors)
+	if !slices.Equal(result, expected) {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestCompilerCheckRecursionRefVarEnumerationPartiallyExceedsLimit(t *testing.T) {
+	// Two enumerations whose product is over the limit. The first term is still
+	// narrowed, and only the second is left dynamic, so no prefix names package p
+	// and there is no recursion to report.
+	roots := func(prefix string) string {
+		out := make([]string, 0, 9)
+		for i := range 9 {
+			out = append(out, fmt.Sprintf("%q", fmt.Sprintf("%s%d", prefix, i)))
+		}
+		return strings.Join(out, ", ")
+	}
+
+	c := NewCompiler()
+	c.Modules = map[string]*Module{"test": module(fmt.Sprintf(`package p
+	r if {
+		some a in [%s]
+		some b in [%s]
+		data[a][b]
+	}`, roots("a"), roots("b")))}
+	compileStages(c, StageCheckRecursion)
+
+	if result := compilerErrsToStringSlice(c.Errors); len(result) > 0 {
+		t.Errorf("Expected no errors but got: %v", result)
+	}
+}
+
 // This is a regression test for a scenario that could make recursion checking miss a recursion scenario in OPA versions older than 0.56.0.
 func TestCompilerCheckPartialRuleRecursion(t *testing.T) {
 	// In the below policy, R2 and R3 has a recursion cycle. In OPA < 0.56.0, R1 hides this cycle from the recursion checker,

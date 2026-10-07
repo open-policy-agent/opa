@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	prom "github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/bundle"
@@ -175,32 +176,38 @@ func TestPluginPrometheus(t *testing.T) {
 
 	assertOpInformationGauge(t, registerMock)
 
-	if registerMock.Collectors[fixture.plugin.collectors.pluginStatus] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.pluginStatus] {
 		t.Fatal("Plugin status metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.loaded] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.loaded] {
 		t.Fatal("Loaded metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.failLoad] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.failLoad] {
 		t.Fatal("FailLoad metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastRequest] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastRequest] {
 		t.Fatal("Last request metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulActivation] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulActivation] {
 		t.Fatal("Last Successful Activation metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulDownload] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulDownload] {
 		t.Fatal("Last Successful Download metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulRequest] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.lastSuccessfulRequest] {
 		t.Fatal("Last Successful Request metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[fixture.plugin.collectors.bundleLoadDuration] != true {
+	if !registerMock.Collectors[fixture.plugin.collectors.bundleLoadDuration] {
 		t.Fatal("Bundle Load Duration metric was not registered on prometheus")
 	}
-	if len(registerMock.Collectors) != 9 {
-		t.Fatalf("Number of collectors expected (%v), got %v", 9, len(registerMock.Collectors))
+	if registerMock.Collectors[fixture.plugin.collectors.decisionLogsStatus] != true {
+		t.Fatal("Decision Logs Status metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[fixture.plugin.collectors.decisionLogsCounters] != true {
+		t.Fatal("Decision Logs Counters metric was not registered on prometheus")
+	}
+	if len(registerMock.Collectors) != 11 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 11, len(registerMock.Collectors))
 	}
 
 	lastRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(fixture.plugin.collectors.lastRequest) / 1e6))
@@ -243,7 +250,7 @@ func TestPluginPrometheus(t *testing.T) {
 		c.Prometheus = false
 	})
 	fixture.plugin.Reconfigure(ctx, prometheusDisabledConfig)
-	eventually(t, func() bool { return fixture.plugin.config.Prometheus == false })
+	eventually(t, func() bool { return !fixture.plugin.config.Prometheus })
 
 	if len(registerMock.Collectors) != 0 {
 		t.Fatalf("Number of collectors expected (%v), got %v", 0, len(registerMock.Collectors))
@@ -254,10 +261,10 @@ func TestPluginPrometheus(t *testing.T) {
 		c.Prometheus = true
 	})
 	fixture.plugin.Reconfigure(ctx, prometheusReenabledConfig)
-	eventually(t, func() bool { return fixture.plugin.config.Prometheus == true })
+	eventually(t, func() bool { return fixture.plugin.config.Prometheus })
 
-	if len(registerMock.Collectors) != 9 {
-		t.Fatalf("Number of collectors expected (%v), got %v", 9, len(registerMock.Collectors))
+	if len(registerMock.Collectors) != 11 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 11, len(registerMock.Collectors))
 	}
 }
 
@@ -317,6 +324,86 @@ func filterGauges(registerMock *prometheusRegisterMock) []prometheus.Gauge {
 		}
 	}
 	return fltd
+}
+
+func TestPluginPrometheusDecisionLogs(t *testing.T) {
+	m := prom.New(metrics.New(), nil, nil)
+	fixture := newTestFixture(t, m, func(c *Config) {
+		c.Prometheus = true
+	})
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := t.Context()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.plugin.Stop(ctx)
+	<-fixture.server.ch
+
+	// Nothing is exported before the decision logs plugin reports anything.
+	if n := testutil.CollectAndCount(fixture.plugin.collectors.decisionLogsStatus); n != 0 {
+		t.Fatalf("expected no decision logs status metrics, got %d", n)
+	}
+	if n := testutil.CollectAndCount(fixture.plugin.collectors.decisionLogsCounters); n != 0 {
+		t.Fatalf("expected no decision logs counter metrics, got %d", n)
+	}
+
+	m.Counter("decision_logs_dropped_buffer_size_limit_exceeded").Add(3)
+	m.Counter("decision_logs_encoding_failure").Incr()
+	m.Counter("some_unrelated_counter").Incr()
+
+	fixture.plugin.UpdateDecisionLogsStatus(lstat.Status{
+		Code:     "decision_log_error",
+		Message:  "Upload Failed",
+		HTTPCode: "400",
+	})
+	<-fixture.server.ch
+
+	exp := `
+# HELP decision_logs_status_gauge Gauge for the last decision log upload by status.
+# TYPE decision_logs_status_gauge gauge
+decision_logs_status_gauge{code="decision_log_error",http_code="400"} 1
+`
+	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsStatus, strings.NewReader(exp)); err != nil {
+		t.Fatal(err)
+	}
+
+	exp = `
+# HELP decision_logs_dropped_buffer_size_limit_exceeded_total Counter for the decision logs metric decision_logs_dropped_buffer_size_limit_exceeded.
+# TYPE decision_logs_dropped_buffer_size_limit_exceeded_total counter
+decision_logs_dropped_buffer_size_limit_exceeded_total 3
+# HELP decision_logs_encoding_failure_total Counter for the decision logs metric decision_logs_encoding_failure.
+# TYPE decision_logs_encoding_failure_total counter
+decision_logs_encoding_failure_total 1
+`
+	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsCounters, strings.NewReader(exp)); err != nil {
+		t.Fatal(err)
+	}
+
+	// A successful upload replaces the error status rather than adding to it.
+	m.Counter("decision_logs_encoding_failure").Incr()
+	fixture.plugin.UpdateDecisionLogsStatus(lstat.Status{})
+	<-fixture.server.ch
+
+	exp = `
+# HELP decision_logs_status_gauge Gauge for the last decision log upload by status.
+# TYPE decision_logs_status_gauge gauge
+decision_logs_status_gauge{code="",http_code=""} 1
+`
+	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsStatus, strings.NewReader(exp)); err != nil {
+		t.Fatal(err)
+	}
+
+	exp = `
+# HELP decision_logs_encoding_failure_total Counter for the decision logs metric decision_logs_encoding_failure.
+# TYPE decision_logs_encoding_failure_total counter
+decision_logs_encoding_failure_total 2
+`
+	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsCounters, strings.NewReader(exp), "decision_logs_encoding_failure_total"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestMetricsBundleWithoutRevision(t *testing.T) {

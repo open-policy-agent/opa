@@ -41,7 +41,6 @@ type Config struct {
 // ValidateAndInjectDefaults checks for configuration errors and ensures all
 // values are set on the Config object.
 func (c *Config) ValidateAndInjectDefaults() error {
-
 	if c.Trigger == nil {
 		t := plugins.DefaultTriggerMode
 		c.Trigger = &t
@@ -49,7 +48,6 @@ func (c *Config) ValidateAndInjectDefaults() error {
 
 	switch *c.Trigger {
 	case plugins.TriggerPeriodic, plugins.TriggerManual:
-		break
 	default:
 		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", *c.Trigger, plugins.TriggerPeriodic, plugins.TriggerManual)
 	}

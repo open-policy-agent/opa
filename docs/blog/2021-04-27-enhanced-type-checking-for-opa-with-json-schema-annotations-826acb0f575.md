@@ -183,6 +183,6 @@ Further reading: [OPA schemas documentation](https://www.openpolicyagent.org/doc
 
 - Documentation: [OPA schemas documentation](https://www.openpolicyagent.org/docs/latest/schemas/)
 - Examples: [opa-schema-examples repository](https://github.com/aavarghese/opa-schema-examples/)
-- JSON to JSON schema online tool: [jsonschema.net](https://jsonschema.net/)
-- JSON schema reference: [Understanding JSON Schema reference](http://json-schema.org/understanding-json-schema/reference/index.html)
+- JSON to JSON schema online tool: [jsonschema.net](https://web.archive.org/web/https://jsonschema.net/)
+- JSON schema reference: [Understanding JSON Schema reference](https://web.archive.org/web/http://json-schema.org/understanding-json-schema/reference/index.html)
 - Related blog: /blog/type-checking-your-rego-policies-with-json-schema-in-opa-5f7ac4c8a958

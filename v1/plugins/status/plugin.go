@@ -573,6 +573,15 @@ func (p *Plugin) updatePrometheusMetrics(u *UpdateRequestV1) {
 	for name, plugin := range u.Plugins {
 		p.collectors.pluginStatus.WithLabelValues(name, string(plugin.State)).Set(1)
 	}
+	p.collectors.decisionLogsStatus.Reset()
+	if dl := u.DecisionLogs; dl != nil {
+		p.collectors.decisionLogsStatus.WithLabelValues(dl.Code, dl.HTTPCode.String()).Set(1)
+	}
+	for _, all := range u.Metrics {
+		if all, ok := all.(map[string]any); ok {
+			p.collectors.decisionLogsCounters.update(all)
+		}
+	}
 	p.collectors.lastSuccessfulActivation.Reset()
 	for _, bundle := range u.Bundles {
 		if bundle.Code == "" && !bundle.LastSuccessfulActivation.IsZero() {

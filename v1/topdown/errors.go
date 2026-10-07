@@ -38,7 +38,7 @@ type Error struct {
 	// Error() so enabling it doesn't change the messages callers display.
 	StackTrace StackTrace `json:"stack_trace,omitempty"`
 
-	err error `json:"-"`
+	err error
 }
 
 const (

@@ -5,7 +5,7 @@ date: 2017-02-28
 slug: what-is-policy-part-one-enforcement-bad8ea8eb35c
 ---
 
-_Welcome to the Open Policy Agent project. If you're interested in topics like policy, enforcement, remediation, and compliance we'd love to hear from you! Join us on [Slack](http://slack-inviter-1327627577.us-west-2.elb.amazonaws.com) or check out the project on [GitHub](https://github.com/open-policy-agent/opa)._
+_Welcome to the Open Policy Agent project. If you're interested in topics like policy, enforcement, remediation, and compliance we'd love to hear from you! Join us on [Slack](https://slack.openpolicyagent.org/) or check out the project on [GitHub](https://github.com/open-policy-agent/opa)._
 
 This is the first in a two-part series about policy where we introduce definitions, concepts, and challenges in policy enforcement. In future series we'll examine the state of policy in the cloud-native ecosystem.
 
