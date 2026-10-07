@@ -479,7 +479,7 @@ func activateBundles(opts *ActivateOpts) error {
 			for _, item := range b.Raw {
 				path := filepath.ToSlash(item.Path)
 
-				if filepath.Base(path) == dataFile || filepath.Base(path) == yamlDataFile {
+				if filepath.Base(path) == dataFile || IsYAMLDataFile(path) {
 					var val map[string]json.RawMessage
 					err = util.Unmarshal(item.Value, &val)
 					if err == nil {
