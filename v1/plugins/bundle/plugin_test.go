@@ -7,6 +7,7 @@ package bundle
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -7853,5 +7854,31 @@ func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
 	}
 	if status.State != state {
 		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, state)
+	}
+}
+
+func TestPluginProcessHandsBundleToStore(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManagerWithOpts(nil, inmem.New())
+	defer manager.Stop(ctx)
+
+	plugin := New(&Config{Bundles: map[string]*Source{"b": {}}}, manager)
+	plugin.status["b"] = &Status{Name: "b", Metrics: metrics.New()}
+
+	b := bundle.Bundle{Data: map[string]any{"foo": map[string]any{"bar": json.Number("1")}}}
+	b.Manifest.Init()
+
+	if err := plugin.process(ctx, "b", download.Update{Bundle: &b, Metrics: metrics.New()}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := storage.ReadOne(ctx, manager.Store, storage.MustParsePath("/foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.ValueOf(got).Pointer() != reflect.ValueOf(b.Data["foo"]).Pointer() {
+		t.Fatal("expected the store to keep the downloaded bundle's data")
 	}
 }

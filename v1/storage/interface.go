@@ -76,6 +76,11 @@ type TransactionParams struct {
 
 	// Context contains key/value pairs passed to triggers.
 	Context *Context
+
+	// OwnedWrites hands ownership of written values to the store: the caller
+	// promises not to read or mutate them afterwards, so the store may keep
+	// them without copying.
+	OwnedWrites bool
 }
 
 // Context is a simple container for key/value pairs.

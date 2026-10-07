@@ -143,6 +143,7 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 	if len(params) > 0 {
 		txn.write = params[0].Write
 		txn.context = params[0].Context
+		txn.owned = params[0].OwnedWrites
 	}
 
 	if txn.write {
@@ -344,7 +345,7 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 	}
 
 	val := util.Reference(value)
-	if db.roundTripOnWrite {
+	if db.roundTripOnWrite && !underlying.owned {
 		if err := util.RoundTripFast(val); err != nil {
 			return err
 		}

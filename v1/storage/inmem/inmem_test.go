@@ -1662,3 +1662,40 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnedWrites(t *testing.T) {
+	for _, tc := range []struct {
+		note   string
+		owned  bool
+		shared bool
+	}{
+		{"default copies", false, false},
+		{"owned writes are kept as is", true, true},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := t.Context()
+			db := New()
+			value := map[string]any{"a": map[string]any{"b": json.Number("1")}}
+
+			params := storage.WriteParams
+			params.Context = storage.NewContext()
+			params.OwnedWrites = tc.owned
+
+			err := storage.Txn(ctx, db, params, func(txn storage.Transaction) error {
+				return db.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/x"), value)
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := storage.ReadOne(ctx, db, storage.MustParsePath("/x/a"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			same := reflect.ValueOf(got).Pointer() == reflect.ValueOf(value["a"]).Pointer()
+			if same != tc.shared {
+				t.Fatalf("expected shared=%v, got %v", tc.shared, same)
+			}
+		})
+	}
+}

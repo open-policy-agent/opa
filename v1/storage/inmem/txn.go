@@ -41,6 +41,7 @@ type transaction struct {
 	policies map[string]policyUpdate
 	xid      uint64
 	write    bool
+	owned    bool
 	stale    bool
 }
 

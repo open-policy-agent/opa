@@ -412,7 +412,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 			p.status[name].Metrics = metrics.New()
 			p.status[name].Type = b.Type()
 
-			err := p.activate(ctx, name, b, isMultiBundle)
+			err := p.activate(ctx, name, b, isMultiBundle, false)
 			if err != nil {
 				p.log(name).Error("Bundle activation failed: %v", err)
 				p.status[name].SetError(err)
@@ -533,7 +533,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) er
 		isMultiBundle := p.config.IsMultiBundle()
 		p.cfgMtx.RUnlock()
 
-		if err := p.activate(ctx, name, u.Bundle, isMultiBundle); err != nil {
+		if err := p.activate(ctx, name, u.Bundle, isMultiBundle, true); err != nil {
 			p.log(name).Error("Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
 			if !p.stopped {
@@ -604,11 +604,14 @@ func (p *Plugin) checkPluginReadiness() {
 	}
 }
 
-func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, isMultiBundle bool) error {
+// ownsBundle means the caller won't use b.Data after activation, so the store
+// can take it without copying.
+func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, isMultiBundle, ownsBundle bool) error {
 	p.log(name).Debug("Bundle activation in progress (%v). Opening storage transaction.", b.Manifest.Revision)
 
 	params := storage.WriteParams
 	params.Context = storage.NewContext().WithMetrics(p.status[name].Metrics)
+	params.OwnedWrites = ownsBundle
 
 	err := storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
 		p.log(name).Debug("Opened storage transaction (%v).", txn.ID())
