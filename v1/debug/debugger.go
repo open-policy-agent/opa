@@ -206,14 +206,14 @@ func SetMaxVariableLength(maxVariableLength int) DebuggerOption {
 
 type LaunchEvalProperties struct {
 	LaunchProperties
-	Query     string
-	Input     any
-	InputPath string
+	Query     string `json:"query"`
+	Input     any    `json:"input"`
+	InputPath string `json:"inputPath"`
 }
 
 type LaunchTestProperties struct {
 	LaunchProperties
-	Run string
+	Run string `json:"run"`
 }
 
 // StackTraceMode determines how the events of a trace are grouped into the frames
@@ -235,16 +235,16 @@ const (
 )
 
 type LaunchProperties struct {
-	BundlePaths         []string
-	DataPaths           []string
-	StopOnResult        bool
-	StopOnEntry         bool
-	StopOnFail          bool
-	EnablePrint         bool
-	SkipOps             []topdown.Op
-	StrictBuiltinErrors bool
-	RuleIndexing        bool
-	StackTraceMode      StackTraceMode
+	BundlePaths         []string       `json:"bundlePaths"`
+	DataPaths           []string       `json:"dataPaths"`
+	StopOnResult        bool           `json:"stopOnResult"`
+	StopOnEntry         bool           `json:"stopOnEntry"`
+	StopOnFail          bool           `json:"stopOnFail"`
+	EnablePrint         bool           `json:"enablePrint"`
+	SkipOps             []topdown.Op   `json:"skipOps"`
+	StrictBuiltinErrors bool           `json:"strictBuiltinErrors"`
+	RuleIndexing        bool           `json:"ruleIndexing"`
+	StackTraceMode      StackTraceMode `json:"stackTraceMode"`
 }
 
 func (lp LaunchProperties) validate() error {
