@@ -169,7 +169,7 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 			bi.Signatures = signatures
 		}
 
-		if filepath.Base(f.Path()) == "data.json" || filepath.Base(f.Path()) == "data.yaml" || filepath.Base(f.Path()) == "data.yml" {
+		if filepath.Base(f.Path()) == "data.json" || bundle.IsYAMLDataFile(f.Path()) {
 			descriptors = append(descriptors, f)
 		}
 	}

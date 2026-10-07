@@ -738,7 +738,7 @@ func (r *Reader) Read() (Bundle, error) {
 				return empty, err
 			}
 
-		} else if filepath.Base(path) == yamlDataFile || filepath.Base(path) == ymlDataFile {
+		} else if IsYAMLDataFile(path) {
 			if r.lazyLoadingMode {
 				bundle.Raw = append(bundle.Raw, Raw{Path: path, Value: buf.Bytes()})
 				continue
@@ -1791,7 +1791,7 @@ func modulePathWithPrefix(bundleName string, modulePath string) string {
 // hashed as raw wire bytes on both the sign and verify paths.
 func IsStructuredDoc(name string) bool {
 	base := filepath.Base(name)
-	return base == dataFile || base == yamlDataFile || base == ymlDataFile || base == ManifestExt
+	return base == dataFile || IsYAMLDataFile(name) || base == ManifestExt
 }
 
 // IsSignaturesFile reports whether name is a bundle's signatures file, matched
@@ -1799,6 +1799,20 @@ func IsStructuredDoc(name string) bool {
 // directory prefix.
 func IsSignaturesFile(name string) bool {
 	return filepath.Base(name) == signaturesFilename
+}
+
+// IsYAMLFile reports whether name has a YAML extension (".yaml" or ".yml").
+func IsYAMLFile(name string) bool {
+	ext := filepath.Ext(name)
+	return ext == ".yaml" || ext == ".yml"
+}
+
+// IsYAMLDataFile reports whether name is a bundle YAML data file, matched by
+// its exact basename ("data.yaml" or "data.yml"). Other YAML files in a bundle
+// are not loaded as data.
+func IsYAMLDataFile(name string) bool {
+	base := filepath.Base(name)
+	return base == yamlDataFile || base == ymlDataFile
 }
 
 func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (*Bundle, []*Descriptor, error) {

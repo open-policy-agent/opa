@@ -1026,9 +1026,8 @@ func TestIsSignaturesFile(t *testing.T) {
 }
 
 func TestIsStructuredDoc(t *testing.T) {
-	// Structured docs are hashed over their canonical parsed structure (so the
-	// signature is whitespace/key-order independent). Everything else is hashed
-	// as raw bytes. data.yml must be treated the same as data.yaml.
+	// Structured docs are canonicalized before hashing. Everything else is hashed
+	// as raw bytes.
 	cases := []struct {
 		name string
 		want bool
