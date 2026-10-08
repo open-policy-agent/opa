@@ -189,21 +189,21 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 			bundleName := "bundle1"
 			modulePath := "test/policy.rego"
 
-			// We want to make assert that the default rego-version is used, which it is when a module is erased from storage and we don't know what version it has.
-			// Therefore, we add a module to the store, which is the replaced by the Activate() call, causing an erase.
-			if err := store.UpsertPolicy(ctx, txn, fmt.Sprintf("%s/%s", bundleName, modulePath), []byte(tc.module)); err != nil {
+			// A module in the store outside the bundle's roots is re-parsed on
+			// activation without knowing its rego-version, so the default applies.
+			if err := store.UpsertPolicy(ctx, txn, modulePath, []byte(tc.module)); err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
-			newModule := `package test`
+			newModule := `package other`
 			bundles := map[string]*Bundle{
 				bundleName: {
 					Manifest: Manifest{
-						Roots: &[]string{"test"},
+						Roots: &[]string{"other"},
 					},
 					Modules: []ModuleFile{
 						{
-							Path:   modulePath,
+							Path:   "other/policy.rego",
 							Raw:    []byte(newModule),
 							Parsed: ast.MustParseModule(newModule),
 						},
