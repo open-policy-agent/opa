@@ -171,8 +171,10 @@ are surfaced via the performance metrics in the [Status](./management-status) in
 
 OPA provides the following `input` document when executing the authorization
 policy. Since the schema for the `input` document is known to OPA, it performs automatic type checking of this document
-and reports any errors resulting from the schema check. The `--skip-known-schema-check` flag can be passed to `opa run`
-to disable automatic type checking of this `input` document.
+and reports any errors resulting from the schema check. The check covers the rules in the package holding the
+authorization decision (`system.authz` by default) and any of its sub-packages, so helper rules shared with ordinary
+policies — which see a different `input` document — are left out. The `--skip-known-schema-check` flag can be passed to
+`opa run` to disable automatic type checking of this `input` document.
 
 <!-- TODO(sr): check if "jsonc" looks alright on netlify -->
 
