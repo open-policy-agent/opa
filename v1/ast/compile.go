@@ -1509,9 +1509,10 @@ func originNote(rw varRewriter, edge *dynamicEdge, rule *Rule, cond causeConditi
 	return ""
 }
 
-// uncheckedCondition returns a condition on a variable from a collection that
-// doesn't hold the value: narrowing gave up on the collection, so the
-// condition can't be met as stated.
+// uncheckedCondition returns a condition on a variable that can't hold the
+// value: one from a collection that doesn't hold it, as narrowing gave up on
+// the collection, or one computed by a builtin whose result type rules it out.
+// The condition can't be met as stated.
 func uncheckedCondition(edge *dynamicEdge, conds []causeCondition) *causeCondition {
 	for i, cond := range conds {
 		v, ok := edge.ref[cond.pos].Value.(Var)
@@ -1519,16 +1520,49 @@ func uncheckedCondition(edge *dynamicEdge, conds []causeCondition) *causeConditi
 			continue
 		}
 		o, ok := edge.origins[v]
-		if !ok || o.kind != originCollection {
+		if !ok {
 			continue
 		}
-		members, _ := valueMembers(o.collection)
-		if !slices.ContainsFunc(members, func(m Value) bool { return m.Compare(cond.value.Value) == 0 }) {
-			return &conds[i]
+
+		switch o.kind {
+		case originCollection:
+			members, _ := valueMembers(o.collection)
+			if !slices.ContainsFunc(members, func(m Value) bool { return m.Compare(cond.value.Value) == 0 }) {
+				return &conds[i]
+			}
+		case originBuiltin:
+			if !builtinMayReturn(o.builtin, cond.value.Value) {
+				return &conds[i]
+			}
 		}
 	}
 
 	return nil
+}
+
+// builtinMayReturn reports whether the builtin name's declared result type
+// admits the scalar value. Anything it can't tell is admitted.
+func builtinMayReturn(name string, value Value) bool {
+	bi, ok := BuiltinMap[name]
+	if !ok || bi.Decl.Result() == nil {
+		return true
+	}
+
+	var tpe types.Type
+	switch value.(type) {
+	case Null:
+		tpe = types.Nl
+	case Boolean:
+		tpe = types.B
+	case Number:
+		tpe = types.N
+	case String:
+		tpe = types.S
+	default:
+		return true
+	}
+
+	return types.Contains(bi.Decl.Result(), tpe)
 }
 
 // varOrigins finds where the variables in ref, in the body expression at index,

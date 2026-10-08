@@ -11482,6 +11482,24 @@ func TestCompilerCheckRecursionDynamicCause(t *testing.T) {
 			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r refers to data.p.r if x is "p" (x is computed by lower))`},
 		},
 		{
+			note: "variable computed by a builtin of another type",
+			policy: `package p
+			r if {
+				x := time.now_ns()
+				data[x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r could refer to data.p.r)`},
+		},
+		{
+			note: "variable computed by a builtin returning any",
+			policy: `package p
+			r if {
+				x := json.unmarshal(input.x)
+				data[x].r
+			}`,
+			expected: []string{`rego_recursion_error: rule data.p.r may be recursive: data.p.r -> data.p.r (data[x].r refers to data.p.r if x is "p" (x is computed by json.unmarshal))`},
+		},
+		{
 			note: "variable from a function argument",
 			policy: `package p
 			f(x) := y if y := data[x].g
