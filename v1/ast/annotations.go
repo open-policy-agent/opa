@@ -344,8 +344,87 @@ func (a *Annotations) toTerm() (*Term, *Error) {
 	return ObjectTerm(items...), nil
 }
 
+// attachRuleAnnotations gives each rule copies of the document-scoped
+// annotations for its path, and of the rule-scoped ones for its path above it
+// that no earlier rule has claimed. Each rule claims the last of those.
 func attachRuleAnnotations(mod *Module) {
-	// make a copy of the annotations
+	if len(mod.Annotations) == 0 {
+		return
+	}
+	if !slices.IsSortedFunc(mod.Rules, func(x, y *Rule) int { return x.Loc().Row - y.Loc().Row }) {
+		attachRuleAnnotationsUnsorted(mod)
+		return
+	}
+
+	type group struct {
+		doc     []int // document-scoped annotations, by index
+		byRow   []int // rule-scoped annotations, by row
+		next    int   // first entry of byRow not yet above the current rule
+		pending []int // rule-scoped annotations above the current rule, unclaimed, by index
+	}
+
+	cpy := make([]*Annotations, len(mod.Annotations))
+	groups := map[string]*group{}
+	for i, a := range mod.Annotations {
+		cpy[i] = a.Copy(a.node)
+		if a.Scope != annotationScopeDocument && a.Scope != annotationScopeRule {
+			continue
+		}
+		path := a.GetTargetPath()
+		if path == nil {
+			continue
+		}
+		k := path.String()
+		g := groups[k]
+		if g == nil {
+			g = &group{}
+			groups[k] = g
+		}
+		if a.Scope == annotationScopeDocument {
+			g.doc = append(g.doc, i)
+		} else {
+			g.byRow = append(g.byRow, i)
+		}
+	}
+	if len(groups) == 0 {
+		return
+	}
+	for _, g := range groups {
+		slices.SortStableFunc(g.byRow, func(x, y int) int { return cpy[x].Location.Row - cpy[y].Location.Row })
+	}
+
+	for _, rule := range mod.Rules {
+		g := groups[rule.Ref().GroundPrefix().String()]
+		if g == nil {
+			continue
+		}
+		row := rule.Loc().Row
+		for ; g.next < len(g.byRow) && cpy[g.byRow[g.next]].Location.Row < row; g.next++ {
+			i := g.byRow[g.next]
+			at, _ := slices.BinarySearch(g.pending, i)
+			g.pending = slices.Insert(g.pending, at, i)
+		}
+
+		// Merge both lists to keep the annotations in module order.
+		d, p := 0, 0
+		for d < len(g.doc) || p < len(g.pending) {
+			if p == len(g.pending) || (d < len(g.doc) && g.doc[d] < g.pending[p]) {
+				rule.Annotations = append(rule.Annotations, cpy[g.doc[d]])
+				d++
+			} else {
+				rule.Annotations = append(rule.Annotations, cpy[g.pending[p]])
+				p++
+			}
+		}
+		if len(g.pending) > 0 {
+			g.pending = g.pending[:len(g.pending)-1]
+		}
+	}
+}
+
+// attachRuleAnnotationsUnsorted does what attachRuleAnnotations does, in
+// quadratic time, for rules not in source order.
+func attachRuleAnnotationsUnsorted(mod *Module) {
 	cpy := make([]*Annotations, len(mod.Annotations))
 	for i, a := range mod.Annotations {
 		cpy[i] = a.Copy(a.node)
