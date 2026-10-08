@@ -361,7 +361,7 @@ fields:
   as rules generated from a policy database. OPA then parses them without source locations,
   which lowers the memory their compiled form takes. Annotations are kept, but errors, traces
   and coverage reports no longer point at files and lines, and `opa build` optimizations write
-  the modules back without their comments.
+  the modules back without their comments. See [Generated Bundles](#generated-bundles).
 
 - `roots` - If you expect to load additional data into OPA from outside the
   bundle (e.g., via OPA's HTTP API) you should include a top-level
@@ -830,6 +830,68 @@ assigning an Etag value to each bundle revision. Hence, it can figure out the ri
 
 No. OPA will activate a _delta_ bundle if all the patch operations in it were successfully applied. Note that a _snapshot_
 bundle would erase and overwrite policy and data under the manifest `roots`.
+
+## Generated Bundles
+
+When a bundle's policies are generated, as with rules generated from a policy
+database, mark the bundle as generated in its manifest:
+
+```json
+{
+  "revision": "7864d60dd78d748dbce54b569e939f5b0dc07486",
+  "roots": ["authz"],
+  "generated": true
+}
+```
+
+The bundle plugin then activates new revisions incrementally. That pays off
+when a bundle holds many plain rules that are regenerated in full while only a
+few of them change from one revision to the next.
+
+OPA keys every rule of a generated bundle by its package and the exact source
+text of the rule and its METADATA comment. When a new revision is downloaded,
+rules whose key the active compiler has compiled are not parsed again, and the
+compiled rules are carried over; only new and changed rules are parsed and
+compiled. Rules may move between files and lines from one revision to the next.
+
+Incremental activation applies to snapshot bundles from HTTP services and
+`file://` URLs, and to rules in _reusable_ modules of generated bundles: modules
+holding only plain rules, without functions, `default` rules or `else` chains,
+whose METADATA comments belong to their rules. All reusable modules of a
+package must have the same imports. Other modules, including all modules of
+bundles that aren't generated, are compiled as usual, and must be unchanged for
+an activation to be incremental.
+
+:::info
+Under these conditions, OPA still compiles everything, as for a bundle that
+isn't generated:
+
+- it is the first activation of a generated bundle,
+- a module that isn't reusable changed, or a package of reusable modules was
+  added, removed, or had its imports or Rego version changed,
+- an added rule starts a new rule set, or a removed rule leaves one empty,
+- a rule is removed from a rule set whose rules produce values of different
+  types,
+- a package holds the same rule, with the same METADATA, more than once,
+- an added rule refers to a package of reusable modules, directly or through
+  rules and functions of other modules, or calls `rego.metadata.chain` or
+  `rego.metadata.rule`,
+- an added rule's value has a different type than those of its rule set's
+  other rules, like `allow := "maybe"` next to boolean `allow` rules,
+- the compiler options or the external rule sources changed.
+
+Modules with `scope: document` annotations aren't reusable: they are parsed in
+full, and must be unchanged for an activation to be incremental.
+:::
+
+Activations of other bundles reuse the rules of generated bundles as well, so a
+data bundle's new revision doesn't compile the generated rules again.
+
+The metrics of the bundle's [status](./management-status) show what an
+activation did: `counter_rego_module_compile_reused_rules` counts the compiled
+rules carried over, `counter_rego_module_parse_skipped_rules` those not parsed
+again, and `counter_rego_module_compile_full` is `1` when everything was
+compiled.
 
 ## Implementations
 

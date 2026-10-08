@@ -97,8 +97,13 @@ A bundle whose policies are generated, for example from a policy database, can s
 ```
 
 OPA then parses its policies without source locations. In a benchmark of 20000 generated rules, that cut
-the memory the compiled policies hold by 40%. Annotations are kept. See the
-[manifest documentation](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format).
+the memory the compiled policies hold by 40%. Annotations are kept.
+
+The bundle plugin also activates generated bundles incrementally, reusing the parsed and compiled form of
+every rule whose source is unchanged. In a benchmark of 20000 such rules, switching to a revision with one
+rule changed took 88% less time and allocated 93% less memory. See
+[Generated Bundles](https://www.openpolicyagent.org/docs/management-bundles#generated-bundles) for which
+rules qualify, and when OPA falls back to compiling everything.
 
 Authored by @srenatus
 
