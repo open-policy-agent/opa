@@ -456,6 +456,10 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 }
 
 func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*Source) Loader {
+	var reuseFrom func() *ast.Compiler
+	if source.RuleReuse {
+		reuseFrom = p.manager.GetCompiler
+	}
 	if u, err := url.Parse(source.Resource); err == nil && u.Scheme == "file" {
 		return &fileLoader{
 			name:             name,
@@ -464,6 +468,7 @@ func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*
 			sizeLimitBytes:   source.SizeLimitBytes,
 			f:                p.oneShot,
 			bundleParserOpts: p.manager.ParserOptions(),
+			ruleReuseFrom:    reuseFrom,
 		}
 	}
 
@@ -493,7 +498,8 @@ func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*
 		WithBundlePersistence(p.persistBundle(name, bundles)).
 		WithLazyLoadingMode(true).
 		WithBundleName(name).
-		WithBundleParserOpts(p.manager.ParserOptions())
+		WithBundleParserOpts(p.manager.ParserOptions()).
+		WithRuleReuse(reuseFrom)
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) error {
@@ -644,8 +650,16 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 			compiler = p.manager.GetCompiler()
 		}
 
+		var reuseFrom func() *ast.Compiler
 		if compiler == nil {
 			compiler = ast.NewCompiler()
+			p.cfgMtx.RLock()
+			src := p.config.Bundles[name]
+			p.cfgMtx.RUnlock()
+			if src != nil && src.RuleReuse {
+				compiler = compiler.WithRuleReuse(p.manager.GetCompiler())
+				reuseFrom = p.manager.GetCompiler
+			}
 		}
 
 		compiler = compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
@@ -668,15 +682,16 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 		})
 
 		opts := &bundle.ActivateOpts{
-			Ctx:             ctx,
-			Store:           p.manager.Store,
-			Txn:             txn,
-			TxnCtx:          params.Context,
-			Compiler:        compiler,
-			Metrics:         p.status[name].Metrics,
-			Bundles:         map[string]*bundle.Bundle{name: b},
-			ExternalSources: p.manager.GetExternalSources(),
-			ParserOptions:   p.manager.ParserOptions(),
+			Ctx:               ctx,
+			Store:             p.manager.Store,
+			Txn:               txn,
+			TxnCtx:            params.Context,
+			Compiler:          compiler,
+			Metrics:           p.status[name].Metrics,
+			Bundles:           map[string]*bundle.Bundle{name: b},
+			ExternalSources:   p.manager.GetExternalSources(),
+			ParserOptions:     p.manager.ParserOptions(),
+			RuleReuseCompiler: reuseFrom,
 		}
 
 		if p.manager.Info != nil {
@@ -847,6 +862,7 @@ type fileLoader struct {
 	sizeLimitBytes   int64
 	f                func(context.Context, string, download.Update) error
 	bundleParserOpts ast.ParserOptions
+	ruleReuseFrom    func() *ast.Compiler
 }
 
 func (fl *fileLoader) Start(ctx context.Context) {
@@ -902,6 +918,7 @@ func (fl *fileLoader) oneShot(ctx context.Context) (err error) {
 		WithSizeLimitBytes(fl.sizeLimitBytes).
 		WithRegoVersion(fl.bundleParserOpts.RegoVersion).
 		WithProcessAnnotations(fl.bundleParserOpts.ProcessAnnotation).
+		WithRuleReuse(fl.ruleReuseFrom).
 		Read()
 	u.Error = err
 	if err == nil {

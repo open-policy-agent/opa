@@ -820,6 +820,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].signing.scope`                        | `string`                       | No                             | Scope to use for bundle signature verification.                                                                                                                                                                                                         |
 | `bundles[_].signing.exclude_files`                | `array`                        | No                             | Files in the bundle to exclude during verification.                                                                                                                                                                                                     |
 | `bundles[_].size_limit_bytes`                     | `int64`                        | No (default: `1073741824`)     | Size limit for individual files contained in the bundle.                                                                                                                                                                                                |
+| `bundles[_].rule_reuse`                           | `bool`                         | No (default: `false`)          | Reuse what the previous activation compiled for rules whose source is unchanged. See [Incremental Compilation](./management-bundles/#incremental-compilation).                                                                                          |
 
 ## Status
 

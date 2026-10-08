@@ -152,6 +152,11 @@ type Source struct {
 	Signing        *bundle.VerificationConfig `json:"signing"`
 	Persist        bool                       `json:"persist"`
 	SizeLimitBytes int64                      `json:"size_limit_bytes"`
+
+	// RuleReuse lets activations skip parsing and compiling rules whose source
+	// is unchanged since the previous activation. Reused rules keep the
+	// locations they were first compiled at. Experimental.
+	RuleReuse bool `json:"rule_reuse,omitempty"`
 }
 
 // IsMultiBundle returns whether or not the config is the newer multi-bundle

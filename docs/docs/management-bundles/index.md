@@ -755,6 +755,74 @@ assigning an Etag value to each bundle revision. Hence, it can figure out the ri
 No. OPA will activate a _delta_ bundle if all the patch operations in it were successfully applied. Note that a _snapshot_
 bundle would erase and overwrite policy and data under the manifest `roots`.
 
+## Incremental Compilation
+
+When most of a bundle's policy consists of plain rules that are regenerated in
+full while only a few of them change from one revision to the next, as with
+rules generated from a policy database, OPA can activate new revisions
+incrementally. Enable it per bundle:
+
+```yaml
+bundles:
+  authz:
+    service: example
+    resource: bundles/authz.tar.gz
+    rule_reuse: true
+```
+
+OPA then keys every rule by its package and the exact source text of the rule
+and its METADATA comment. When a new revision is downloaded, rules whose key
+the active compiler has compiled are not parsed again, and the compiled rules
+are carried over; only new and changed rules are parsed and compiled. Rules may
+move between files and lines from one revision to the next.
+
+This applies to rules in _reusable_ modules: modules holding only plain rules,
+without functions, `default` rules or `else` chains, whose METADATA comments
+belong to their rules. All reusable modules of a package must have the same
+imports. Other modules are compiled as usual, and must be unchanged for an
+activation to be incremental.
+
+OPA compiles everything, as without `rule_reuse`, when:
+
+- it is the first activation of the bundle,
+- a module that isn't reusable changed, or a package of reusable modules was
+  added, removed, or had its imports or Rego version changed,
+- an added rule starts a new rule set, or a removed rule leaves one empty,
+- a rule is removed from a rule set whose rules produce values of different
+  types,
+- a package holds the same rule, with the same METADATA, more than once,
+- an added rule refers to a package of reusable modules, directly or through
+  rules and functions of other modules, or calls `rego.metadata.chain` or
+  `rego.metadata.rule`,
+- an added rule's value has a different type than those of its rule set's
+  other rules, like `allow := "maybe"` next to boolean `allow` rules,
+- the compiler options or the external rule sources changed.
+
+Modules with `scope: document` annotations aren't reusable: they are parsed in
+full, and must be unchanged for an activation to be incremental.
+
+Every activation compiles the policies of all bundles, so set `rule_reuse` on
+all of them: an activation of a bundle without it compiles everything, and so
+does the next one of a bundle with it.
+
+Don't enable `rule_reuse` for bundles where most revisions change more than
+plain rules, for example where a module with functions or `default` rules
+changes with every revision: every activation then falls back, which takes
+about as long as without `rule_reuse` and uses more CPU.
+
+The metrics of the bundle's [status](./management-status) show what an
+activation did: `counter_rego_module_compile_reused_rules` counts the compiled
+rules carried over, `counter_rego_module_parse_skipped_rules` those not parsed
+again, and `counter_rego_module_compile_full` is `1` when everything was
+compiled.
+
+:::info
+Reused rules keep the locations they were first compiled at, so a rule that
+moved shows its old file and line in traces, explanations and errors.
+`rule_reuse` applies to snapshot bundles from HTTP services and `file://`
+URLs.
+:::
+
 ## Implementations
 
 The Bundle API is simple. Most HTTP servers capable of serving static files will do. While not strictly required in all deployments, it is also good if the implementation supports:
