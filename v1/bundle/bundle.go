@@ -515,6 +515,13 @@ type Reader struct {
 	persist               bool
 	regoVersion           ast.RegoVersion
 	followSymlinks        bool
+	ruleReuseFrom         func() *ast.Compiler
+}
+
+type moduleParser func(path string, raw []byte, opts ast.ParserOptions) (*ast.Module, error)
+
+func parseModule(path string, raw []byte, opts ast.ParserOptions) (*ast.Module, error) {
+	return ast.ParseModuleWithOpts(path, util.ByteSliceToString(raw), opts)
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -616,6 +623,14 @@ func (r *Reader) WithFollowSymlinks(yes bool) *Reader {
 // outside the bundle's roots will not be performed while reading the bundle.
 func (r *Reader) WithLazyLoadingMode(yes bool) *Reader {
 	r.lazyLoadingMode = yes
+	return r
+}
+
+// WithRuleReuse makes the reader leave out of a module the rules that the
+// compiler returned by current has compiled from the same source, and put the
+// compiled rules in their place. current may be nil, or return nil. Experimental.
+func (r *Reader) WithRuleReuse(current func() *ast.Compiler) *Reader {
+	r.ruleReuseFrom = current
 	return r
 }
 
@@ -802,7 +817,12 @@ func (r *Reader) Read() (Bundle, error) {
 		}
 
 		g.Go(func() (err error) {
-			if mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, util.ByteSliceToString(mf.Raw), mpopts); err == nil {
+			parse := parseModule
+			if r.ruleReuseFrom != nil {
+				parse = reuseModuleParser(r.ruleReuseFrom)
+			}
+			mf.Parsed, err = parse(mf.Path, mf.Raw, mpopts)
+			if err == nil {
 				modules[i] = mf
 			}
 			return err
