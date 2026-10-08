@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/semver"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -37,6 +38,12 @@ func TestParserCatchesIllegalCapabilities(t *testing.T) {
 			regoVersion:  RegoV1,
 			capabilities: Capabilities{},
 			expErr:       "illegal capabilities: rego_v1 feature required for parsing v1 Rego",
+		},
+		{
+			note:         "v2, no rego_v2 feature",
+			regoVersion:  RegoV2,
+			capabilities: Capabilities{},
+			expErr:       "illegal capabilities: rego_v2 feature required for parsing v2 Rego",
 		},
 	}
 
@@ -71,6 +78,10 @@ func TestParserCatchesIllegalFutureKeywordsBasedOnCapabilities(t *testing.T) {
 		{
 			note:        "v1",
 			regoVersion: RegoV1,
+		},
+		{
+			note:        "v2",
+			regoVersion: RegoV2,
 		},
 	}
 
@@ -384,6 +395,7 @@ func TestCapabilitiesForThisVersion(t *testing.T) {
 		FeatureKeywordsInRefs,
 		FeatureRegoV1,
 		FeatureRegoV1Import,
+		FeatureRegoV2,
 		FeatureRegoV2Import,
 		FeatureRefHeadStringPrefixes,
 		FeatureRefHeads,
@@ -414,6 +426,7 @@ func TestCapabilitiesForThisVersion(t *testing.T) {
 			features: []string{
 				FeatureKeywordsInRefs,
 				FeatureRegoV1,
+				FeatureRegoV2,
 				FeatureRegoV2Import,
 				FeatureTemplateStrings,
 			},
@@ -469,6 +482,15 @@ func TestCapabilitiesAddBuiltinSorted(t *testing.T) {
 }
 
 func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
+	// rego_v2 enters version_index.json with the v1.22.0 release artefacts; until then, inject it.
+	if v, ok := minVersionIndex().Features[FeatureRegoV2]; ok {
+		t.Fatalf("version_index.json lists %s since %s; remove the index override from this test", FeatureRegoV2, v)
+	}
+	vi := minVersionIndex()
+	vi.Features[FeatureRegoV2] = semver.MustParse("1.22.0")
+	orig := minVersionIndexOnce
+	minVersionIndexOnce = func() VersionIndex { return vi }
+	t.Cleanup(func() { minVersionIndexOnce = orig })
 
 	tests := []struct {
 		note        string
@@ -476,6 +498,21 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 		regoVersion RegoVersion
 		version     string
 	}{
+		{
+			note: "empty package (v0)",
+			module: `
+				package x
+			`,
+			version: "0.17.0",
+		},
+		{
+			note:        "empty package (v1)",
+			regoVersion: RegoV1,
+			module: `
+				package x
+			`,
+			version: "1.0.0",
+		},
 		{
 			note: "builtins",
 			module: `
@@ -571,6 +608,15 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 			`,
 			version: "1.20.0",
 		},
+		//{
+		//	note:        "keywords (wildcard import, v2 module)",
+		//	regoVersion: RegoV2,
+		//	module: `
+		//		package x
+		//		import future.keywords
+		//	`,
+		//	version: "1.22.0",
+		//},
 	}
 
 	for _, tc := range tests {

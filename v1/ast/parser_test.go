@@ -257,11 +257,11 @@ func TestRefTerms(t *testing.T) {
 }
 
 func TestRefTermsContainingKeywords(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		popts := ParserOptions{RegoVersion: regoVersion}
 
 		t.Run(regoVersion.String(), func(t *testing.T) {
-			for _, kw := range Keywords {
+			for _, kw := range KeywordsV2 {
 				t.Run(kw, func(t *testing.T) {
 					input := "foo." + kw
 					exp := RefTerm(VarTerm("foo"), StringTerm(kw))
@@ -363,7 +363,7 @@ func dropCapabilityFeature(caps *Capabilities, feature string) *Capabilities {
 }
 
 func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(regoVersion))
 		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
 		popts := ParserOptions{RegoVersion: regoVersion, Capabilities: caps}
@@ -637,11 +637,11 @@ func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
 }
 
 func TestCallRefTermsContainingKeywords(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		popts := ParserOptions{RegoVersion: regoVersion}
 
 		t.Run(regoVersion.String(), func(t *testing.T) {
-			for _, kw := range Keywords {
+			for _, kw := range KeywordsV2 {
 				t.Run(kw, func(t *testing.T) {
 					input := fmt.Sprintf("foo.%s(42)", kw)
 					exp := NewExpr([]*Term{RefTerm(VarTerm("foo"), StringTerm(kw)), NumberTerm("42")})
@@ -732,7 +732,7 @@ func TestCallRefTermsContainingKeywords(t *testing.T) {
 }
 
 func TestImportContainingKeywords(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		popts := ParserOptions{RegoVersion: regoVersion}
 
 		t.Run(regoVersion.String(), func(t *testing.T) {
@@ -838,7 +838,7 @@ func TestImportContainingKeywords(t *testing.T) {
 }
 
 func TestPackageContainingKeywords(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		popts := ParserOptions{RegoVersion: regoVersion}
 
 		t.Run(regoVersion.String(), func(t *testing.T) {
@@ -1890,12 +1890,13 @@ func TestKeywordAsRuleName(t *testing.T) {
 }
 
 func TestReservedKeywordAsRuleName(t *testing.T) {
-	// These keywords are reserved in every Rego version, so unless the declaration
-	// uses a v1-only keyword, the same error is expected in v0 and v1.
+	// decls are reported in every Rego version, v1Decls from v1 on, and v2Decls in v2;
+	// either because of a v1-only declaration form or a keyword only reserved in v2.
 	tests := []struct {
 		keyword string
 		decls   []string
 		v1Decls []string
+		v2Decls []string
 	}{
 		{
 			// `not (x)` is a negated group, so `not(x) := x` isn't reported here.
@@ -1923,6 +1924,15 @@ func TestReservedKeywordAsRuleName(t *testing.T) {
 			keyword: "import",
 			decls:   []string{`import := 1`, `import = 1`, `import(x) := x`, `default import := 1`},
 		},
+		{
+			// `and(x)` and `or(x)` are built-in calls, so the function form isn't reported here.
+			keyword: "and",
+			v2Decls: []string{`and := 1`, `and = 1`, `default and := 1`, `and if { true }`, `and contains 1`},
+		},
+		{
+			keyword: "or",
+			v2Decls: []string{`or := 1`, `or = 1`, `default or := 1`, `or if { true }`, `or contains 1`},
+		},
 	}
 
 	assert := func(t *testing.T, decl string, v RegoVersion, expected string) {
@@ -1940,7 +1950,7 @@ func TestReservedKeywordAsRuleName(t *testing.T) {
 		expected := tc.keyword + " keyword cannot be used for rule name"
 
 		for _, decl := range tc.decls {
-			for _, v := range []RegoVersion{RegoV0, RegoV1} {
+			for _, v := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 				t.Run(fmt.Sprintf("%v/%s", v, decl), func(t *testing.T) {
 					assert(t, decl, v, expected)
 				})
@@ -1948,8 +1958,16 @@ func TestReservedKeywordAsRuleName(t *testing.T) {
 		}
 
 		for _, decl := range tc.v1Decls {
-			t.Run("v1/"+decl, func(t *testing.T) {
-				assert(t, decl, RegoV1, expected)
+			for _, v := range []RegoVersion{RegoV1, RegoV2} {
+				t.Run(fmt.Sprintf("%v/%s", v, decl), func(t *testing.T) {
+					assert(t, decl, v, expected)
+				})
+			}
+		}
+
+		for _, decl := range tc.v2Decls {
+			t.Run("v2/"+decl, func(t *testing.T) {
+				assert(t, decl, RegoV2, expected)
 			})
 		}
 	}
@@ -1990,6 +2008,24 @@ func TestKeywordAsRuleNameFollowingImport(t *testing.T) {
 			module:      "package test\nimport future.keywords\nnot := 1",
 			regoVersion: RegoV0,
 			expected:    "not keyword cannot be used for rule name",
+		},
+		{
+			note:        "rego.v2 import, v1",
+			module:      "package test\nimport rego.v2\nand := 1",
+			regoVersion: RegoV1,
+			expected:    "and keyword cannot be used for rule name",
+		},
+		{
+			note:        "rego.v2 import, v0",
+			module:      "package test\nimport rego.v2\nif := 1",
+			regoVersion: RegoV0,
+			expected:    "if keyword cannot be used for rule name",
+		},
+		{
+			note:        "rego.v1 import, v2",
+			module:      "package test\nimport rego.v1\nor := 1",
+			regoVersion: RegoV2,
+			expected:    "or keyword cannot be used for rule name",
 		},
 	}
 
@@ -3604,6 +3640,62 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 			exp:    map[string]tokens.Token{"and": tokens.LogicalAnd},
 			absent: []string{"or"},
 		},
+		{
+			note:        "no import in v2",
+			regoVersion: RegoV2,
+			imp:         "",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+				"not":      tokens.Not,
+				"and":      tokens.LogicalAnd,
+				"or":       tokens.LogicalOr,
+			},
+		},
+		{
+			note:        "rego.v1 imported in v2",
+			regoVersion: RegoV2,
+			imp:         "import rego.v1",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+				"not":      tokens.Not,
+				"and":      tokens.LogicalAnd,
+				"or":       tokens.LogicalOr,
+			},
+		},
+		{
+			note:        "rego.v2 imported in v2",
+			regoVersion: RegoV2,
+			imp:         "import rego.v2",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+				"not":      tokens.Not,
+				"and":      tokens.LogicalAnd,
+				"or":       tokens.LogicalOr,
+			},
+		},
+		{
+			note:        "future keyword imported in v2",
+			regoVersion: RegoV2,
+			imp:         "import future.keywords.in",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+				"not":      tokens.Not,
+				"and":      tokens.LogicalAnd,
+				"or":       tokens.LogicalOr,
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -4227,6 +4319,7 @@ func TestRegoV2Import(t *testing.T) {
 		capabilities *Capabilities
 		module       string
 		expVersion   RegoVersion
+		expSpan      string
 		expErr       string
 	}{
 		{
@@ -4235,6 +4328,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if input.a and input.b`,
 			expVersion: RegoV1,
+			expSpan:    "v1v2",
 		},
 		{
 			note: "or",
@@ -4242,6 +4336,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if input.a or input.b`,
 			expVersion: RegoV1,
+			expSpan:    "v1v2",
 		},
 		{
 			note: "not body",
@@ -4249,6 +4344,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if not { input.a; input.b }`,
 			expVersion: RegoV1,
+			expSpan:    "v1v2",
 		},
 		{
 			note: "future.keywords.and also imported",
@@ -4257,6 +4353,7 @@ func TestRegoV2Import(t *testing.T) {
 				import future.keywords.and
 				p if input.a and input.b`,
 			expVersion: RegoV1,
+			expSpan:    "v1v2",
 		},
 		{
 			note: "rego.v1 also imported",
@@ -4265,6 +4362,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if input.a or input.b`,
 			expVersion: RegoV1,
+			expSpan:    "v1v2",
 		},
 		{
 			note:         "keywords not advertised in capabilities",
@@ -4273,6 +4371,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if input.a or input.b`,
 			expVersion: RegoV1,
+			expSpan:    "v1v2",
 		},
 		{
 			note:        "v0, v0 future keywords",
@@ -4284,6 +4383,7 @@ func TestRegoV2Import(t *testing.T) {
 					every y in input.ys { y } 
 				}`,
 			expVersion: RegoV0CompatV1,
+			expSpan:    "v0v2",
 		},
 		{
 			note:        "v0, logical keywords",
@@ -4292,6 +4392,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if not { input.a; input.b or input.c }`,
 			expVersion: RegoV0CompatV1,
+			expSpan:    "v0v2",
 		},
 		{
 			note:        "v0, rego.v1 also imported",
@@ -4301,6 +4402,7 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p if input.a and input.b`,
 			expVersion: RegoV0CompatV1,
+			expSpan:    "v0v2",
 		},
 		{
 			note:        "v0, v1 rules required",
@@ -4309,6 +4411,136 @@ func TestRegoV2Import(t *testing.T) {
 				import rego.v2
 				p { true }`,
 			expErr: "`if` keyword is required before rule body",
+		},
+		{
+			note:        "v0v1",
+			regoVersion: RegoV0CompatV1,
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV0CompatV1,
+			expSpan:    "v0v2",
+		},
+		{
+			note:         "v1, rego_v2 feature only",
+			capabilities: &Capabilities{Features: []string{FeatureRegoV1, FeatureRegoV2}},
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV1,
+			expSpan:    "v1v2",
+		},
+		{
+			note:         "v0, rego_v2 feature only",
+			regoVersion:  RegoV0,
+			capabilities: &Capabilities{Features: []string{FeatureRegoV2}},
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV0CompatV1,
+			expSpan:    "v0v2",
+		},
+		{
+			note:         "v0, rego.v1 with rego_v2 feature only",
+			regoVersion:  RegoV0,
+			capabilities: &Capabilities{Features: []string{FeatureRegoV2}},
+			module: `package test
+				import rego.v1
+				p contains x if { some x in input.xs }`,
+			expVersion: RegoV0CompatV1,
+			expSpan:    "v0v1",
+		},
+		{
+			note:        "v2, and",
+			regoVersion: RegoV2,
+			module: `package test
+				p if input.a and input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, or",
+			regoVersion: RegoV2,
+			module: `package test
+				p if input.a or input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, not body",
+			regoVersion: RegoV2,
+			module: `package test
+				p if not { input.a; input.b }`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, rego.v2 imported",
+			regoVersion: RegoV2,
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, rego.v1 imported",
+			regoVersion: RegoV2,
+			module: `package test
+				import rego.v1
+				p if input.a or input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, rego.v1 and rego.v2 imported",
+			regoVersion: RegoV2,
+			module: `package test
+				import rego.v1
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, future.keywords.and imported",
+			regoVersion: RegoV2,
+			module: `package test
+				import future.keywords.and
+				p if input.a and input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:         "v2, rego.v2 with rego_v2 feature only",
+			regoVersion:  RegoV2,
+			capabilities: &Capabilities{Features: []string{FeatureRegoV2}},
+			module: `package test
+				import rego.v2
+				p if input.a or input.b`,
+			expVersion: RegoV2,
+			expSpan:    "v2",
+		},
+		{
+			note:        "v2, v1 rules required",
+			regoVersion: RegoV2,
+			module: `package test
+				p { true }`,
+			expErr: "`if` keyword is required before rule body",
+		},
+		{
+			note:        "v2, and as var",
+			regoVersion: RegoV2,
+			module: `package test
+				p if { and := 1 }`,
+			expErr: "unexpected and keyword",
+		},
+		{
+			note:        "v2, or as var",
+			regoVersion: RegoV2,
+			module: `package test
+				p if { or := 1 }`,
+			expErr: "unexpected or keyword",
 		},
 		{
 			note: "trailing path",
@@ -4371,6 +4603,121 @@ func TestRegoV2Import(t *testing.T) {
 			}
 			if mod.RegoVersion() != tc.expVersion {
 				t.Fatalf("expected rego version %v but got %v", tc.expVersion, mod.RegoVersion())
+			}
+			if act := mod.RegoVersionSpan().String(); act != tc.expSpan {
+				t.Fatalf("expected rego version span %v but got %v", tc.expSpan, act)
+			}
+		})
+	}
+}
+
+func TestDirectiveImportsCannotBeAliased(t *testing.T) {
+	tests := []struct {
+		imp    string
+		expErr string
+	}{
+		{imp: "import rego.v1 as x", expErr: "`rego` imports cannot be aliased"},
+		{imp: "import rego.v2 as x", expErr: "`rego` imports cannot be aliased"},
+		{imp: "import future.keywords as x", expErr: "`future` imports cannot be aliased"},
+		{imp: "import future.keywords.in as x", expErr: "`future` imports cannot be aliased"},
+		{imp: "import future.keywords.and as x", expErr: "`future` imports cannot be aliased"},
+	}
+
+	for _, v := range []RegoVersion{RegoV0, RegoV0CompatV1, RegoV1, RegoV2} {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%v/%s", v, tc.imp), func(t *testing.T) {
+				_, err := ParseModuleWithOpts("test.rego", "package test\n"+tc.imp, ParserOptions{RegoVersion: v})
+				if errs, ok := err.(Errors); !ok || len(errs) != 1 {
+					t.Fatal("expected exactly one error but got:", err)
+				} else if errs[0].Code != ParseErr || errs[0].Message != tc.expErr {
+					t.Fatal("unexpected error:", err)
+				}
+			})
+		}
+	}
+}
+
+func TestNotBraceByRegoVersion(t *testing.T) {
+	// `not {x}` negates a body once `not` bodies are on, and a set literal otherwise.
+	// The two only differ in meaning when x is false.
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		module      string
+		expBody     bool
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+			module:      "package test\np { not {x} }",
+		},
+		{
+			note:        "v0, future.keywords.not",
+			regoVersion: RegoV0,
+			module:      "package test\nimport future.keywords.not\np { not {x} }",
+			expBody:     true,
+		},
+		{
+			note:        "v0, rego.v1",
+			regoVersion: RegoV0,
+			module:      "package test\nimport rego.v1\np if { not {x} }",
+		},
+		{
+			note:        "v0, rego.v2",
+			regoVersion: RegoV0,
+			module:      "package test\nimport rego.v2\np if { not {x} }",
+			expBody:     true,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+			module:      "package test\np if { not {x} }",
+		},
+		{
+			note:        "v1, future.keywords.not",
+			regoVersion: RegoV1,
+			module:      "package test\nimport future.keywords.not\np if { not {x} }",
+			expBody:     true,
+		},
+		{
+			note:        "v1, rego.v1",
+			regoVersion: RegoV1,
+			module:      "package test\nimport rego.v1\np if { not {x} }",
+		},
+		{
+			note:        "v1, rego.v2",
+			regoVersion: RegoV1,
+			module:      "package test\nimport rego.v2\np if { not {x} }",
+			expBody:     true,
+		},
+		{
+			note:        "v2",
+			regoVersion: RegoV2,
+			module:      "package test\np if { not {x} }",
+			expBody:     true,
+		},
+		{
+			note:        "v2, rego.v1",
+			regoVersion: RegoV2,
+			module:      "package test\nimport rego.v1\np if { not {x} }",
+			expBody:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{RegoVersion: tc.regoVersion})
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			x := VarTerm("x")
+			exp := NewExpr(SetTerm(x)).Complement()
+			if tc.expBody {
+				exp = NewExpr(&Not{Body: NewBody(NewExpr(x)), ExplicitBody: true})
+			}
+			if act := mod.Rules[0].Body[0]; !act.Equal(exp) {
+				t.Fatalf("expected %v (%T) but got %v (%T)", exp, exp.Terms, act, act.Terms)
 			}
 		})
 	}
@@ -11754,6 +12101,104 @@ func TestFutureKeywordActivationRoutes(t *testing.T) {
 				p if input.a or input.b`,
 			exp:         "input.a or input.b",
 			noImportErr: true,
+		},
+		{
+			note:        "v2, in",
+			regoVersion: RegoV2,
+			keyword:     "in",
+			specific: `package test
+				import future.keywords.in
+				p if 1 in [1, 2]`,
+			wildcard: `package test
+				import future.keywords
+				p if 1 in [1, 2]`,
+			noImport: `package test
+				p if 1 in [1, 2]`,
+			exp: "internal.member_2(1, [1, 2])",
+		},
+		{
+			note:        "v2, every",
+			regoVersion: RegoV2,
+			keyword:     "every",
+			specific: `package test
+				import future.keywords.every
+				p if every x in [1, 2] { x }`,
+			wildcard: `package test
+				import future.keywords
+				p if every x in [1, 2] { x }`,
+			noImport: `package test
+				p if every x in [1, 2] { x }`,
+			exp: "every x in [1, 2] { x }",
+		},
+		{
+			note:        "v2, contains",
+			regoVersion: RegoV2,
+			keyword:     "contains",
+			specific: `package test
+				import future.keywords.contains
+				p contains "a"`,
+			wildcard: `package test
+				import future.keywords
+				p contains "a"`,
+			noImport: `package test
+				p contains "a"`,
+			exp: "true",
+		},
+		{
+			note:        "v2, if",
+			regoVersion: RegoV2,
+			keyword:     "if",
+			specific: `package test
+				import future.keywords.if
+				p if { true }`,
+			wildcard: `package test
+				import future.keywords
+				p if { true }`,
+			noImport: `package test
+				p if { true }`,
+			exp: "true",
+		},
+		{
+			note:        "v2, not",
+			regoVersion: RegoV2,
+			keyword:     "not",
+			specific: `package test
+				import future.keywords.not
+				p if not {input.a; input.b}`,
+			wildcard: `package test
+				import future.keywords
+				p if not {input.a; input.b}`,
+			noImport: `package test
+				p if not {input.a; input.b}`,
+			exp: "not {input.a; input.b}",
+		},
+		{
+			note:        "v2, and",
+			regoVersion: RegoV2,
+			keyword:     "and",
+			specific: `package test
+				import future.keywords.and
+				p if input.a and input.b`,
+			wildcard: `package test
+				import future.keywords
+				p if input.a and input.b`,
+			noImport: `package test
+				p if input.a and input.b`,
+			exp: "input.a and input.b",
+		},
+		{
+			note:        "v2, or",
+			regoVersion: RegoV2,
+			keyword:     "or",
+			specific: `package test
+				import future.keywords.or
+				p if input.a or input.b`,
+			wildcard: `package test
+				import future.keywords
+				p if input.a or input.b`,
+			noImport: `package test
+				p if input.a or input.b`,
+			exp: "input.a or input.b",
 		},
 	}
 

@@ -47,6 +47,7 @@ type Opts struct {
 
 	// DropV0Imports instructs the formatter to drop all v0 imports from the module; i.e. 'rego.v1' and 'future.keywords' imports.
 	// Imports are only removed if [Opts.RegoVersion] makes them redundant.
+	// FIXME: Deprecate and replace with DropRedundantImports?
 	DropV0Imports bool
 
 	// SkipDefensiveCopying, if true, will avoid deep-copying the AST before formatting it.

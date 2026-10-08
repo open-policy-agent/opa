@@ -46,7 +46,7 @@ func (mod *Module) AppendText(buf []byte) ([]byte, error) {
 	if len(mod.Rules) > 0 {
 		for _, rule := range mod.Rules {
 			buf = append(buf, '\n')
-			if buf, err = rule.appendWithOpts(toStringOpts{regoVersion: mod.regoVersion}, buf); err != nil {
+			if buf, err = rule.appendWithOpts(toStringOpts{regoVersion: mod.regoVersion.Max()}, buf); err != nil {
 				return nil, err
 			}
 		}
@@ -118,7 +118,7 @@ func (rule *Rule) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) 
 
 	if !rule.Default {
 		switch opts.RegoVersion() {
-		case RegoV1, RegoV0CompatV1:
+		case RegoV0CompatV1, RegoV1, RegoV2:
 			buf = append(buf, " if { "...)
 		default:
 			buf = append(buf, " { "...)

@@ -1247,7 +1247,7 @@ func (c *Compiler) buildRequiredCapabilities() {
 			case path.HasPrefix(futureKeywordsPrefix):
 				if len(path) == 2 {
 					if c.moduleIsRegoV1(c.Modules[name]) {
-						for kw := range futureKeywords {
+						for kw := range futureKeywordsV1 {
 							// Don't output experimental keywords for wildcard imports
 							if _, internal := experimentalFutureKeywords[kw]; internal {
 								continue
@@ -1265,7 +1265,7 @@ func (c *Compiler) buildRequiredCapabilities() {
 				} else {
 					kw := string(path[2].Value.(String))
 					if c.moduleIsRegoV1(c.Modules[name]) {
-						for allowedKw := range futureKeywords {
+						for allowedKw := range futureKeywordsV1 {
 							if kw == allowedKw {
 								keywords[kw] = struct{}{}
 								break
@@ -1997,7 +1997,7 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 	}
 
 	for _, name := range c.sorted {
-		if c.strict || c.Modules[name].regoV1Compatible() {
+		if c.strict || c.Modules[name].regoVersion.IsCompatible(RegoV1) {
 			c.errRecoverable(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
 		}
 	}
@@ -2253,7 +2253,7 @@ func (c *Compiler) checkKeywordOverrides() {
 }
 
 func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
-	if mod.regoVersion == RegoUndefined {
+	if mod.regoVersion.IsUndefined() {
 		switch c.defaultRegoVersion {
 		case RegoUndefined:
 			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
@@ -2263,11 +2263,11 @@ func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
 		}
 		return false
 	}
-	return mod.regoVersion == RegoV1
+	return mod.regoVersion.Min() == RegoV1
 }
 
 func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
-	if mod.regoVersion == RegoUndefined {
+	if mod.regoVersion.IsUndefined() {
 		switch c.defaultRegoVersion {
 		case RegoUndefined:
 			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
@@ -2277,7 +2277,7 @@ func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
 		}
 		return false
 	}
-	return mod.regoV1Compatible()
+	return mod.regoVersion.IsCompatible(RegoV1)
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.

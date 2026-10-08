@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -70,8 +71,8 @@ func assertSpan(t *testing.T, s RegoVersionSpan, exp expSpan) {
 	if s.String() != exp.str {
 		t.Errorf("String(): expected %q, got %q", exp.str, s.String())
 	}
-	if s.RegoVersion() != exp.legacy {
-		t.Errorf("RegoVersion(): expected %s, got %s", exp.legacy, s.RegoVersion())
+	if s.regoVersion() != exp.legacy {
+		t.Errorf("RegoVersion(): expected %s, got %s", exp.legacy, s.regoVersion())
 	}
 	if s.Int() != exp.i {
 		t.Errorf("Int(): expected %d, got %d", exp.i, s.Int())
@@ -234,4 +235,83 @@ func TestRegoVersionSpanOf(t *testing.T) {
 
 func TestRegoVersionSpanZeroValue(t *testing.T) {
 	assertSpan(t, RegoVersionSpan{}, undefinedSpan)
+}
+
+func TestRegoVersionSpanRaisedTo(t *testing.T) {
+	tests := []struct {
+		note   string
+		span   RegoVersionSpan
+		v      RegoVersion
+		exp    expSpan
+		expErr string
+	}{
+		{note: "v0 to v0", span: RegoVersionSpanOf(RegoV0), v: RegoV0, exp: expSpan{min: RegoV0, max: RegoV0, str: "v0", legacy: RegoV0, i: 0}},
+		{note: "v0 to v0v1", span: RegoVersionSpanOf(RegoV0), v: RegoV0CompatV1, exp: expSpan{min: RegoV0, max: RegoV1, str: "v0v1", legacy: RegoV0CompatV1, i: 0}},
+		{note: "v0 to v1", span: RegoVersionSpanOf(RegoV0), v: RegoV1, exp: expSpan{min: RegoV0, max: RegoV1, str: "v0v1", legacy: RegoV0CompatV1, i: 0}},
+		{note: "v0 to v2", span: RegoVersionSpanOf(RegoV0), v: RegoV2, exp: expSpan{min: RegoV0, max: RegoV2, str: "v0v2", legacy: RegoV0CompatV1, i: 0}},
+		{note: "v0v1 to v0v1", span: RegoVersionSpanOf(RegoV0CompatV1), v: RegoV0CompatV1, exp: expSpan{min: RegoV0, max: RegoV1, str: "v0v1", legacy: RegoV0CompatV1, i: 0}},
+		{note: "v0v2 to v0v1", span: RegoVersionSpan{RegoV0, RegoV2}, v: RegoV0CompatV1, exp: expSpan{min: RegoV0, max: RegoV2, str: "v0v2", legacy: RegoV0CompatV1, i: 0}},
+		{note: "v0v1 to v2", span: RegoVersionSpanOf(RegoV0CompatV1), v: RegoV2, exp: expSpan{min: RegoV0, max: RegoV2, str: "v0v2", legacy: RegoV0CompatV1, i: 0}},
+		{note: "v1 to v0", span: RegoVersionSpanOf(RegoV1), v: RegoV0, exp: expSpan{min: RegoV1, max: RegoV1, str: "v1", legacy: RegoV1, i: 1}},
+		{note: "v1 to v1", span: RegoVersionSpanOf(RegoV1), v: RegoV1, exp: expSpan{min: RegoV1, max: RegoV1, str: "v1", legacy: RegoV1, i: 1}},
+		{note: "v1 to v2", span: RegoVersionSpanOf(RegoV1), v: RegoV2, exp: expSpan{min: RegoV1, max: RegoV2, str: "v1v2", legacy: RegoV1, i: 1}},
+		{note: "v2 to v1", span: RegoVersionSpanOf(RegoV2), v: RegoV1, exp: expSpan{min: RegoV2, max: RegoV2, str: "v2", legacy: RegoV2, i: 2}},
+		{note: "v2 to v2", span: RegoVersionSpanOf(RegoV2), v: RegoV2, exp: expSpan{min: RegoV2, max: RegoV2, str: "v2", legacy: RegoV2, i: 2}},
+		{note: "v1 to v0v1", span: RegoVersionSpanOf(RegoV1), v: RegoV0CompatV1, expErr: "invalid rego-version span [v1, v0v1]: bounds must be v0, v1 or v2"},
+		{note: "v2 to v0v1", span: RegoVersionSpanOf(RegoV2), v: RegoV0CompatV1, expErr: "invalid rego-version span [v2, v0v1]: bounds must be v0, v1 or v2"},
+		{note: "v1 to undefined", span: RegoVersionSpanOf(RegoV1), v: RegoUndefined, exp: expSpan{min: RegoV1, max: RegoV1, str: "v1", legacy: RegoV1, i: 1}},
+		{note: "v0v1 to undefined", span: RegoVersionSpanOf(RegoV0CompatV1), v: RegoUndefined, exp: expSpan{min: RegoV0, max: RegoV1, str: "v0v1", legacy: RegoV0CompatV1, i: 0}},
+		{note: "undefined to undefined", span: RegoVersionSpan{}, v: RegoUndefined, exp: undefinedSpan},
+		{note: "undefined to v0", span: RegoVersionSpan{}, v: RegoV0, exp: expSpan{min: RegoV0, max: RegoV0, str: "v0", legacy: RegoV0, i: 0}},
+		{note: "undefined to v0v1", span: RegoVersionSpan{}, v: RegoV0CompatV1, exp: expSpan{min: RegoV0, max: RegoV1, str: "v0v1", legacy: RegoV0CompatV1, i: 0}},
+		{note: "undefined to v1", span: RegoVersionSpan{}, v: RegoV1, exp: expSpan{min: RegoV1, max: RegoV1, str: "v1", legacy: RegoV1, i: 1}},
+		{note: "undefined to v2", span: RegoVersionSpan{}, v: RegoV2, exp: expSpan{min: RegoV2, max: RegoV2, str: "v2", legacy: RegoV2, i: 2}},
+		{note: "undefined to unknown", span: RegoVersionSpan{}, v: RegoVersion(99), expErr: "invalid rego-version span [unknown, unknown]: bounds must be v0, v1 or v2"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			s, err := tc.span.RaisedTo(tc.v)
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got span %s", tc.expErr, s)
+				}
+				if err.Error() != tc.expErr {
+					t.Fatalf("expected error %q, got %q", tc.expErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			assertSpan(t, s, tc.exp)
+		})
+	}
+}
+
+func TestRegoVersionSpanIsCompatible(t *testing.T) {
+	versions := []RegoVersion{RegoUndefined, RegoV0, RegoV0CompatV1, RegoV1, RegoV2}
+
+	tests := []struct {
+		span RegoVersionSpan
+		exp  []RegoVersion
+	}{
+		{span: RegoVersionSpan{}},
+		{span: RegoVersionSpanOf(RegoV0), exp: []RegoVersion{RegoV0}},
+		{span: RegoVersionSpanOf(RegoV0CompatV1), exp: []RegoVersion{RegoV0, RegoV0CompatV1, RegoV1}},
+		{span: RegoVersionSpan{RegoV0, RegoV2}, exp: []RegoVersion{RegoV0, RegoV0CompatV1, RegoV1, RegoV2}},
+		{span: RegoVersionSpanOf(RegoV1), exp: []RegoVersion{RegoV1}},
+		{span: RegoVersionSpan{RegoV1, RegoV2}, exp: []RegoVersion{RegoV1, RegoV2}},
+		{span: RegoVersionSpanOf(RegoV2), exp: []RegoVersion{RegoV2}},
+	}
+
+	for _, tc := range tests {
+		for _, v := range versions {
+			t.Run(tc.span.String()+"/"+v.String(), func(t *testing.T) {
+				if exp, act := slices.Contains(tc.exp, v), tc.span.IsCompatible(v); exp != act {
+					t.Fatalf("expected %v, got %v", exp, act)
+				}
+			})
+		}
+	}
 }

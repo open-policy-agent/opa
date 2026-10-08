@@ -297,18 +297,26 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	allowedFutureKeywords := map[string]tokens.Token{}
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
-		if !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
+	if v := p.po.EffectiveRegoVersion(); v == RegoV1 || v == RegoV2 {
+		feature := FeatureRegoV1
+		if v == RegoV2 {
+			feature = FeatureRegoV2
+		}
+		if !p.po.Capabilities.ContainsFeature(feature) {
 			return nil, nil, Errors{
-				&Error{Code: ParseErr, Message: "illegal capabilities: rego_v1 feature required for parsing v1 Rego"},
+				&Error{Code: ParseErr, Message: fmt.Sprintf("illegal capabilities: %s feature required for parsing %s Rego", feature, v)},
 			}
 		}
 
 		// rego-v1 includes all v0 future keywords in the default language definition
 		maps.Copy(allowedFutureKeywords, futureKeywordsV0)
+		if v == RegoV2 {
+			// rego-v2 also includes all v1 future keywords
+			maps.Copy(allowedFutureKeywords, futureKeywordsV1)
+		}
 
 		for _, kw := range p.po.Capabilities.FutureKeywords {
-			if tok, ok := futureKeywords[kw]; ok {
+			if tok, ok := futureKeywordsV1[kw]; ok {
 				allowedFutureKeywords[kw] = tok
 			} else {
 				// For sake of error reporting, we still need to check that keywords in capabilities are known in v0
@@ -355,6 +363,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				}
 				selected[kw] = tok
 			}
+		} else if p.po.EffectiveRegoVersion() == RegoV2 {
+			// For now, v2 contains all known future keywords
+			selected = map[string]tokens.Token{}
+			maps.Copy(selected, allFutureKeywords)
 		} else {
 			selected = make(map[string]tokens.Token, len(p.po.FutureKeywords))
 		}
@@ -3968,11 +3980,7 @@ func convertYAMLMapKeyTypes(x any, path []string) (any, error) {
 
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
-var futureKeywords = map[string]tokens.Token{
-	"not": tokens.Not,
-	"and": tokens.LogicalAnd,
-	"or":  tokens.LogicalOr,
-}
+var futureKeywords = map[string]tokens.Token{}
 
 // futureKeywordsV0 is the source of truth for future keywords that were
 // not yet a standard part of Rego in v0, and required importing.
@@ -3982,6 +3990,15 @@ var futureKeywordsV0 = map[string]tokens.Token{
 	"contains": tokens.Contains,
 	"if":       tokens.If,
 }
+
+// futureKeywordsV1 is the source of truth for future keywords in v1
+var futureKeywordsV1 = map[string]tokens.Token{
+	"not": tokens.Not,
+	"and": tokens.LogicalAnd,
+	"or":  tokens.LogicalOr,
+}
+
+var futureKeywordsV2 = map[string]tokens.Token{}
 
 var allFutureKeywords map[string]tokens.Token
 
@@ -4009,7 +4026,10 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 	case RegoV0, RegoV0CompatV1:
 		_, yes = futureKeywordsV0[s]
 	case RegoV1:
-		_, yes = futureKeywords[s]
+		_, yes = futureKeywordsV1[s]
+	case RegoV2:
+		// v2 currently has no future keywords
+		return false
 	}
 
 	return yes
@@ -4072,13 +4092,8 @@ func (p *Parser) regoImport(imp *Import) {
 }
 
 func (p *Parser) regoV1Import(imp *Import) {
-	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
+	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV1) && !p.po.Capabilities.ContainsFeature(FeatureRegoV2) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV1CompatibleRef)
-		return
-	}
-
-	if p.po.EffectiveRegoVersion() == RegoV1 {
-		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
 
@@ -4087,11 +4102,16 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	p.regoV1Compatible()
+	if p.po.EffectiveRegoVersion() == RegoV1 {
+		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
+		return
+	}
+
+	p.addKeywords(futureKeywordsV0)
 }
 
 func (p *Parser) regoV2Import(imp *Import) {
-	if !p.po.Capabilities.ContainsFeature(FeatureRegoV2Import) {
+	if !p.po.Capabilities.ContainsFeature(FeatureRegoV2Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV2) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV2CompatibleRef)
 		return
 	}
@@ -4101,22 +4121,18 @@ func (p *Parser) regoV2Import(imp *Import) {
 		return
 	}
 
-	if p.po.EffectiveRegoVersion() != RegoV1 {
-		// v2 implies v1
-		p.regoV1Compatible()
+	if p.po.EffectiveRegoVersion() == RegoV2 {
+		// We're parsing for Rego v2, where the 'rego.v2' import is a no-op.
+		return
 	}
 
-	for kw, tok := range futureKeywords {
-		p.s.s.AddKeyword(kw, tok)
-	}
-
+	p.addKeywords(futureKeywordsV0)
+	p.addKeywords(futureKeywordsV1)
 	p.notBodies = true
 }
 
-// regoV1Compatible imports all future keywords with the rego.v1 import.
-func (p *Parser) regoV1Compatible() {
-	p.s.s.SetRegoV1Compatible()
-	for kw, tok := range futureKeywordsV0 {
+func (p *Parser) addKeywords(keywords map[string]tokens.Token) {
+	for kw, tok := range keywords {
 		p.s.s.AddKeyword(kw, tok)
 	}
 }
@@ -4124,6 +4140,7 @@ func (p *Parser) regoV1Compatible() {
 func init() {
 	allFutureKeywords = map[string]tokens.Token{}
 	maps.Copy(allFutureKeywords, futureKeywords)
+	maps.Copy(allFutureKeywords, futureKeywordsV1)
 	maps.Copy(allFutureKeywords, futureKeywordsV0)
 
 	allFutureKeywordTokens = make(map[tokens.Token]struct{}, len(allFutureKeywords))

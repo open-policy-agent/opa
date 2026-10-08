@@ -65,17 +65,17 @@ func RegoVersionFromInt(i int) RegoVersion {
 	return RegoV0
 }
 
-// level returns the language level of a baseline version.
-func (v RegoVersion) level() (int, bool) {
+// level returns the ordered language level of a baseline version, and -1 for any other value.
+func (v RegoVersion) level() int {
 	switch v {
 	case RegoV0:
-		return 0, true
+		return 0
 	case RegoV1:
-		return 1, true
+		return 1
 	case RegoV2:
-		return 2, true
+		return 2
 	default:
-		return 0, false
+		return -1
 	}
 }
 
@@ -101,10 +101,9 @@ func NewRegoVersionSpan(lo, hi RegoVersion) (RegoVersionSpan, error) {
 		hi = lo
 	}
 
-	l, okl := lo.level()
-	h, okh := hi.level()
+	l, h := lo.level(), hi.level()
 	switch {
-	case !okl || !okh:
+	case l < 0 || h < 0:
 		return RegoVersionSpan{}, fmt.Errorf("invalid rego-version span [%s, %s]: bounds must be v0, v1 or v2", lo, hi)
 	case l > h:
 		return RegoVersionSpan{}, fmt.Errorf("invalid rego-version span [%s, %s]: min > max", lo, hi)
@@ -122,6 +121,29 @@ func RegoVersionSpanOf(v RegoVersion) RegoVersionSpan {
 	return RegoVersionSpan{v, v}
 }
 
+// RaisedTo returns s with Max raised to v. s is returned unchanged if v is undefined or Max is already at or above v.
+// An undefined s yields the span of v. RegoV0CompatV1 raises Max to RegoV1, and requires Min to be RegoV0.
+func (s RegoVersionSpan) RaisedTo(v RegoVersion) (RegoVersionSpan, error) {
+	if v == RegoUndefined {
+		return s, nil
+	}
+	if v == RegoV0CompatV1 {
+		if s.IsUndefined() {
+			return RegoVersionSpanOf(v), nil
+		}
+		if s.min == RegoV0 {
+			v = RegoV1
+		}
+	}
+	if s.IsUndefined() {
+		return NewRegoVersionSpan(v, v)
+	}
+	if l := v.level(); l >= 0 && l < s.max.level() {
+		return s, nil
+	}
+	return NewRegoVersionSpan(s.min, v)
+}
+
 func (s RegoVersionSpan) Min() RegoVersion {
 	return s.min
 }
@@ -136,8 +158,7 @@ func (s RegoVersionSpan) IsUndefined() bool {
 
 // RegoVersion returns the legacy single value: RegoV0CompatV1 for [v0, v1] and [v0, v2],
 // RegoV1 for [v1, v2], and the bound itself when min equals max.
-// FIXME: Do w need this?
-func (s RegoVersionSpan) RegoVersion() RegoVersion {
+func (s RegoVersionSpan) regoVersion() RegoVersion {
 	switch {
 	case s.min == s.max:
 		return s.min
@@ -145,6 +166,16 @@ func (s RegoVersionSpan) RegoVersion() RegoVersion {
 		return RegoV0CompatV1
 	}
 	return s.min
+}
+
+// IsCompatible reports whether v lies within s. RegoV0CompatV1 requires both RegoV0 and RegoV1.
+func (s RegoVersionSpan) IsCompatible(v RegoVersion) bool {
+	if v == RegoV0CompatV1 {
+		return s.IsCompatible(RegoV0) && s.IsCompatible(RegoV1)
+	}
+
+	l := v.level()
+	return l >= 0 && s.min.level() <= l && l <= s.max.level()
 }
 
 // Int returns the integer form of Min, as recorded in bundle manifests and the store.

@@ -4284,7 +4284,7 @@ func TestActivate_LogicalKeywords(t *testing.T) {
 		{
 			note:         "capabilities without rego_v2_import",
 			storedModule: v2ImportModule,
-			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import),
+			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import, ast.FeatureRegoV2),
 			expErrs:      []string{"rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities"},
 		},
 	}
