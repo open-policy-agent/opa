@@ -236,6 +236,7 @@ clean: wasm-lib-clean
 .PHONY: fuzz
 fuzz:
 	go test ./ast -fuzz FuzzParseStatementsAndCompileModules -fuzztime ${FUZZ_TIME} -v -run '^$$'
+	go test ./v1/ast -fuzz FuzzCompilerRuleReuse -fuzztime ${FUZZ_TIME} -v -run '^$$'
 
 ######################################################
 #
