@@ -68,6 +68,7 @@ type Downloader struct {
 	lazyLoadingMode    bool
 	bundleName         string
 	bundleParserOpts   ast.ParserOptions
+	ruleReuseFrom      func() *ast.Compiler
 }
 
 type supersededETag struct {
@@ -141,6 +142,13 @@ func (d *Downloader) WithLazyLoadingMode(yes bool) *Downloader {
 // WithBundleName specifies the name of the downloaded bundle.
 func (d *Downloader) WithBundleName(bundleName string) *Downloader {
 	d.bundleName = bundleName
+	return d
+}
+
+// WithRuleReuse sets the compiler to reuse rules from, see bundle.Reader.WithRuleReuse.
+// Experimental.
+func (d *Downloader) WithRuleReuse(current func() *ast.Compiler) *Downloader {
+	d.ruleReuseFrom = current
 	return d
 }
 
@@ -391,7 +399,8 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				WithLazyLoadingMode(d.lazyLoadingMode).
 				WithBundleName(d.bundleName).
 				WithBundlePersistence(d.persist).
-				WithLegacyManifestPlacement(d.logger.Warn)
+				WithLegacyManifestPlacement(d.logger.Warn).
+				WithRuleReuse(d.ruleReuseFrom)
 
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
