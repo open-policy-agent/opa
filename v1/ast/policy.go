@@ -231,6 +231,8 @@ type (
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
 		regoVersion RegoVersionSpan
+		reusable    bool    // compiled by Compiler.WithRuleReuse, its rules reusable
+		reuseKey    RuleKey // set by the parser, see moduleKey
 		// unparsed holds annotations recorded before locations were dropped; nil means use the rows.
 		unparsed []unparsedAnnotation
 	}
@@ -275,6 +277,7 @@ type (
 
 		Default       bool `json:"default,omitempty"`
 		generatedBody bool
+		reuseKey      RuleKey // set by the parser, see reuseKey
 	}
 
 	// Head represents the head of a rule.
