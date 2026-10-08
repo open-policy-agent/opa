@@ -99,8 +99,7 @@ func getRulesWithDependencies(compiler *ast.Compiler, ref ast.Ref) []*ast.Rule {
 }
 
 func inScope(rule *ast.Rule, scopes []ast.Ref) bool {
-	path := rule.Module.Package.Path
-	return slices.ContainsFunc(scopes, path.HasPrefix)
+	return slices.ContainsFunc(scopes, rule.Module.Package.Path.HasPrefix)
 }
 
 func transitiveDependencies(compiler *ast.Compiler, rule *ast.Rule, deps map[*ast.Rule]struct{}) {
