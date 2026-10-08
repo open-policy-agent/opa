@@ -10,6 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -399,29 +400,44 @@ func BenchmarkSplitLenVsStringsCount(b *testing.B) {
 	})
 }
 
-// Compared with the patricia trie it replaced:
+// With an inter-query value cache, compared with matching without a trie on
+// every call, which is what an evaluation without one still does:
 //
-//	                            trie                          sort
-//	n=10/m=10/common=0          1162 ns       4104 B/op       208 ns       160 B/op
-//	n=10/m=1000/common=0        7200 ns       4600 B/op     13189 ns       160 B/op
-//	n=10/m=1000/common=32      25510 ns       5104 B/op     13850 ns       160 B/op
-//	n=1000/m=10/common=0      133860 ns     422943 B/op     27250 ns     16384 B/op
-//	n=1000/m=1000/common=32   186610 ns     420352 B/op     58930 ns     16384 B/op
-//	n=100000/m=1000/common=0  22341381 ns 31873430 B/op   9194262 ns   1605632 B/op
-//
-// The trie allocated a node per string on every call.
-func BenchmarkAnyStartsWithAny(b *testing.B) {
-	for _, n := range []int{10, 1000, 100000} {
-		for _, m := range []int{10, 1000} {
+//	                             no trie                       cached trie
+//	n=1/m=1000/common=0           3382 ns        49 B/op         64 ns        0 B/op
+//	n=1/m=100000/common=0       334400 ns        49 B/op         83 ns        1 B/op
+//	n=100/m=1000/common=0        25832 ns     18320 B/op       4118 ns     1864 B/op
+//	n=10000/m=10/common=0       646000 ns    164147 B/op     263800 ns   163942 B/op
+//	n=10000/m=100000/common=0 10257000 ns   1769574 B/op    1797000 ns   191488 B/op
+func BenchmarkAnyPrefixMatch(b *testing.B) {
+	for _, n := range []int{1, 100, 10000} {
+		for _, m := range []int{10, 1000, 100000} {
 			for _, common := range []int{0, 32} {
 				strs, prefixes := generateAnyStartsWithAnyInput(n, m, common)
-				b.Run(fmt.Sprintf("n=%d/m=%d/common=%d", n, m, common), func(b *testing.B) {
-					for b.Loop() {
-						if anyStartsWithAny(slices.Clone(strs), prefixes) {
-							b.Fatal("expected no match")
+				search := stringsArray(strs)
+				if n == 1 {
+					// One string, the usual shape in a rule body, is passed as it is.
+					search = ast.StringTerm(strs[0])
+				}
+				operands := []*ast.Term{search, stringsArray(prefixes)}
+				for _, cached := range []bool{false, true} {
+					b.Run(fmt.Sprintf("n=%d/m=%d/common=%d/cached=%v", n, m, common, cached), func(b *testing.B) {
+						bctx := BuiltinContext{}
+						if cached {
+							bctx.InterQueryBuiltinValueCache = cache.NewInterQueryValueCache(b.Context(), &cache.Config{})
 						}
-					}
-				})
+						for b.Loop() {
+							if err := builtinAnyPrefixMatch(bctx, operands, func(r *ast.Term) error {
+								if r.Value.Compare(ast.Boolean(false)) != 0 {
+									b.Fatal("expected no match")
+								}
+								return nil
+							}); err != nil {
+								b.Fatal(err)
+							}
+						}
+					})
+				}
 			}
 		}
 	}
