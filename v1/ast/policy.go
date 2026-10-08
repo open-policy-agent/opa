@@ -200,6 +200,7 @@ type (
 		Comments    []*Comment     `json:"comments,omitempty"`
 		stmts       []Statement
 		regoVersion RegoVersion
+		reusable    bool // compiled by Compiler.WithRuleReuse, its rules reusable
 	}
 
 	// Comment contains the raw text from the comment in the definition.
