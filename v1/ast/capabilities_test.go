@@ -608,15 +608,15 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 			`,
 			version: "1.20.0",
 		},
-		//{
-		//	note:        "keywords (wildcard import, v2 module)",
-		//	regoVersion: RegoV2,
-		//	module: `
-		//		package x
-		//		import future.keywords
-		//	`,
-		//	version: "1.22.0",
-		//},
+		{
+			note:        "keywords (wildcard import, v2 module)",
+			regoVersion: RegoV2,
+			module: `
+				package x
+				import future.keywords
+			`,
+			version: "1.22.0",
+		},
 	}
 
 	for _, tc := range tests {

@@ -4002,6 +4002,18 @@ var futureKeywordsV2 = map[string]tokens.Token{}
 
 var allFutureKeywords map[string]tokens.Token
 
+// futureKeywordsForBaseline returns the future keywords a module parsed at baseline v can import.
+func futureKeywordsForBaseline(v RegoVersion) map[string]tokens.Token {
+	switch v {
+	case RegoV1:
+		return futureKeywordsV1
+	case RegoV2:
+		return futureKeywordsV2
+	default:
+		return allFutureKeywords
+	}
+}
+
 // experimentalFutureKeywords are future keywords that exist in the parser but are
 // intentionally hidden from the default capabilities advertisement.
 // They are only activated when a policy imports them AND the active

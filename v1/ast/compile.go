@@ -1235,49 +1235,32 @@ func (c *Compiler) buildRequiredCapabilities() {
 	keywords := map[string]struct{}{}
 
 	for _, name := range c.sorted {
+		baseline := c.moduleRegoVersion(c.Modules[name]).Min()
 		for _, imp := range c.imports[name] {
 			path := imp.Path.Value.(Ref)
 			switch {
 			case path.Equal(RegoV1CompatibleRef):
-				if !c.moduleIsRegoV1(c.Modules[name]) {
+				if baseline.level() < RegoV1.level() {
 					features[FeatureRegoV1Import] = struct{}{}
 				}
 			case path.Equal(RegoV2CompatibleRef):
-				features[FeatureRegoV2Import] = struct{}{}
+				if baseline.level() < RegoV2.level() {
+					features[FeatureRegoV2Import] = struct{}{}
+				}
 			case path.HasPrefix(futureKeywordsPrefix):
+				importable := futureKeywordsForBaseline(baseline)
 				if len(path) == 2 {
-					if c.moduleIsRegoV1(c.Modules[name]) {
-						for kw := range futureKeywordsV1 {
-							// Don't output experimental keywords for wildcard imports
-							if _, internal := experimentalFutureKeywords[kw]; internal {
-								continue
-							}
-							keywords[kw] = struct{}{}
+					for kw := range importable {
+						// Don't output experimental keywords for wildcard imports
+						if _, internal := experimentalFutureKeywords[kw]; internal {
+							continue
 						}
-					} else {
-						for kw := range allFutureKeywords {
-							if _, internal := experimentalFutureKeywords[kw]; internal {
-								continue
-							}
-							keywords[kw] = struct{}{}
-						}
+						keywords[kw] = struct{}{}
 					}
 				} else {
 					kw := string(path[2].Value.(String))
-					if c.moduleIsRegoV1(c.Modules[name]) {
-						for allowedKw := range futureKeywordsV1 {
-							if kw == allowedKw {
-								keywords[kw] = struct{}{}
-								break
-							}
-						}
-					} else {
-						for allowedKw := range allFutureKeywords {
-							if kw == allowedKw {
-								keywords[kw] = struct{}{}
-								break
-							}
-						}
+					if _, ok := importable[kw]; ok {
+						keywords[kw] = struct{}{}
 					}
 				}
 			}
@@ -1291,9 +1274,12 @@ func (c *Compiler) buildRequiredCapabilities() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 
-		if c.moduleIsRegoV1(mod) {
+		switch c.moduleRegoVersion(mod).Min() {
+		case RegoV2:
+			features[FeatureRegoV2] = struct{}{}
+		case RegoV1:
 			features[FeatureRegoV1] = struct{}{}
-		} else {
+		default:
 			for _, rule := range mod.Rules {
 				refLen := len(rule.Head.Reference)
 				if refLen >= 3 {
@@ -1997,7 +1983,7 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 	}
 
 	for _, name := range c.sorted {
-		if c.strict || c.Modules[name].regoVersion.IsCompatible(RegoV1) {
+		if c.strict || c.moduleIsRegoV1Compatible(c.Modules[name]) {
 			c.errRecoverable(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
 		}
 	}
@@ -2205,8 +2191,10 @@ func (c *Compiler) checkImports() {
 	modules := make([]*Module, 0, len(c.Modules))
 
 	supportsRegoV1Import := c.capabilities.ContainsFeature(FeatureRegoV1Import) ||
-		c.capabilities.ContainsFeature(FeatureRegoV1)
-	supportsRegoV2Import := c.capabilities.ContainsFeature(FeatureRegoV2Import)
+		c.capabilities.ContainsFeature(FeatureRegoV1) ||
+		c.capabilities.ContainsFeature(FeatureRegoV2)
+	supportsRegoV2Import := c.capabilities.ContainsFeature(FeatureRegoV2Import) ||
+		c.capabilities.ContainsFeature(FeatureRegoV2)
 
 	for _, name := range c.sorted {
 		for _, imp := range c.Modules[name].Imports {
@@ -2252,32 +2240,19 @@ func (c *Compiler) checkKeywordOverrides() {
 	}
 }
 
-func (c *Compiler) moduleIsRegoV1(mod *Module) bool {
-	if mod.regoVersion.IsUndefined() {
-		switch c.defaultRegoVersion {
-		case RegoUndefined:
-			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
-			return false
-		case RegoV1:
-			return true
-		}
-		return false
+// moduleRegoVersion returns the rego-version span of mod, falling back to the compiler's default.
+func (c *Compiler) moduleRegoVersion(mod *Module) RegoVersionSpan {
+	if !mod.regoVersion.IsUndefined() {
+		return mod.regoVersion
 	}
-	return mod.regoVersion.Min() == RegoV1
+	if c.defaultRegoVersion == RegoUndefined {
+		c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
+	}
+	return RegoVersionSpanOf(c.defaultRegoVersion)
 }
 
 func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
-	if mod.regoVersion.IsUndefined() {
-		switch c.defaultRegoVersion {
-		case RegoUndefined:
-			c.err(NewError(CompileErr, mod.Package.Loc(), "cannot determine rego version for module"))
-			return false
-		case RegoV1, RegoV0CompatV1:
-			return true
-		}
-		return false
-	}
-	return mod.regoVersion.IsCompatible(RegoV1)
+	return c.moduleRegoVersion(mod).Max().level() >= RegoV1.level()
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.
@@ -2417,7 +2392,7 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 					cannotSpeakStringPrefixRefs = false
 				case FeatureRefHeads:
 					cannotSpeakGeneralRefs = false
-				case FeatureRegoV1:
+				case FeatureRegoV1, FeatureRegoV2:
 					cannotSpeakStringPrefixRefs = false
 					cannotSpeakGeneralRefs = false
 				}
