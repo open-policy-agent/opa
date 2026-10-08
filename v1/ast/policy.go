@@ -352,6 +352,7 @@ type (
 )
 
 // SetModuleRegoVersion sets the RegoVersion for the Module.
+//
 // Deprecated: use Module.SetRegoVersionSpan instead.
 func SetModuleRegoVersion(mod *Module, v RegoVersion) {
 	mod.SetRegoVersion(v)
@@ -442,6 +443,7 @@ func (mod *Module) RuleSet(name Var) RuleSet {
 }
 
 // RegoVersion returns the RegoVersion for the module.
+//
 // Deprecated: Use Module.RegoVersionSpan instead.
 func (mod *Module) RegoVersion() RegoVersion {
 	return mod.regoVersion.regoVersion()
@@ -449,6 +451,7 @@ func (mod *Module) RegoVersion() RegoVersion {
 
 // SetRegoVersion sets the RegoVersion for the module.
 // Note: Setting a rego-version that does not match the module's rego-version might have unintended consequences.
+//
 // Deprecated: Use Module.SetRegoVersionSpan instead.
 func (mod *Module) SetRegoVersion(v RegoVersion) {
 	mod.regoVersion = RegoVersionSpanOf(v)
