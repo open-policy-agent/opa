@@ -4138,6 +4138,39 @@ func TestBundleStoreHelpers(t *testing.T) {
 	}
 }
 
+func TestActivate_ErasesUnparsablePolicy(t *testing.T) {
+	store := mock.New()
+	txn := storage.NewTransactionOrDie(t.Context(), store, storage.WriteParams)
+
+	// Activation only needs the package of a policy it deletes.
+	old := modulePathWithPrefix("bundle1", "test/old.rego")
+	if err := store.UpsertPolicy(t.Context(), txn, old, []byte("package test\n\np if {")); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Activate(&ActivateOpts{
+		Ctx:      t.Context(),
+		Txn:      txn,
+		Store:    store,
+		Compiler: ast.NewCompiler(),
+		Metrics:  metrics.NoOp(),
+		Bundles: map[string]*Bundle{"bundle1": {
+			Manifest: Manifest{Roots: &[]string{"test"}},
+			Modules:  []ModuleFile{moduleFile("test/policy.rego", "package test")},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids, err := store.ListPolicies(t.Context(), txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(ids, old) {
+		t.Fatalf("policy %v not erased: %v", old, ids)
+	}
+}
+
 func TestActivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
@@ -4220,16 +4253,16 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 
 			modulePath := "test/policy.rego"
 
-			// We want to make assert that the default rego-version is used, which it is when a module is erased from storage and we don't know what version it has.
-			// Therefore, we add a module to the store, which is the replaced by the Activate() call, causing an erase.
-			err := store.UpsertPolicy(t.Context(), txn, modulePathWithPrefix("bundle1", modulePath), []byte(tc.module))
+			// A module in the store outside the bundle's roots is re-parsed on
+			// activation without knowing its rego-version, so the default applies.
+			err := store.UpsertPolicy(t.Context(), txn, modulePath, []byte(tc.module))
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
 			bundles := map[string]*Bundle{"bundle1": {
-				Manifest: Manifest{Roots: &[]string{"test"}},
-				Modules:  []ModuleFile{moduleFile(modulePath, "package test")},
+				Manifest: Manifest{Roots: &[]string{"other"}},
+				Modules:  []ModuleFile{moduleFile("other/policy.rego", "package other")},
 			}}
 
 			opts := ActivateOpts{
@@ -4351,15 +4384,15 @@ func TestActivate_LogicalKeywords(t *testing.T) {
 
 			modulePath := "test/policy.rego"
 
-			// Activation erases and re-parses the module already in the store.
-			err := store.UpsertPolicy(t.Context(), txn, modulePathWithPrefix("bundle1", modulePath), []byte(tc.storedModule))
+			// Activation re-parses the module in the store outside the bundle's roots.
+			err := store.UpsertPolicy(t.Context(), txn, modulePath, []byte(tc.storedModule))
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
 			bundles := map[string]*Bundle{"bundle1": {
-				Manifest: Manifest{Roots: &[]string{"test"}},
-				Modules:  []ModuleFile{moduleFile(modulePath, "package test")},
+				Manifest: Manifest{Roots: &[]string{"other"}},
+				Modules:  []ModuleFile{moduleFile("other/policy.rego", "package other")},
 			}}
 
 			compiler := ast.NewCompiler()
@@ -4867,4 +4900,38 @@ func unpack(m map[string]any) map[string]any {
 	}
 
 	return result
+}
+
+// packageOnly must agree with a full parse whenever both succeed: erasing
+// policies relies on it.
+func FuzzPackageOnly(f *testing.F) {
+	for _, s := range []string{
+		"package a\n\np := 1\n",
+		"# METADATA\n# title: x\npackage a.b\n",
+		"package a # c\n",
+		"package a.b[\"c d\"]\np := 1\n",
+		"package\ta\n",
+		"package a\n.b\n",
+		"package a\n[\"b\"]\n",
+		"package a.\nb\n",
+		"package a[\n\"b\"]\n",
+		"package a;\n",
+		"package a p := 1\n",
+		"\ufeffpackage a\n",
+		"  \r\n\tpackage a.b\r\n",
+	} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, src string) {
+		pkg := packageOnly([]byte(src))
+		if pkg == nil {
+			return
+		}
+		for _, v := range []ast.RegoVersion{ast.RegoV0, ast.RegoV1} {
+			m, err := ast.ParseModuleWithOpts("x.rego", src, ast.ParserOptions{RegoVersion: v})
+			if err == nil && !m.Package.Path.Equal(pkg.Path) {
+				t.Fatalf("%v: packageOnly gave %v, parsing %v, for %q", v, pkg.Path, m.Package.Path, src)
+			}
+		}
+	})
 }
