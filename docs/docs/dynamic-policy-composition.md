@@ -60,12 +60,10 @@ rules:
 package main
 
 # Route to the policies of the team named in the input, and collect their denies.
-deny contains msg if {
-    some msg in data.policies[input.team][_].deny
-}
+deny contains msg if some msg in data.policies[input.team][_].deny
 
 # Requests for a team without policies must not be allowed by default.
-deny contains sprintf("no policies for team %q", [input.team]) if {
+deny contains $"no policies for team {input.team}" if {
     not data.policies[input.team]
 }
 
@@ -112,9 +110,7 @@ route := data.policies[input.team] if data.policies[input.team]
 
 else := data.fallback
 
-deny contains msg if {
-    some msg in route[_].deny
-}
+deny contains msg if some msg in route[_].deny
 
 default allow := false
 
