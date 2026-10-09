@@ -32,7 +32,7 @@ in this example, so the router can collect them without knowing what is inside:
 package policies.payments.pci
 
 deny contains "card data must be encrypted" if {
-	not input.resource.encrypted
+    not input.resource.encrypted
 }
 ```
 
@@ -40,7 +40,7 @@ deny contains "card data must be encrypted" if {
 package policies.payments.audit
 
 deny contains "audit logging must be enabled" if {
-	not input.resource.audited
+    not input.resource.audited
 }
 ```
 
@@ -48,8 +48,8 @@ deny contains "audit logging must be enabled" if {
 package policies.search.rate
 
 deny contains "public indexes need a rate limit" if {
-	input.resource.public
-	not input.resource.rate_limit
+    input.resource.public
+    not input.resource.rate_limit
 }
 ```
 
@@ -61,12 +61,12 @@ package main
 
 # Route to the policies of the team named in the input, and collect their denies.
 deny contains msg if {
-	some msg in data.policies[input.team][_].deny
+    some msg in data.policies[input.team][_].deny
 }
 
 # Requests for a team without policies must not be allowed by default.
 deny contains sprintf("no policies for team %q", [input.team]) if {
-	not data.policies[input.team]
+    not data.policies[input.team]
 }
 
 default allow := false
@@ -113,7 +113,7 @@ route := data.policies[input.team] if data.policies[input.team]
 else := data.fallback
 
 deny contains msg if {
-	some msg in route[_].deny
+    some msg in route[_].deny
 }
 
 default allow := false
@@ -125,7 +125,7 @@ allow if count(deny) == 0
 package fallback.baseline
 
 deny contains "resource must have an owner" if {
-	not input.resource.owner
+    not input.resource.owner
 }
 ```
 
@@ -144,12 +144,12 @@ package main_test
 import data.main
 
 test_routes_to_the_team_policies if {
-	main.deny == {"from payments"} with input as {"team": "payments"}
-		with data.policies as {"payments": {"p": {"deny": {"from payments"}}}, "search": {"s": {"deny": {"from search"}}}}
+    main.deny == {"from payments"} with input as {"team": "payments"}
+        with data.policies as {"payments": {"p": {"deny": {"from payments"}}}, "search": {"s": {"deny": {"from search"}}}}
 }
 
 test_unknown_team_is_denied if {
-	not main.allow with input as {"team": "unknown"}
+    not main.allow with input as {"team": "unknown"}
 }
 ```
 
