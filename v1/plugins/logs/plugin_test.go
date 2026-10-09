@@ -1920,6 +1920,45 @@ func TestPluginTriggerManual(t *testing.T) {
 	}
 }
 
+func TestPluginSizeBufferKeepsFullChunks(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []plugins.TriggerMode{plugins.TriggerManual, plugins.TriggerPeriodic} {
+		t.Run(string(mode), func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType: sizeBufferType,
+				// small enough that logging cuts complete chunks before the upload
+				ReportingUploadSizeLimitBytes: 300,
+				TriggerMode:                   mode,
+			})
+			fixture.server.ch = make(chan []EventV1, 1000)
+			defer fixture.server.stop()
+
+			const logged = 1000
+			for i := range logged {
+				if err := fixture.plugin.Log(ctx, &server.Info{DecisionID: strconv.Itoa(i)}); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if err := fixture.plugin.Trigger(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			received := 0
+			for len(fixture.server.ch) > 0 {
+				received += len(<-fixture.server.ch)
+			}
+			if received != logged {
+				t.Fatalf("expected %d events to be uploaded, got %d", logged, received)
+			}
+		})
+	}
+}
+
 func TestPluginTriggerManualWithTimeout(t *testing.T) {
 	t.Parallel()
 

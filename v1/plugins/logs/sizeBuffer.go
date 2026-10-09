@@ -157,7 +157,8 @@ func (b *sizeBuffer) Push(event *EventV1) {
 				}
 			}
 		}()
-	case plugins.TriggerPeriodic:
+	default:
+		// periodic and manual triggers upload whatever has been buffered
 		for _, chunk := range result {
 			b.bufferChunk(b.buffer, chunk)
 		}
