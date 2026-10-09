@@ -1111,6 +1111,74 @@ Configuration loaded later via [discovery](#discovery) is validated the same way
 defaults are injected and warnings are logged when the discovered configuration is
 applied.
 
+## Reloading Configuration
+
+> Only supported when OPA is run as a server (`opa run --server`).
+
+By default the configuration file is read once, at start-up. Running with the
+`--watch-config` flag makes `opa run` watch the file and bring OPA back up under
+the new configuration when it changes, without the process exiting.
+
+```bash
+opa run -s -c opa-config.yaml --watch-config
+```
+
+It is opt-in, and separate from `-w`/`--watch`, because the two are not
+comparable: `--watch` reloads policy and data into the store in place, whereas
+this restarts the server and everything the configuration drives.
+
+### When to use it
+
+Where something else can replace the process for you, let it. On Kubernetes,
+update the ConfigMap and roll the pods out: you get the restart with health
+gating, surge control and a record of what happened.
+
+`--watch-config` is for where that is not on offer:
+
+- OPA embedded in a host that is not orchestrated at all — a monolith, an
+  appliance, a vehicle.
+- A sidecar where restarting OPA means restarting the pod, taking the
+  application down with it.
+- Development and testing, where iterating on the configuration beats waiting
+  for a restart.
+
+Almost any option can be changed this way. OPA stops the server and everything
+the configuration drives, rebuilds them from the new file, and starts them
+again; only the store is kept. Two options still need the process restarted:
+`server.metrics` and `server.logger_plugin`.
+
+`--set` and `--set-file` overrides are re-applied on top of the file on each
+reload. The files named by `--set-file` are re-read too, but not watched: an
+edit to one is only picked up on the next change to the configuration file.
+
+### What a restart costs
+
+- **Listeners are re-bound.** Requests already being served are drained first,
+  but there is a brief window where the port is not accepting connections.
+- **Bundles are downloaded again**, unless [`persistence_directory`](#bundles)
+  is set, in which case the persisted copy is activated first. Until the first
+  activation, `/health?bundles` reports not-ready.
+- **Buffered decisions are flushed** when the decision log plugin has a
+  `service` configured. Decisions buffered for a console or plugin sink are
+  lost.
+
+### When a change is not applied
+
+- **Invalid configuration**: a file that fails to parse, fails the schema or a
+  [config hook](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/hooks),
+  or has an invalid section (such as a `bundles` entry naming a service that
+  does not exist) is rejected before anything is torn down. The error is
+  logged and the running configuration keeps serving.
+- **Failed restart**: if OPA cannot come up under the new configuration, for
+  example because a port no longer binds, it falls back to the previous one and
+  logs the failure.
+- **Misspelled options** are not an error: unrecognized keys are logged as
+  warnings and ignored, as they are at start-up.
+- **Discovery**: the file is not watched when [discovery](#discovery) is
+  enabled. OPA logs a warning at start-up.
+- **Custom router**: the file is not watched when OPA is embedded and the
+  caller supplied its own HTTP router.
+
 ## Using Environment Variables in Configuration
 
 > Only supported with the OPA runtime (`opa run`).
