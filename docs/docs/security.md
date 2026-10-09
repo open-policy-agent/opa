@@ -201,6 +201,12 @@ policies — which see a different `input` document — are left out. The `--ski
     # URL path represented as an array.
     # For example: /v1/data/exempli-gratia
     # is represented as ["v1", "data", "exampli-gratia"]
+    # Path segments are split the same way as the API that serves the
+    # request: an encoded slash (%2F) stays inside a segment, so
+    # /v1/data/a%2Fb is represented as ["v1", "data", "a/b"]. The
+    # exceptions are /v1/policies and /v1/compile, which treat an encoded
+    # slash as a separator, so /v1/compile/a%2Fb is represented as
+    # ["v1", "compile", "a", "b"].
     "path": [...],
 
     # URL parameters represented as an object of string arrays.

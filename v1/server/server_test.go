@@ -1808,8 +1808,13 @@ p = true if { false }`
 				}
 			}`},
 			{http.MethodPatch, "/data/a%2Fb", `[{"op": "add", "path": "/e%2Ff", "value": 2}]`, 204, ""},
+			{http.MethodPut, "/data/%31/data", `1`, 204, ""},
+			{http.MethodGet, "/data/1", "", 200, `{"result": {"data": 1}}`},
 			{http.MethodPost, "/data", "", 200, `{
 				"result": {
+					"1": {
+						"data": 1
+					},
 					"a/b": {
 						"c/d": 1,
 						"e/f": 2
@@ -5469,6 +5474,90 @@ func TestAuthorization(t *testing.T) {
 	server.Handler.ServeHTTP(recorder, req4)
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatal("expected unauthorized response for data")
+	}
+}
+
+func TestAuthorizationEncodedSlash(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	store := inmem.NewFromObject(map[string]any{
+		"policy1":       map[string]any{"allow": map[string]any{"public": true}},
+		"policy1/allow": map[string]any{"secret": true},
+	})
+	m, err := plugins.New([]byte{}, "test", store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	authzPolicy := `package system.authz
+
+		default allow := false
+
+		allow if input.path == ["v1", "data", "policy1", "allow"]
+
+		allow if input.path == ["v1", "compile", "policy1", "allow"]
+		`
+
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	server, err := New().
+		WithAddresses([]string{"localhost:8182"}).
+		WithStore(store).
+		WithManager(m).
+		WithAuthorization(AuthorizationBasic).
+		Init(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		method   string
+		path     string
+		body     string
+		accept   string
+		expCode  int
+		expValue string
+	}{
+		{method: http.MethodGet, path: "/v1/data/policy1/allow", expCode: http.StatusOK, expValue: `{"result":{"public":true}}`},
+		{method: http.MethodGet, path: "/v1/data/policy1%2Fallow", expCode: http.StatusUnauthorized},
+		{method: http.MethodGet, path: "/v1/data/policy1%2fallow", expCode: http.StatusUnauthorized},
+		{method: http.MethodGet, path: "/v1/data/policy1%252Fallow", expCode: http.StatusUnauthorized},
+		{method: http.MethodPut, path: "/v1/data/policy1%2Fallow", body: `{}`, expCode: http.StatusUnauthorized},
+		{method: http.MethodPost, path: "/v1/compile/policy1%2Fallow", body: `{}`, accept: "application/vnd.opa.multitarget+json", expCode: http.StatusOK},
+		{method: http.MethodPost, path: "/v1/compile/policy1%252Fallow", body: `{}`, accept: "application/vnd.opa.multitarget+json", expCode: http.StatusUnauthorized},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			req, err := http.NewRequest(tc.method, "http://localhost:8182"+tc.path, strings.NewReader(tc.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.accept != "" {
+				req.Header.Set("Accept", tc.accept)
+			}
+
+			recorder := httptest.NewRecorder()
+			server.Handler.ServeHTTP(recorder, req)
+			if recorder.Code != tc.expCode {
+				t.Fatalf("expected code %d but got %d: %s", tc.expCode, recorder.Code, recorder.Body)
+			}
+			if tc.expValue != "" && strings.TrimSpace(recorder.Body.String()) != tc.expValue {
+				t.Fatalf("expected body %s but got %s", tc.expValue, recorder.Body)
+			}
+		})
 	}
 }
 
