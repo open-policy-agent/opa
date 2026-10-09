@@ -17672,3 +17672,40 @@ func TestQueryCompilerAndOrImports(t *testing.T) {
 		})
 	}
 }
+
+// Compiled modules are fed back to the compiler by partial evaluation.
+func TestCompilerRecompileHoistedImplicitBodies(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+	}{
+		{"not call with ref arg", `a if { input.x; not startswith(input.y.z, "x") }`},
+		{"not call with local ref arg", `a if { some x in input.xs; not startswith(x.y, "x") }`},
+		{"not call with data ref arg", `a if { not data.b[input.k] }`},
+		{"not call with chained ref args", `a if { some x in input.xs; not startswith(x.y[x.z], "x") }`},
+		{"or operand with local ref arg", `a if { some x in input.xs; startswith(x.y, "x") or endswith(x.z, "y") }`},
+		{"and operand with local ref arg", `a if { some x in input.xs; startswith(x.y, "x") and endswith(x.z, "y") }`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m, err := ParseModuleWithOpts("test.rego", "package p\n"+tc.module, ParserOptions{
+				RegoVersion:    RegoV1,
+				FutureKeywords: []string{"and", "or", "not"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			c := NewCompiler()
+			if c.Compile(map[string]*Module{"test.rego": m}); c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			c2 := NewCompiler()
+			if c2.Compile(c.Modules); c2.Failed() {
+				t.Fatal(c2.Errors)
+			}
+		})
+	}
+}

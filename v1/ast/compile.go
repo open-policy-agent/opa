@@ -5564,18 +5564,44 @@ func unsafeImplicitBodyVars(body Body, arity func(Ref) int) VarSet {
 		return result
 	}
 
-	// 2. Collect bindings (eq outputs + trailing call-arg outputs).
+	// 2. Collect bindings (eq outputs + trailing call-arg outputs). Vars that
+	// are not themselves a side of an equality are taken from outside the
+	// body; if nothing binds them, step 3 returns them for the enclosing body
+	// to bind. This lets `__local1__ = x.y` bind through `x`.
+	safe := ReservedVars.Copy()
+	for v := range occurrences {
+		safe.Add(v)
+	}
+	for _, e := range body {
+		if e.IsEquality() {
+			for i := range 2 {
+				if v, ok := e.Operand(i).Value.(Var); ok {
+					delete(safe, v)
+				}
+			}
+		}
+	}
+
 	bindings := map[Var]struct{}{}
+	for changed := true; changed; {
+		changed = false
+		for _, e := range body {
+			if !e.IsEquality() {
+				continue
+			}
+			for v := range outputVarsForExprEq(e, safe, nil) {
+				if _, ok := bindings[v]; !ok {
+					bindings[v] = struct{}{}
+					safe.Add(v)
+					changed = true
+				}
+			}
+		}
+	}
+
 	for _, e := range body {
 		terms, ok := e.Terms.([]*Term)
-		if !ok {
-			continue
-		}
-
-		if e.IsEquality() {
-			for v := range outputVarsForExprEq(e, VarSet{}, nil) {
-				bindings[v] = struct{}{}
-			}
+		if !ok || e.IsEquality() {
 			continue
 		}
 
