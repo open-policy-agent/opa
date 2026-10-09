@@ -7,7 +7,6 @@ package runtime
 import (
 	"bytes"
 	"context"
-	"errors"
 	"maps"
 	"path/filepath"
 	"time"
@@ -16,8 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/internal/pluginset"
-	opa_config "github.com/open-policy-agent/opa/v1/config"
-	"github.com/open-policy-agent/opa/v1/hooks"
+	"github.com/open-policy-agent/opa/v1/plugins"
 )
 
 // How long to wait for the file to stop changing before reading it. Writers that
@@ -199,29 +197,27 @@ func (rt *Runtime) reloadConfig(ctx context.Context) (bool, error) {
 
 // validateConfig checks that a configuration is one OPA could start under,
 // without touching anything that is running. It covers what can be known
-// statically: the core schema, the hooks, and every plugin's own configuration.
-// What cannot -- a port that will not bind, a directory that cannot be written
-// -- surfaces when the restart runs.
+// statically: the core schema, the hooks, services and keys, and every plugin's
+// own configuration. What cannot -- a port that will not bind, a directory that
+// cannot be written -- surfaces when the restart runs.
 func (rt *Runtime) validateConfig(ctx context.Context, bs []byte) error {
-	parsed, err := opa_config.ParseConfig(bs, rt.Params.ID)
+	// Checked against a manager of its own, not the running one: the restart
+	// builds a fresh manager, so a service the new file drops is gone by then.
+	scratch, err := plugins.New(bs, rt.Params.ID, rt.Store,
+		plugins.Logger(rt.logger),
+		plugins.ConsoleLogger(rt.consoleLogger),
+		plugins.WithHooks(rt.Params.Hooks),
+		plugins.WithParserOptions(rt.Params.parserOptions()),
+		plugins.WithMinTLSVersion(rt.Params.MinTLSVersion),
+		plugins.WithCipherSuites(rt.Params.CipherSuites),
+		plugins.WithStoreCloseOnStop(false),
+	)
 	if err != nil {
 		return err
 	}
+	defer scratch.Stop(ctx)
 
-	rt.Params.Hooks.Each(func(h hooks.Hook) {
-		if f, ok := h.(hooks.ConfigHook); ok {
-			if c, e := f.OnConfig(ctx, parsed); e != nil {
-				err = errors.Join(err, e)
-			} else {
-				parsed = c
-			}
-		}
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, w := range parsed.Warnings {
+	for _, w := range scratch.Config.Warnings {
 		rt.logger.Warn("%s", w)
 	}
 
@@ -229,8 +225,8 @@ func (rt *Runtime) validateConfig(ctx context.Context, bs []byte) error {
 	factories := maps.Clone(registeredPlugins)
 	registeredPluginsMux.Unlock()
 
-	// Parses and validates every plugin section without touching the manager.
-	_, err = pluginset.Parse(factories, rt.manager(), parsed, rt.metricsProvider(), rt.logger, nil)
+	// Parses and validates every plugin section without registering anything.
+	_, err = pluginset.Parse(factories, scratch, scratch.GetConfig(), rt.metricsProvider(), rt.logger, nil)
 	return err
 }
 

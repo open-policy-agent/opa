@@ -459,6 +459,60 @@ status:
 	}
 }
 
+func TestReloadConfigRejectsReferenceToRemovedService(t *testing.T) {
+	rt, configFile := newConfigReloadRuntime(t, `services:
+  acme:
+    url: https://example.com
+keys:
+  k1:
+    algorithm: HS256
+    key: secret
+`)
+
+	for _, tc := range []struct {
+		note   string
+		config string
+		expErr string
+	}{
+		{
+			note: "service",
+			config: `bundles:
+  b1:
+    service: acme
+`,
+			expErr: "acme",
+		},
+		{
+			note: "key",
+			config: `services:
+  acme:
+    url: https://example.com
+bundles:
+  b1:
+    service: acme
+    signing:
+      keyid: k1
+`,
+			expErr: "k1",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			writeConfig(t, configFile, tc.config)
+
+			_, err := rt.reloadConfig(t.Context())
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Errorf("expected error mentioning %q, got %q", tc.expErr, err.Error())
+			}
+			if restartRequested(rt) {
+				t.Error("expected no restart to be requested")
+			}
+		})
+	}
+}
+
 // TestRouterSharedBetweenManagerAndServer guards the mux OPA registers its
 // routes on. The manager hands it to plugins and the server registers the API on
 // it, so the two must be the same one -- and a restart must give both a new one,

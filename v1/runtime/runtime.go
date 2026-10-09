@@ -194,9 +194,7 @@ type Params struct {
 
 	// WatchConfig flag controls whether OPA will watch ConfigFile for changes
 	// and restart the serve routine under the new configuration when it does.
-	// Separate from Watch because the two are not comparable: Watch reloads the
-	// store in place, whereas this rebinds the listeners and starts every
-	// configured feature again.
+	// Server mode only: the REPL ignores it.
 	WatchConfig bool
 
 	// ErrorLimit is the number of errors the compiler will allow to occur before
@@ -1176,14 +1174,6 @@ func (rt *Runtime) StartREPL(ctx context.Context) error {
 		}
 	}
 
-	if rt.Params.WatchConfig {
-		if err := rt.startConfigWatcher(ctx, onConfigReloadPrinter(rt.Params.Output)); err != nil {
-			fmt.Fprintln(rt.Params.Output, "error opening config watch:", err)
-			return err
-		}
-		defer rt.stopConfigWatcher()
-	}
-
 	if rt.Params.EnableVersionCheck {
 		go func() {
 			repl.SetOPAVersionReport(rt.checkOPAUpdate(ctx).Slice())
@@ -1435,16 +1425,6 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 			fmt.Fprintf(output, "\n# reload error (took %v): %v", d, err)
 		} else {
 			fmt.Fprintf(output, "\n# reloaded files (took %v)", d)
-		}
-	}
-}
-
-func onConfigReloadPrinter(output io.Writer) func(time.Duration, error) {
-	return func(d time.Duration, err error) {
-		if err != nil {
-			fmt.Fprintf(output, "\n# config reload error (took %v): %v", d, err)
-		} else {
-			fmt.Fprintf(output, "\n# reloaded config (took %v)", d)
 		}
 	}
 }

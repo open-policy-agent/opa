@@ -10,12 +10,8 @@ package pluginset
 import (
 	"context"
 	"fmt"
-	"maps"
-	"slices"
 
-	cfg "github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/v1/config"
-	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -87,39 +83,9 @@ func New(
 	return configs.Set(manager), nil
 }
 
-// servicesAndKeys returns the service names and key configurations available to
-// the plugins a configuration enables. Taken from the configuration as well as
-// the manager, because a configuration may be validated before it is applied,
-// when its services are not registered yet -- and because services and keys
-// already registered stay registered.
-func servicesAndKeys(manager *plugins.Manager, config *config.Config) ([]string, map[string]*keys.Config, error) {
-	parsedKeys, err := keys.ParseKeysConfig(config.Keys)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	keyConfigs := manager.PublicKeys()
-	maps.Copy(keyConfigs, parsedKeys)
-
-	opts := manager.DefaultServiceOpts(config)
-	opts.Keys = keyConfigs
-	services, err := cfg.ParseServicesConfig(opts)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	names := manager.Services()
-	for name := range services {
-		if !slices.Contains(names, name) {
-			names = append(names, name)
-		}
-	}
-
-	return names, keyConfigs, nil
-}
-
-// Parse validates config and derives the plugin configurations it enables,
-// without touching the manager.
+// Parse validates config against the services and keys registered on manager,
+// and derives the plugin configurations it enables, without touching the
+// manager.
 func Parse(
 	factories map[string]plugins.Factory,
 	manager *plugins.Manager,
@@ -132,10 +98,8 @@ func Parse(
 	pluginNames := []string{}
 	pluginFactories := []pluginfactory{}
 
-	serviceNames, keyConfigs, err := servicesAndKeys(manager, config)
-	if err != nil {
-		return nil, err
-	}
+	serviceNames := manager.Services()
+	keyConfigs := manager.PublicKeys()
 
 	for k := range config.Plugins {
 		f, ok := factories[k]
