@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -11,8 +12,8 @@ import (
 var defaultBundleLoadStageBuckets = prometheus.ExponentialBuckets(1000, 2, 20)
 
 // decisionLogsCounterNames lists the counters the decision logs plugin records
-// on the global metrics provider when it drops or fails to encode events. They
-// are defined in the logs plugin, which can't be imported here.
+// on the global metrics provider when it uploads, drops or fails to encode
+// events. They are defined in the logs plugin, which can't be imported here.
 var decisionLogsCounterNames = []string{
 	"decision_logs_dropped_rate_limit_exceeded",
 	"decision_logs_dropped_buffer_size_limit_exceeded",
@@ -20,6 +21,8 @@ var decisionLogsCounterNames = []string{
 	"decision_logs_encoding_failure",
 	"decision_logs_nd_builtin_cache_dropped",
 	"enc_log_exceeded_upload_size_limit_bytes",
+	"decision_logs_chunks_uploaded",
+	"decision_logs_chunks_upload_failed",
 }
 
 type PrometheusConfig struct {
@@ -59,9 +62,10 @@ type collectors struct {
 	bundleLoadDuration       *prometheus.HistogramVec
 	decisionLogsStatus       *prometheus.GaugeVec
 	decisionLogsCounters     *decisionLogsCounters
+	decisionLogsBuffer       *decisionLogsBufferCollector
 }
 
-func newCollectors(prometheusConfig *PrometheusConfig) *collectors {
+func newCollectors(prometheusConfig *PrometheusConfig, manager *plugins.Manager) *collectors {
 	opaInfo := prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name:        "opa_info",
@@ -143,6 +147,7 @@ func newCollectors(prometheusConfig *PrometheusConfig) *collectors {
 		bundleLoadDuration:       bundleLoadDuration,
 		decisionLogsStatus:       decisionLogsStatus,
 		decisionLogsCounters:     newDecisionLogsCounters(),
+		decisionLogsBuffer:       newDecisionLogsBufferCollector(manager),
 	}
 }
 
@@ -198,6 +203,7 @@ func (c *collectors) toList() []prometheus.Collector {
 		c.bundleLoadDuration,
 		c.decisionLogsStatus,
 		c.decisionLogsCounters,
+		c.decisionLogsBuffer,
 	}
 }
 
@@ -243,4 +249,46 @@ func (c *decisionLogsCounters) Collect(ch chan<- prometheus.Metric) {
 	for name, v := range c.values {
 		ch <- prometheus.MustNewConstMetric(c.descs[name], prometheus.CounterValue, v)
 	}
+}
+
+// decisionLogsBuffer is implemented by the decision logs plugin, which is
+// registered on the manager as "decision_logs".
+type decisionLogsBuffer interface {
+	BufferSize() (bufferType string, size int64)
+}
+
+// decisionLogsBufferCollector reports how much is waiting in the decision log
+// buffer at scrape time. Only the gauge for the configured buffer type is
+// reported, and nothing when the decision logs plugin isn't registered.
+type decisionLogsBufferCollector struct {
+	manager *plugins.Manager
+	events  *prometheus.Desc
+	bytes   *prometheus.Desc
+}
+
+func newDecisionLogsBufferCollector(manager *plugins.Manager) *decisionLogsBufferCollector {
+	return &decisionLogsBufferCollector{
+		manager: manager,
+		events:  prometheus.NewDesc("decision_logs_buffer_size_events", "Number of items waiting in the decision log event buffer.", nil, nil),
+		bytes:   prometheus.NewDesc("decision_logs_buffer_size_bytes", "Number of bytes waiting in the decision log size buffer.", nil, nil),
+	}
+}
+
+func (c *decisionLogsBufferCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.events
+	ch <- c.bytes
+}
+
+func (c *decisionLogsBufferCollector) Collect(ch chan<- prometheus.Metric) {
+	dl, ok := c.manager.Plugin("decision_logs").(decisionLogsBuffer)
+	if !ok {
+		return
+	}
+
+	bufferType, size := dl.BufferSize()
+	desc := c.events
+	if bufferType == "size" {
+		desc = c.bytes
+	}
+	ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, float64(size))
 }

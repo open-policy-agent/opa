@@ -42,6 +42,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/version"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestMain(m *testing.M) {
@@ -1471,7 +1472,10 @@ func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 		t.Fatal("Expected metrics field in status update")
 	}
 
-	exp := map[string]any{"<built-in>": map[string]any{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
+	exp := map[string]any{"<built-in>": map[string]any{
+		"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2"),
+		"counter_decision_logs_chunks_uploaded":             json.Number("1"),
+	}}
 
 	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
 		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
@@ -3146,6 +3150,7 @@ type testFixtureOptions struct {
 	ExtraConfig                    map[string]any
 	ExtraManagerConfig             map[string]any
 	ManagerInit                    func(*plugins.Manager)
+	PrometheusRegister             prometheus.Registerer
 	TriggerMode                    plugins.TriggerMode
 	MinDelay                       int64
 	MaxDelay                       int64
@@ -3204,7 +3209,8 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		"test-instance-id",
 		inmem.New(),
 		plugins.GracefulShutdownPeriod(10),
-		plugins.ConsoleLogger(options.ConsoleLogger))
+		plugins.ConsoleLogger(options.ConsoleLogger),
+		plugins.WithPrometheusRegister(options.PrometheusRegister))
 	if err != nil {
 		t.Fatal(err)
 	}

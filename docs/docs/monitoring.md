@@ -96,9 +96,14 @@ When Prometheus is enabled in the status plugin (see [Configuration](./configura
 | decision_logs_encoding_failure_total                         | counter     | Number of decisions dropped because they could not be encoded or did not fit in `upload_size_limit_bytes`.      | STABLE |
 | decision_logs_nd_builtin_cache_dropped_total                 | counter     | Number of decisions logged without their non-deterministic builtin cache to fit in `upload_size_limit_bytes`.   | STABLE |
 | enc_log_exceeded_upload_size_limit_bytes_total               | counter     | Number of decisions whose encoded size exceeded `decision_logs.reporting.upload_size_limit_bytes`.              | STABLE |
+| decision_logs_chunks_uploaded_total                          | counter     | Number of decision log chunks uploaded successfully.                                                            | STABLE |
+| decision_logs_chunks_upload_failed_total                     | counter     | Number of decision log chunk uploads that failed. Failed chunks are requeued and retried.                       | STABLE |
+| decision_logs_buffer_size_events                             | gauge       | Items waiting in the `event` buffer, limited by `decision_logs.reporting.buffer_size_limit_events`.             | STABLE |
+| decision_logs_buffer_size_bytes                              | gauge       | Compressed bytes waiting in the `size` buffer, limited by `decision_logs.reporting.buffer_size_limit_bytes`.    | STABLE |
 
-The `decision_logs_*` and `enc_*` metrics are updated with each status update and are
-only exported once the decision logs plugin has reported them.
+The `decision_logs_*` and `enc_*` counters are updated with each status update and are
+only exported once the decision logs plugin has reported them. The `decision_logs_buffer_size_*` gauges
+are read at scrape time, and only the one matching `decision_logs.reporting.buffer_type` is exported.
 
 ## Health Checks
 
