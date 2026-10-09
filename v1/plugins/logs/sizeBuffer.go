@@ -104,6 +104,13 @@ func (*sizeBuffer) Name() string {
 	return sizeBufferType
 }
 
+// Size returns the bytes of compressed chunks waiting to be uploaded.
+func (b *sizeBuffer) Size() int64 {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	return b.buffer.usage
+}
+
 func (b *sizeBuffer) incrMetric(name string) {
 	if b.metrics != nil {
 		b.metrics.Counter(name).Incr()
@@ -149,7 +156,7 @@ func (b *sizeBuffer) Push(event *EventV1) {
 
 			var uploadErr error
 			for _, chunk := range result {
-				uploadErr = uploadChunk(ctx, b.client, b.uploadPath, chunk)
+				uploadErr = uploadChunk(ctx, b.client, b.uploadPath, chunk, b.metrics)
 				if uploadErr != nil {
 					b.mtx.Lock()
 					b.bufferChunk(b.buffer, chunk)
@@ -199,7 +206,7 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
 		if err == nil {
-			err = uploadChunk(ctx, b.client, b.uploadPath, bs)
+			err = uploadChunk(ctx, b.client, b.uploadPath, bs, b.metrics)
 		}
 		if err != nil {
 			if b.limiter != nil {

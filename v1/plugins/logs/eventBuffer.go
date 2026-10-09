@@ -73,6 +73,12 @@ func (*eventBuffer) Name() string {
 	return eventBufferType
 }
 
+// Size returns the number of items waiting to be uploaded. Requeued chunks
+// count as one item, as they do against buffer_size_limit_events.
+func (b *eventBuffer) Size() int64 {
+	return int64(len(b.buffer))
+}
+
 func (b *eventBuffer) WithLogger(l logging.Logger) *eventBuffer {
 	b.logger = l
 	b.enc = b.enc.WithLogger(l)
@@ -284,7 +290,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 func (b *eventBuffer) uploadChunks(ctx context.Context, result [][]byte, client rest.Client, uploadPath string) error {
 	var finalErr error
 	for _, chunk := range result {
-		err := uploadChunk(ctx, client, uploadPath, chunk)
+		err := uploadChunk(ctx, client, uploadPath, chunk, b.metrics)
 
 		// if an upload failed, requeue the chunk
 		if err != nil {
