@@ -129,9 +129,12 @@ type RegoCheckOptions struct {
 	NoRootDocumentOverrides bool
 	NoDeprecatedBuiltins    bool
 	NoKeywordsAsRuleNames   bool
-	RequireIfKeyword        bool
-	RequireContainsKeyword  bool
-	RequireRuleBodyOrValue  bool
+	// NoKeywordsAsVarNames rejects keywords as variable names.
+	// Note: It is only applied by CheckRegoV2, and only to the keywords Rego v2 adds to Rego v1 (`and`, `or`).
+	NoKeywordsAsVarNames   bool
+	RequireIfKeyword       bool
+	RequireContainsKeyword bool
+	RequireRuleBodyOrValue bool
 }
 
 func NewRegoCheckOptions() RegoCheckOptions {
@@ -141,6 +144,7 @@ func NewRegoCheckOptions() RegoCheckOptions {
 		NoRootDocumentOverrides: true,
 		NoDeprecatedBuiltins:    true,
 		NoKeywordsAsRuleNames:   true,
+		NoKeywordsAsVarNames:    true,
 		RequireIfKeyword:        true,
 		RequireContainsKeyword:  true,
 		RequireRuleBodyOrValue:  true,

@@ -1,0 +1,31 @@
+package test
+
+# A negated value that renders brace-led is parenthesized, as `not {` starts a not-body in v2.
+set if {
+	x := false
+	not {x}
+}
+
+object if not {"a": input.a}
+
+set_comprehension if not {y | some y in input.ys}
+
+object_comprehension if not {k: v | some k, v in input.obj}
+
+union if not {1} | {input.a}
+
+comparison if not {1} == {input.a}
+
+with_modifier if not {input.a} with input as {"a": 1}
+
+# Negations that don't render brace-led are unchanged.
+var if not input.a
+
+array if not [input.a]
+
+call if not count(input.xs) == 0
+
+intersection if {
+	x := {1} & {2}
+	not x
+}

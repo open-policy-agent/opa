@@ -42,12 +42,23 @@ type Opts struct {
 	// RegoVersion is the version of Rego to format code for.
 	RegoVersion ast.RegoVersion
 
+	// RegoVersionSpan is the span of Rego versions the formatted code must parse at: [v0, v2] for code
+	// compatible with both Rego v0 and v2, [v2, v2] for Rego v2 only. A span reaching v2 from an older
+	// version adds the 'rego.v2' import. If defined, it takes precedence over [Opts.RegoVersion].
+	RegoVersionSpan ast.RegoVersionSpan
+
 	// ParserOptions is the parser options used when parsing the module to be formatted.
 	ParserOptions *ast.ParserOptions
 
-	// DropV0Imports instructs the formatter to drop all v0 imports from the module; i.e. 'rego.v1' and 'future.keywords' imports.
-	// Imports are only removed if [Opts.RegoVersion] makes them redundant.
-	// FIXME: Deprecate and replace with DropRedundantImports?
+	// DropRedundantDirectiveImports instructs the formatter to drop directive imports, which change how
+	// a module is parsed rather than bring anything into scope: 'rego.*' and 'future.*'.
+	// Imports are only removed if [Opts.RegoVersion] or [Opts.RegoVersionSpan] makes them redundant.
+	// Regardless of this option, 'rego.v1' is dropped from a module that imports 'rego.v2'.
+	DropRedundantDirectiveImports bool
+
+	// DropV0Imports is equivalent to [Opts.DropRedundantDirectiveImports]; either setting drops the imports.
+	//
+	// Deprecated: Use [Opts.DropRedundantDirectiveImports] instead.
 	DropV0Imports bool
 
 	// SkipDefensiveCopying, if true, will avoid deep-copying the AST before formatting it.
@@ -58,11 +69,18 @@ type Opts struct {
 	Capabilities *ast.Capabilities
 }
 
-func (o Opts) effectiveRegoVersion() ast.RegoVersion {
-	if o.RegoVersion == ast.RegoUndefined {
-		return ast.DefaultRegoVersion
+func (o Opts) dropRedundantDirectiveImports() bool {
+	return o.DropRedundantDirectiveImports || o.DropV0Imports
+}
+
+func (o Opts) targetSpan() ast.RegoVersionSpan {
+	if !o.RegoVersionSpan.IsUndefined() {
+		return o.RegoVersionSpan
 	}
-	return o.RegoVersion
+	if o.RegoVersion == ast.RegoUndefined {
+		return ast.RegoVersionSpanOf(ast.DefaultRegoVersion)
+	}
+	return ast.RegoVersionSpanOf(o.RegoVersion)
 }
 
 // Source formats a Rego source file. The bytes provided must describe a complete
@@ -73,15 +91,15 @@ func Source(filename string, src []byte) ([]byte, error) {
 }
 
 func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
-	regoVersion := opts.effectiveRegoVersion()
+	target := opts.targetSpan()
 
 	var parserOpts ast.ParserOptions
 	if opts.ParserOptions != nil {
 		parserOpts = *opts.ParserOptions
-	} else if regoVersion == ast.RegoV1 {
-		// If the rego version is V1, we need to parse it as such, to allow for future keywords not being imported.
+	} else if target.Min() == ast.RegoV1 || target.Min() == ast.RegoV2 {
+		// If the rego version is V1 or V2, we need to parse it as such, to allow for future keywords not being imported.
 		// Otherwise, we'll default to the default rego-version.
-		parserOpts.RegoVersion = ast.RegoV1
+		parserOpts.RegoVersion = target.Min()
 	}
 
 	// Copying the node does not make sense when both input and output are bytes.
@@ -96,13 +114,19 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		return nil, err
 	}
 
-	if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 {
+	if target.Max() != ast.RegoV0 {
 		checkOpts := ast.NewRegoCheckOptions()
-		// The module is parsed as v0, so we need to disable checks that will be automatically amended by the AstWithOpts call anyways.
+		// AstWithOpts adds the `if`/`contains` keywords and rule bodies or values these checks require,
+		// which a module parsed as v0 may lack. A module parsed as v1 or later already satisfies them.
 		checkOpts.RequireIfKeyword = false
 		checkOpts.RequireContainsKeyword = false
 		checkOpts.RequireRuleBodyOrValue = false
-		errs := ast.CheckRegoV1WithOptions(module, checkOpts)
+		var errs ast.Errors
+		if target.Max() == ast.RegoV2 {
+			errs = ast.CheckRegoV2WithOptions(module, checkOpts)
+		} else {
+			errs = ast.CheckRegoV1WithOptions(module, checkOpts)
+		}
 		if len(errs) > 0 {
 			return nil, errs
 		}
@@ -161,6 +185,7 @@ type fmtOpts struct {
 	refHeads bool
 
 	regoV1         bool
+	regoV2         bool
 	regoV1Imported bool
 	regoV2Imported bool
 	futureKeywords []string
@@ -171,8 +196,8 @@ type fmtOpts struct {
 }
 
 func (o fmtOpts) keywords() []string {
-	if o.regoV2Imported {
-		return append(ast.KeywordsV1[:], "and", "or")
+	if o.regoV2 || o.regoV2Imported {
+		return ast.KeywordsV2[:]
 	}
 	if o.regoV1 {
 		return append(ast.KeywordsV1[:], o.futureKeywords...)
@@ -199,16 +224,17 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 
 	o := fmtOpts{}
 
-	regoVersion := opts.effectiveRegoVersion()
-	if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 {
+	target := opts.targetSpan()
+	if target.Max() != ast.RegoV0 {
 		o.regoV1 = true
 		o.ifs = true
 		o.contains = true
 	}
+	o.regoV2 = target.Max() == ast.RegoV2
 
 	capabilities := opts.Capabilities
 	if capabilities == nil {
-		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(opts.effectiveRegoVersion()))
+		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(target.Min()))
 	}
 	o.allowKeywordsInRefs = capabilities.ContainsFeature(ast.FeatureKeywordsInRefs)
 
@@ -292,37 +318,7 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		regoV2Imported := slices.ContainsFunc(x.Imports, isRegoV2Compatible)
-
-		if regoV2Imported || regoVersion == ast.RegoV1 && opts.DropV0Imports {
-			x.Imports = slices.DeleteFunc(x.Imports, regoV1Import)
-		} else if regoVersion == ast.RegoV0CompatV1 {
-			x.Imports = ensureRegoV1Import(x.Imports)
-		}
-
-		regoV1Imported := slices.ContainsFunc(x.Imports, isRegoV1Compatible) || regoV2Imported
-
-		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || regoV1Imported {
-			if !opts.DropV0Imports && !regoV1Imported {
-				for _, kw := range o.futureKeywords {
-					x.Imports = ensureFutureKeywordImport(x.Imports, kw)
-				}
-			} else {
-				x.Imports = future.FilterFutureImports(x.Imports)
-			}
-
-			if !regoV2Imported {
-				for kw := range extraFutureKeywordImports {
-					if ast.IsFutureKeywordForRegoVersion(kw, ast.RegoV1) {
-						x.Imports = ensureFutureKeywordImport(x.Imports, kw)
-					}
-				}
-			}
-		} else {
-			for kw := range extraFutureKeywordImports {
-				x.Imports = ensureFutureKeywordImport(x.Imports, kw)
-			}
-		}
+		x.Imports = formatImports(x.Imports, target, o, extraFutureKeywordImports, opts.dropRedundantDirectiveImports())
 
 		err := w.writeModule(x)
 		if err != nil {
@@ -1021,9 +1017,13 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	// parser represents `not (a or b)` as an *ast.Not.
 	negatedLogical := expr.Negated && isLogicalExpr(expr)
 
+	// In v2 `not {x}` is a not-body, so a negated brace-led value from an older
+	// module is parenthesized to keep its meaning: `not ({x})`.
+	negatedBraceLead := expr.Negated && w.fmtOpts.regoV2 && exprRendersBraceLead(expr)
+
 	if expr.Negated {
 		w.write("not ")
-		if negatedLogical {
+		if negatedLogical || negatedBraceLead {
 			w.write("(")
 		}
 	}
@@ -1069,7 +1069,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		w.write(")")
 	}
 
-	if negatedLogical {
+	if negatedLogical || negatedBraceLead {
 		w.write(")")
 	}
 
@@ -2994,6 +2994,71 @@ func addedImportFollowsRule(others []any) bool {
 	return false
 }
 
+// formatImports adds and removes the directive imports a module needs when formatted for target.
+func formatImports(imps []*ast.Import, target ast.RegoVersionSpan, o fmtOpts, extraFutureKeywordImports map[string]struct{}, dropRedundant bool) []*ast.Import {
+	switch {
+	case target.Min() == ast.RegoV2:
+		// Every future keyword is standard in v2, so no import is ever added.
+		if dropRedundant {
+			imps = slices.DeleteFunc(imps, func(imp *ast.Import) bool {
+				return isRegoV1Compatible(imp) || isRegoV2Compatible(imp)
+			})
+			imps = future.FilterFutureImports(imps)
+		}
+		return imps
+	case target.Max() == ast.RegoV2:
+		// 'rego.v2' makes every other directive import redundant, at both ends of the span.
+		// It's added first, so that it takes the place of the imports it replaces.
+		imps = ensureRegoV2Import(imps)
+		imps = slices.DeleteFunc(imps, isRegoV1Compatible)
+		return future.FilterFutureImports(imps)
+	}
+
+	regoV2Imported := slices.ContainsFunc(imps, isRegoV2Compatible)
+
+	if regoV2Imported || target.Min() == ast.RegoV1 && dropRedundant {
+		imps = slices.DeleteFunc(imps, isRegoV1Compatible)
+	} else if target.Min() != target.Max() { // [v0, v1]
+		imps = ensureRegoV1Import(imps)
+	}
+
+	regoV1Imported := slices.ContainsFunc(imps, isRegoV1Compatible) || regoV2Imported
+
+	if target.Max() == ast.RegoV1 || regoV1Imported {
+		if !dropRedundant && !regoV1Imported {
+			for _, kw := range o.futureKeywords {
+				imps = ensureFutureKeywordImport(imps, kw)
+			}
+		} else {
+			imps = future.FilterFutureImports(imps)
+		}
+
+		if !regoV2Imported {
+			for kw := range extraFutureKeywordImports {
+				if ast.IsFutureKeywordForRegoVersion(kw, ast.RegoV1) {
+					imps = ensureFutureKeywordImport(imps, kw)
+				}
+			}
+		}
+	} else {
+		for kw := range extraFutureKeywordImports {
+			imps = ensureFutureKeywordImport(imps, kw)
+		}
+	}
+
+	return imps
+}
+
+func ensureRegoV2Import(imps []*ast.Import) []*ast.Import {
+	if slices.ContainsFunc(imps, isRegoV2Compatible) {
+		return imps
+	}
+	imp := &ast.Import{Path: ast.NewTerm(ast.RegoV2CompatibleRef)}
+	imp.Location = nextImportLoc(imps, imp)
+
+	return append(imps, imp)
+}
+
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
 	for _, imp := range imps {
 		if ast.RegoV1CompatibleRef.Equal(imp.Path.Value) {
@@ -3004,10 +3069,6 @@ func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
 	imp.Location = nextImportLoc(imps, imp)
 
 	return append(imps, imp)
-}
-
-func regoV1Import(imp *ast.Import) bool {
-	return ast.RegoV1CompatibleRef.Equal(imp.Path.Value)
 }
 
 // ArityFormatErrDetail but for `fmt` checks since compiler has not run yet.
@@ -3045,10 +3106,7 @@ func (d *ArityFormatErrDetail) Lines() []string {
 
 // isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
 func isRegoV1Compatible(imp *ast.Import) bool {
-	path := imp.Path.Value.(ast.Ref)
-	return len(path) == 2 &&
-		ast.RegoRootDocument.Equal(path[0]) &&
-		path[1].Equal(ast.InternedTerm("v1"))
+	return ast.RegoV1CompatibleRef.Equal(imp.Path.Value)
 }
 
 func isRegoV2Compatible(imp *ast.Import) bool {

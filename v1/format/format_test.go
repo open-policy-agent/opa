@@ -220,6 +220,66 @@ func TestFormatV1Source(t *testing.T) {
 	}
 }
 
+func TestFormatV2Source(t *testing.T) {
+	regoFiles, err := filepath.Glob("testfiles/v2/*.rego")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, rego := range regoFiles {
+		t.Run(rego, func(t *testing.T) {
+			contents, err := os.ReadFile(rego)
+			if err != nil {
+				t.Fatalf("Failed to read rego source: %v", err)
+			}
+
+			expected, err := os.ReadFile(rego + ".formatted")
+			if err != nil {
+				t.Fatalf("Failed to read expected rego source: %v", err)
+			}
+
+			popts := ast.ParserOptions{
+				RegoVersion: ast.RegoV2,
+			}
+			opts := Opts{
+				RegoVersion:   ast.RegoV2,
+				ParserOptions: &popts,
+			}
+
+			formatted, err := SourceWithOpts(rego, contents, opts)
+			if err != nil {
+				t.Fatalf("Failed to format file: %v", err)
+			}
+
+			if ln, at := differsAt(formatted, expected); ln != 0 {
+				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
+			}
+
+			formattedModule, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts)
+			if err != nil {
+				t.Fatalf("Failed to parse formatted bytes: %v", err)
+			}
+
+			if expASTPreserved(rego) {
+				module := ast.MustParseModuleWithOpts(string(contents), popts)
+				if !module.Equal(formattedModule) {
+					t.Fatalf("Expected formatting to preserve the AST, but got:\n\n%v\n\nexpected:\n\n%v", formattedModule, module)
+				}
+			}
+
+			formatted, err = SourceWithOpts(rego, formatted, opts)
+			if err != nil {
+				t.Fatal("Failed to double format file")
+			}
+
+			if ln, at := differsAt(formatted, expected); ln != 0 {
+				t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+			}
+
+		})
+	}
+}
+
 // astAlteringTestFiles are the test files where formatting is expected to
 // change the AST. For all other test files, formatting must preserve it.
 var astAlteringTestFiles = map[string]bool{
@@ -264,6 +324,9 @@ var astAlteringTestFiles = map[string]bool{
 	// The `rego.v1` and `future.keywords` imports covered by `rego.v2` are dropped.
 	"testfiles/v0/test_rego_v2_redundant_imports.rego": true,
 	"testfiles/v1/test_rego_v2_redundant_imports.rego": true,
+
+	// Imports are sorted.
+	"testfiles/v2/test_directive_imports.rego": true,
 
 	// Constant template string expressions are folded into string parts.
 	"testfiles/v1/test_template_strings.rego": true,
@@ -359,6 +422,259 @@ func TestFormatV0SourceToRegoV1(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestFormatSourceToRegoV2Compatible(t *testing.T) {
+	tests := []struct {
+		dir         string
+		regoVersion ast.RegoVersion
+	}{
+		{dir: "testfiles/v0_to_v2", regoVersion: ast.RegoV0},
+		{dir: "testfiles/v1_to_v2", regoVersion: ast.RegoV1},
+	}
+
+	for _, tc := range tests {
+		span, err := ast.NewRegoVersionSpan(tc.regoVersion, ast.RegoV2)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		regoFiles, err := filepath.Glob(tc.dir + "/*.rego")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, rego := range regoFiles {
+			t.Run(rego, func(t *testing.T) {
+				contents, err := os.ReadFile(rego)
+				if err != nil {
+					t.Fatalf("Failed to read rego source: %v", err)
+				}
+
+				opts := Opts{
+					RegoVersionSpan: span,
+					ParserOptions:   &ast.ParserOptions{RegoVersion: tc.regoVersion},
+				}
+
+				if expErr, err := os.ReadFile(rego + ".error"); err == nil {
+					formatted, err := SourceWithOpts(rego, contents, opts)
+					if err == nil {
+						t.Fatalf("Expected error, got: %s", formatted)
+					}
+					if err.Error() != string(expErr) {
+						t.Fatalf("Expected error:\n\n'%s'\n\ngot:\n\n'%s'", expErr, err.Error())
+					}
+					return
+				}
+
+				expected, err := os.ReadFile(rego + ".formatted")
+				if err != nil {
+					t.Fatalf("Failed to read expected rego source: %v", err)
+				}
+
+				formatted, err := SourceWithOpts(rego, contents, opts)
+				if err != nil {
+					t.Fatalf("Failed to format file: %v", err)
+				}
+
+				if ln, at := differsAt(formatted, expected); ln != 0 {
+					t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
+				}
+
+				for _, v := range []ast.RegoVersion{span.Min(), span.Max()} {
+					if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), ast.ParserOptions{RegoVersion: v}); err != nil {
+						t.Fatalf("Failed to parse formatted bytes as %v: %v", v, err)
+					}
+				}
+
+				formatted, err = SourceWithOpts(rego, formatted, opts)
+				if err != nil {
+					t.Fatalf("Failed to double format file: %s", err)
+				}
+
+				if ln, at := differsAt(formatted, expected); ln != 0 {
+					t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+				}
+			})
+		}
+	}
+}
+
+func TestSourceWithOptsRegoV2(t *testing.T) {
+	v1v2, err := ast.NewRegoVersionSpan(ast.RegoV1, ast.RegoV2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		span        *ast.RegoVersionSpan // [v2, v2] if nil
+		src         string
+		drop        bool
+		exp         string
+	}{
+		{
+			note:        "v0, kept",
+			regoVersion: ast.RegoV0,
+			src: `package test
+import rego.v1
+import future.keywords.in
+p if 1 in input.xs`,
+			exp: `package test
+
+import future.keywords.in
+import rego.v1
+
+p if 1 in input.xs
+`,
+		},
+		{
+			note:        "v0, dropped",
+			regoVersion: ast.RegoV0,
+			drop:        true,
+			src: `package test
+import rego.v1
+import future.keywords.in
+p if 1 in input.xs`,
+			exp: `package test
+
+p if 1 in input.xs
+`,
+		},
+		{
+			note:        "v1, dropped",
+			regoVersion: ast.RegoV1,
+			drop:        true,
+			src: `package test
+import rego.v1
+import rego.v2
+import future.keywords
+import future.keywords.and
+import data.x
+p if input.a and x`,
+			exp: `package test
+
+import data.x
+
+p if input.a and x
+`,
+		},
+		{
+			note:        "v2, kept",
+			regoVersion: ast.RegoV2,
+			src: `package test
+import rego.v1
+import rego.v2
+import future.keywords
+import future.keywords.and
+import data.x
+p if input.a and x`,
+			exp: `package test
+
+import data.x
+import future.keywords
+import future.keywords.and
+import rego.v1
+import rego.v2
+
+p if input.a and x
+`,
+		},
+		{
+			note:        "v2, dropped",
+			regoVersion: ast.RegoV2,
+			drop:        true,
+			src: `package test
+import rego.v1
+import rego.v2
+import future.keywords
+import future.keywords.and
+import data.x
+p if input.a and x`,
+			exp: `package test
+
+import data.x
+
+p if input.a and x
+`,
+		},
+		{
+			note:        "v1, not set",
+			regoVersion: ast.RegoV1,
+			src: `package test
+p if { x := false; not {x} }`,
+			exp: `package test
+
+p if {
+	x := false
+	not ({x})
+}
+`,
+		},
+		{
+			note:        "v1 to [v1, v2], dropped",
+			regoVersion: ast.RegoV1,
+			span:        &v1v2,
+			drop:        true,
+			src: `package test
+import rego.v1
+import future.keywords.and
+import data.x
+p if input.a and x`,
+			exp: `package test
+
+import data.x
+import rego.v2
+
+p if input.a and x
+`,
+		},
+	}
+
+	setters := map[string]func(*Opts, bool){
+		"DropRedundantDirectiveImports": func(o *Opts, v bool) { o.DropRedundantDirectiveImports = v },
+		"DropV0Imports":                 func(o *Opts, v bool) { o.DropV0Imports = v },
+	}
+
+	for _, tc := range tests {
+		span := ast.RegoVersionSpanOf(ast.RegoV2)
+		if tc.span != nil {
+			span = *tc.span
+		}
+
+		for field, set := range setters {
+			t.Run(tc.note+"/"+field, func(t *testing.T) {
+				opts := Opts{
+					RegoVersionSpan: span,
+					ParserOptions:   &ast.ParserOptions{RegoVersion: tc.regoVersion},
+				}
+				set(&opts, tc.drop)
+
+				formatted, err := SourceWithOpts("test.rego", []byte(tc.src), opts)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if string(formatted) != tc.exp {
+					t.Fatalf("Expected:\n\n%s\n\ngot:\n\n%s", tc.exp, formatted)
+				}
+			})
+		}
+	}
+}
+
+func TestSourceWithOptsRegoVersionSpanPrecedence(t *testing.T) {
+	formatted, err := SourceWithOpts("test.rego", []byte("package test\np if { not {input.x} }"), Opts{
+		RegoVersion:     ast.RegoV0,
+		RegoVersionSpan: ast.RegoVersionSpanOf(ast.RegoV2),
+		ParserOptions:   &ast.ParserOptions{RegoVersion: ast.RegoV1},
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if exp := "package test\n\np if not ({input.x})\n"; string(formatted) != exp {
+		t.Fatalf("Expected:\n\n%s\n\ngot:\n\n%s", exp, formatted)
 	}
 }
 
@@ -1373,6 +1689,7 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 	regoVersions := map[string]ast.RegoVersion{
 		"v0": ast.RegoV0,
 		"v1": ast.RegoV1,
+		"v2": ast.RegoV2,
 	}
 
 	for versionName, regoVersion := range regoVersions {

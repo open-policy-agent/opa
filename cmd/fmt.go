@@ -159,10 +159,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	}
 
 	opts := format.Opts{
-		RegoVersion:   params.regoVersion(),
-		DropV0Imports: params.dropV0Imports,
-		Capabilities:  params.capabilities(),
-		ParserOptions: params.parserOptions(),
+		RegoVersion:                   params.regoVersion(),
+		DropRedundantDirectiveImports: params.dropV0Imports,
+		Capabilities:                  params.capabilities(),
+		ParserOptions:                 params.parserOptions(),
 	}
 
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
