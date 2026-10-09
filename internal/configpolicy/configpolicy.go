@@ -40,9 +40,9 @@ var utilModule string
 // Policy is an embedded validation policy, compiled once on first use and
 // evaluated repeatedly. Safe for concurrent use.
 type Policy struct {
-	name   string
-	source string
-	query  ast.Body
+	name    string
+	modules map[string]string
+	query   ast.Body
 
 	compileOnce sync.Once
 	compiler    *ast.Compiler
@@ -53,10 +53,16 @@ type Policy struct {
 // prefix on infrastructure errors), source is its Rego, and query binds the
 // result document to x (e.g. "data.opa.config = x").
 func New(name, source, query string) *Policy {
+	return NewWithModules(name, map[string]string{name: source}, query)
+}
+
+// NewWithModules is like New, but compiles several modules (keyed by filename)
+// together; name only prefixes infrastructure errors.
+func NewWithModules(name string, modules map[string]string, query string) *Policy {
 	return &Policy{
-		name:   name,
-		source: source,
-		query:  ast.MustParseBody(query),
+		name:    name,
+		modules: modules,
+		query:   ast.MustParseBody(query),
 	}
 }
 
@@ -64,20 +70,87 @@ func New(name, source, query string) *Policy {
 // accepts), returning the processed config and warnings; a non-empty set of
 // policy errors is returned as a single error.
 func (p *Policy) Eval(ctx context.Context, input any) (map[string]any, []string, error) {
-	compiler, err := p.Compiler()
+	doc, err := p.eval(ctx, input)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	warnings, err := reported(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	processed, ok := doc["processed"].(map[string]any)
+	if !ok {
+		return nil, nil, fmt.Errorf("%s: policy did not produce a processed configuration", p.name)
+	}
+
+	return processed, warnings, nil
+}
+
+// Check is like Eval for a policy that only reports errors and warnings: it
+// does not require (or return) a processed configuration. An undefined result
+// document means nothing was reported. Unlike Eval, it is meant for policies
+// OPA doesn't own, so errors and warnings that aren't sets of strings are
+// rejected rather than ignored: a malformed errors rule must not pass validation.
+func (p *Policy) Check(ctx context.Context, input any) ([]string, error) {
+	doc, err := p.eval(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range []string{"errors", "warnings"} {
+		if err := p.checkStrings(doc, key); err != nil {
+			return nil, err
+		}
+	}
+	return reported(doc)
+}
+
+// checkStrings returns an error unless doc[key] is absent or a set (or array)
+// of strings.
+func (p *Policy) checkStrings(doc map[string]any, key string) error {
+	v, ok := doc[key]
+	if !ok {
+		return nil
+	}
+	items, ok := v.([]any)
+	if !ok || slices.ContainsFunc(items, func(item any) bool { _, ok := item.(string); return !ok }) {
+		return fmt.Errorf("%s: %s must be a set of strings", p.name, key)
+	}
+	return nil
+}
+
+// reported returns the result document's sorted warnings, or its errors sorted
+// and joined into a single error.
+func reported(doc map[string]any) ([]string, error) {
+	if errs := StringSet(doc["errors"]); len(errs) > 0 {
+		slices.Sort(errs)
+		return nil, errors.New(strings.Join(errs, "; "))
+	}
+
+	warnings := StringSet(doc["warnings"])
+	slices.Sort(warnings)
+
+	return warnings, nil
+}
+
+// eval runs the query and returns the result document bound to x, or an empty
+// document when the query is undefined.
+func (p *Policy) eval(ctx context.Context, input any) (map[string]any, error) {
+	compiler, err := p.Compiler()
+	if err != nil {
+		return nil, err
+	}
+
 	inputValue, err := ast.InterfaceToValue(input)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", p.name, err)
+		return nil, fmt.Errorf("%s: %w", p.name, err)
 	}
 
 	store := inmem.New()
 	txn, err := store.NewTransaction(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", p.name, err)
+		return nil, fmt.Errorf("%s: %w", p.name, err)
 	}
 	defer store.Abort(ctx, txn)
 
@@ -88,35 +161,21 @@ func (p *Policy) Eval(ctx context.Context, input any) (map[string]any, []string,
 		WithInput(ast.NewTerm(inputValue)).
 		Run(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", p.name, err)
+		return nil, fmt.Errorf("%s: %w", p.name, err)
 	}
-	if len(qrs) != 1 {
-		return nil, nil, fmt.Errorf("%s: policy produced no result", p.name)
+	if len(qrs) == 0 {
+		return map[string]any{}, nil
 	}
 
 	result, err := ast.JSON(qrs[0][ast.Var("x")].Value)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", p.name, err)
+		return nil, fmt.Errorf("%s: %w", p.name, err)
 	}
 	doc, ok := result.(map[string]any)
 	if !ok {
-		return nil, nil, fmt.Errorf("%s: unexpected result type %T", p.name, result)
+		return nil, fmt.Errorf("%s: unexpected result type %T", p.name, result)
 	}
-
-	if errs := StringSet(doc["errors"]); len(errs) > 0 {
-		slices.Sort(errs)
-		return nil, nil, errors.New(strings.Join(errs, "; "))
-	}
-
-	processed, ok := doc["processed"].(map[string]any)
-	if !ok {
-		return nil, nil, fmt.Errorf("%s: policy did not produce a processed configuration", p.name)
-	}
-
-	warnings := StringSet(doc["warnings"])
-	slices.Sort(warnings)
-
-	return processed, warnings, nil
+	return doc, nil
 }
 
 // EvalConfigInto decodes raw config bytes (absent/empty/null → empty object),
@@ -171,17 +230,20 @@ func unmarshalRawConfig(raw []byte) (any, error) {
 func (p *Policy) Compiler() (*ast.Compiler, error) {
 	p.compileOnce.Do(func() {
 		popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
-		module, err := ast.ParseModuleWithOpts(p.name, p.source, popts)
-		if err != nil {
-			p.compileErr = fmt.Errorf("%s: %w", p.name, err)
-			return
-		}
 		helpers, err := ast.ParseModuleWithOpts(utilModuleName, utilModule, popts)
 		if err != nil {
 			p.compileErr = fmt.Errorf("%s: %w", utilModuleName, err)
 			return
 		}
-		modules := map[string]*ast.Module{p.name: module, utilModuleName: helpers}
+		modules := map[string]*ast.Module{utilModuleName: helpers}
+		for name, source := range p.modules {
+			module, err := ast.ParseModuleWithOpts(name, source, popts)
+			if err != nil {
+				p.compileErr = fmt.Errorf("%s: %w", p.name, err)
+				return
+			}
+			modules[name] = module
+		}
 		compiler := ast.NewCompiler()
 		if compiler.Compile(modules); compiler.Failed() {
 			p.compileErr = fmt.Errorf("%s: %w", p.name, compiler.Errors)

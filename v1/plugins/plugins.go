@@ -233,6 +233,7 @@ type Manager struct {
 	enableVersionCheck           bool
 	minTLSVersion                uint16
 	cipherSuites                 *[]uint16
+	configValidationPolicy       *config.ValidationPolicy
 	versionChecker               versioncheck.Checker
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
@@ -558,6 +559,23 @@ func WithCipherSuites(cs *[]uint16) func(*Manager) {
 	}
 }
 
+// WithConfigValidationPolicy sets a policy that validates the configuration in
+// addition to OPA's built-in checks, both at boot and when it is reconfigured
+// (e.g. via discovery). At boot, the policy validates the configuration before
+// any hooks.ConfigHook runs, so changes made by those hooks aren't validated;
+// during discovery, it validates the result of any hooks.ConfigDiscoveryHook.
+func WithConfigValidationPolicy(p *config.ValidationPolicy) func(*Manager) {
+	return func(m *Manager) {
+		m.configValidationPolicy = p
+	}
+}
+
+// ConfigValidationPolicy returns the policy set with WithConfigValidationPolicy,
+// or nil.
+func (m *Manager) ConfigValidationPolicy() *config.ValidationPolicy {
+	return m.configValidationPolicy
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
@@ -581,6 +599,17 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 
 	for _, f := range opts {
 		f(m)
+	}
+
+	// The validation policy is only known once the options are applied, which
+	// may read the parsed config, so validate with it in a second pass.
+	if m.configValidationPolicy != nil {
+		parsedConfig, err = config.ParseConfigWithPolicy(raw, id, m.configValidationPolicy)
+		if err != nil {
+			return nil, err
+		}
+		m.Config = parsedConfig
+		m.bootstrapConfigLabels = parsedConfig.Labels
 	}
 
 	if m.parserOptions.RegoVersion == ast.RegoUndefined {

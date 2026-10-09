@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -217,6 +218,83 @@ func TestStringSet(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if got := StringSet(tc.in); !slices.Equal(got, tc.want) {
 				t.Fatalf("want %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestPolicyCheck(t *testing.T) {
+	modules := map[string]string{
+		"check.rego": `package test.check
+
+import data.test.limits
+
+warnings contains "big" if input.config.size > limits.warn
+
+errors contains "too big" if input.config.size > limits.max
+`,
+		"limits.rego": `package test.limits
+
+warn := 10
+
+max := 100
+`,
+	}
+	p := NewWithModules("test/check", modules, "data.test.check = x")
+
+	tests := map[string]struct {
+		size     int
+		warnings []string
+		err      string
+	}{
+		"nothing reported": {size: 1},
+		"warning":          {size: 50, warnings: []string{"big"}},
+		"error":            {size: 500, err: "too big"},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			warnings, err := p.Check(t.Context(), map[string]any{"config": map[string]any{"size": tc.size}})
+			if tc.err != "" {
+				if err == nil || err.Error() != tc.err {
+					t.Fatalf("expected error %q, got %v", tc.err, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !slices.Equal(warnings, tc.warnings) {
+				t.Fatalf("want warnings %v, got %v", tc.warnings, warnings)
+			}
+		})
+	}
+}
+
+func TestPolicyCheckUndefined(t *testing.T) {
+	p := New("test/other.rego", "package test.other\n\nx := 1\n", "data.test.undefined = x")
+	warnings, err := p.Check(t.Context(), map[string]any{"config": map[string]any{}})
+	if err != nil || warnings != nil {
+		t.Fatalf("expected nothing reported for an undefined document, got %v, %v", warnings, err)
+	}
+}
+
+func TestPolicyCheckRejectsMalformedResults(t *testing.T) {
+	tests := map[string]struct {
+		rule string
+		err  string
+	}{
+		"object errors":    {rule: `errors contains {"msg": "denied"}`, err: "errors must be a set of strings"},
+		"string errors":    {rule: `errors := "denied"`, err: "errors must be a set of strings"},
+		"mixed errors":     {rule: "errors contains \"denied\"\n\nerrors contains 1", err: "errors must be a set of strings"},
+		"object warnings":  {rule: `warnings contains {"msg": "careful"}`, err: "warnings must be a set of strings"},
+		"boolean warnings": {rule: `warnings := true`, err: "warnings must be a set of strings"},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			p := New("test/malformed.rego", "package test.malformed\n\n"+tc.rule+"\n", "data.test.malformed = x")
+			_, err := p.Check(t.Context(), map[string]any{"config": map[string]any{}})
+			if err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Fatalf("expected error containing %q, got %v", tc.err, err)
 			}
 		})
 	}

@@ -166,3 +166,86 @@ func rootSpecKeys(t *testing.T) map[string]struct{} {
 	t.Fatal("no root spec (empty pattern) found in validate.rego")
 	return nil
 }
+
+func TestParseConfigWithPolicy(t *testing.T) {
+	policy, err := NewValidationPolicy(map[string]string{
+		"org.rego": `package system.config
+
+import data.opa.config.util
+
+errors contains "decision_logs.console must be enabled" if not input.config.decision_logs.console
+
+warnings contains "labels.team should be set" if util.absent(["labels", "team"])
+
+# The built-in defaults are injected before the policy runs.
+warnings contains sprintf("default_decision is %s", [input.config.default_decision])
+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := map[string]struct {
+		raw      string
+		warnings []string
+		err      string
+	}{
+		"error": {
+			raw: `{}`,
+			err: "decision_logs.console must be enabled",
+		},
+		"warnings": {
+			raw: `{"decision_logs": {"console": true}, "decision_log": {}}`,
+			warnings: []string{
+				`unknown configuration option "decision_log" encountered`,
+				"default_decision is /system/main",
+				"labels.team should be set",
+			},
+		},
+		"satisfied": {
+			raw:      `{"decision_logs": {"console": true}, "labels": {"team": "a"}, "default_decision": "/app/main"}`,
+			warnings: []string{"default_decision is /app/main"},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			conf, err := ParseConfigWithPolicy([]byte(tc.raw), "id", policy)
+			if tc.err != "" {
+				if err == nil || err.Error() != tc.err {
+					t.Fatalf("expected error %q, got %v", tc.err, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !slices.Equal(conf.Warnings, tc.warnings) {
+				t.Fatalf("want warnings %v, got %v", tc.warnings, conf.Warnings)
+			}
+		})
+	}
+}
+
+func TestNewValidationPolicyErrors(t *testing.T) {
+	tests := map[string]struct {
+		modules map[string]string
+		err     string
+	}{
+		"no system.config package": {
+			modules: map[string]string{"x.rego": "package system.configs\n\nerrors contains \"x\"\n"},
+			err:     "no module declares package system.config",
+		},
+		"compile error": {
+			modules: map[string]string{"x.rego": "package system.config\n\nerrors contains x\n"},
+			err:     "var x is unsafe",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := NewValidationPolicy(tc.modules)
+			if err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Fatalf("expected error containing %q, got %v", tc.err, err)
+			}
+		})
+	}
+}

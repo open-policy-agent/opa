@@ -229,6 +229,41 @@ func TestReloadConfigRejectsInvalid(t *testing.T) {
 	}
 }
 
+func TestReloadConfigRejectedByValidationPolicy(t *testing.T) {
+	root := test.TempDir(t, map[string]string{
+		"/config.yaml": "labels:\n  env: prod\n",
+		"/org.rego": `package system.config
+
+errors contains "labels.env must be set" if not input.config.labels.env
+`,
+	})
+	configFile := filepath.Join(root, "config.yaml")
+
+	params := NewParams()
+	params.ConfigFile = configFile
+	params.ConfigValidationPolicies = []string{filepath.Join(root, "org.rego")}
+	params.Output = io.Discard
+	params.Logger = testLog.New()
+
+	rt, err := NewRuntime(t.Context(), params)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	writeConfig(t, configFile, "labels:\n  region: west\n")
+
+	changed, err := rt.reloadConfig(t.Context())
+	if !changed {
+		t.Error("expected the on-disk change to be reported")
+	}
+	if err == nil || !strings.Contains(err.Error(), "labels.env must be set") {
+		t.Fatalf("expected the validation policy to reject the reload, got %v", err)
+	}
+	if restartRequested(rt) {
+		t.Error("expected no restart to be requested for a configuration the policy rejects")
+	}
+}
+
 // TestReloadConfigUnreadable covers a file that cannot be read at all, which
 // fails before OPA has anything to compare against and so keeps being reported.
 func TestReloadConfigUnreadable(t *testing.T) {

@@ -211,6 +211,7 @@ func (rt *Runtime) validateConfig(ctx context.Context, bs []byte) error {
 		plugins.WithMinTLSVersion(rt.Params.MinTLSVersion),
 		plugins.WithCipherSuites(rt.Params.CipherSuites),
 		plugins.WithStoreCloseOnStop(false),
+		plugins.WithConfigValidationPolicy(rt.configPolicy),
 	)
 	if err != nil {
 		return err

@@ -267,6 +267,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().StringSliceVar(&cmdParams.cipherSuites, "tls-cipher-suites", []string{}, "set list of enabled TLS 1.0–1.2 cipher suites (IANA)")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
+	runCommand.Flags().StringArrayVar(&cmdParams.rt.ConfigValidationPolicies, "config-policy", []string{}, "set path of a Rego file or directory with policies (package system.config) that validate the configuration")
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode)
 	addReadAstValuesFromStoreFlag(runCommand.Flags(), &cmdParams.rt.ReadAstValuesFromStore, false)
 

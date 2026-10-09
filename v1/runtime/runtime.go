@@ -229,6 +229,11 @@ type Params struct {
 	// form of `key=path/to/file`where the file contains the value to be used.
 	ConfigOverrideFiles []string
 
+	// ConfigValidationPolicies are paths to Rego files (or directories of them)
+	// that validate the OPA configuration in addition to OPA's built-in checks.
+	// Test files (_test.rego) are skipped. See config.ValidationPolicy.
+	ConfigValidationPolicies []string
+
 	// Output is the output stream used when run as an interactive shell. This
 	// is mostly for test purposes.
 	Output io.Writer
@@ -386,6 +391,10 @@ type Runtime struct {
 	meterProvider     *sdkmetric.MeterProvider
 	loadedPathsResult *initload.LoadPathsResult
 
+	// Compiled once from Params.ConfigValidationPolicies and applied to every
+	// configuration the runtime comes up under, including reloads.
+	configPolicy *opa_config.ValidationPolicy
+
 	// serverTracingOpts holds the distributed tracing options that only apply to
 	// OPA's own HTTP server, and not to the outbound requests made by plugins or
 	// by http.send during evaluation.
@@ -507,6 +516,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
+	configPolicy, err := loadConfigValidationPolicy(params.ConfigValidationPolicies)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+
 	var versionChecker versioncheck.Checker
 	if params.EnableVersionCheck {
 		var err error
@@ -577,6 +591,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		versionChecker:    versionChecker,
 		serverStatus:      ServerNotStarted,
 		loadedPathsResult: loaded,
+		configPolicy:      configPolicy,
 		callerTracingOpts: params.DistributedTracingOpts,
 		ownRouter:         ownRouter,
 		restartc:          make(chan struct{}, 1),
@@ -662,6 +677,7 @@ func (rt *Runtime) configure(ctx context.Context, config []byte, metrics *promet
 		// The runtime owns the store: it outlives every manager built here, and
 		// is closed once the serve loop is done with it.
 		plugins.WithStoreCloseOnStop(false),
+		plugins.WithConfigValidationPolicy(rt.configPolicy),
 	)
 	if err != nil {
 		return fmt.Errorf("config error: %w", err)
@@ -746,6 +762,27 @@ func buildMetricsProvider(ctx context.Context, config []byte, params Params, log
 	}
 
 	return prometheus.New(metrics.New(), errorLogger(logger), metricsConfig.Prom.HTTPRequestDurationSeconds.Buckets), nil
+}
+
+// loadConfigValidationPolicy compiles the Rego files found at paths, skipping
+// tests, into a config validation policy. It returns nil when paths is empty.
+func loadConfigValidationPolicy(paths []string) (*opa_config.ValidationPolicy, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	result, err := loader.NewFileLoader().Filtered(paths, func(_ string, info os.FileInfo, _ int) bool {
+		return !info.IsDir() && (!strings.HasSuffix(info.Name(), bundle.RegoExt) || strings.HasSuffix(info.Name(), "_test"+bundle.RegoExt))
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	modules := make(map[string]string, len(result.Modules))
+	for _, m := range result.Modules {
+		modules[m.Name] = string(m.Raw)
+	}
+	return opa_config.NewValidationPolicy(modules)
 }
 
 // extractMetricsConfig returns the configuration for server metrics and parsing errors if any
