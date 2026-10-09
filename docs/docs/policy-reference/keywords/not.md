@@ -180,3 +180,30 @@ p if {
 Grouping with `not (...)` or `not { ... }` requires the `future.keywords.not` import in
 addition to the `and`/`or` import, or the `rego.v2` import, which enables all three. Without it the parentheses are read as an ordinary
 grouped expression, which cannot contain `and` or `or`.
+
+## Impossible negations
+
+`not` succeeds only when its operand is undefined or `false`. A negated expression
+whose operand is always defined and never `false` can never succeed, so the compiler
+rejects it. A common example is negating a [multi-value rule](../../policy-language#generating-sets),
+which evaluates to an empty set rather than undefined when no definition matches:
+
+```rego
+package example
+
+deny contains "denied" if input.user == "bob"
+
+allow if {
+    not deny # always false: deny is {} when nothing matches
+}
+```
+
+```
+rego_compile_error: negation of multi-value rule data.example.deny is always false, as it is never undefined (hint: use count(data.example.deny) == 0 to check for an empty set)
+```
+
+Use `count(deny) == 0` to check that the set is empty. The same applies to negated
+comprehensions (`not [x | ...]`) and constant values other than `false` (`not 1`, `not []`).
+
+The check is skipped for a multi-value rule when a `with` modifier somewhere in the
+compiled modules replaces it (or one of its enclosing documents), e.g. `allow with deny as false`.

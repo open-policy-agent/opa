@@ -11519,6 +11519,150 @@ func TestCompilerCheckVoidCalls(t *testing.T) {
 	}
 }
 
+func TestCompilerCheckImpossibleNegations(t *testing.T) {
+	const multiValue = "negation of multi-value rule data.p.deny is always false, as it is never undefined (hint: use count(data.p.deny) == 0 to check for an empty set)"
+	const comprehension = "negation of a comprehension is always false, as it is never undefined"
+
+	tests := []struct {
+		note    string
+		modules []string
+		exp     []string
+	}{
+		{
+			note: "multi-value rule",
+			modules: []string{`package p
+				deny contains "x" if input.bad
+				allow if not deny`},
+			exp: []string{multiValue},
+		},
+		{
+			note: "multi-value rule, future.keywords.not",
+			modules: []string{`package p
+				import future.keywords.not
+				deny contains "x" if input.bad
+				allow if not deny`},
+			exp: []string{multiValue},
+		},
+		{
+			note: "multi-value rule, explicit not-body",
+			modules: []string{`package p
+				import future.keywords.not
+				deny contains "x" if input.bad
+				allow if not { deny }`},
+			exp: []string{multiValue},
+		},
+		{
+			note: "multi-value rule, imported from other package",
+			modules: []string{
+				`package p
+				deny contains "x" if input.bad`,
+				`package q
+				import data.p.deny
+				allow if not deny`,
+			},
+			exp: []string{multiValue},
+		},
+		{
+			note: "multi-value rule, ref head",
+			modules: []string{`package p
+				a.b contains "x" if input.bad
+				allow if not a.b`},
+			exp: []string{"negation of multi-value rule data.p.a.b is always false"},
+		},
+		{
+			note: "multi-value rule, with modifier not targeting it",
+			modules: []string{`package p
+				deny contains "x" if input.bad
+				test_deny if not deny with input as {"bad": true}`},
+			exp: []string{multiValue},
+		},
+		{
+			note: "multi-value rule, nested in comprehension",
+			modules: []string{`package p
+				deny contains "x" if input.bad
+				xs := [1 | not deny]`},
+			exp: []string{multiValue},
+		},
+		{
+			note: "comprehensions",
+			modules: []string{`package p
+				a if not [x | some x in input.xs]
+				b if not {x | some x in input.xs}
+				c if not {x: 1 | some x in input.xs}`},
+			exp: []string{comprehension, comprehension, comprehension},
+		},
+		{
+			note: "ground literals",
+			modules: []string{`package p
+				a if not 1
+				b if not "x"
+				c if not null
+				d if not true
+				e if not []
+				f if not {"a": [1]}`},
+			exp: []string{
+				`negation of "x" is always false, as it is never undefined or false`,
+				`negation of 1 is always false, as it is never undefined or false`,
+				`negation of [] is always false, as it is never undefined or false`,
+				`negation of null is always false, as it is never undefined or false`,
+				`negation of true is always false, as it is never undefined or false`,
+				`negation of {"a": [1]} is always false, as it is never undefined or false`,
+			},
+		},
+		{
+			note: "possible negations",
+			modules: []string{`package p
+				import future.keywords.not
+				deny contains "x" if input.bad
+				s := {"x"} if input.s
+				default d := {"x"}
+				f(_) := true
+				a if not false
+				b if not deny["x"]
+				c if not [input.x]
+				d0 if not [count(input.x)]
+				e if not s
+				g if not d
+				h if not f(1)
+				i if not { deny; input.x }
+				j if { x := []; not x }`},
+		},
+		{
+			note: "multi-value rule, overridden by with",
+			modules: []string{`package p
+				deny contains "x" if input.bad
+				allow if not deny
+				test_allow if allow with deny as false`},
+		},
+		{
+			note: "multi-value rule, prefix overridden by with in other module",
+			modules: []string{
+				`package p
+				deny contains "x" if input.bad
+				allow if not deny`,
+				`package p_test
+				test_allow if data.p.allow with data.p as {}`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprintf("mod%d.rego", i)] = module(m)
+			}
+			c := NewCompiler()
+			c.Compile(mods)
+			if len(tc.exp) == 0 {
+				assertNotFailed(t, c)
+				return
+			}
+			assertCompilerErrorStrings(t, c, tc.exp)
+		})
+	}
+}
+
 func TestCompilerGetRulesExact(t *testing.T) {
 	mods := getCompilerTestModules()
 
@@ -14785,10 +14929,11 @@ func TestCompilerNotImport(t *testing.T) {
 	}
 
 	tests := []struct {
-		note    string
-		module  string
-		expMod  *Module
-		expErrs Errors
+		note       string
+		module     string
+		skipStages []StageID // e.g. to rewrite negated comprehensions, which CheckImpossibleNegations rejects
+		expMod     *Module
+		expErrs    Errors
 	}{
 		{
 			note: "no import",
@@ -15508,7 +15653,8 @@ func TestCompilerNotImport(t *testing.T) {
 		},
 
 		{
-			note: "nested negation (comprehension)",
+			note:       "nested negation (comprehension)",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 				
@@ -15530,7 +15676,8 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "nested negation (comprehension), explicit not-bodies",
+			note:       "nested negation (comprehension), explicit not-bodies",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 				
@@ -15554,7 +15701,8 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "nested negation (comprehension), outer closure var reference",
+			note:       "nested negation (comprehension), outer closure var reference",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 				
@@ -15576,7 +15724,8 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "nested negation (comprehension), outer closure var reference, rearranged",
+			note:       "nested negation (comprehension), outer closure var reference, rearranged",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 				
@@ -15598,7 +15747,8 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "nested negation (comprehension), outer closure var reference, explicit not-bodies, rearranged",
+			note:       "nested negation (comprehension), outer closure var reference, explicit not-bodies, rearranged",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 				
@@ -15622,7 +15772,8 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "nested negation (comprehension), unsafe var reference",
+			note:       "nested negation (comprehension), unsafe var reference",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 
@@ -15640,7 +15791,8 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 		{
-			note: "nested negation (comprehension), inner var override",
+			note:       "nested negation (comprehension), inner var override",
+			skipStages: []StageID{StageCheckImpossibleNegations},
 			module: `package negation
 				import future.keywords.not
 				
@@ -16031,7 +16183,7 @@ func TestCompilerNotImport(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected parse error: %v", err)
 			}
-			c := NewCompiler()
+			c := NewCompiler().WithSkipStages(tc.skipStages...)
 			c.Compile(map[string]*Module{"mod.rego": mod})
 
 			if len(tc.expErrs) > 0 {

@@ -241,7 +241,7 @@ cases:
         a if {
           not { # 2 so this succeeds
             not { # 1. this fails
-              true
+              1 == 1
             }
           }
         }
