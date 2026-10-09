@@ -4774,7 +4774,7 @@ q if { input.x = 7 }`},
 			},
 			unknowns: []string{`data.y`},
 			wantQueries: []string{
-				`x1 = data.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
+				`data.y[c1].z = 1 and {__local0__1 = data.y[c1].z; neq(__local0__1, 2)}; x1 = data.y[c1]`,
 			},
 		},
 		{
@@ -4813,7 +4813,7 @@ q if { input.x = 7 }`},
 			},
 			unknowns: []string{`input.y`},
 			wantQueries: []string{
-				`x1 = input.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
+				`input.y[c1].z = 1 and {__local0__1 = input.y[c1].z; neq(__local0__1, 2)}; x1 = input.y[c1]`,
 			},
 		},
 		{
