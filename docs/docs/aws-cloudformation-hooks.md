@@ -348,7 +348,7 @@ aws cloudformation update-stack --stack-name cfn-s3 --template-body file://s3buc
 Having a single policy file for all rules will quickly become unwieldy. Is there room for improvement? One way of doing
 that would be to use dynamic policy composition, where a single main policy acts as a "router", and forwards queries to
 other packages based on attributes from the input. A natural attribute to use for CloudFormation templates might for
-example be the resource type, allowing policies to be grouped by the resource type they are meant to act on.
+example be the resource type, allowing policies to be grouped by the resource type they are meant to act on. See [Dynamic Policy Composition](./dynamic-policy-composition) for the pattern in general.
 Here is what such a main policy might look like:
 
 ```rego title="main.rego"
