@@ -123,6 +123,7 @@ module.exports = {
         "oauth-oidc",
         "cheatsheet",
         "style-guide",
+        "dynamic-policy-composition",
       ],
     },
     {
