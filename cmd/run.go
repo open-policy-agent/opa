@@ -191,19 +191,11 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
 
-The --watch-config flag watches the file given by --config-file. A change there cannot be applied to a running server,
-so OPA restarts the server and everything the configuration drives under the new settings, without the process exiting.
-That is a far bigger disruption than reloading policy and data, which is why it is opt-in and separate from --watch.
-What it buys is that OPA applies the change itself, which is worth having where nothing else can arrange a restart --
-an unorchestrated host, or a sidecar whose restart would take the application down with it.
-Almost any option can be changed this way; "server.metrics" and "server.logger_plugin" still need the process restarted.
-The file is checked before anything is torn down, so a configuration OPA cannot run with is reported and leaves the
-running configuration serving.
-
-A restart re-binds the listeners and starts the configured features from scratch, so in-flight requests are drained
-and bundles are downloaded again unless "persistence_directory" is set. Under an orchestrator that can roll pods out
-for you, replacing them on a configuration change is usually the better option. The configuration file is not watched
-when discovery is enabled, as the discovered configuration is then what OPA is configured with.
+The --watch-config flag watches the file given by --config-file and, when it changes, restarts the server under the
+new configuration without the process exiting. In-flight requests are drained and bundles are downloaded again unless
+"persistence_directory" is set. An invalid configuration is reported and the running one keeps serving. Changes to
+"server.metrics" and "server.logger_plugin" still need a process restart, and the file is not watched when discovery
+is enabled. Only supported with --server.
 
 OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will

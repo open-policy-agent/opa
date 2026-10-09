@@ -1118,10 +1118,8 @@ this restarts the server and everything the configuration drives.
 ### When to use it
 
 Where something else can replace the process for you, let it. On Kubernetes,
-a configuration change is a change to the desired state: update the ConfigMap
-and roll the pods out, and you get the restart with health gating, surge
-control and a record of what happened. OPA restarting itself is none of those
-things — from the outside it is an unexplained blip.
+update the ConfigMap and roll the pods out: you get the restart with health
+gating, surge control and a record of what happened.
 
 `--watch-config` is for where that is not on offer:
 
@@ -1132,65 +1130,42 @@ things — from the outside it is an unexplained blip.
 - Development and testing, where iterating on the configuration beats waiting
   for a restart.
 
-Almost any option can be changed this way. OPA does not reconfigure itself in
-place: it stops the server and everything the configuration drives, rebuilds
-them from the new file, and starts them again. Only the store survives, so a
-decision is never served under a half-applied configuration.
-
-Two options still need the process restarted, because they are wired into
-things older than the serve routine:
-
-- `server.metrics`, whose collectors are registered on a Prometheus registry the
-  store also writes to.
-- `server.logger_plugin`, which is resolved once, when the start-up log buffer
-  is flushed.
+Almost any option can be changed this way. OPA stops the server and everything
+the configuration drives, rebuilds them from the new file, and starts them
+again; only the store is kept. Two options still need the process restarted:
+`server.metrics` and `server.logger_plugin`.
 
 `--set` and `--set-file` overrides are re-applied on top of the file on each
-reload, so a value overridden on the command line stays overridden. The files
-named by `--set-file` are re-read every time, so an edit to one of them is
-picked up too — but they are not watched, so it takes a change to the
-configuration file to trigger the reload that reads them.
+reload. The files named by `--set-file` are re-read too, but not watched: an
+edit to one is only picked up on the next change to the configuration file.
 
 ### What a restart costs
-
-Everything the configuration drives starts from scratch, so a change is not
-free:
 
 - **Listeners are re-bound.** Requests already being served are drained first,
   but there is a brief window where the port is not accepting connections.
 - **Bundles are downloaded again**, unless [`persistence_directory`](#bundles)
   is set, in which case the persisted copy is activated first. Until the first
   activation, `/health?bundles` reports not-ready.
-- **Buffered decisions are flushed** where the decision log plugin can flush
-  them — that is, when a `service` is configured. Decisions buffered for a
-  console or plugin sink are lost.
+- **Buffered decisions are flushed** when the decision log plugin has a
+  `service` configured. Decisions buffered for a console or plugin sink are
+  lost.
 
-This is the trade for being able to change any option: a reload is reliably
-more expensive than reconfiguring in place would be, and reliably complete.
+### When a change is not applied
 
-### When a reload is refused
-
-The new file is checked before anything is torn down, so a configuration OPA
-could not start under costs nothing — the error is logged and the running
-configuration keeps serving. That covers what can be known by reading the file:
-it must parse, satisfy the configuration schema, pass any [config hooks](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/hooks), and every
-section must be valid for the feature it configures — including references, so
-a `bundles` entry naming a service that does not exist is caught here.
-
-What cannot be known by reading the file is only found once the restart runs: a
-port that no longer binds, a directory that cannot be written. If OPA cannot
-come up under the new configuration it falls back to the previous one and logs
-the failure.
-
-Note that a _misspelled_ option is not an error. Unrecognized keys are reported
-as warnings and otherwise ignored, exactly as they are at start-up, so a typo in
-a key name silently does nothing rather than failing the reload.
-
-The configuration file is not watched when [discovery](#discovery) is enabled,
-since the discovered configuration — not the file on disk — is what OPA is
-configured with. OPA logs a warning at start-up in that case. It is also not
-watched when OPA is embedded and the caller supplied its own HTTP router, since
-a restart needs to register OPA's routes afresh.
+- **Invalid configuration**: a file that fails to parse, fails the schema or a
+  [config hook](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/hooks),
+  or has an invalid section (such as a `bundles` entry naming a service that
+  does not exist) is rejected before anything is torn down. The error is
+  logged and the running configuration keeps serving.
+- **Failed restart**: if OPA cannot come up under the new configuration, for
+  example because a port no longer binds, it falls back to the previous one and
+  logs the failure.
+- **Misspelled options** are not an error: unrecognized keys are logged as
+  warnings and ignored, as they are at start-up.
+- **Discovery**: the file is not watched when [discovery](#discovery) is
+  enabled. OPA logs a warning at start-up.
+- **Custom router**: the file is not watched when OPA is embedded and the
+  caller supplied its own HTTP router.
 
 ## Using Environment Variables in Configuration
 
