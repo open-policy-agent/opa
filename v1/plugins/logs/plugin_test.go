@@ -3026,6 +3026,116 @@ func TestPluginDrop(t *testing.T) {
 	}
 }
 
+// Regression test: the decision log policy input is built from the event, so it must
+// include the Metrics and Error fields that Log() attaches. Previously the input was
+// snapshotted before those assignments, so `drop if input.error` and any mask rule keyed
+// on input.metrics silently never fired.
+func TestPluginLogPolicyInputIncludesErrorAndMetrics(t *testing.T) {
+	t.Parallel()
+
+	rawPolicy := []byte(`
+		package system.log
+		import rego.v1
+
+		# Under test: the drop policy must be able to observe input.error.
+		drop if { input.error }
+
+		# Control: identical shape, on a field the policy demonstrably sees already.
+		# Without this, a failure above could just mean dropping is broken entirely.
+		drop if { input.path == "control/drop" }
+
+		# Under test: the mask policy must be able to observe input.metrics.
+		mask contains "/result" if { input.metrics }
+
+		# Control: identical shape, on a field the policy demonstrably sees already.
+		mask contains "/input/plain" if { input.path == "keep/me" }
+	`)
+
+	ctx := context.Background()
+	store := inmem.New()
+	if err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		return store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	testLogger := test.New()
+	manager, err := plugins.New(nil, "test", store, plugins.ConsoleLogger(testLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{ConsoleLogs: true}
+	trigger := plugins.DefaultTriggerMode
+	if err := cfg.validateAndInjectDefaults(nil, nil, &trigger, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(cfg, manager)
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
+
+	newMetrics := func() metrics.Metrics {
+		m := metrics.New()
+		m.Timer("test_timer").Start()
+		m.Timer("test_timer").Stop()
+		return m
+	}
+
+	// Kept: neither drop rule applies. Both mask rules must fire.
+	input := any(map[string]any{"plain": "secret", "keep": "fine"})
+	result := any("some-result")
+	if err := plugin.Log(ctx, &server.Info{
+		Path: "keep/me", Input: &input, Results: &result, Metrics: newMetrics(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Control: dropped on a field the policy already sees, proving drop works via Log().
+	if err := plugin.Log(ctx, &server.Info{
+		Path: "control/drop", Metrics: newMetrics(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Under test: dropped because the event carries an error.
+	if err := plugin.Log(ctx, &server.Info{
+		Path: "keep/me", Error: errors.New("boom"), Metrics: newMetrics(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+	if len(entries) != 1 {
+		var paths []string
+		for _, e := range entries {
+			paths = append(paths, fmt.Sprint(e.Fields["path"]))
+		}
+		t.Fatalf("expected only the kept event to be logged, got %d entries for paths %v", len(entries), paths)
+	}
+
+	erased, _ := entries[0].Fields["erased"].([]any)
+	got := map[string]bool{}
+	for _, e := range erased {
+		if s, ok := e.(string); ok {
+			got[s] = true
+		}
+	}
+	for _, want := range []string{"/input/plain", "/result"} {
+		if !got[want] {
+			t.Errorf("expected %q to be erased, got %v", want, erased)
+		}
+	}
+	if len(got) != 2 {
+		t.Errorf("expected exactly 2 erased paths, got %v", erased)
+	}
+}
+
 func TestPluginMaskErrorHandling(t *testing.T) {
 	t.Parallel()
 
