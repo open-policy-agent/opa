@@ -166,7 +166,7 @@ func (r maskRule) Mask(event *EventV1) error {
 		if r.modifyFullObj {
 			*maskObjPtr = nil
 		} else {
-			err := r.removeValue(r.escapedParts[1:], *maskObj)
+			err := r.removeValue(r.escapedParts[1:], maskObj)
 			if err != nil {
 				if err == errMaskInvalidObject && r.failUndefinedPath {
 					return err
@@ -180,16 +180,18 @@ func (r maskRule) Mask(event *EventV1) error {
 		if r.modifyFullObj {
 			*maskObjPtr = &r.Value
 		} else {
-			inputObj, ok := (*maskObj).(map[string]any)
-			if !ok {
-				return nil
-			}
+			// A document rooted at an array is addressable too, so dispatch on both
+			// container kinds. mkdirp already handles each.
+			switch obj := (*maskObj).(type) {
+			case map[string]any, []any:
+				if err := r.mkdirp(obj, r.escapedParts[1:len(r.escapedParts)], r.Value); err != nil {
+					if r.failUndefinedPath {
+						return err
+					}
 
-			if err := r.mkdirp(inputObj, r.escapedParts[1:len(r.escapedParts)], r.Value); err != nil {
-				if r.failUndefinedPath {
-					return err
+					return nil
 				}
-
+			default:
 				return nil
 			}
 		}
@@ -202,10 +204,12 @@ func (r maskRule) Mask(event *EventV1) error {
 	return nil
 }
 
-func (maskRule) removeValue(p []string, node any) error {
+func (maskRule) removeValue(p []string, nodePtr *any) error {
 	if len(p) == 0 {
 		return nil
 	}
+
+	node := *nodePtr
 
 	// the key or index to be removed
 	targetKey := p[len(p)-1]
@@ -270,6 +274,11 @@ func (maskRule) removeValue(p []string, node any) error {
 
 		case map[string]any:
 			nodeParent[nodeKey] = slices.Delete(v, targetIndex, targetIndex+1)
+
+		case nil:
+			// The target slice is the root document itself, so there is no parent to
+			// write the shortened slice back into. Write through the root pointer.
+			*nodePtr = slices.Delete(v, targetIndex, targetIndex+1)
 
 		default:
 			return errMaskInvalidObject
