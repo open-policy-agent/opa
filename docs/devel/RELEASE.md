@@ -59,7 +59,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
    fork while creating the release:
 
    ```
-   git checkout -b release-v<version> origin/main
+   git checkout -b release-<version> origin/main
    ```
 
 1. Authenticate with GitHub, either by running `gh auth login` or by exporting a
@@ -97,7 +97,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
    ```
    git add .
    git commit -s -m "Prepare v<version> release"
-   git push origin release-v<version>
+   git push origin release-<version>
    ```
 
 1. Create a Pull Request for the release preparation commit.
