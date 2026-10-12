@@ -48,6 +48,21 @@ Additionally, OPA will now correctly detect and sign all other files with the su
 
 Authored by @philipaconrad
 
+
+## 1.21.2
+
+This release builds the OPA binary artifacts with the latest version of
+Go (v1.27.2), its standard library, and the golang.org/x/net dependency (v0.60.0).
+
+See these security advisories:
+- https://groups.google.com/g/golang-announce/c/U2fTuyDJznI
+- https://groups.google.com/g/golang-announce/c/ZPwCyRUuGBs
+
+Furthermore, it addresses a mismatch in how encoded slashes were handled
+in the input to a basic authorization policy and the Data API
+(#9323, reported by @abhishekkushwaha4u, fixed by @sspaink).
+
+
 ## 1.21.1
 
 This release fixes a compiler regression introduced in OPA v1.21.0.
