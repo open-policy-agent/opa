@@ -97,6 +97,9 @@ func (c *virtualCache) Put(ref ast.Ref, value *ast.Term) {
 			node = x
 		} else {
 			next := newVirtualCacheElem()
+			if node.children == nil {
+				node.children = newVirtualCacheHashMap()
+			}
 			node.children.Put(ref[i], next)
 			node = next
 		}
@@ -128,8 +131,9 @@ func keysRecursive(root ast.Ref, node *virtualCacheElem) []ast.Ref {
 	return keys
 }
 
+// children is allocated on first insert: most frames, and every leaf, never get one.
 func newVirtualCacheElem() *virtualCacheElem {
-	return &virtualCacheElem{children: newVirtualCacheHashMap()}
+	return &virtualCacheElem{}
 }
 
 func newVirtualCacheHashMap() *util.HasherMap[*ast.Term, *virtualCacheElem] {
@@ -254,7 +258,7 @@ func newComprehensionCache() *comprehensionCache {
 }
 
 func (c *comprehensionCache) Push() {
-	c.stack.Push(map[*ast.Term]*comprehensionCacheElem{})
+	c.stack.Push(nil) // allocated by Set, a frame is often never written to
 }
 
 func (c *comprehensionCache) Pop() {
@@ -267,7 +271,11 @@ func (c *comprehensionCache) Elem(t *ast.Term) (*comprehensionCacheElem, bool) {
 }
 
 func (c *comprehensionCache) Set(t *ast.Term, elem *comprehensionCacheElem) {
-	c.stack.Peek()[t] = elem
+	top := c.stack.PeekPtr()
+	if *top == nil {
+		*top = map[*ast.Term]*comprehensionCacheElem{}
+	}
+	(*top)[t] = elem
 }
 
 func newComprehensionCacheElem() *comprehensionCacheElem {
@@ -330,6 +338,10 @@ func (s *functionMocksStack) PopPairs() {
 }
 
 func (s *functionMocksStack) PutPairs(mocks [][2]*ast.Term) {
+	if len(mocks) == 0 {
+		s.Put(nil) // keeps PopPairs balanced
+		return
+	}
 	el := make(frame, len(mocks))
 	for i := range mocks {
 		el[mocks[i][0].Value.String()] = mocks[i][1]

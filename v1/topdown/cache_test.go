@@ -59,3 +59,68 @@ func TestBaseCacheGetExactMatch(t *testing.T) {
 		t.Fatalf("Expected bar but got %v", result)
 	}
 }
+
+func TestVirtualCacheEmptyFrame(t *testing.T) {
+	t.Parallel()
+
+	cache := NewVirtualCache()
+	ref := ast.MustParseRef("data.x.p")
+	cache.Push()
+
+	if result, undefined := cache.Get(ref); result != nil || undefined {
+		t.Fatalf("expected a miss, got %v, %v", result, undefined)
+	}
+	if keys := cache.Keys(); len(keys) != 0 {
+		t.Fatalf("expected no keys, got %v", keys)
+	}
+
+	cache.Put(ref, ast.BooleanTerm(true))
+	cache.Put(ast.MustParseRef("data.x.q"), ast.BooleanTerm(false))
+	if keys := cache.Keys(); len(keys) != 2 {
+		t.Fatalf("expected 2 keys, got %v", keys)
+	}
+}
+
+func TestComprehensionCacheEmptyFrame(t *testing.T) {
+	t.Parallel()
+
+	term := ast.MustParseTerm("[x | x = 1]")
+	cache := newComprehensionCache()
+	cache.Push()
+
+	if _, ok := cache.Elem(term); ok {
+		t.Fatal("expected a miss on an empty frame")
+	}
+
+	cache.Set(term, newComprehensionCacheElem())
+	if _, ok := cache.Elem(term); !ok {
+		t.Fatal("expected a hit after Set")
+	}
+
+	cache.Pop()
+	if _, ok := cache.Elem(term); ok {
+		t.Fatal("expected the popped frame's entry to be gone")
+	}
+}
+
+func TestFunctionMocksStackNoMocks(t *testing.T) {
+	t.Parallel()
+
+	s := newFunctionMocksStack()
+	ref := ast.MustParseRef("data.f")
+
+	s.PutPairs(nil)
+	if _, ok := s.Get(ref); ok {
+		t.Fatal("expected no mock")
+	}
+
+	s.PutPairs([][2]*ast.Term{{ast.NewTerm(ref), ast.IntNumberTerm(1)}})
+	if _, ok := s.Get(ref); !ok {
+		t.Fatal("expected a mock")
+	}
+	s.PopPairs()
+	s.PopPairs()
+	if _, ok := s.Get(ref); ok {
+		t.Fatal("expected no mock after popping")
+	}
+}
