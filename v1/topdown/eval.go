@@ -1136,9 +1136,9 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return e.saveCall(bi.Decl.Arity(), terms, iter)
 	}
 
-	var bctx *BuiltinContext
+	eval := evalBuiltinPool.Get()
+	defer evalBuiltinPool.Put(eval)
 
-	// Creating a BuiltinContext is expensive, so only do it if the builtin depends on it.
 	if !bi.CanSkipBctx {
 		var parentID uint64
 		if e.parent != nil {
@@ -1154,7 +1154,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			e.time = ast.NumberTerm(int64ToJSONNumber(e.timeStart))
 		}
 
-		bctx = &BuiltinContext{
+		eval.bctxStore = BuiltinContext{
 			Context:                     e.ctx,
 			Metrics:                     e.metrics,
 			Seed:                        e.seed,
@@ -1177,14 +1177,11 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			RequestMetadata:             e.requestMetadata,
 			ResponseMetadata:            e.responseMetadata,
 		}
+		eval.bctx = &eval.bctxStore
 	}
-
-	eval := evalBuiltinPool.Get()
-	defer evalBuiltinPool.Put(eval)
 
 	eval.e = e
 	eval.bi = bi
-	eval.bctx = bctx
 	eval.f = f
 	eval.terms = terms[1:]
 
@@ -2121,17 +2118,19 @@ func (e *eval) updateFromQuery(expr *ast.Expr) {
 }
 
 type evalBuiltin struct {
-	e     *eval
-	bi    *ast.Builtin
-	bctx  *BuiltinContext
-	f     BuiltinFunc
-	terms []*ast.Term
+	e         *eval
+	bi        *ast.Builtin
+	bctx      *BuiltinContext // nil, or &bctxStore
+	f         BuiltinFunc
+	terms     []*ast.Term
+	bctxStore BuiltinContext
 }
 
 // Reset clears the fields before this evalBuiltin is returned to its pool,
 // so pooling it doesn't keep terms/bindings from the previous call alive.
 func (e *evalBuiltin) Reset() {
 	e.e, e.bi, e.bctx, e.f, e.terms = nil, nil, nil, nil, nil
+	e.bctxStore = BuiltinContext{}
 }
 
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
@@ -2209,18 +2208,16 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 		e.e.instr.startTimer(evalOpBuiltinCall)
 	}
 
-	var bctx BuiltinContext
 	if e.bctx == nil {
-		bctx = BuiltinContext{
+		e.bctxStore = BuiltinContext{
 			// Location potentially needed for error reporting.
 			Location: e.e.query[e.e.index].Location,
 		}
-	} else {
-		bctx = *e.bctx
+		e.bctx = &e.bctxStore
 	}
 
 	// Normal unification flow for builtins:
-	err := e.f(bctx, operands, func(output *ast.Term) (err error) {
+	err := e.f(*e.bctx, operands, func(output *ast.Term) (err error) {
 		e.e.instr.stopTimer(evalOpBuiltinCall)
 
 		switch {

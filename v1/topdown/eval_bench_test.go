@@ -30,3 +30,15 @@ func BenchmarkEvalNot(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkEvalBuiltinContext(b *testing.B) {
+	q := topdown.NewQuery(ast.MustParseBody(`regex.match("^a", "abc"); concat(",", ["a", "b"], x); glob.match("a*", [], "abc")`))
+
+	ctx := b.Context()
+
+	for b.Loop() {
+		if _, err := q.Run(ctx); err != nil {
+			b.Fatalf("Query failed: %v", err)
+		}
+	}
+}
