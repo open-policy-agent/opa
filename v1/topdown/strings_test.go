@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"slices"
 	"strconv"
@@ -585,4 +586,13 @@ func stringsArray(strs []string) *ast.Term {
 		terms[i] = ast.StringTerm(s)
 	}
 	return ast.ArrayTerm(terms...)
+}
+
+func TestBuiltinSubstringHugeLength(t *testing.T) {
+	for _, tc := range []struct{ base, want string }{{"abc", "bc"}, {"äbc", "bc"}} {
+		for _, length := range []int64{math.MaxInt64, math.MaxInt64 - 1} {
+			rule := fmt.Sprintf(`p := x if { x := substring(%q, 1, %d) }`, tc.base, length)
+			runTopDownTestCase(t, map[string]any{}, tc.base, []string{rule}, fmt.Sprintf("%q", tc.want))
+		}
+	}
 }
