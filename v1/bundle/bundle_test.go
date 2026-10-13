@@ -157,6 +157,100 @@ func TestBundleRegoVersion(t *testing.T) {
 	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
 		t.Fatal("expected v0")
 	}
+
+	// Set rego-version to v2
+	b.SetRegoVersion(ast.RegoV2)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 2 {
+		t.Fatal("expected v2")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV2 {
+		t.Fatal("expected v2")
+	}
+
+	// An unknown rego-version falls back to the default
+	unknown := 3
+	b.Manifest.RegoVersion = &unknown
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+}
+
+func TestManifestRegoVersionForFile(t *testing.T) {
+	tests := []struct {
+		note             string
+		regoVersion      *int
+		fileRegoVersions map[string]int
+		exp              ast.RegoVersion
+		expErr           string
+	}{
+		{note: "undefined", exp: ast.RegoUndefined},
+		{note: "v0", regoVersion: new(0), exp: ast.RegoV0},
+		{note: "v1", regoVersion: new(1), exp: ast.RegoV1},
+		{note: "v2", regoVersion: new(2), exp: ast.RegoV2},
+		{note: "per-file v2", regoVersion: new(1), fileRegoVersions: map[string]int{"/test.rego": 2}, exp: ast.RegoV2},
+		{note: "unknown", regoVersion: new(3), exp: ast.RegoUndefined, expErr: "unknown bundle rego-version 3 for file '/test.rego'"},
+		{note: "per-file unknown", fileRegoVersions: map[string]int{"/test.rego": -1}, exp: ast.RegoUndefined, expErr: "unknown bundle rego-version -1 for file '/test.rego'"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m := Manifest{RegoVersion: tc.regoVersion, FileRegoVersions: tc.fileRegoVersions}
+
+			v, err := m.RegoVersionForFile("/test.rego")
+			if v != tc.exp {
+				t.Errorf("expected %v, got %v", tc.exp, v)
+			}
+			if tc.expErr == "" && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tc.expErr != "" && (err == nil || err.Error() != tc.expErr) {
+				t.Errorf("expected error %q, got %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
+func TestRead_UnknownRegoVersion(t *testing.T) {
+	tests := []struct {
+		note     string
+		manifest string
+		module   bool
+		expErr   string
+	}{
+		{
+			note:     "rego_version",
+			manifest: `{"roots": [""], "rego_version": 3}`,
+			expErr:   "manifest has unknown rego-version 3",
+		},
+		{
+			note:     "rego_version, with module",
+			manifest: `{"roots": [""], "rego_version": 3}`,
+			module:   true,
+			expErr:   "unknown bundle rego-version 3 for file '/test.rego'",
+		},
+		{
+			note:     "file_rego_versions",
+			manifest: `{"roots": [""], "file_rego_versions": {"/other.rego": 3}}`,
+			expErr:   "manifest has unknown rego-version 3 for file '/other.rego'",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := [][2]string{{"/.manifest", tc.manifest}}
+			if tc.module {
+				files = append(files, [2]string{"test.rego", "package example"})
+			}
+
+			_, err := NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).Read()
+			if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got %v", tc.expErr, err)
+			}
+		})
+	}
 }
 
 // TestManifestNumericRegoVersionForFileGlobSemantics pins how the
@@ -393,6 +487,12 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v2Module := `package example
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	v2ImportModule := `package example
 		import rego.v2
 
@@ -464,6 +564,32 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			note:        "v0 reader rego-version",
 			files:       [][2]string{{"test.rego", v0Module}},
 			regoVersion: ast.RegoV0,
+		},
+		{
+			note: "v2 bundle manifest",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 2}`},
+				{"test.rego", v2Module},
+			},
+		},
+		{
+			note: "v2 bundle manifest, rego.v2 import",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 2}`},
+				{"test.rego", v2ImportModule},
+			},
+		},
+		{
+			note: "per-file rego version 2",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 1, "file_rego_versions": {"/test.rego": 2}}`},
+				{"test.rego", v2Module},
+			},
+		},
+		{
+			note:        "v2 reader rego-version",
+			files:       [][2]string{{"test.rego", v2Module}},
+			regoVersion: ast.RegoV2,
 		},
 		{
 			note:         "capabilities without and/or",

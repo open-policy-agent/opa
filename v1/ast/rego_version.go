@@ -55,6 +55,9 @@ func (v RegoVersion) String() string {
 	}
 }
 
+// RegoVersionFromInt returns the RegoVersion for its integer form; any value other than 1 or 2 is RegoV0.
+//
+// Deprecated: Use RegoVersionFromIntStrict, which reports unknown values as an error.
 func RegoVersionFromInt(i int) RegoVersion {
 	switch i {
 	case 1:
@@ -63,6 +66,20 @@ func RegoVersionFromInt(i int) RegoVersion {
 		return RegoV2
 	}
 	return RegoV0
+}
+
+// RegoVersionFromIntStrict returns the RegoVersion for its integer form, as recorded in bundle
+// manifests and the store: 0, 1 or 2. Unlike RegoVersionFromInt, any other value is an error.
+func RegoVersionFromIntStrict(i int) (RegoVersion, error) {
+	switch i {
+	case 0:
+		return RegoV0, nil
+	case 1:
+		return RegoV1, nil
+	case 2:
+		return RegoV2, nil
+	}
+	return RegoUndefined, fmt.Errorf("unknown rego-version %d", i)
 }
 
 // level returns the ordered language level of a baseline version, and -1 for any other value.

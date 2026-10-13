@@ -51,6 +51,33 @@ func TestRegoVersionFromInt(t *testing.T) {
 	}
 }
 
+func TestRegoVersionFromIntStrict(t *testing.T) {
+	tests := []struct {
+		i      int
+		exp    RegoVersion
+		expErr string
+	}{
+		{i: -1, exp: RegoUndefined, expErr: "unknown rego-version -1"},
+		{i: 0, exp: RegoV0},
+		{i: 1, exp: RegoV1},
+		{i: 2, exp: RegoV2},
+		{i: 3, exp: RegoUndefined, expErr: "unknown rego-version 3"},
+	}
+
+	for _, tc := range tests {
+		act, err := RegoVersionFromIntStrict(tc.i)
+		if act != tc.exp {
+			t.Errorf("RegoVersionFromIntStrict(%d): expected %s, got %s", tc.i, tc.exp, act)
+		}
+		if tc.expErr == "" && err != nil {
+			t.Errorf("RegoVersionFromIntStrict(%d): unexpected error: %v", tc.i, err)
+		}
+		if tc.expErr != "" && (err == nil || err.Error() != tc.expErr) {
+			t.Errorf("RegoVersionFromIntStrict(%d): expected error %q, got %v", tc.i, tc.expErr, err)
+		}
+	}
+}
+
 type expSpan struct {
 	min, max  RegoVersion
 	str       string

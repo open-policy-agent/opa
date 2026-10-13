@@ -757,7 +757,11 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 						if err != nil {
 							return nil, errors.New("corrupt rego version")
 						}
-						versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
+						rv, err := ast.RegoVersionFromIntStrict(int(i))
+						if err != nil {
+							return nil, fmt.Errorf("corrupt rego version: %w", err)
+						}
+						versions[k] = moduleInfo{RegoVersion: rv}
 					}
 				}
 			}
