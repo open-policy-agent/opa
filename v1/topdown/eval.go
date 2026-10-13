@@ -2349,6 +2349,17 @@ type evalFunc struct {
 	args     []*ast.Term
 	e        *eval
 	ir       *ast.IndexResult
+
+	// State of the rule being evaluated, for argsBound and bodyDone. They are
+	// method values created once per pooled evalFunc, so evaluating a rule
+	// doesn't allocate closures. A function's rules are evaluated one at a time.
+	rule      *ast.Rule
+	child     *eval
+	prev      *ast.Term
+	result    *ast.Term
+	ruleIter  unifyIterator
+	argsBound func() error
+	bodyDone  func(*eval) error
 }
 
 // Reset clears the fields before this evalFunc is returned to its pool,
@@ -2359,6 +2370,7 @@ func (e *evalFunc) Reset() {
 	clear(e.args)
 	e.terms, e.cacheKey, e.args = e.terms[:0], e.cacheKey[:0], e.args[:0]
 	e.e, e.ir = nil, nil
+	e.rule, e.child, e.prev, e.result, e.ruleIter = nil, nil, nil, nil, nil
 }
 
 func (e *evalFunc) eval(iter unifyIterator) error {
@@ -2535,61 +2547,74 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Ter
 	e.e.childWithBindingSizeHint(rule.Body, child, sizeHint)
 	child.findOne = findOne
 
-	var result *ast.Term
+	e.rule, e.child, e.prev, e.result, e.ruleIter = rule, child, prev, nil, iter
+	if e.argsBound == nil {
+		e.argsBound, e.bodyDone = e.onArgsBound, e.onBodyDone
+	}
 
 	child.traceEnter(rule)
 
-	err := child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, func() error {
-		return child.eval(func(child *eval) error {
-			child.traceExit(rule)
-			e.e.evaluated.Record(rule)
+	err := child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, e.argsBound)
 
-			// Partial evaluation must save an expression that tests the output value if the output value
-			// was not captured to handle the case where the output value may be `false`.
-			noOutputCapture := len(rule.Head.Args) == len(e.terms)-1
-			if noOutputCapture && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
-				err := e.e.saveExpr(ast.NewExpr(rule.Head.Value), child.bindings, iter)
-				child.traceRedo(rule)
-				return err
-			}
-
-			result = child.bindings.Plug(rule.Head.Value)
-			if e.cacheKey != nil {
-				e.e.virtualCache.Put(e.cacheKey, result) // the redos confirm this, or the evaluation is aborted
-			}
-
-			if noOutputCapture && ast.Boolean(false).Equal(result.Value) {
-				if prev != nil && !prev.Equal(result) {
-					return functionConflictErr(rule)
-				}
-				prev = result
-				return nil
-			}
-
-			// Partial evaluation should explore all rules and may not produce
-			// a ground result so we do not perform conflict detection or
-			// deduplication. See "ignore conflicts: functions" test case for
-			// an example.
-			if !e.e.partial() && prev != nil {
-				if !prev.Equal(result) {
-					return functionConflictErr(rule)
-				}
-				child.traceRedo(rule)
-				return nil
-			}
-
-			prev = result
-
-			if err := iter(); err != nil {
-				return err
-			}
-
-			child.traceRedo(rule)
-			return nil
-		})
-	})
-
+	result := e.result
+	e.rule, e.child, e.prev, e.result, e.ruleIter = nil, nil, nil, nil, nil
 	return result, err
+}
+
+// onArgsBound evaluates the body of the rule once its arguments are unified.
+func (e *evalFunc) onArgsBound() error {
+	return e.child.eval(e.bodyDone)
+}
+
+// onBodyDone handles each solution of the rule's body: the output value is
+// checked against previous ones and handed to the continuation.
+func (e *evalFunc) onBodyDone(child *eval) error {
+	rule := e.rule
+	child.traceExit(rule)
+	e.e.evaluated.Record(rule)
+
+	// Partial evaluation must save an expression that tests the output value if the output value
+	// was not captured to handle the case where the output value may be `false`.
+	noOutputCapture := len(rule.Head.Args) == len(e.terms)-1
+	if noOutputCapture && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
+		err := e.e.saveExpr(ast.NewExpr(rule.Head.Value), child.bindings, e.ruleIter)
+		child.traceRedo(rule)
+		return err
+	}
+
+	e.result = child.bindings.Plug(rule.Head.Value)
+	if e.cacheKey != nil {
+		e.e.virtualCache.Put(e.cacheKey, e.result) // the redos confirm this, or the evaluation is aborted
+	}
+
+	if noOutputCapture && ast.Boolean(false).Equal(e.result.Value) {
+		if e.prev != nil && !e.prev.Equal(e.result) {
+			return functionConflictErr(rule)
+		}
+		e.prev = e.result
+		return nil
+	}
+
+	// Partial evaluation should explore all rules and may not produce
+	// a ground result so we do not perform conflict detection or
+	// deduplication. See "ignore conflicts: functions" test case for
+	// an example.
+	if !e.e.partial() && e.prev != nil {
+		if !e.prev.Equal(e.result) {
+			return functionConflictErr(rule)
+		}
+		child.traceRedo(rule)
+		return nil
+	}
+
+	e.prev = e.result
+
+	if err := e.ruleIter(); err != nil {
+		return err
+	}
+
+	child.traceRedo(rule)
+	return nil
 }
 
 func (e *evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
