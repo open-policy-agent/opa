@@ -455,18 +455,29 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return e.evalWith(iter)
 	}
 
-	err := e.evalStep(func(e *eval) error {
-		return e.next(iter)
-	})
+	err := e.evalStep(iter, true)
 
 	// The innermost point an error passes through with every enclosing query's
 	// expression index still intact.
 	return e.withStackTrace(err)
 }
 
-func (e *eval) evalStep(iter evalIterator) (err error) {
+// cont continues after a successful step: to the next expression if advance is
+// set, else straight to iter. Taking the flag here, instead of wrapping iter
+// in a closure in the caller, saves one heap-allocated closure per expression.
+func (e *eval) cont(iter evalIterator, advance bool) error {
+	if advance {
+		return e.next(iter)
+	}
+	return iter(e)
+}
+
+func (e *eval) evalStep(iter evalIterator, advance bool) (err error) {
 	expr := e.query[e.index]
 	if expr.Negated {
+		if advance {
+			return e.evalNot(func(e *eval) error { return e.next(iter) })
+		}
 		return e.evalNot(iter)
 	}
 
@@ -486,14 +497,14 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			case expr.IsEquality():
 				err = e.unify(terms[1], terms[2], func() error {
 					defined = true
-					err := iter(e)
+					err := e.cont(iter, advance)
 					e.traceRedo(expr)
 					return err
 				})
 			default:
 				err = e.evalCall(terms, func() error {
 					defined = true
-					err := iter(e)
+					err := e.cont(iter, advance)
 					e.traceRedo(expr)
 					return err
 				})
@@ -508,12 +519,12 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			err = e.unify(terms, rterm, func() error {
 				if e.saveSet.Contains(rterm, e.bindings) {
 					return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-						return iter(e)
+						return e.cont(iter, advance)
 					})
 				}
 				if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
 					defined = true
-					err := iter(e)
+					err := e.cont(iter, advance)
 					e.traceRedo(expr)
 					return err
 				}
@@ -531,7 +542,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = eval.eval(func() error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -543,7 +554,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = en.eval(func(e *eval) error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -555,7 +566,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = ea.eval(func(e *eval) error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -567,7 +578,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = eo.eval(func(e *eval) error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -592,11 +603,11 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 		switch {
 		case expr.IsEquality():
 			err = e.unify(terms[1], terms[2], func() error {
-				return iter(e)
+				return e.cont(iter, advance)
 			})
 		default:
 			err = e.evalCall(terms, func() error {
-				return iter(e)
+				return e.cont(iter, advance)
 			})
 		}
 	case *ast.Term:
@@ -604,11 +615,11 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet != nil && e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-					return iter(e)
+					return e.cont(iter, advance)
 				})
 			}
 			if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
-				return iter(e)
+				return e.cont(iter, advance)
 			}
 			return nil
 		})
@@ -619,7 +630,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			expr:  expr,
 		}
 		err = eval.eval(func() error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	case *ast.Not:
@@ -628,7 +639,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			not: terms,
 		}
 		err = en.eval(func(e *eval) error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	case *ast.LogicalAnd:
@@ -637,7 +648,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			and: terms,
 		}
 		err = ea.eval(func(e *eval) error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	case *ast.LogicalOr:
@@ -646,7 +657,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			or: terms,
 		}
 		err = eo.eval(func(e *eval) error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	default: // guard-rail for adding extra (Expr).Terms types
@@ -836,7 +847,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		err := e.next(iter)
 		oldInput, oldData, pushedFrame = e.evalWithPush(input, data, functionMocks, targets, disable)
 		return err
-	})
+	}, false)
 	err = e.withStackTrace(err)
 
 	e.evalWithPop(oldInput, oldData, pushedFrame)
