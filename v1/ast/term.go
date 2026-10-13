@@ -81,13 +81,7 @@ func InterfaceToValue(x any) (Value, error) {
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
 		}
-		// Only the exponent forms can be out of range, and only large ones.
-		if i := exponentIndex(string(x)); i >= 0 && !smallExponent(string(x), i) {
-			if err := validateNumber(string(x)); err != nil {
-				return nil, fmt.Errorf("invalid number: %w", err)
-			}
-		}
-		return Number(x), nil
+		return NumberChecked(string(x))
 	case int:
 		return InternedValueOr(x, newIntNumberValue), nil
 	case int64:
@@ -870,6 +864,18 @@ func validateNumber(s string) error {
 	}
 
 	return nil
+}
+
+// NumberChecked returns s as a Number, or an error if it is not a number that can be handled
+// when evaluating, like one with an out-of-range exponent.
+func NumberChecked(s string) (Number, error) {
+	// Only the exponent forms can be out of range, and only large ones.
+	if i := exponentIndex(s); i >= 0 && !smallExponent(s, i) {
+		if err := validateNumber(s); err != nil {
+			return "", fmt.Errorf("invalid number: %w", err)
+		}
+	}
+	return Number(s), nil
 }
 
 func exponentIndex(s string) int {
