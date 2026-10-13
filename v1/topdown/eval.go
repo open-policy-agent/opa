@@ -709,16 +709,20 @@ func (e *eval) evalNot(iter evalIterator) error {
 	bodyContainer.complementNotWith(e.query[e.index])
 	e.closure(bodyContainer.body, child)
 
-	if err := child.eval(func(*eval) error {
-		child.defined = true
-		return nil
-	}); err != nil {
+	if err := child.eval((*eval).setDefined); err != nil {
 		return err
 	}
 
 	if !child.defined {
 		return iter(e)
 	}
+	return nil
+}
+
+// setDefined records that the query succeeded. Used as a method expression it
+// is a static function value, so no closure is allocated per call.
+func (e *eval) setDefined() error {
+	e.defined = true
 	return nil
 }
 

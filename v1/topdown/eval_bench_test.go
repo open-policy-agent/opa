@@ -18,3 +18,15 @@ func BenchmarkBiunifyArrays(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkEvalNot(b *testing.B) {
+	q := topdown.NewQuery(ast.MustParseBody("x = 2; not x = 1; not x = 3; not x = 4"))
+
+	ctx := b.Context()
+
+	for b.Loop() {
+		if _, err := q.Run(ctx); err != nil {
+			b.Fatalf("Query failed: %v", err)
+		}
+	}
+}
