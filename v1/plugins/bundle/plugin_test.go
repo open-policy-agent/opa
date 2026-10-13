@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -7907,5 +7908,152 @@ func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
 	}
 	if status.State != state {
 		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, state)
+	}
+}
+
+// TestPluginSupersededETags serves bundles from a server that implements
+// RFC 9110 conditional requests, and that can be made to lag behind, as one
+// replica of a replicated bundle service would.
+func TestPluginSupersededETags(t *testing.T) {
+	t.Parallel()
+
+	versionBundle := func(v string) (string, []byte) {
+		module := "package example\n\nrev := " + fmt.Sprintf("%q", v)
+		var buf bytes.Buffer
+		err := bundle.NewWriter(&buf).Write(bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: v},
+			Data:     map[string]any{"version": v},
+			Modules: []bundle.ModuleFile{{
+				URL:    "/example.rego",
+				Path:   "/example.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fmt.Sprintf("%q", "etag-"+v), buf.Bytes()
+	}
+
+	ttl := int64(60)
+	for _, tc := range []struct {
+		note          string
+		ttl           *int64
+		expLagVersion string // active after the lagging replica was hit
+		expConditions []string
+	}{
+		{
+			note:          "disabled",
+			expLagVersion: "v1",
+			expConditions: []string{``, `"etag-v1"`, `"etag-v2"`, `"etag-v1"`, `"etag-v2"`},
+		},
+		{
+			note:          "enabled",
+			ttl:           &ttl,
+			expLagVersion: "v2",
+			expConditions: []string{``, `"etag-v1"`, `"etag-v2", "etag-v1"`, `"etag-v2", "etag-v1"`, `"etag-v2", "etag-v1"`},
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			var mtx sync.Mutex
+			published := []string{"v1"}
+			lagging := false
+			var conditions []string
+
+			etags := map[string]string{}
+			archives := map[string][]byte{}
+			for _, v := range []string{"v1", "v2", "v3"} {
+				etag, archive := versionBundle(v)
+				etags[v], archives[v] = etag, archive
+			}
+
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mtx.Lock()
+				defer mtx.Unlock()
+
+				conditions = append(conditions, r.Header.Get("If-None-Match"))
+				v := published[len(published)-1]
+				if lagging {
+					v = published[len(published)-2]
+				}
+				w.Header().Set("ETag", etags[v])
+				// ServeContent evaluates If-None-Match, including etag lists.
+				http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(archives[v]))
+			}))
+			defer s.Close()
+
+			ctx := t.Context()
+			manager := getTestManagerWithOpts(fmt.Appendf(nil, `{"services": {"default": {"url": %q}}}`, s.URL))
+			mode := plugins.TriggerManual
+			plugin := New(&Config{
+				Bundles: map[string]*Source{
+					"test": {
+						Service:        "default",
+						SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+						Config: download.Config{
+							Trigger: &mode,
+							Polling: download.PollingConfig{SupersededETagTTLSeconds: tc.ttl},
+						},
+					},
+				},
+			}, manager)
+			if err := plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+			defer plugin.Stop(ctx)
+
+			poll := func(expVersion string) {
+				t.Helper()
+				if err := plugin.Loaders()["test"].Trigger(ctx); err != nil {
+					t.Fatal(err)
+				}
+				act, err := storage.ReadOne(ctx, manager.Store, storage.MustParsePath("/version"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if act != expVersion {
+					t.Fatalf("expected active version %v, got %v", expVersion, act)
+				}
+				txn := storage.NewTransactionOrDie(ctx, manager.Store)
+				defer manager.Store.Abort(ctx, txn)
+				ids, err := manager.Store.ListPolicies(ctx, txn)
+				if err != nil || len(ids) != 1 {
+					t.Fatalf("expected one policy, got %v (err: %v)", ids, err)
+				}
+				raw, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+				if err != nil || !strings.Contains(string(raw), fmt.Sprintf("rev := %q", expVersion)) {
+					t.Fatalf("expected module with rev %v, got %s (err: %v)", expVersion, raw, err)
+				}
+			}
+			set := func(f func()) {
+				mtx.Lock()
+				defer mtx.Unlock()
+				f()
+			}
+
+			poll("v1")
+			set(func() { published = append(published, "v2") })
+			poll("v2")
+
+			// the replica serves the previous bundle
+			set(func() { lagging = true })
+			poll(tc.expLagVersion)
+
+			// the replica caught up
+			set(func() { lagging = false })
+			poll("v2")
+
+			set(func() { published = append(published, "v3") })
+			poll("v3")
+
+			mtx.Lock()
+			defer mtx.Unlock()
+			if !slices.Equal(conditions, tc.expConditions) {
+				t.Fatalf("expected If-None-Match headers %q, got %q", tc.expConditions, conditions)
+			}
+		})
 	}
 }
