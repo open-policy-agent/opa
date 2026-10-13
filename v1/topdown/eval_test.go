@@ -1981,3 +1981,61 @@ mixed(1, [a, 2], {"k": b}) := [a, b]
 		})
 	}
 }
+
+func TestBiunifyArrays(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note string
+		body string
+		exp  string // the bound `x` of each solution, comma separated; empty if the query is undefined
+	}{
+		{note: "scalars equal", body: "[1, 2, 3] = [1, 2, 3]; x = 1", exp: "1"},
+		{note: "scalar mismatch first", body: "[1, 2, x] = [9, 2, 3]"},
+		{note: "scalar mismatch middle", body: "[1, 2, x] = [1, 9, 3]"},
+		{note: "scalar type mismatch", body: `[1, "2", x] = [1, 2, 3]`},
+		{note: "binds past scalars", body: "[1, 2, x] = [1, 2, 3]", exp: "3"},
+		{note: "binds before scalars", body: "[x, 2, 3] = [1, 2, 3]", exp: "1"},
+		{note: "bound var as scalar", body: "y = 2; [1, y, x] = [1, 2, 3]", exp: "3"},
+		{note: "bound var mismatch", body: "y = 9; [1, y, x] = [1, 2, 3]"},
+		{note: "var to var", body: "[y, x] = [2, y]", exp: "2"},
+		{note: "nested", body: "[1, [2, x]] = [1, [2, 3]]", exp: "3"},
+		{note: "nested mismatch", body: "[1, [2, x]] = [1, [9, 3]]"},
+		{note: "empty", body: "[] = []; x = 1", exp: "1"},
+		{note: "length mismatch", body: "[1, x] = [1, 2, 3]"},
+		{note: "more vars than in-place undos", body: "[a, b, c, d, e, x] = [1, 2, 3, 4, 5, 6]", exp: "6"},
+		{note: "repeated var equal", body: "[y, y, x] = [1, 1, 2]", exp: "2"},
+		{note: "repeated var unequal", body: "[y, y, x] = [1, 2, 3]"},
+		{note: "mismatch after bindings", body: "[a, b, c, d, e, 9, x] = [1, 2, 3, 4, 5, 6, 7]"},
+		{note: "undone for each solution", body: "i = input[j]; [x, i, y] = [i, i, y]", exp: "1,2,3"},
+		{note: "undone after a failed attempt", body: "i = input[j]; [x, 2] = [i, i]", exp: "2"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			var got []string
+			err := NewQuery(ast.MustParseBody(tc.body)).WithCompiler(ast.NewCompiler()).WithInput(ast.MustParseTerm("[1, 2, 3]")).
+				Iter(t.Context(), func(qr QueryResult) error {
+					if v, ok := qr[ast.Var("x")]; ok {
+						got = append(got, v.String())
+					}
+					return nil
+				})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.exp == "" {
+				if len(got) != 0 {
+					t.Fatalf("expected undefined, got %v", got)
+				}
+				return
+			}
+			if r := strings.Join(got, ","); r != tc.exp {
+				t.Fatalf("expected [%s], got [%s]", tc.exp, r)
+			}
+		})
+	}
+}

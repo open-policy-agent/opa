@@ -32,10 +32,11 @@ type queryIDFactory struct {
 }
 
 type biunifyArraysRecParams struct {
-	a, b   *ast.Array
-	b1, b2 *bindings
-	iter   unifyIterator
-	idx    int
+	a, b    *ast.Array
+	b1, b2  *bindings
+	iter    unifyIterator
+	idx     int
+	inPlace bool // bind and compare elements without a continuation, see unifyInPlace
 }
 
 // Note: The first call to Next() returns 0.
@@ -1246,6 +1247,7 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 				params.b1, params.b2 = b1, b2
 				params.iter = iter
 				params.idx = 0
+				params.inPlace = !e.traceEnabled && e.saveSet == nil
 				return e.biunifyArraysRec(params)
 			}
 		}
@@ -1263,15 +1265,49 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 }
 
 func (e *eval) biunifyArraysRec(params *biunifyArraysRecParams) error {
-	if params.idx == params.a.Len() {
-		err := params.iter()
-		arraysRecPool.Put(params)
-		return err
+	n := params.a.Len()
+
+	var undos [4]undo
+	nu := 0
+
+	if params.inPlace {
+		for params.idx < n && nu < len(undos) {
+			r := unifyInPlace(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, &undos[nu])
+			if r == unifyNeedsMore {
+				break
+			}
+			if r == unifyFailed {
+				undoAll(undos[:nu])
+				arraysRecPool.Put(params)
+				return nil
+			}
+			if r == unifyBound {
+				nu++
+			}
+			params.idx++
+		}
 	}
-	return e.biunify(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, func() error {
-		params.idx++
-		return e.biunifyArraysRec(params)
-	})
+
+	var err error
+
+	switch {
+	case params.idx == n:
+		err = params.iter()
+		arraysRecPool.Put(params)
+	case params.idx == n-1: // nothing left to continue with after the last element
+		a, b := params.a.Elem(params.idx), params.b.Elem(params.idx)
+		b1, b2, iter := params.b1, params.b2, params.iter
+		arraysRecPool.Put(params)
+		err = e.biunify(a, b, b1, b2, iter)
+	default:
+		err = e.biunify(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, func() error {
+			params.idx++
+			return e.biunifyArraysRec(params)
+		})
+	}
+
+	undoAll(undos[:nu])
+	return err
 }
 
 func (e *eval) biunifyTerms(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterator) error {
@@ -1282,39 +1318,21 @@ func (e *eval) biunifyTerms(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterat
 }
 
 func (e *eval) biunifyTermsRec(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterator, idx int) error {
-	// Binding a variable or comparing scalars needs no continuation, only an undo
-	// once iter returns: do those in place, and chain a closure from the first
-	// pair that needs more (a ref, a composite, ...).
 	var undos [4]undo
 	n := 0
 
 	if !e.traceEnabled && e.saveSet == nil {
-	pairs:
 		for idx < len(a) && n < len(undos) {
-			x, bx := b1.apply(a[idx])
-			y, by := b2.apply(b[idx])
-			_, xVar := x.Value.(ast.Var)
-			_, yVar := y.Value.(ast.Var)
-
-			switch {
-			case xVar && yVar:
-				if bx != by || !x.Equal(y) {
-					bx.bind(x, y, by, &undos[n])
-					n++
-				}
-			case xVar && bindable(y.Value):
-				bx.bind(x, y, by, &undos[n])
+			r := unifyInPlace(a[idx], b[idx], b1, b2, &undos[n])
+			if r == unifyNeedsMore {
+				break
+			}
+			if r == unifyFailed {
+				undoAll(undos[:n])
+				return nil
+			}
+			if r == unifyBound {
 				n++
-			case yVar && bindable(x.Value):
-				by.bind(y, x, bx, &undos[n])
-				n++
-			case ast.IsScalar(x.Value) && ast.IsScalar(y.Value):
-				if !x.Equal(y) {
-					undoAll(undos[:n])
-					return nil
-				}
-			default:
-				break pairs
 			}
 			idx++
 		}
@@ -1332,6 +1350,48 @@ func (e *eval) biunifyTermsRec(a, b []*ast.Term, b1, b2 *bindings, iter unifyIte
 
 	undoAll(undos[:n])
 	return err
+}
+
+type unifyResult int8
+
+const (
+	unifyNeedsMore unifyResult = iota // not decided in place, needs biunify
+	unifyFailed                       // the terms don't unify
+	unifyDone                         // unified, nothing was bound
+	unifyBound                        // unified by binding a variable, recorded in the undo
+)
+
+// unifyInPlace unifies pairs that need no continuation: a variable binds, and
+// two scalars compare. Only the former records an undo, for the caller to run
+// once the continuation returns. Callers must not use it when tracing or
+// saving, as biunify does more then.
+func unifyInPlace(a, b *ast.Term, b1, b2 *bindings, u *undo) unifyResult {
+	x, bx := b1.apply(a)
+	y, by := b2.apply(b)
+	_, xVar := x.Value.(ast.Var)
+	_, yVar := y.Value.(ast.Var)
+
+	switch {
+	case xVar && yVar:
+		if bx == by && x.Equal(y) {
+			return unifyDone
+		}
+		bx.bind(x, y, by, u)
+		return unifyBound
+	case xVar && bindable(y.Value):
+		bx.bind(x, y, by, u)
+		return unifyBound
+	case yVar && bindable(x.Value):
+		by.bind(y, x, bx, u)
+		return unifyBound
+	case ast.IsScalar(x.Value) && ast.IsScalar(y.Value):
+		if x.Equal(y) {
+			return unifyDone
+		}
+		return unifyFailed
+	}
+
+	return unifyNeedsMore
 }
 
 // bindable returns true if v can be bound to a variable as is, i.e. isn't a
