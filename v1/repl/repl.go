@@ -704,7 +704,7 @@ func (r *REPL) cmdShow(args []string) error {
 			return nil
 		}
 		module := r.modules[r.currentModuleID]
-		bs, err := format.AstWithOpts(module, format.Opts{RegoVersion: module.RegoVersion()})
+		bs, err := format.AstWithOpts(module, format.Opts{RegoVersionSpan: module.RegoVersionSpan()})
 		if err != nil {
 			return err
 		}
@@ -1419,7 +1419,7 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 	m := ast.Module{
 		Package: p,
 	}
-	m.SetRegoVersion(r.regoVersion)
+	m.SetRegoVersionSpan(ast.RegoVersionSpanOf(r.regoVersion))
 	r.modules[moduleID] = &m
 
 	r.currentModuleID = moduleID

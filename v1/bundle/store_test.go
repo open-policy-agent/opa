@@ -1953,6 +1953,60 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 				},
 			},
 		},
+		{
+			// The module's span starts at v0, the runtime's rego-version, so nothing is recorded.
+			note:               "v0 bundle, rego.v1 import, not lazy, --v0-compatible",
+			runtimeRegoVersion: ast.RegoV0,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								import rego.v1
+								p contains 42 if { true }`},
+						},
+					},
+					readWithBundleName: true,
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+		{
+			// The module's span starts at v0, the runtime's rego-version, so nothing is recorded.
+			note:               "v0 bundle, rego.v2 import, not lazy, --v0-compatible",
+			runtimeRegoVersion: ast.RegoV0,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								import rego.v2
+								p contains 42 if { input.a or input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

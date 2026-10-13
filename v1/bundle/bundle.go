@@ -1219,13 +1219,15 @@ func (b *Bundle) FormatModulesWithOptions(opts BundleFormatOptions) error {
 		}
 
 		if module.Parsed != nil {
+			span := module.Parsed.RegoVersionSpan()
 			fmtOpts.ParserOptions = &ast.ParserOptions{
-				RegoVersion: module.Parsed.RegoVersion(),
+				RegoVersion: span.Min(),
 			}
 			if opts.PreserveModuleRegoVersion {
-				fmtOpts.RegoVersion = module.Parsed.RegoVersion()
+				// An undefined span falls back to RegoVersion, which is then undefined too.
+				fmtOpts.RegoVersion, fmtOpts.RegoVersionSpan = span.Min(), span
 			}
-			if fmtOpts.ParserOptions.RegoVersion == fmtOpts.RegoVersion {
+			if fmtOpts.ParserOptions.RegoVersion == ast.RegoVersionSpanOf(fmtOpts.RegoVersion).Min() {
 				fmtOpts.ParserOptions.Capabilities = fmtOpts.Capabilities
 			}
 		}

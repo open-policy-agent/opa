@@ -2725,15 +2725,15 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 			}
 
 			if applyCompatRegoVersion {
-				support[i].SetRegoVersion(ast.RegoV0CompatV1)
+				support[i].SetRegoVersionSpan(ast.RegoVersionSpanOf(ast.RegoV0CompatV1))
 			} else {
-				support[i].SetRegoVersion(r.regoVersion)
+				support[i].SetRegoVersionSpan(ast.RegoVersionSpanOf(r.regoVersion))
 			}
 		}
 	} else {
 		// If the target rego-version is not v0, then we apply the target rego-version to the support modules.
 		for i := range support {
-			support[i].SetRegoVersion(r.regoVersion)
+			support[i].SetRegoVersionSpan(ast.RegoVersionSpanOf(r.regoVersion))
 		}
 	}
 

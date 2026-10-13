@@ -397,6 +397,120 @@ func TestReadWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestFormatModulesWithOptions(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		module      string
+		preserve    bool
+		exp         string
+	}{
+		{
+			note:        "v0, preserved",
+			regoVersion: ast.RegoV0,
+			module: `package a
+				p[x] { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+p[x] {
+	x := 1
+}
+`,
+		},
+		{
+			note:        "v0 with rego.v1, preserved",
+			regoVersion: ast.RegoV0,
+			module: `package a
+				import rego.v1
+				p contains x if { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+import rego.v1
+
+p contains x if x := 1
+`,
+		},
+		{
+			// Parsed as v0v1 without an import; preserving the version adds it.
+			note:        "v0v1 parser option, preserved",
+			regoVersion: ast.RegoV0CompatV1,
+			module: `package a
+				p := 1`,
+			preserve: true,
+			exp: `package a
+
+import rego.v1
+
+p := 1
+`,
+		},
+		{
+			note:        "v1, preserved",
+			regoVersion: ast.RegoV1,
+			module: `package a
+				p contains x if { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+p contains x if x := 1
+`,
+		},
+		{
+			note:        "v1 with rego.v2, preserved",
+			regoVersion: ast.RegoV1,
+			module: `package a
+				import rego.v2
+				p if { input.a or input.b }`,
+			preserve: true,
+			exp: `package a
+
+import rego.v2
+
+p if input.a or input.b
+`,
+		},
+		{
+			note:        "v2, preserved",
+			regoVersion: ast.RegoV2,
+			module: `package a
+				p if { input.a or input.b }`,
+			preserve: true,
+			exp: `package a
+
+p if input.a or input.b
+`,
+		},
+		{
+			note:        "v2, formatted for v1",
+			regoVersion: ast.RegoV2,
+			module: `package a
+				p if { input.a or input.b }`,
+			exp: `package a
+
+import future.keywords.or
+
+p if input.a or input.b
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{RegoVersion: tc.regoVersion})
+			b := Bundle{Modules: []ModuleFile{{URL: "a.rego", Path: "a.rego", Raw: []byte(tc.module), Parsed: parsed}}}
+
+			if err := b.FormatModulesWithOptions(BundleFormatOptions{RegoVersion: ast.RegoV1, PreserveModuleRegoVersion: tc.preserve}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if act := string(b.Modules[0].Raw); act != tc.exp {
+				t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", tc.exp, act)
+			}
+		})
+	}
+}
+
 func TestRead_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note    string
