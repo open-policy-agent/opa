@@ -152,6 +152,7 @@ var (
 	evalFuncPool      = util.NewResettablePool[evalFunc]()
 	evalBuiltinPool   = util.NewResettablePool[evalBuiltin]()
 	bodyContainerPool = util.NewSyncPoolWithConstructor(newBodyContainer)
+	stepContPool      = util.NewResettablePool[stepCont]()
 )
 
 func (e *eval) Run(iter evalIterator) error {
@@ -463,6 +464,24 @@ func (e *eval) evalExpr(iter evalIterator) error {
 	return e.withStackTrace(err)
 }
 
+// stepCont is the continuation of an equality or call expression. It is pooled
+// with fn, a method value created once, so a step doesn't allocate a closure.
+// A step holds it until it has tried every solution of the expression.
+type stepCont struct {
+	e       *eval
+	iter    evalIterator
+	fn      func() error
+	advance bool
+}
+
+func (c *stepCont) run() error {
+	return c.e.cont(c.iter, c.advance)
+}
+
+func (c *stepCont) Reset() {
+	c.e, c.iter = nil, nil
+}
+
 // cont continues after a successful step: to the next expression if advance is
 // set, else straight to iter. Taking the flag here, instead of wrapping iter
 // in a closure in the caller, saves one heap-allocated closure per expression.
@@ -601,16 +620,19 @@ func (e *eval) evalStep(iter evalIterator, advance bool) (err error) {
 
 	switch terms := expr.Terms.(type) {
 	case []*ast.Term:
-		switch {
-		case expr.IsEquality():
-			err = e.unify(terms[1], terms[2], func() error {
-				return e.cont(iter, advance)
-			})
-		default:
-			err = e.evalCall(terms, func() error {
-				return e.cont(iter, advance)
-			})
+		c := stepContPool.Get()
+		c.e, c.iter, c.advance = e, iter, advance
+		if c.fn == nil {
+			c.fn = c.run
 		}
+
+		if expr.IsEquality() {
+			err = e.unify(terms[1], terms[2], c.fn)
+		} else {
+			err = e.evalCall(terms, c.fn)
+		}
+
+		stepContPool.Put(c)
 	case *ast.Term:
 		rterm := ast.VarTerm(e.fmtVar())
 		err = e.unify(terms, rterm, func() error {
