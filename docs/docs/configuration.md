@@ -1105,7 +1105,9 @@ Two things come out of this:
 
   Warnings are non-fatal. Sections that accept arbitrary keys (for example
   `labels`, `plugins`, and service `credentials`) are not checked, so extending
-  them never produces false positives.
+  them never produces false positives. Custom plugins can opt in to having their
+  options under `plugins` checked; see
+  [Plugin Configuration Validation](./extensions#plugin-configuration-validation).
 
 Configuration loaded later via [discovery](#discovery) is validated the same way:
 defaults are injected and warnings are logged when the discovered configuration is
