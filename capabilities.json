@@ -5023,6 +5023,7 @@
     }
   ],
   "features": [
+    "impossible_negation_check",
     "keywords_in_refs",
     "rego_v1",
     "rego_v2_import",

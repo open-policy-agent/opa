@@ -207,3 +207,7 @@ comprehensions (`not [x | ...]`) and constant values other than `false` (`not 1`
 
 The check is skipped for a multi-value rule when a `with` modifier somewhere in the
 compiled modules replaces it (or one of its enclosing documents), e.g. `allow with deny as false`.
+
+The check is also skipped when the [capabilities](../../operations#capabilities) in use
+don't include the `impossible_negation_check` feature, such as those of an OPA version
+that predates it.

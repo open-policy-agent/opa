@@ -2829,8 +2829,13 @@ func (c *Compiler) builtinLoc(ref Ref) *Builtin {
 
 // checkImpossibleNegations rejects `not x` when x is never undefined or false
 // (e.g. a multi-value rule), as the negation always fails. Rules that some
-// `with` in the modules replaces are exempt.
+// `with` in the modules replaces are exempt. Skipped unless the capabilities
+// include FeatureImpossibleNegationCheck.
 func (c *Compiler) checkImpossibleNegations() {
+	if !c.capabilities.ContainsFeature(FeatureImpossibleNegationCheck) {
+		return
+	}
+
 	var mocked []Ref
 	for _, name := range c.sorted {
 		WalkWiths(c.Modules[name], func(w *With) bool {

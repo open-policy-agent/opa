@@ -11975,6 +11975,20 @@ func TestCompilerCheckImpossibleNegations(t *testing.T) {
 	}
 }
 
+func TestCompilerCheckImpossibleNegationsRequiresFeature(t *testing.T) {
+	caps := CapabilitiesForThisVersion()
+	caps.Features = slices.DeleteFunc(slices.Clone(caps.Features), func(f string) bool {
+		return f == FeatureImpossibleNegationCheck
+	})
+
+	c := NewCompiler().WithCapabilities(caps)
+	c.Compile(map[string]*Module{"mod.rego": module(`package p
+		deny contains "x" if input.bad
+		allow if not deny
+		empty if not []`)})
+	assertNotFailed(t, c)
+}
+
 func TestCompilerGetRulesExact(t *testing.T) {
 	mods := getCompilerTestModules()
 
