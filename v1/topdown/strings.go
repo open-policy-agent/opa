@@ -537,7 +537,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 			return iter(operands[0])
 		}
 
-		upto := min(len(sbase), startIndex+length)
+		upto := startIndex + min(length, len(sbase)-startIndex) // clamp length first: startIndex+length can overflow
 		return iter(ast.InternedTerm(sbase[startIndex:upto]))
 	}
 
@@ -555,7 +555,7 @@ func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	if length < 0 {
 		s = string(runes[startIndex:])
 	} else {
-		upto := min(len(runes), startIndex+length)
+		upto := startIndex + min(length, len(runes)-startIndex) // clamp length first: startIndex+length can overflow
 		s = string(runes[startIndex:upto])
 	}
 
