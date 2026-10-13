@@ -2124,6 +2124,14 @@ type evalBuiltin struct {
 	f         BuiltinFunc
 	terms     []*ast.Term
 	bctxStore BuiltinContext
+
+	// State of the call in progress for onOutput. The callback is a method value
+	// created once per pooled evalBuiltin, so a call doesn't allocate a closure.
+	iter        unifyIterator
+	operands    []*ast.Term
+	numDeclArgs int
+	endIndex    int
+	cb          func(*ast.Term) error
 }
 
 // Reset clears the fields before this evalBuiltin is returned to its pool,
@@ -2131,6 +2139,7 @@ type evalBuiltin struct {
 func (e *evalBuiltin) Reset() {
 	e.e, e.bi, e.bctx, e.f, e.terms = nil, nil, nil, nil, nil
 	e.bctxStore = BuiltinContext{}
+	e.iter, e.operands = nil, nil
 }
 
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
@@ -2217,37 +2226,11 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 	}
 
 	// Normal unification flow for builtins:
-	err := e.f(*e.bctx, operands, func(output *ast.Term) (err error) {
-		e.e.instr.stopTimer(evalOpBuiltinCall)
-
-		switch {
-		case e.bi.Decl.Result() == nil:
-			err = iter()
-		case len(operands) == numDeclArgs:
-			if !ast.Boolean(false).Equal(output.Value) {
-				err = iter()
-			} // else: nothing to do, don't iter()
-		default:
-			err = e.e.unify(e.terms[endIndex], output, iter)
-		}
-
-		// If the NDBCache is present, we can assume this builtin
-		// call was not cached earlier.
-		if e.canUseNDBCache(e.bi) {
-			// Populate the NDBCache from the output term.
-			e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(operands[:endIndex]...), output.Value)
-		}
-
-		if err != nil {
-			// NOTE(sr): We wrap the errors here into Halt{} because we don't want to
-			// record them into builtinErrors below. The errors set here are coming from
-			// the call to iter(), not from the builtin implementation.
-			err = Halt{Err: err}
-		}
-
-		e.e.instr.startTimer(evalOpBuiltinCall)
-		return err
-	})
+	e.iter, e.operands, e.numDeclArgs, e.endIndex = iter, operands, numDeclArgs, endIndex
+	if e.cb == nil {
+		e.cb = e.onOutput
+	}
+	err := e.f(*e.bctx, operands, e.cb)
 
 	if err != nil {
 		if t, ok := err.(Halt); ok {
@@ -2266,6 +2249,40 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 	}
 
 	e.e.instr.stopTimer(evalOpBuiltinCall)
+	return err
+}
+
+// onOutput is the callback handed to the built-in: it unifies each output with
+// the call's result term and continues.
+func (e *evalBuiltin) onOutput(output *ast.Term) (err error) {
+	e.e.instr.stopTimer(evalOpBuiltinCall)
+
+	switch {
+	case e.bi.Decl.Result() == nil:
+		err = e.iter()
+	case len(e.operands) == e.numDeclArgs:
+		if !ast.Boolean(false).Equal(output.Value) {
+			err = e.iter()
+		} // else: nothing to do, don't iter()
+	default:
+		err = e.e.unify(e.terms[e.endIndex], output, e.iter)
+	}
+
+	// If the NDBCache is present, we can assume this builtin
+	// call was not cached earlier.
+	if e.canUseNDBCache(e.bi) {
+		// Populate the NDBCache from the output term.
+		e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(e.operands[:e.endIndex]...), output.Value)
+	}
+
+	if err != nil {
+		// NOTE(sr): We wrap the errors here into Halt{} because we don't want to
+		// record them into builtinErrors below. The errors set here are coming from
+		// the call to iter(), not from the builtin implementation.
+		err = Halt{Err: err}
+	}
+
+	e.e.instr.startTimer(evalOpBuiltinCall)
 	return err
 }
 
