@@ -1915,3 +1915,69 @@ func TestCanInlineNegation(t *testing.T) {
 		})
 	}
 }
+
+func TestBiunifyFunctionArguments(t *testing.T) {
+	t.Parallel()
+
+	module := `package test
+
+same(x, x) := true
+scalar(1, "a", x) := x
+pair([a, b]) := a + b
+five(a, b, c, d, e) := [a, b, c, d, e]
+mixed(1, [a, 2], {"k": b}) := [a, b]
+`
+
+	tests := []struct {
+		note  string
+		query string
+		exp   string // JSON of `x`, empty if undefined
+	}{
+		{note: "repeated var equal", query: "x = data.test.same(1, 1)", exp: "true"},
+		{note: "repeated var unequal", query: "x = data.test.same(1, 2)"},
+		{note: "scalars match", query: `x = data.test.scalar(1, "a", 7)`, exp: "7"},
+		{note: "scalar mismatch first", query: `x = data.test.scalar(2, "a", 7)`},
+		{note: "scalar mismatch second", query: `x = data.test.scalar(1, "b", 7)`},
+		{note: "composite argument", query: "x = data.test.pair([1, 2])", exp: "3"},
+		{note: "more arguments than in-place undos", query: "x = data.test.five(1, 2, 3, 4, 5)", exp: "[1, 2, 3, 4, 5]"},
+		{note: "scalar, composite and object", query: `x = data.test.mixed(1, [3, 2], {"k": 4})`, exp: "[3, 4]"},
+		{note: "scalar before composite mismatch", query: `x = data.test.mixed(2, [3, 2], {"k": 4})`},
+		{note: "bound var argument", query: "y = 5; x = data.test.same(y, 5)", exp: "true"},
+	}
+
+	compiler := ast.MustCompileModules(map[string]string{"test.rego": module})
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			qc := compiler.QueryCompiler()
+			body, err := qc.Compile(ast.MustParseBody(tc.query))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var got []string
+			err = NewQuery(body).WithCompiler(compiler).WithQueryCompiler(qc).WithStore(inmem.New()).
+				Iter(t.Context(), func(qr QueryResult) error {
+					if v, ok := qr[ast.Var("x")]; ok {
+						got = append(got, v.String())
+					}
+					return nil
+				})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.exp == "" {
+				if len(got) != 0 {
+					t.Fatalf("expected undefined, got %v", got)
+				}
+				return
+			}
+			if len(got) != 1 || got[0] != tc.exp {
+				t.Fatalf("expected [%s], got %v", tc.exp, got)
+			}
+		})
+	}
+}
