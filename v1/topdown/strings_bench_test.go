@@ -484,3 +484,16 @@ func BenchmarkAnyAffixMatchOneString(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkIndexOfN(b *testing.B) {
+	operands := []*ast.Term{
+		ast.StringTerm("The quick brown fox jumps over the lazy dog, the end"),
+		ast.StringTerm("the"),
+	}
+
+	for b.Loop() {
+		if err := builtinIndexOfN(BuiltinContext{}, operands, func(*ast.Term) error { return nil }); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

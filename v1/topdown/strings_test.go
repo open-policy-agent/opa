@@ -596,3 +596,17 @@ func TestBuiltinSubstringHugeLength(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinIndexOfN(t *testing.T) {
+	for _, tc := range []struct{ base, search, want string }{
+		{"dogcatdogcat", "cat", "[3, 9]"},
+		{"aaaa", "aa", "[0, 1, 2]"},
+		{"abc", "abcd", "[]"},
+		{"abc", "x", "[]"},
+		{"äbcäbc", "bc", "[1, 4]"},
+		{"abcabc", "ä", "[]"},
+	} {
+		rule := fmt.Sprintf(`p := x if { x := indexof_n(%q, %q) }`, tc.base, tc.search)
+		runTopDownTestCase(t, map[string]any{}, tc.base+"/"+tc.search, []string{rule}, tc.want)
+	}
+}

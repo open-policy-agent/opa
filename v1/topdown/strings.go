@@ -479,6 +479,19 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return errEmptySearchCharacter
 	}
 
+	if isASCII(string(base)) && isASCII(string(search)) {
+		var arr []*ast.Term
+		for offset := 0; ; {
+			i := strings.Index(string(base)[offset:], string(search))
+			if i < 0 {
+				break
+			}
+			arr = append(arr, ast.InternedTerm(offset+i))
+			offset += i + 1
+		}
+		return iter(ast.ArrayTerm(arr...))
+	}
+
 	baseRunes := []rune(string(base))
 	searchRunes := []rune(string(search))
 	searchLen := len(searchRunes)
