@@ -33,6 +33,11 @@ func TestConfigValidation(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			note:    "negative superseded etag ttl",
+			input:   `{"polling": {"superseded_etag_ttl_seconds": -1}}`,
+			wantErr: true,
+		},
+		{
 			note:         "empty",
 			input:        `{}`,
 			expMin:       nil,

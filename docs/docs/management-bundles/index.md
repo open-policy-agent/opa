@@ -163,6 +163,24 @@ in bundle responses to identify the revision of the bundle. OPA will include the
 check the `If-None-Match` header and reply with HTTP `304 Not Modified` if the
 bundle has not changed since the last update.
 
+When a bundle service is backed by replicas that update at different times, a
+request can be answered by a replica that still has an older bundle, which OPA
+would then activate. Setting `bundles[_].polling.superseded_etag_ttl_seconds`
+makes OPA send the `Etag` values of bundles it replaced within that time in
+addition to the current one, as a comma-separated `If-None-Match` list. A
+server that treats the list as specified in
+[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#field.if-none-match) replies
+`304 Not Modified` if any of them matches, so the older bundle is not served.
+
+:::warning
+The bundle service must support multiple values in `If-None-Match`. A service
+comparing the header to a single `Etag` value will never reply `304` and OPA
+will download the bundle on every poll.
+:::
+
+A rollback to a bundle that was replaced less than `superseded_etag_ttl_seconds`
+ago is not served until the time has passed.
+
 ### HTTP Long Polling
 
 With the periodic bundle downloading (i.e. `short polling`) technique, OPA sends regular requests to the remote HTTP
