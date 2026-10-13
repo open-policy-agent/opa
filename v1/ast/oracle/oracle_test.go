@@ -1210,6 +1210,32 @@ r := 2`
 		}
 	})
 
+	t.Run("rego version from shadowed v2 module", func(t *testing.T) {
+		t.Parallel()
+		// `and` without an import only parses at a v2 baseline.
+		const v2Module = `package test
+
+p if {
+	q and r
+}
+
+q := 1
+r := 2`
+		shadowed := ast.MustParseModuleWithOpts(v2Module, ast.ParserOptions{RegoVersion: ast.RegoV2})
+
+		_, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
+			Modules:  map[string]*ast.Module{"test.rego": shadowed},
+			Buffer:   []byte(v2Module),
+			Filename: "test.rego",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !module.Rules[0].Body[0].IsAnd() {
+			t.Fatal("expected logical and expression but got:", module.Rules[0].Body[0])
+		}
+	})
+
 	t.Run("capabilities from compiler", func(t *testing.T) {
 		t.Parallel()
 		_, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{

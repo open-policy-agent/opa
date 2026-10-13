@@ -1857,7 +1857,7 @@ func TestRoundtrip(t *testing.T) {
 }
 
 func TestRoundtrip_RegoV2Import(t *testing.T) {
-	v0 := 0
+	v0, v1, v2 := 0, 1, 2
 	tests := []struct {
 		note        string
 		regoVersion ast.RegoVersion
@@ -1872,6 +1872,17 @@ func TestRoundtrip_RegoV2Import(t *testing.T) {
 			note:        "v0 manifest",
 			regoVersion: ast.RegoV0,
 			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v0},
+		},
+		{
+			note:        "v2 manifest",
+			regoVersion: ast.RegoV2,
+			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v2},
+		},
+		{
+			note:        "v1 manifest, v2 per-file override",
+			regoVersion: ast.RegoV2,
+			manifest: Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v1,
+				FileRegoVersions: map[string]int{"/foo/policy.rego": 2}},
 		},
 	}
 
@@ -2076,6 +2087,60 @@ func TestReadProtoManifestPreservesFormatIntent(t *testing.T) {
 	}
 	if sawJSON {
 		t.Error("re-written bundle silently downgraded to /.manifest")
+	}
+}
+
+func TestRoundtripSigned_RegoVersionIsVerified(t *testing.T) {
+	for _, proto := range []bool{false, true} {
+		t.Run(fmt.Sprintf("proto manifest: %v", proto), func(t *testing.T) {
+			module := `package foo
+
+allow if input.a or not { input.b; input.c }`
+
+			v2 := 2
+			bundle := Bundle{
+				Data: map[string]any{},
+				Modules: []ModuleFile{
+					{
+						URL:    "/foo/policy.rego",
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModuleWithOpts(module, ast.ParserOptions{RegoVersion: ast.RegoV2}),
+						Raw:    []byte(module),
+					},
+				},
+				Manifest: Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v2},
+			}
+			bundle.SetManifestProto(proto)
+
+			if err := bundle.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+
+			var buf bytes.Buffer
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			read, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			if v := read.RegoVersion(ast.RegoV1); v != ast.RegoV2 {
+				t.Fatalf("expected rego version %v, got %v", ast.RegoV2, v)
+			}
+
+			// The rego-version is part of the signed manifest: changing it after signing fails verification.
+			v1 := 1
+			bundle.Manifest.RegoVersion = &v1
+			buf.Reset()
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			_, err = NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err == nil || !strings.Contains(err.Error(), "digest mismatch") {
+				t.Fatalf("expected digest mismatch for a rego-version changed after signing, got %v", err)
+			}
+		})
 	}
 }
 

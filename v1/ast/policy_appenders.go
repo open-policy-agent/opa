@@ -148,9 +148,10 @@ func (rule *Rule) appendElse(opts toStringOpts, buf []byte) ([]byte, error) {
 		}
 	}
 
-	if v := opts.RegoVersion(); v == RegoV1 || v == RegoV0CompatV1 {
+	switch opts.RegoVersion() {
+	case RegoV0CompatV1, RegoV1, RegoV2:
 		buf = append(buf, " if { "...)
-	} else {
+	default:
 		buf = append(buf, " { "...)
 	}
 	if buf, err = rule.Body.AppendText(buf); err != nil {

@@ -1282,14 +1282,6 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 func TestServerLogicalKeywords(t *testing.T) {
 	t.Parallel()
 
-	v1Module := `package test
-		import future.keywords.and
-		import future.keywords.or
-
-		allow if {
-			input.user == "alice" or (input.role == "admin" and input.verified)
-		}`
-
 	v0Module := `package test
 		import future.keywords.and
 		import future.keywords.or
@@ -1298,9 +1290,22 @@ func TestServerLogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v1Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	v2ImportModule := `package test
 		import rego.v2
 
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	v2Module := `package test
 		allow if {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
@@ -1415,6 +1420,50 @@ func TestServerLogicalKeywords(t *testing.T) {
 			trs: []tr{
 				{http.MethodPost, "/query", `{"query": "input.a or input.b"}`, 400, ""},
 				{http.MethodPost, "/compile", `{"query": "input.a or input.b"}`, 400, ""},
+			},
+		},
+		{
+			note:        "put policy, evaluate data (v2 rego-version)",
+			regoVersion: ast.RegoV2,
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v2Module, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": true}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
+			// rego.v1 doesn't lower a v2 baseline.
+			note:        "put policy, rego.v1 import, evaluate data (v2 rego-version)",
+			regoVersion: ast.RegoV2,
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", `package test
+					import rego.v1
+
+					allow if {
+						input.user == "alice" or (input.role == "admin" and input.verified)
+					}`, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+			},
+		},
+		{
+			note:        "compile policy (v2 rego-version)",
+			regoVersion: ast.RegoV2,
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v2Module, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "data.test.allow = true"
+				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+			},
+		},
+		{
+			// At a v2 baseline the keywords need no import, so ad-hoc queries can use them.
+			note:        "keywords are available in ad-hoc queries (v2 rego-version)",
+			regoVersion: ast.RegoV2,
+			trs: []tr{
+				{http.MethodPost, "/query", `{"query": "input.a or input.b"}`, 200, ""},
+				{http.MethodPost, "/compile", `{"query": "input.a or input.b", "unknowns": ["input"]}`, 200, ""},
 			},
 		},
 	}
