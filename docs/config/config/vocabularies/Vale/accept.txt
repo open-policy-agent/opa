@@ -290,3 +290,6 @@ that_tech_tea
 timhinrichs
 tsandall
 vgramer
+Lucene
+Solr
+Solr's

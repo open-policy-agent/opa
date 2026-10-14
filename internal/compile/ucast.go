@@ -166,6 +166,12 @@ func callToNode(e *ast.Expr, f ast.Ref, flip bool, opts *Opts) *ucast.UCASTNode 
 		ast.Contains.Name:
 	case ast.Member.Name:
 		op = "in"
+	case luceneOutside.String():
+		op = "outside"
+	case ast.AnyPrefixMatch.Name:
+		op = "startswith"
+	case ast.AnySuffixMatch.Name:
+		op = "endswith"
 	default:
 		return nil
 	}
