@@ -4931,6 +4931,34 @@ p contains 42`
 	})
 }
 
+// file_rego_versions keys are bundle-relative, so a base directory must not
+// affect the lookup in lazy mode, where modules are not parsed before activation.
+func TestActivate_LazyFileRegoVersionsWithBaseDir(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{"roots": ["a"], "rego_version": 1, "file_rego_versions": {"/a/policy.rego": 0}}`},
+		{"/a/policy.rego", "package a\n\np[42] { true }\n"},
+	}
+
+	b := must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+		WithBaseDir("some/dir").
+		WithBundleName("bundle1").
+		WithLazyLoadingMode(true).
+		Read())(t)
+
+	store := mock.New()
+	mustActivate(t, store, &ActivateOpts{
+		Bundles:       map[string]*Bundle{"bundle1": &b},
+		ParserOptions: ast.ParserOptions{RegoVersion: ast.RegoV1},
+	})
+
+	verifyResultRead(t, store, `{
+		"system": {
+			"bundles": {"bundle1": {"etag": "", "manifest": {"file_rego_versions": {"/a/policy.rego": 0}, "rego_version": 1, "revision": "", "roots": ["a"]}}},
+			"modules": {"bundle1/some/dir/a/policy.rego": {"rego_version": 0}}
+		}
+	}`)
+}
+
 func TestDeactivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
