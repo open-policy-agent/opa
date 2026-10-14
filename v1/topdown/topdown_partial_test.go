@@ -45,6 +45,17 @@ type partialEvalTestCase struct {
 func TestTopDownPartialEval(t *testing.T) {
 	t.Parallel()
 
+	var domain, unrolled []string
+	for i := 1; i <= everyUnrollLimit+1; i++ {
+		domain = append(domain, strconv.Itoa(i))
+		if i <= everyUnrollLimit {
+			unrolled = append(unrolled, fmt.Sprintf("%d > input", i))
+		}
+	}
+	everyUnrolled := strings.Join(unrolled, "; ")
+	nested := "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]"
+	everyKept := "every __local0__1, __local1__1 in [" + strings.Join(domain, ", ") + "] { __local4__1 = input; __local1__1 > __local4__1 }"
+
 	tests := []partialEvalTestCase{
 		{
 			note:        "empty",
@@ -3000,10 +3011,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				p if {
 					every x in [] { x > input }
 				}`},
-			wantQueries: []string{`every __local0__1, __local1__1 in [] {
-				__local3__1 = input
-				__local1__1 > __local3__1
-			}`},
+			wantQueries: []string{``},
 		},
 		{
 			note:  "every: known domain, unknowns in body",
@@ -3012,10 +3020,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				p if {
 					every x in [1, 2, 3] { x > input }
 				}`},
-			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
-				__local3__1 = input
-				__local1__1 > __local3__1
-			}`},
+			wantQueries: []string{`1 > input; 2 > input; 3 > input`},
 		},
 		{
 			note:  "every: known domain, unknowns in body (with call+assignment)",
@@ -3024,12 +3029,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				p if {
 					every x in [1, 2, 3] { y := x+10; y > input }
 				}`},
-			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
-				plus(__local1__1, 10, __local4__1)
-				__local2__1 = __local4__1
-				__local5__1 = input
-				__local2__1 > __local5__1
-			}`},
+			wantQueries: []string{`11 > input; 12 > input; 13 > input`},
 		},
 		{
 			note:  "every: known domain, unknowns in body, body impossible",
@@ -3038,11 +3038,151 @@ func TestTopDownPartialEval(t *testing.T) {
 				p if {
 					every x in [1, 2, 3] { false; x > input }
 				}`},
-			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
-				false
-				__local3__1 = input
-				__local1__1 > __local3__1
-			}`},
+			wantQueries: []string{},
+		},
+		{
+			note:  "every: unrolled, known domain, unknowns in body",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [1, 2, 3] { x > input } }`},
+			wantQueries: []string{`1 > input; 2 > input; 3 > input`},
+		},
+		{
+			note:  "every: unrolled, empty domain",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [] { x > input } }`},
+			wantQueries: []string{``},
+		},
+		{
+			note:  "every: unrolled, key and value",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every i, x in ["a", "b"] { i < input; x != input } }`},
+			wantQueries: []string{`0 < input; "a" != input; 1 < input; "b" != input`},
+		},
+		{
+			note:  "every: unrolled, object domain",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every k, v in {"a": 1, "b": 2} { v > input[k] } }`},
+			wantQueries: []string{`1 > input.a; 2 > input.b`},
+		},
+		{
+			note:  "every: unrolled, object domain, value only",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every v in {"a": 1, "b": 2} { v > input } }`},
+			wantQueries: []string{`1 > input; 2 > input`},
+		},
+		{
+			note:  "every: unrolled, object domain, key only",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every k, _ in {"a": 1, "b": 2} { input[k] > 0 } }`},
+			wantQueries: []string{`input.a > 0; input.b > 0`},
+		},
+		{
+			note:  "every: unrolled, array domain, key only",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every i, _ in [10, 20] { i < input } }`},
+			wantQueries: []string{`0 < input; 1 < input`},
+		},
+		{
+			note:  "every: unrolled, set domain, key and value",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every k, v in {1, 2} { k < input; v > input } }`},
+			wantQueries: []string{`1 < input; 1 > input; 2 < input; 2 > input`},
+		},
+		{
+			note:  "every: unrolled, set domain",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in {1, 2} { x > input } }`},
+			wantQueries: []string{`1 > input; 2 > input`},
+		},
+		{
+			note:  "every: unrolled, body with a local",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [1, 2] { y := x + 10; y > input } }`},
+			wantQueries: []string{`11 > input; 12 > input`},
+		},
+		{
+			note:  "every: unrolled, body false for one element",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [1, 2] { x != 1; x > input } }`},
+			wantQueries: []string{},
+		},
+		{
+			note:  "every: unrolled, outer variable",
+			query: "data.test.p",
+			modules: []string{`package test
+				import future.keywords.not
+				p if {
+					y := 3
+					every x in [1, 2] { x != 0; input > y }
+				}`},
+			wantQueries: []string{`input > 3; input > 3`},
+		},
+		{
+			note:  "every: unrolled, body with alternatives",
+			query: "data.test.p",
+			modules: []string{`package test
+				import future.keywords.not
+				ok(x) if x > input
+				ok(x) if x < input
+				p if { every x in [1, 2] { ok(x) } }`},
+			wantQueries: []string{`1 > input; 2 > input`, `1 > input; 2 < input`, `1 < input; 2 > input`, `1 < input; 2 < input`},
+			ignoreOrder: true,
+		},
+		{
+			note:  "every: unrolled, domain at the limit",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in numbers.range(1, 32) { x > input } }`},
+			wantQueries: []string{everyUnrolled},
+		},
+		{
+			note:  "every: unrolled, object element used as ref head",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [{"a": 1}] { x.a == input.y } }`},
+			wantQueries: []string{`1 = input.y`},
+		},
+		{
+			note:  "every: unrolled, array element used as ref head",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [[1, 2], [3, 4]] { x[1] > input } }`},
+			wantQueries: []string{`2 > input; 4 > input`},
+		},
+		{
+			note:  "every: unrolled, nested within the limit",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [1, 2] { every y in [3, 4] { x < input; y < input } } }`},
+			wantQueries: []string{`1 < input; 3 < input; 1 < input; 4 < input; 2 < input; 3 < input; 2 < input; 4 < input`},
+		},
+		{
+			note:  "every: unrolled, nested over the limit",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in [1, 2] { every y in numbers.range(1, 17) { y > input; x > 0 } } }`},
+			wantQueries: []string{
+				"every __local2____e11, __local3____e11 in " + nested + " { __local7____e11 = input; __local3____e11 > __local7____e11; 1 > 0}; " +
+					"every __local2____e21, __local3____e21 in " + nested + " { __local7____e21 = input; __local3____e21 > __local7____e21; 2 > 0}",
+			},
+		},
+		{
+			note:  "every: unrolled, domain over the limit",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if { every x in numbers.range(1, 33) { x > input } }`},
+			wantQueries: []string{everyKept},
 		},
 		{
 			note:  "every: unknown domain",
@@ -3061,7 +3201,7 @@ func TestTopDownPartialEval(t *testing.T) {
 					y := 3
 					every x in [1, 2] { x != 0; input > y }
 				}`},
-			wantQueries: []string{`every __local1__1, __local2__1 in [1, 2] { __local2__1 != 0; __local4__1 = input; __local4__1 > 3 }`},
+			wantQueries: []string{`input > 3; input > 3`},
 		},
 		{
 			note:  "every: unknown domain, call in body",
@@ -3087,7 +3227,7 @@ func TestTopDownPartialEval(t *testing.T) {
 						1 == y
 					}
 				}`},
-			wantQueries: []string{`every __local1__2, __local2__2 in [1] { a2 = input; 1 = __local2__2 }`},
+			wantQueries: []string{``},
 		},
 		{
 			note:  "every: nested and closing over function args",
@@ -3104,11 +3244,7 @@ func TestTopDownPartialEval(t *testing.T) {
 						}
 					}
 				}`},
-			wantQueries: []string{`every __local1__2, __local2__2 in [1] {
-				__local6__2 = [2]
-				every __local3__2, __local4__2 in __local6__2 {
-					a2 = input; __local4__2 > __local2__2 }
-				}`},
+			wantQueries: []string{``},
 		},
 		{
 			note:  "every: in-scope var in set comprehension",
@@ -4729,9 +4865,7 @@ q if { input.x = 7 }`},
 				p if {
 					every x in [1, 2, 3] { x > 0 and x > input }
 				}`},
-			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
-					gt(__local1__1, 0) and { __local3__1 = input; gt(__local1__1, __local3__1) }
-				}`},
+			wantQueries: []string{`gt(1, 0) and { __local3____e11 = input; gt(1, __local3____e11) }; gt(2, 0) and { __local3____e21 = input; gt(2, __local3____e21) }; gt(3, 0) and { __local3____e31 = input; gt(3, __local3____e31) }`},
 		},
 		{
 			note:            "array comprehension: body contains or with unknowns",
@@ -6922,12 +7056,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					}
 				}
 				f(_, _) := false`},
-			wantQueries: []string{
-				`every __local0__1, __local1__1 in [1, 2] { 
-					not data.test.f(input.foo, __local1__1) 
-				}
-				x1 = input.foo`,
-			},
+			wantQueries: []string{`x1 = input.foo`},
 		},
 		{
 			note:        "every+negation: explicit body, concrete-bound outer var",
@@ -6959,12 +7088,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					}
 				}
 				f(_, _) := false`},
-			wantQueries: []string{
-				`every __local0__1, __local1__1 in [1, 2] { 
-					not { data.test.f(input.foo, __local1__1) } 
-				}
-				x1 = input.foo`,
-			},
+			wantQueries: []string{`x1 = input.foo`},
 		},
 		{
 			note:  "every+negation: implicit body, comparison expression",
@@ -6976,12 +7100,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						not v == y
 					}
 				}`},
-			wantQueries: []string{
-				`every __local0__1, __local1__1 in [1, 2] { 
-					not input.threshold = __local1__1
-				}
-				v1 = input.threshold`,
-			},
+			wantQueries: []string{`not input.threshold = 1; not input.threshold = 2`},
 		},
 
 		// inner and/or, with unknowns
