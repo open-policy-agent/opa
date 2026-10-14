@@ -6,6 +6,7 @@ package compile
 import (
 	"cmp"
 	"fmt"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
@@ -141,7 +142,10 @@ func checkBuiltins(c *checker, e *ast.Expr, _ []*ast.Module) *ast.Error {
 	case op0 == ast.StartsWith.Name ||
 		op0 == ast.EndsWith.Name ||
 		op0 == ast.Contains.Name ||
-		op0 == ast.Member.Name:
+		op0 == ast.Member.Name ||
+		op0 == ast.AnyPrefixMatch.Name ||
+		op0 == ast.AnySuffixMatch.Name ||
+		op0 == luceneOutside.String():
 		unknownMustBeFirst = true
 
 		// Below there are only error cases
@@ -230,6 +234,10 @@ func checkOperand(c *checker, op, t *ast.Term) *ast.Error {
 			if len(v) == 3 {
 				return nil
 			}
+			// input.doc.address.city: a nested field, named by plain keys only.
+			if len(v) > 3 && c.constraints.Supports("nested-fields") && slices.IndexFunc(v[1:], isNotString) < 0 {
+				return nil
+			}
 			if len(v) == 2 && c.shortUnknowns.Contains(string(v[1].Value.(ast.String))) {
 				return nil
 			}
@@ -247,6 +255,11 @@ func checkOperand(c *checker, op, t *ast.Term) *ast.Error {
 // one of the fragment, just like those of Check.
 func TranslationErrors(e error) ast.Errors {
 	return ast.Errors{err(nil, "%s", e)}
+}
+
+func isNotString(t *ast.Term) bool {
+	_, ok := t.Value.(ast.String)
+	return !ok
 }
 
 func err(loc *ast.Location, f string, vs ...any) *ast.Error {

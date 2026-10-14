@@ -153,6 +153,7 @@ type Server struct {
 
 	compileUnknownsCache     *lru.Cache[string, []ast.Ref]
 	compileMaskingRulesCache *lru.Cache[string, ast.Ref]
+	compileSchemasCache      *lru.Cache[string, any]
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -187,6 +188,7 @@ func New() *Server {
 	s := Server{}
 	s.compileUnknownsCache, _ = lru.New[string, []ast.Ref](unknownsCacheSize)
 	s.compileMaskingRulesCache, _ = lru.New[string, ast.Ref](maskingRuleCacheSize)
+	s.compileSchemasCache, _ = lru.New[string, any](schemasCacheSize)
 	return &s
 }
 
@@ -1034,6 +1036,7 @@ func (s *Server) reload(_ context.Context, _ storage.Transaction, evt storage.Tr
 	if evt.PolicyChanged() {
 		s.compileUnknownsCache.Purge()
 		s.compileMaskingRulesCache.Purge()
+		s.compileSchemasCache.Purge()
 	}
 }
 
