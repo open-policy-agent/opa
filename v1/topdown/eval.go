@@ -132,6 +132,7 @@ type eval struct {
 	timeStart                   int64
 	index                       int
 	genvarid                    int
+	everyUnrollDiv              int
 	indexing                    bool
 	earlyExit                   bool
 	traceEnabled                bool
@@ -4588,9 +4589,23 @@ type evalEvery struct {
 	expr  *ast.Expr
 }
 
+// everyUnrollLimit is the largest known domain that partial evaluation unrolls.
+const everyUnrollLimit = 32
+
 func (e evalEvery) eval(iter unifyIterator) error {
-	// unknowns in domain or body: save the expression, PE its body
-	if e.e.unknown(e.every.Domain, e.e.bindings) || e.e.unknownBody(e.every.Body, e.e.bindings) {
+	// unknowns in the body of a known, small domain: unroll it. Otherwise, with unknowns in
+	// domain or body: save the expression, PE its body.
+	domainUnknown := e.e.unknown(e.every.Domain, e.e.bindings)
+	if domainUnknown || e.e.unknownBody(e.every.Body, e.e.bindings) {
+		if !domainUnknown {
+			pairs, ok, err := e.knownDomain()
+			if err != nil {
+				return err
+			}
+			if ok {
+				return e.unroll(pairs, iter)
+			}
+		}
 		return e.save(iter)
 	}
 
@@ -4601,17 +4616,10 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		}
 	}
 
-	generator := ast.NewBody(
-		ast.Equality.Expr(
-			ast.RefTerm(e.every.Domain, e.every.Key).SetLocation(e.every.Domain.Location),
-			e.every.Value,
-		).SetLocation(e.every.Domain.Location),
-	)
-
 	domain := evalPool.Get()
 	defer evalPool.Put(domain)
 
-	e.e.closure(generator, domain)
+	e.e.closure(e.generator(), domain)
 
 	all := true // all generator evaluations yield one successful body evaluation
 
@@ -4665,6 +4673,105 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 	domain.traceFail(e.expr)
 	return nil
+}
+
+func (e evalEvery) generator() ast.Body {
+	return ast.NewBody(
+		ast.Equality.Expr(
+			ast.RefTerm(e.every.Domain, e.every.Key).SetLocation(e.every.Domain.Location),
+			e.every.Value,
+		).SetLocation(e.every.Domain.Location),
+	)
+}
+
+// knownDomain returns the (key, value) pairs of a known collection, if unrolling it keeps
+// the elements of all enclosing unrolled everys together within everyUnrollLimit.
+func (e evalEvery) knownDomain() ([][2]*ast.Term, bool, error) {
+	pd := e.e.bindings.Plug(e.every.Domain)
+	if pd == nil || !isIterableValue(pd.Value) {
+		return nil, false, nil
+	}
+	if n := max(pd.Value.(interface{ Len() int }).Len(), 1); n*max(e.e.everyUnrollDiv, 1) > everyUnrollLimit {
+		return nil, false, nil
+	}
+
+	domain := evalPool.Get()
+	defer evalPool.Put(domain)
+	e.e.closure(e.generator(), domain)
+
+	var pairs [][2]*ast.Term
+	err := domain.eval(func(child *eval) error {
+		pairs = append(pairs, [2]*ast.Term{child.bindings.Plug(e.every.Key), child.bindings.Plug(e.every.Value)})
+		return nil
+	})
+	return pairs, err == nil, err
+}
+
+// unroll evaluates the bodies of all elements as one body: what is saved for each is
+// followed by what is saved for the next, a conjunction.
+func (e evalEvery) unroll(pairs [][2]*ast.Term, iter unifyIterator) error {
+	body := make(ast.Body, 0, len(pairs)*len(e.every.Body))
+	for _, pair := range pairs {
+		body = append(body, e.elementBody(pair)...)
+	}
+
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+	e.e.closure(body, child)
+	child.everyUnrollDiv = max(e.e.everyUnrollDiv, 1) * max(len(pairs), 1)
+	if e.e.traceEnabled {
+		e.e.traceEvent(NoteOp, e.expr, fmt.Sprintf("every unrolled over %d elements", len(pairs)), nil)
+	}
+	return child.eval(func(*eval) error { return iter() })
+}
+
+// elementBody is the body with the key and value replaced by the element's, and
+// its own variables renamed: the next element declares them while this one's
+// bindings are still live.
+func (e evalEvery) elementBody(pair [2]*ast.Term) ast.Body {
+	e.e.genvarid++
+	suffix := "__e" + strconv.Itoa(e.e.genvarid)
+
+	// Scalars are substituted. Anything else is bound to a fresh variable, since a
+	// composite value can't be the head of a reference.
+	elem := map[ast.Var]ast.Value{}
+	var bind ast.Body
+	for i, t := range []*ast.Term{e.every.Key, e.every.Value} {
+		v, ok := t.Value.(ast.Var)
+		if !ok {
+			continue
+		}
+		if ast.IsScalar(pair[i].Value) {
+			elem[v] = pair[i].Value
+			continue
+		}
+		fresh := ast.Var(string(v) + suffix)
+		elem[v] = fresh
+		bind = append(bind, ast.Equality.Expr(ast.NewTerm(fresh), pair[i]))
+	}
+
+	// Reference heads are variables too, but never the body's own.
+	heads := ast.NewVarSet(ast.DefaultRootDocument.Value.(ast.Var), ast.InputRootDocument.Value.(ast.Var))
+	ast.WalkExprs(e.every.Body, func(x *ast.Expr) bool {
+		if x.IsCall() {
+			if v, ok := x.Operator()[0].Value.(ast.Var); ok {
+				heads.Add(v)
+			}
+		}
+		return false
+	})
+
+	body, _ := ast.TransformVars(e.every.Body.Copy(), func(v ast.Var) (ast.Value, error) {
+		if val, ok := elem[v]; ok {
+			return val, nil
+		}
+		// A variable with a value, or a saved unification, is the caller's.
+		if t := e.e.bindings.Plug(ast.NewTerm(v)); heads.Contains(v) || t == nil || ast.Compare(t.Value, v) != 0 || e.e.unknown(v, e.e.bindings) {
+			return v, nil
+		}
+		return ast.Var(string(v) + suffix), nil
+	})
+	return append(bind, body.(ast.Body)...)
 }
 
 // isIterableValue returns true if the AST value is an iterable type.
