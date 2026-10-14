@@ -79,7 +79,8 @@ keywords have become a standard part of the Rego language, and no longer require
 The `not` keyword has always been a standard part of the Rego language, but has since its introduction
 received a semantic update that requires author opt-in through importing `future.keywords.not`.
 The `and` and `or` keywords are not part of the Rego v0/v1 syntax, and require an import.
-The [rego.v2 import](#importing-regov2) enables `not`, `and`, and `or` together.
+The [rego.v2 import](#importing-regov2) enables the Rego v2 syntax, where `not`, `and`, and `or` keywords are 
+enabled by default and require no individual imports.
 
 ### Importing `future.keywords.not`
 

@@ -172,6 +172,8 @@ Features present in the list are enabled, while features not present are disable
 - `rule_head_refs`: Enables general support for [references in rule heads](./policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](./policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`.
 - `rego_v1_import`: enables use of the `rego.v1` import.
 - `rego_v2_import`: enables use of the `rego.v2` import.
+- `rego_v1`: enables Rego v1 modules, the default Rego syntax in OPA v1.x.
+- `rego_v2`: enables Rego v2 modules, such as those in bundles with `rego_version` `2`, where `and`, `or`, and `not` are keywords without imports. Also enables the `rego.v1` and `rego.v2` imports.
 
 ### Future keywords
 

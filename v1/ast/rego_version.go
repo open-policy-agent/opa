@@ -161,14 +161,17 @@ func (s RegoVersionSpan) RaisedTo(v RegoVersion) (RegoVersionSpan, error) {
 	return NewRegoVersionSpan(s.min, v)
 }
 
+// Min returns the version the module is parsed at.
 func (s RegoVersionSpan) Min() RegoVersion {
 	return s.min
 }
 
+// Max returns the latest version whose language features the module uses.
 func (s RegoVersionSpan) Max() RegoVersion {
 	return s.max
 }
 
+// IsUndefined reports whether s is the zero value.
 func (s RegoVersionSpan) IsUndefined() bool {
 	return s.min == RegoUndefined
 }
@@ -200,6 +203,7 @@ func (s RegoVersionSpan) Int() int {
 	return s.min.Int()
 }
 
+// String returns the version, e.g. "v1", or both bounds when they differ, e.g. "v1v2".
 func (s RegoVersionSpan) String() string {
 	if s.min == s.max {
 		return s.min.String()

@@ -101,6 +101,7 @@ const WildcardPrefix = "$"
 // Keywords contains strings that map to language keywords.
 var Keywords = KeywordsForRegoVersion(DefaultRegoVersion)
 
+// KeywordsV0 is the set of keywords in Rego v0, the legacy Rego syntax.
 var KeywordsV0 = [...]string{
 	"not",
 	"package",
@@ -115,6 +116,7 @@ var KeywordsV0 = [...]string{
 	"some",
 }
 
+// KeywordsV1 is the set of keywords in Rego v1, the current default syntax.
 var KeywordsV1 = [...]string{
 	"not",
 	"package",
@@ -133,6 +135,7 @@ var KeywordsV1 = [...]string{
 	"every",
 }
 
+// KeywordsV2 is the set of keywords in Rego v2: KeywordsV1 plus "and" and "or".
 var KeywordsV2 = [...]string{
 	"not",
 	"package",
