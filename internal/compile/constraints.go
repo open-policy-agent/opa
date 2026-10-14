@@ -99,6 +99,15 @@ func NewConstraints(typ, variant string) (*Constraint, error) {
 			c.Variant = ""
 			c.Builtins = ucastBuiltins
 		}
+	case "lucene":
+		switch v := strings.ToLower(variant); v {
+		case "solr":
+			c.Variant = v
+			c.Builtins = luceneBuiltins
+		default:
+			return nil, fmt.Errorf("unsupported variant for %s: %s", typ, variant)
+		}
+		c.Features.Add("not", "existence-ref", "multi-valued", "nested-fields")
 	default:
 		return nil, fmt.Errorf("unknown target/dialect combination: %s/%s", typ, variant)
 	}
@@ -215,6 +224,16 @@ var (
 		"endswith",
 		"contains",
 	)
+	luceneBuiltins = ucastBuiltins.Clone().Add(
+		"internal.member_2",
+		"internal.lucene_outside",
+		"startswith",
+		"endswith",
+		"contains",
+		"strings.any_prefix_match",
+		"strings.any_suffix_match",
+	)
+
 	ucastLINQBuiltins = ucastBuiltins.Clone().Add(
 		"internal.member_2",
 		// "nin", // TODO: deal with NOT IN
