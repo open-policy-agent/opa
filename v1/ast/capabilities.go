@@ -57,9 +57,10 @@ var (
 		FeatureKeywordsInRefs,
 	}
 	v2Features = []string{
+		FeatureRegoV1Import,
+		FeatureRegoV2Import,
 		FeatureRegoV1,
 		FeatureRegoV2,
-		// FIXME: Should v2 also imply keywords-in-refs and template strings?
 		FeatureKeywordsInRefs,
 		FeatureTemplateStrings,
 	}

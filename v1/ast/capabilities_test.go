@@ -432,6 +432,32 @@ func TestCapabilitiesForThisVersion(t *testing.T) {
 			},
 			keywords: []string{"and", "not", "or"},
 		},
+		{
+			// Every future keyword is a keyword in v2.
+			note:        "v2",
+			regoVersion: RegoV2,
+			features: []string{
+				FeatureKeywordsInRefs,
+				FeatureRegoV1,
+				FeatureRegoV1Import,
+				FeatureRegoV2,
+				FeatureRegoV2Import,
+				FeatureTemplateStrings,
+			},
+		},
+		{
+			// Unknown versions get the default capabilities.
+			note:        "unknown",
+			regoVersion: RegoVersion(99),
+			features: []string{
+				FeatureKeywordsInRefs,
+				FeatureRegoV1,
+				FeatureRegoV2,
+				FeatureRegoV2Import,
+				FeatureTemplateStrings,
+			},
+			keywords: []string{"and", "not", "or"},
+		},
 	}
 
 	for _, tc := range tests {
