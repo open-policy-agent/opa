@@ -28,19 +28,10 @@ jobs:
           go-version-file: opa/.go-version
           cache-dependency-path: opa/go.sum
 
-      - name: Get latest opa-envoy-plugin release tag
-        id: envoy_release
-        run: |
-          tag=$(gh api repos/open-policy-agent/opa-envoy-plugin/releases/latest --jq '.tag_name')
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Check out opa-envoy-plugin ${{ steps.envoy_release.outputs.tag }}
+      - name: Check out opa-envoy-plugin main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-policy-agent/opa-envoy-plugin
-          ref: ${{ steps.envoy_release.outputs.tag }}
           persist-credentials: false
           path: envoy
 
