@@ -6,6 +6,7 @@ package compile
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/open-policy-agent/opa/internal/levenshtein"
@@ -56,6 +57,16 @@ func QueriesToSQL(queries []ast.Body, mappings map[string]any, dialect string) (
 	return sql, nil
 }
 
+// QueriesToLucene renders the queries as a Lucene query string. An
+// unconditional YES is "*:*", as an empty query isn't valid Lucene.
+func QueriesToLucene(queries []ast.Body, mappings map[string]any) (string, error) {
+	node := BodiesToUCAST(queries, &Opts{Translations: mappings})
+	if node == nil {
+		return ucast.LuceneMatchAll, nil
+	}
+	return node.AsLucene()
+}
+
 func ExtractUnknownsFromAnnotations(comp *ast.Compiler, ref ast.Ref) ([]ast.Ref, []*ast.Error) {
 	// find ast.Rule for ref
 	rules := comp.GetRulesExact(ref)
@@ -89,6 +100,72 @@ func unknownsFromAnnotationsSet(as *ast.AnnotationSet, rule *ast.Rule) ([]ast.Re
 	}
 
 	return unknowns, errs
+}
+
+// ExtractSchemaFromAnnotations returns the JSON Schema of the document doc that the
+// inline schema annotations in scope of the rule ref declare, for doc, a reference
+// containing it, or its fields. As for the type checker, the closest annotation wins.
+func ExtractSchemaFromAnnotations(comp *ast.Compiler, ref, doc ast.Ref) any {
+	rules := comp.GetRulesExact(ref)
+	if len(rules) == 0 || comp.GetAnnotationSet() == nil {
+		return nil
+	}
+	chain := comp.GetAnnotationSet().Chain(rules[0])
+	var schema any
+	for i := len(chain) - 1; i >= 0; i-- {
+		if chain[i].Annotations == nil {
+			continue
+		}
+		for _, sa := range chain[i].Annotations.Schemas {
+			switch {
+			case sa.Definition == nil:
+			case doc.HasPrefix(sa.Path):
+				if s := schemaAt(*sa.Definition, doc[len(sa.Path):]); s != nil {
+					schema = s
+				}
+			case sa.Path.HasPrefix(doc):
+				schema = withSchemaAt(schema, sa.Path[len(doc):], *sa.Definition)
+			}
+		}
+	}
+	return schema
+}
+
+// schemaAt is the schema of the property at path in schema, if it declares one.
+func schemaAt(schema any, path ast.Ref) any {
+	for _, t := range path {
+		key, ok := t.Value.(ast.String)
+		obj, _ := schema.(map[string]any)
+		props, _ := obj["properties"].(map[string]any)
+		if !ok || props == nil {
+			return nil
+		}
+		schema = props[string(key)]
+	}
+	return schema
+}
+
+// withSchemaAt is schema with the property at path declared as def, leaving schema
+// itself unchanged.
+func withSchemaAt(schema any, path ast.Ref, def any) any {
+	if len(path) == 0 {
+		return def
+	}
+	key, ok := path[0].Value.(ast.String)
+	if !ok {
+		return schema
+	}
+	obj := map[string]any{"type": "object"}
+	if o, ok := schema.(map[string]any); ok {
+		maps.Copy(obj, o)
+	}
+	props := map[string]any{}
+	if p, ok := obj["properties"].(map[string]any); ok {
+		maps.Copy(props, p)
+	}
+	props[string(key)] = withSchemaAt(props[string(key)], path[1:], def)
+	obj["properties"] = props
+	return obj
 }
 
 func ExtractMaskRuleRefFromAnnotations(comp *ast.Compiler, ref ast.Ref) (ast.Ref, *ast.Error) {

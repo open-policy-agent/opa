@@ -12,7 +12,7 @@ The subset of Rego that can be used to represent row filtering logic is colloqui
 
 :::info What you will learn
 You will develop an intuition for what is valid Rego for data filters depending on the target.
-Not every construct is supported for every target.
+Not every construct is supported for every target. The [Lucene target](./lucene) has a page of its own.
 
 For a step-by-step walkthrough of evaluating a Rego policy _partially_, see [Evaluating a data filter policy](./partial-evaluation).
 :::
