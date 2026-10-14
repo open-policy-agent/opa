@@ -312,3 +312,25 @@ include if input.fruit.name in input.names
 		t.Errorf("expected %s timer to be recorded, got 0", metrics.CompileTranslateQueries)
 	}
 }
+
+// A policy the target cannot render is a problem of the policy, not of the server.
+func TestCompileFiltersTranslationError(t *testing.T) {
+	prep, err := compile.New(
+		compile.Target("sql", "postgresql"),
+		compile.ParsedUnknowns(ast.MustParseTerm("input.fruits")),
+		compile.ParsedQuery(ast.MustParseBody("data.filters.include")),
+		compile.Rego(rego.Module("filters.rego", "package filters\ninclude if input.fruits.price > null\n")),
+	).Prepare(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = prep.Compile(t.Context())
+	errs, ok := errors.AsType[ast.Errors](err)
+	if !ok {
+		t.Fatalf("expected ast.Errors, got %T: %v", err, err)
+	}
+	if len(errs) != 1 || errs[0].Code != "pe_fragment_error" ||
+		errs[0].Message != "null value can only be used with 'eq' or 'ne' operators" {
+		t.Errorf("unexpected errors: %v", errs)
+	}
+}

@@ -40,6 +40,36 @@ See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles
 
 Authored by @johanfylling
 
+### Stricter handling of bundle signature filenames ([#9300](https://github.com/open-policy-agent/opa/pull/9300))
+
+Breaking change: We have corrected a long-standing bug in bundle signing and verification, which will cause bundles containing files matching the suffix pattern `*signatures.json` to no longer pass verification in newer versions of OPA.
+These bundles will need to be re-signed by this or newer versions of OPA to have a correct `.signatures.json` file.
+Bundles that do not contain filenames with the `*signatures.json` pattern are unaffected, and will continue to verify correctly across OPA versions.
+
+OPA has historically been very lax in deciding where to source bundle signature data from during bundle verification, and would attempt to load bundle signatures data from *any* file in the bundle that had the filename suffix pattern `*signatures.json`.
+
+This could cause surprising behavior at bundle verification time, and resulted in all files with the `*signatures.json` pattern being ignored for signing, allowing filenames like `foosignatures.json` to be added to a bundle without being integrity-checked by the bundle signature.
+
+OPA now identifies the bundle signatures file by its exact basename `.signatures.json` (the same way it locates the bundle manifest and data files), so it is found regardless of any directory prefix, and a bundle containing more than one signatures file is rejected.
+Additionally, OPA will now correctly detect and sign all other files with the suffix pattern `*signatures.json`, which may cause bundles signed by this and future versions of OPA to have different signatures from the same content signed by older versions of OPA.
+
+Authored by @philipaconrad
+
+
+## 1.21.2
+
+This release builds the OPA binary artifacts with the latest version of
+Go (v1.27.2), its standard library, and the golang.org/x/net dependency (v0.60.0).
+
+See these security advisories:
+- https://groups.google.com/g/golang-announce/c/U2fTuyDJznI
+- https://groups.google.com/g/golang-announce/c/ZPwCyRUuGBs
+
+Furthermore, it addresses a mismatch in how encoded slashes were handled
+in the input to a basic authorization policy and the Data API
+(#9323, reported by @abhishekkushwaha4u, fixed by @sspaink).
+
+
 ## 1.21.1
 
 This release fixes a compiler regression introduced in OPA v1.21.0.

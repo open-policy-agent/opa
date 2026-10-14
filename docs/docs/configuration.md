@@ -923,19 +923,31 @@ on the [http.send built-in function](./policy-reference/builtins/http) for infor
 
 It also represents the configuration of the inter-query _value_ cache that built-in functions can utilize. Currently,
 this cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns
-respectively, the `json.schema_match` built-in function for compiled JSON schemas, and any `graphql` built-in function
-that requires GraphQL schemas.
+respectively, the `json.schema_match` built-in function for compiled JSON schemas, any `graphql` built-in function
+that requires GraphQL schemas, the `io.jwt` token verification built-in functions for parsed certificates and keys,
+and the `strings.any_prefix_match` and `strings.any_suffix_match` built-in functions for the tries they build over
+their base strings.
 
-| Field                                                                    | Type    | Required | Description                                                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------ | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `caching.inter_query_builtin_cache.max_size_bytes`                       | `int64` | No       | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                                                                                                                              |
-| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No       | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items prematurely. By default, set to `100`.                                                                                                             |
-| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`  | `int64` | No       | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled.                                                                                                |
-| `caching.inter_query_builtin_value_cache.max_num_entries`                | `int`   | No       | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                                                                                                                   |
-| `caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries`   | `int`   | No       | Maximum number of entries in the `io_jwt` cache, used by the [`io.jwt` token verification](./policy-reference/builtins/tokens) built-in functions. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is disabled.                                        |
-| `caching.inter_query_builtin_value_cache.named.io_jwt.disabled`          | `bool`  | No       | Explicitly disable `io_jwt`, by default this is `true`. Setting this to `false` will enable `io_jwt` and set `max_num_entries` to `0` unless configured otherwise.                                                                                                                                 |
-| `caching.inter_query_builtin_value_cache.named.graphql.max_num_entries`  | `int`   | No       | Maximum number of entries in the `graphql` cache, used by the [`graphql` builtins](./policy-reference/builtins/graphql) built-in functions to cache parsed schemas. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 10 entries. |
-| `caching.inter_query_builtin_value_cache.named.graphql.disabled`         | `bool`  | No       | Explicitly disable `graphql`, by default this is `false`. Setting this to `true` will disable `graphql`.                                                                                                                                                                                           |
+| Field                                                                                 | Type    | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caching.inter_query_builtin_cache.max_size_bytes`                                    | `int64` | No       | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                                                                                                                                                                                                                                                                                                            |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage`              | `int64` | No       | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items prematurely. By default, set to `100`.                                                                                                                                                                                                                                                                                           |
+| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`               | `int64` | No       | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled.                                                                                                                                                                                                                                                                              |
+| `caching.inter_query_builtin_value_cache.max_num_entries`                             | `int`   | No       | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                                                                                                                                                                                                                                                                                                 |
+| `caching.inter_query_builtin_value_cache.named.io_jwt.max_num_entries`                | `int`   | No       | Maximum number of entries in the `io_jwt` cache, used by the [`io.jwt` token verification](./policy-reference/builtins/tokens) built-in functions. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is disabled.                                                                                                                                                                                                                      |
+| `caching.inter_query_builtin_value_cache.named.io_jwt.disabled`                       | `bool`  | No       | Explicitly disable `io_jwt`, by default this is `true`. Setting this to `false` will enable `io_jwt` and set `max_num_entries` to `0` unless configured otherwise.                                                                                                                                                                                                                                                                                                               |
+| `caching.inter_query_builtin_value_cache.named.io_jwt_keys.max_num_entries`           | `int`   | No       | Maximum number of entries in the `io_jwt_keys` cache, used by the [`io.jwt` token verification](./policy-reference/builtins/tokens) built-in functions to cache certificates and keys parsed from the `cert` argument. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 100 entries.                                                                                                                           |
+| `caching.inter_query_builtin_value_cache.named.io_jwt_keys.disabled`                  | `bool`  | No       | Explicitly disable `io_jwt_keys`, by default this is `false`. Setting this to `true` will disable `io_jwt_keys`, and certificates and keys will be parsed on every call.                                                                                                                                                                                                                                                                                                         |
+| `caching.inter_query_builtin_value_cache.named.graphql.max_num_entries`               | `int`   | No       | Maximum number of entries in the `graphql` cache, used by the [`graphql` builtins](./policy-reference/builtins/graphql) built-in functions to cache parsed schemas. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 10 entries.                                                                                                                                                                               |
+| `caching.inter_query_builtin_value_cache.named.graphql.disabled`                      | `bool`  | No       | Explicitly disable `graphql`, by default this is `false`. Setting this to `true` will disable `graphql`.                                                                                                                                                                                                                                                                                                                                                                         |
+| `caching.inter_query_builtin_value_cache.named.any_prefix_match.max_num_entries`      | `int`   | No       | Maximum number of entries in the `any_prefix_match` cache, used by the [`strings.any_prefix_match`](./policy-reference/builtins/strings) built-in function to keep the trie built over each collection of prefixes it is called with. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 10 entries.                                                                                                             |
+| `caching.inter_query_builtin_value_cache.named.any_prefix_match.disabled`             | `bool`  | No       | Explicitly disable `any_prefix_match`, by default this is `false`. Setting this to `true` will disable `any_prefix_match`.                                                                                                                                                                                                                                                                                                                                                       |
+| `caching.inter_query_builtin_value_cache.named.any_prefix_match_seen.max_num_entries` | `int`   | No       | Maximum number of entries in the `any_prefix_match_seen` cache, used by the [`strings.any_prefix_match`](./policy-reference/builtins/strings) built-in function to record, by hash, each collection of prefixes it has been called with once. A collection's trie is only built and kept in the `any_prefix_match` cache when it is seen again. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 1000 entries. |
+| `caching.inter_query_builtin_value_cache.named.any_prefix_match_seen.disabled`        | `bool`  | No       | Explicitly disable `any_prefix_match_seen`, by default this is `false`. Setting this to `true` will stop `strings.any_prefix_match` from building tries.                                                                                                                                                                                                                                                                                                                         |
+| `caching.inter_query_builtin_value_cache.named.any_suffix_match.max_num_entries`      | `int`   | No       | Maximum number of entries in the `any_suffix_match` cache, used by the [`strings.any_suffix_match`](./policy-reference/builtins/strings) built-in function to keep the trie built over each collection of suffixes it is called with. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 10 entries.                                                                                                             |
+| `caching.inter_query_builtin_value_cache.named.any_suffix_match.disabled`             | `bool`  | No       | Explicitly disable `any_suffix_match`, by default this is `false`. Setting this to `true` will disable `any_suffix_match`.                                                                                                                                                                                                                                                                                                                                                       |
+| `caching.inter_query_builtin_value_cache.named.any_suffix_match_seen.max_num_entries` | `int`   | No       | Maximum number of entries in the `any_suffix_match_seen` cache, used by the [`strings.any_suffix_match`](./policy-reference/builtins/strings) built-in function to record, by hash, each collection of suffixes it has been called with once. A collection's trie is only built and kept in the `any_suffix_match` cache when it is seen again. OPA will drop random items from the cache if this limit is exceeded. By default, this cache is set to a maximum of 1000 entries. |
+| `caching.inter_query_builtin_value_cache.named.any_suffix_match_seen.disabled`        | `bool`  | No       | Explicitly disable `any_suffix_match_seen`, by default this is `false`. Setting this to `true` will stop `strings.any_suffix_match` from building tries.                                                                                                                                                                                                                                                                                                                         |
 
 ## Distributed tracing
 
@@ -1093,11 +1105,81 @@ Two things come out of this:
 
   Warnings are non-fatal. Sections that accept arbitrary keys (for example
   `labels`, `plugins`, and service `credentials`) are not checked, so extending
-  them never produces false positives.
+  them never produces false positives. Custom plugins can opt in to having their
+  options under `plugins` checked; see
+  [Plugin Configuration Validation](./extensions#plugin-configuration-validation).
 
 Configuration loaded later via [discovery](#discovery) is validated the same way:
 defaults are injected and warnings are logged when the discovered configuration is
 applied.
+
+## Reloading Configuration
+
+> Only supported when OPA is run as a server (`opa run --server`).
+
+By default the configuration file is read once, at start-up. Running with the
+`--watch-config` flag makes `opa run` watch the file and bring OPA back up under
+the new configuration when it changes, without the process exiting.
+
+```bash
+opa run -s -c opa-config.yaml --watch-config
+```
+
+It is opt-in, and separate from `-w`/`--watch`, because the two are not
+comparable: `--watch` reloads policy and data into the store in place, whereas
+this restarts the server and everything the configuration drives.
+
+### When to use it
+
+Where something else can replace the process for you, let it. On Kubernetes,
+update the ConfigMap and roll the pods out: you get the restart with health
+gating, surge control and a record of what happened.
+
+`--watch-config` is for where that is not on offer:
+
+- OPA embedded in a host that is not orchestrated at all — a monolith, an
+  appliance, a vehicle.
+- A sidecar where restarting OPA means restarting the pod, taking the
+  application down with it.
+- Development and testing, where iterating on the configuration beats waiting
+  for a restart.
+
+Almost any option can be changed this way. OPA stops the server and everything
+the configuration drives, rebuilds them from the new file, and starts them
+again; only the store is kept. Two options still need the process restarted:
+`server.metrics` and `server.logger_plugin`.
+
+`--set` and `--set-file` overrides are re-applied on top of the file on each
+reload. The files named by `--set-file` are re-read too, but not watched: an
+edit to one is only picked up on the next change to the configuration file.
+
+### What a restart costs
+
+- **Listeners are re-bound.** Requests already being served are drained first,
+  but there is a brief window where the port is not accepting connections.
+- **Bundles are downloaded again**, unless [`persistence_directory`](#bundles)
+  is set, in which case the persisted copy is activated first. Until the first
+  activation, `/health?bundles` reports not-ready.
+- **Buffered decisions are flushed** when the decision log plugin has a
+  `service` configured. Decisions buffered for a console or plugin sink are
+  lost.
+
+### When a change is not applied
+
+- **Invalid configuration**: a file that fails to parse, fails the schema or a
+  [config hook](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/hooks),
+  or has an invalid section (such as a `bundles` entry naming a service that
+  does not exist) is rejected before anything is torn down. The error is
+  logged and the running configuration keeps serving.
+- **Failed restart**: if OPA cannot come up under the new configuration, for
+  example because a port no longer binds, it falls back to the previous one and
+  logs the failure.
+- **Misspelled options** are not an error: unrecognized keys are logged as
+  warnings and ignored, as they are at start-up.
+- **Discovery**: the file is not watched when [discovery](#discovery) is
+  enabled. OPA logs a warning at start-up.
+- **Custom router**: the file is not watched when OPA is embedded and the
+  caller supplied its own HTTP router.
 
 ## Using Environment Variables in Configuration
 

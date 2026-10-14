@@ -121,6 +121,60 @@ func TestPluginOneShot(t *testing.T) {
 	}
 }
 
+func TestPluginNotActivated(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	manager := getTestManager()
+	defer manager.Stop(ctx)
+
+	bundleNames := []string{"c", "a", "b"}
+	bundles := map[string]*Source{}
+	for _, name := range bundleNames {
+		bundles[name] = &Source{}
+	}
+	plugin := New(&Config{Bundles: bundles}, manager)
+	for _, name := range bundleNames {
+		plugin.status[name].Metrics = metrics.New()
+		plugin.downloaders[name] = download.New(download.Config{}, plugin.manager.Client(""), name)
+	}
+
+	if exp, act := []string{"a", "b", "c"}, plugin.NotActivated(); !slices.Equal(exp, act) {
+		t.Fatalf("expected %v, got %v", exp, act)
+	}
+
+	activate := func(name string) {
+		t.Helper()
+		b := bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: name, Roots: &[]string{name}},
+			Data:     map[string]any{name: map[string]any{}},
+		}
+		b.Manifest.Init()
+		if err := plugin.oneShot(ctx, name, download.Update{Bundle: &b, Metrics: metrics.New()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	activate("b")
+	notFound := download.HTTPError{StatusCode: http.StatusNotFound}
+	if err := plugin.oneShot(ctx, "a", download.Update{Error: notFound, Metrics: metrics.New()}); err == nil {
+		t.Fatal("expected error")
+	}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+	if exp, act := []string{"a", "c"}, plugin.NotActivated(); !slices.Equal(exp, act) {
+		t.Fatalf("expected %v, got %v", exp, act)
+	}
+
+	activate("a")
+	activate("c")
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+	if act := plugin.NotActivated(); len(act) != 0 {
+		t.Fatalf("expected no bundles, got %v", act)
+	}
+}
+
 func TestPluginOneShotWithAstStore(t *testing.T) {
 	t.Parallel()
 

@@ -8,11 +8,55 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math/rand"
 	"runtime"
 	"strings"
 	"testing"
 	"weak"
 )
+
+func TestAttachRuleAnnotationsMatchesUnsorted(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	for n := range 500 {
+		var sb strings.Builder
+		sb.WriteString("package p\n\n")
+		for i := range rng.Intn(12) {
+			for range rng.Intn(3) {
+				scope := "rule"
+				if rng.Intn(4) == 0 {
+					scope = "document"
+				}
+				fmt.Fprintf(&sb, "# METADATA\n# scope: %s\n# title: a%d\n", scope, sb.Len())
+			}
+			if rng.Intn(5) == 0 {
+				sb.WriteString("x := 1\n\n")
+				continue
+			}
+			fmt.Fprintf(&sb, "r%d if input.x == %d\n\n", rng.Intn(3), i)
+		}
+		mod, err := ParseModuleWithOpts("test.rego", sb.String(), ParserOptions{ProcessAnnotation: true})
+		if err != nil {
+			continue // e.g. a document scope above a non-rule
+		}
+		got := map[*Rule][]string{}
+		for _, r := range mod.Rules {
+			for _, a := range r.Annotations {
+				got[r] = append(got[r], a.Title)
+			}
+			r.Annotations = nil
+		}
+		attachRuleAnnotationsUnsorted(mod)
+		for _, r := range mod.Rules {
+			var exp []string
+			for _, a := range r.Annotations {
+				exp = append(exp, a.Title)
+			}
+			if fmt.Sprint(got[r]) != fmt.Sprint(exp) {
+				t.Fatalf("module %d, rule %v: got %v, want %v\n%s", n, r.Head.Ref(), got[r], exp, sb.String())
+			}
+		}
+	}
+}
 
 func TestEntrypointAnnotationScopeRequirements(t *testing.T) {
 	tests := []struct {

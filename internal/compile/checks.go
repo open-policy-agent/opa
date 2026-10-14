@@ -242,6 +242,13 @@ func checkOperand(c *checker, op, t *ast.Term) *ast.Error {
 	return nil
 }
 
+// TranslationErrors reports a failure to render the partial evaluation result in
+// a target's syntax. It is the policy that cannot be translated, so the error is
+// one of the fragment, just like those of Check.
+func TranslationErrors(e error) ast.Errors {
+	return ast.Errors{err(nil, "%s", e)}
+}
+
 func err(loc *ast.Location, f string, vs ...any) *ast.Error {
 	return ast.NewError(code, loc, f, vs...)
 }

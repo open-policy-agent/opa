@@ -19,6 +19,7 @@ import (
 type EvaluatedRuleTracker struct {
 	Labels []map[string]any
 	seen   map[string]struct{}
+	rules  map[*ast.Rule]struct{}
 	as     *ast.AnnotationSet
 }
 
@@ -34,6 +35,15 @@ func (t *EvaluatedRuleTracker) WithAnnotationSet(as *ast.AnnotationSet) *Evaluat
 func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 	if t == nil || t.as == nil {
 		return
+	}
+	if t.as.HasLabels() {
+		if _, ok := t.rules[rule]; ok {
+			return
+		}
+		if t.rules == nil {
+			t.rules = make(map[*ast.Rule]struct{})
+		}
+		t.rules[rule] = struct{}{}
 	}
 	labels, key := t.as.MergedLabels(rule)
 	if len(labels) == 0 {

@@ -1,6 +1,6 @@
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
@@ -14,8 +14,38 @@ import PlaygroundExample from "@site/src/components/PlaygroundExample";
 
 import styles from "./index.module.css";
 
+const EXAMPLE_HASH_PREFIX = "example-";
+
+const EXAMPLE_TABS = [
+  { label: "API", value: "app" },
+  { label: "Envoy", value: "envoy" },
+  { label: "Kubernetes", value: "k8s" },
+  { label: "Agent Tool Calling", value: "ai" },
+];
+
 const Index = (props) => {
   const title = "Open Policy Agent - Homepage";
+  const [initialTab, setInitialTab] = useState(EXAMPLE_TABS[0].value);
+  const examplesRef = useRef(null);
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    const tab = EXAMPLE_TABS.find((t) => EXAMPLE_HASH_PREFIX + t.value === hash);
+    if (tab) {
+      setInitialTab(tab.value);
+      examplesRef.current?.scrollIntoView();
+    }
+  }, []);
+
+  const rememberTab = (e) => {
+    const tab = e.target.closest("[role=\"tab\"]");
+    if (!tab) {
+      return;
+    }
+    const index = Array.from(tab.parentElement.children).indexOf(tab);
+    window.history.replaceState(null, "", `#${EXAMPLE_HASH_PREFIX}${EXAMPLE_TABS[index].value}`);
+  };
+
   return (
     <Layout title={title}>
       <div className={styles.container}>
@@ -178,28 +208,29 @@ const Index = (props) => {
             output changes.
           </p>
 
-          <Tabs
-            defaultValue="app"
-            values={[
-              { label: "API", value: "app" },
-              { label: "Envoy", value: "envoy" },
-              { label: "Kubernetes", value: "k8s" },
-              { label: "AI Tool Calling", value: "ai" },
-            ]}
-          >
-            <TabItem value="app">
-              <PlaygroundExample dir={require.context("./_examples/app")} />
-            </TabItem>
-            <TabItem value="envoy">
-              <PlaygroundExample dir={require.context("./_examples/envoy")} />
-            </TabItem>
-            <TabItem value="k8s">
-              <PlaygroundExample dir={require.context("./_examples/k8s")} />
-            </TabItem>
-            <TabItem value="ai">
-              <PlaygroundExample dir={require.context("./_examples/ai")} />
-            </TabItem>
-          </Tabs>
+          <div ref={examplesRef} onClick={rememberTab} style={{ scrollMarginTop: "var(--ifm-navbar-height)" }}>
+            <Tabs
+              key={initialTab}
+              defaultValue={initialTab}
+              values={EXAMPLE_TABS}
+            >
+              <TabItem value="app">
+                <PlaygroundExample dir={require.context("./_examples/app")} />
+              </TabItem>
+              <TabItem value="envoy">
+                <PlaygroundExample dir={require.context("./_examples/envoy")} />
+              </TabItem>
+              <TabItem value="k8s">
+                <PlaygroundExample dir={require.context("./_examples/k8s")} />
+              </TabItem>
+              <TabItem value="ai">
+                <PlaygroundExample dir={require.context("./_examples/ai")} />
+                <p>
+                  <Link to={useBaseUrl("/docs/agent-tool-calling")}>Learn more about agent tool calling policy</Link>
+                </p>
+              </TabItem>
+            </Tabs>
+          </div>
         </div>
       </div>
       <div className={styles.container}>

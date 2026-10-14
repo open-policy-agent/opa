@@ -515,7 +515,7 @@ func (c *interQueryValueCacheBucket) updateConfig(config *NamedValueCacheConfig)
 }
 
 func (c *interQueryValueCacheBucket) maxNumEntries() int {
-	if c.config == nil {
+	if c.config == nil || c.config.MaxNumEntries == nil {
 		return defaultInterQueryBuiltinValueCacheSize
 	}
 	return *c.config.MaxNumEntries
@@ -605,10 +605,7 @@ func (c *interQueryBuiltinValueCache) GetCache(name string) InterQueryValueCache
 
 		var config *NamedValueCacheConfig
 		if c.config != nil {
-			config = c.config.NamedCacheConfigs[name]
-			if config == nil {
-				config = getDefaultInterQueryBuiltinValueCacheConfig(name)
-			}
+			config = namedValueCacheConfig(c.config.NamedCacheConfigs, name)
 		}
 
 		if config == nil {
@@ -629,6 +626,28 @@ func (c *interQueryBuiltinValueCache) GetCache(name string) InterQueryValueCache
 	}
 
 	return nc
+}
+
+// namedValueCacheConfig returns the configuration for the named cache, falling back to the registered default.
+// When the configuration doesn't set max_num_entries, e.g. it only sets disabled to false, the registered default's
+// max_num_entries is used, or unlimited if there is none.
+func namedValueCacheConfig(configs map[string]*NamedValueCacheConfig, name string) *NamedValueCacheConfig {
+	defaultConfig := getDefaultInterQueryBuiltinValueCacheConfig(name)
+	config := configs[name]
+	if config == nil {
+		return defaultConfig
+	}
+	if config.MaxNumEntries != nil {
+		return config
+	}
+
+	maxNumEntries := defaultInterQueryBuiltinValueCacheSize
+	if defaultConfig != nil && defaultConfig.MaxNumEntries != nil {
+		maxNumEntries = *defaultConfig.MaxNumEntries
+	}
+	config = config.Clone()
+	config.MaxNumEntries = &maxNumEntries
+	return config
 }
 
 func (c *interQueryBuiltinValueCache) UpdateConfig(config *Config) {
@@ -652,10 +671,7 @@ func (c *interQueryBuiltinValueCache) UpdateConfig(config *Config) {
 
 	for name, nc := range c.namedCaches {
 		// For each named cache: if it has a config, update it; if no config, remove it.
-		namedConfig := c.config.NamedCacheConfigs[name]
-		if namedConfig == nil {
-			namedConfig = getDefaultInterQueryBuiltinValueCacheConfig(name)
-		}
+		namedConfig := namedValueCacheConfig(c.config.NamedCacheConfigs, name)
 
 		if namedConfig == nil {
 			delete(c.namedCaches, name)

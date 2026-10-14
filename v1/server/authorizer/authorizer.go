@@ -167,7 +167,7 @@ func (b *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 var emptyQuery = url.Values{}
 
 func makeInput(r *http.Request, extraPaths []func(string, []any) bool) (*http.Request, any, error) {
-	path, err := parsePath(r.URL.Path)
+	path, err := parsePath(r.URL)
 	if err != nil {
 		return r, nil, err
 	}
@@ -261,21 +261,38 @@ func expectYAML(r *http.Request) bool {
 	return strings.Contains(r.Header.Get("Content-Type"), "yaml")
 }
 
-func parsePath(path string) ([]any, error) {
-	if len(path) == 0 {
+// decodedPathPrefixes are the APIs whose handlers resolve the decoded path, so
+// "a%2Fb" and "a/b" target the same resource there.
+var decodedPathPrefixes = []string{"/v1/policies/", "/v1/compile/"}
+
+// parsePath splits the request path into input.path. It must match how the
+// server resolves the targeted resource: the Data and Health APIs split the
+// escaped path so that an encoded slash (%2F) is part of a segment rather than
+// a separator, whereas the Policies and Compile APIs use the decoded path.
+func parsePath(u *url.URL) ([]any, error) {
+	if len(u.Path) == 0 {
 		return []any{}, nil
 	}
-	parts := strings.Split(path[1:], "/")
-	for i := range parts {
-		var err error
-		parts[i], err = url.PathUnescape(parts[i])
-		if err != nil {
-			return nil, err
+	for _, prefix := range decodedPathPrefixes {
+		if strings.HasPrefix(u.Path, prefix) {
+			return splitPath(u.Path, false)
 		}
 	}
+	return splitPath(u.EscapedPath(), true)
+}
+
+func splitPath(path string, unescape bool) ([]any, error) {
+	parts := strings.Split(path[1:], "/")
 	sl := make([]any, len(parts))
-	for i := range sl {
+	for i := range parts {
 		sl[i] = parts[i]
+		if unescape {
+			p, err := url.PathUnescape(parts[i])
+			if err != nil {
+				return nil, err
+			}
+			sl[i] = p
+		}
 	}
 	return sl, nil
 }

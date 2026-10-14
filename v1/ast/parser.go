@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"math/big"
 	"net/url"
 	"regexp"
 	"slices"
@@ -2611,7 +2610,7 @@ func (p *Parser) parseTerm() *Term {
 
 	term = p.parseTermFinish(term, false)
 	if unaryMinusLoc != nil && term != nil {
-		zero := IntNumberTerm(0).SetLocation(unaryMinusLoc)
+		zero := NewTerm(IntNumberTerm(0).Value).SetLocation(unaryMinusLoc)
 		term = p.setLoc(Minus.Call(zero, term), unaryMinusLoc, unaryMinusLoc.Offset, p.s.lastEnd)
 	}
 	p.parsedTermCachePush(term, s0)
@@ -2711,22 +2710,13 @@ func (p *Parser) parseNumber() *Term {
 
 	// Ensure that the number is valid
 	s := prefix + p.s.lit
-	f, ok := new(big.Float).SetString(s)
-	if !ok {
-		p.illegal("invalid float")
+	switch err := validateNumber(s); err {
+	case nil:
+	case errNumberTooBig:
+		p.error(p.s.Loc(), err.Error())
 		return nil
-	}
-
-	// Put limit on size of exponent to prevent non-linear cost of String()
-	// function on big.Float from causing denial of service: https://github.com/golang/go/issues/11068
-	//
-	// n == sign * mantissa * 2^exp
-	// 0.5 <= mantissa < 1.0
-	//
-	// The limit is arbitrary.
-	exp := f.MantExp(nil)
-	if exp > 1e5 || exp < -1e5 || f.IsInf() { // +/- inf, exp is 0
-		p.error(p.s.Loc(), "number too big")
+	default:
+		p.illegal("%v", err)
 		return nil
 	}
 

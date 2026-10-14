@@ -761,12 +761,12 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 
 		return value, nil
 	}
-	switch ext {
-	case ".json":
+	switch {
+	case ext == ".json":
 		return loadJSON(path, bs, m)
-	case ".rego":
+	case ext == ".rego":
 		return loadRego(path, bs, m, opts)
-	case ".yaml", ".yml":
+	case bundle.IsYAMLFile(path):
 		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {

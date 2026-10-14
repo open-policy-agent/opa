@@ -5,308 +5,37 @@
 package ast
 
 import (
-	"slices"
-
+	"github.com/open-policy-agent/opa/internal/prefixtrie"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // This file holds the indexing of both ends of a string: `startswith` and
-// `strings.any_prefix_match`, and `endswith` and `strings.any_suffix_match`.
-// One structure answers both -- a suffix trie is a prefixTrie over the base
-// strings reversed (see InsertSuffix and traverseSuffix) -- so prefixTrie is
-// what the file is named after.
+// `strings.any_prefix_match`, and `endswith` and `strings.any_suffix_match`. A
+// suffix trie is a prefix trie over the base strings reversed.
 //
-// prefixTrie holds the string-prefix constraints recorded for one level of the
-// rule index: what `startswith(input.x, "/api/")` and
-// `strings.any_prefix_match(input.x, [...])` contribute.
-//
-// A scalar constraint is answered with a map lookup, but a prefix constraint
-// has to answer "which of the recorded prefixes does this value start with",
-// and the answer is a set, not a single entry. Testing the value against every
-// recorded prefix in turn costs O(p) string comparisons per lookup for p
-// prefixes -- which is the work strings.any_prefix_match exists to avoid doing
-// in the rule body, so doing it in the index instead would be no bargain.
-//
-// This is a compressed (radix) trie instead: a lookup walks the value once and
-// costs O(len(value)) byte comparisons whatever p is. Compressed rather than
-// one node per byte because the node count is then bounded by 2p-1 rather than
-// by the total length of all prefixes -- 10k prefixes cost thousands of nodes,
-// not hundreds of thousands.
-type prefixTrie struct {
-	// edges are sorted by the first byte of their label, which is unique among
-	// them, so a step down the trie is a binary search.
-	edges []prefixEdge
-	// child is where the rules of the prefixes ending exactly here hang off. It
-	// is an ordinary trieNode, so whatever a rule constrains below a prefix
-	// constraint indexes as usual.
-	child *trieNode
-}
+// prefixTrie holds one level's prefix constraints, each prefix's value being the
+// trieNode its rules hang off.
+type prefixTrie = prefixtrie.Trie[trieNode]
 
-type prefixEdge struct {
-	label string
-	// node is the trie under this edge; leaf stands in for it when nothing is
-	// recorded past the edge's label, which is almost every edge.
-	node *prefixTrie
-	leaf *trieNode
-}
-
-// edge locates the edge labelled with first byte b, or the position a new one
-// would be inserted at to keep edges sorted. Only that byte is matched; labels
-// are compressed, so comparing the rest of one is left to the caller.
-func (p *prefixTrie) edge(b byte) (int, bool) {
-	return slices.BinarySearchFunc(p.edges, b, func(e prefixEdge, b byte) int {
-		return int(e.label[0]) - int(b)
+func prefixTrieDo(p *prefixTrie, walker trieWalker) {
+	_ = p.Values(func(node *trieNode) error {
+		node.Do(walker)
+		return nil
 	})
 }
 
-// insert returns the node that the rules constrained by prefix hang off,
-// creating it if this is the first time the prefix is recorded.
-func (p *prefixTrie) insert(prefix string) *trieNode {
-	node := p
-
-	for {
-		if prefix == "" {
-			if node.child == nil {
-				node.child = newTrieNodeImpl()
-			}
-			return node.child
-		}
-
-		pos, found := node.edge(prefix[0])
-		if !found {
-			leaf := newTrieNodeImpl()
-			node.edges = slices.Insert(node.edges, pos, prefixEdge{label: prefix, leaf: leaf})
-			return leaf
-		}
-
-		edge := node.edges[pos]
-		common := commonPrefixLen(edge.label, prefix)
-
-		switch {
-		// The two diverge inside this edge -- "/api/v1" meeting "/api/v2" --
-		// so the edge is split where they stop agreeing and what used to hang
-		// off it moves down onto the tail, whichever kind it is.
-		case common < len(edge.label):
-			tail := prefixEdge{label: edge.label[common:], node: edge.node, leaf: edge.leaf}
-			node.edges[pos] = prefixEdge{
-				label: edge.label[:common],
-				node:  &prefixTrie{edges: []prefixEdge{tail}},
-			}
-
-		// The prefix ends where an edge does with nothing past it, so its
-		// continuation is already the answer.
-		case common == len(prefix) && edge.leaf != nil:
-			return edge.leaf
-
-		// Something is recorded past the edge now, so its continuation becomes
-		// the child of a trie of its own.
-		case edge.node == nil:
-			node.edges[pos] = prefixEdge{
-				label: edge.label,
-				node:  &prefixTrie{child: edge.leaf},
-			}
-		}
-
-		node = node.edges[pos].node
-		prefix = prefix[common:]
-	}
-}
-
-// traverse visits the continuation of every recorded prefix that s starts with.
-// One walk down the trie finds all of them: the prefixes of s that are in the
-// trie are exactly the ends-of-prefix passed on the way down.
-func (p *prefixTrie) traverse(s string, resolver ValueResolver, tr *trieTraversalResult) error {
-	for node := p; node != nil; {
-		if node.child != nil {
-			if err := node.child.Traverse(resolver, tr); err != nil {
-				return err
-			}
-		}
-
-		if s == "" {
-			return nil
-		}
-
-		pos, found := node.edge(s[0])
-		if !found {
-			return nil
-		}
-
-		edge := node.edges[pos]
-		if len(edge.label) > len(s) || s[:len(edge.label)] != edge.label {
-			return nil
-		}
-
-		s = s[len(edge.label):]
-		if edge.node == nil {
-			return edge.leaf.Traverse(resolver, tr)
-		}
-		node = edge.node
-	}
-
-	return nil
-}
-
-// traverseSuffix is traverse over the end of s. A suffix trie holds its base
-// strings reversed (see affixTries), so the walk consumes s from its
-// last byte back -- which needs no reversed copy of s to be made per lookup.
-func (p *prefixTrie) traverseSuffix(s string, resolver ValueResolver, tr *trieTraversalResult) error {
-	for node := p; node != nil; {
-		if node.child != nil {
-			if err := node.child.Traverse(resolver, tr); err != nil {
-				return err
-			}
-		}
-
-		if s == "" {
-			return nil
-		}
-
-		pos, found := node.edge(s[len(s)-1])
-		if !found {
-			return nil
-		}
-
-		edge := node.edges[pos]
-		if len(edge.label) > len(s) || !equalReversed(s[len(s)-len(edge.label):], edge.label) {
-			return nil
-		}
-
-		s = s[:len(s)-len(edge.label)]
-		if edge.node == nil {
-			return edge.leaf.Traverse(resolver, tr)
-		}
-		node = edge.node
-	}
-
-	return nil
-}
-
-// equalReversed reports whether tail read backwards is reversed.
-func equalReversed(tail, reversed string) bool {
-	for i := range reversed {
-		if reversed[i] != tail[len(tail)-1-i] {
-			return false
-		}
-	}
-	return true
-}
-
-// reverseString returns s with its bytes reversed. A base string is reversed
-// once, when it is recorded; `endswith` is a byte comparison, so reversing
-// bytes rather than runes is what makes a suffix of s a prefix of reversed s.
-func reverseString(s string) string {
-	b := []byte(s)
-	slices.Reverse(b)
-
-	// b was made here and is not written to again, so it can be handed over
-	// rather than copied a second time.
-	return util.ByteSliceToString(b)
-}
-
-// compact releases the spare capacity in the edge slices. Edges arrive in
-// arbitrary order, so they are placed by insertion and grow the way append does
-// -- which leaves 60% of the slots unused across a large prefix set -- and
-// nothing inserts once the index is built. slices.Clip only caps the capacity;
-// releasing the block means copying out of it.
-func (p *prefixTrie) compact() {
-	if p == nil {
-		return
-	}
-
-	if cap(p.edges) > len(p.edges) {
-		exact := make([]prefixEdge, len(p.edges))
-		copy(exact, p.edges)
-		p.edges = exact
-	}
-
-	p.child.compact()
-
-	for _, edge := range p.edges {
-		edge.node.compact()
-		edge.leaf.compact()
-	}
-}
-
-func (p *prefixTrie) do(walker trieWalker) {
-	if p == nil {
-		return
-	}
-
-	p.child.Do(walker)
-
-	for _, edge := range p.edges {
-		edge.node.do(walker)
-		edge.leaf.Do(walker)
-	}
-}
-
-func (p *prefixTrie) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
-	if p == nil {
+func prefixTrieCompact(p *prefixTrie) {
+	p.Compact()
+	_ = p.Values(func(node *trieNode) error {
+		node.compact()
 		return nil
-	}
-
-	if err := p.child.Traverse(resolver, tr); err != nil {
-		return err
-	}
-
-	for _, edge := range p.edges {
-		if err := edge.node.traverseUnknown(resolver, tr); err != nil {
-			return err
-		}
-		if err := edge.leaf.Traverse(resolver, tr); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
-// prefixEntry is a prefix the trie holds, spelled out, with the node its rules
-// hang off.
-type prefixEntry struct {
-	prefix string
-	node   *trieNode
-}
-
-// walk returns the prefixes the trie holds, in lexicographic order. Only the
-// index's debug rendering and its tests have any use for reading back what the
-// compression made of them.
-func (p *prefixTrie) walk() []prefixEntry {
-	if p == nil {
-		return nil
-	}
-
-	var (
-		entries []prefixEntry
-		collect func(node *prefixTrie, prefix string)
-	)
-
-	collect = func(node *prefixTrie, prefix string) {
-		if node.child != nil {
-			entries = append(entries, prefixEntry{prefix: prefix, node: node.child})
-		}
-		for _, edge := range node.edges {
-			if edge.node == nil {
-				entries = append(entries, prefixEntry{prefix: prefix + edge.label, node: edge.leaf})
-				continue
-			}
-			collect(edge.node, prefix+edge.label)
-		}
-	}
-
-	collect(p, "")
-
-	return entries
-}
-
-func commonPrefixLen(a, b string) int {
-	n := min(len(a), len(b))
-	i := 0
-	for i < n && a[i] == b[i] {
-		i++
-	}
-	return i
+func prefixTrieTraverseUnknown(p *prefixTrie, resolver ValueResolver, tr *trieTraversalResult) error {
+	return p.Values(func(node *trieNode) error {
+		return node.Traverse(resolver, tr)
+	})
 }
 
 // InsertPrefix records that the rules below this node require the value at ref
@@ -320,7 +49,7 @@ func (node *trieNode) InsertPrefix(ref Ref, prefix Value) *trieNode {
 		panic("illegal prefix value")
 	}
 
-	return level.affixTrie(affixPrefix).insert(string(s))
+	return level.affixTrie(affixPrefix).Insert(string(s))
 }
 
 // InsertSuffix records that the rules below this node require the value at ref
@@ -334,7 +63,7 @@ func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
 		panic("illegal suffix value")
 	}
 
-	return level.affixTrie(affixSuffix).insert(reverseString(string(s)))
+	return level.affixTrie(affixSuffix).Insert(prefixtrie.Reverse(string(s)))
 }
 
 // traversePrefixes visits the rules whose prefix constraints value satisfies.
@@ -350,13 +79,18 @@ func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 		return nil
 	}
 
+	// A closure shared with checkMember would escape, allocating per lookup.
 	if s, ok := value.(String); ok {
-		return prefixes.traverse(string(s), resolver, tr)
+		return prefixes.PrefixesOf(string(s), func(node *trieNode) error {
+			return node.Traverse(resolver, tr)
+		})
 	}
 
 	checkMember := func(t *Term) error {
 		if s, ok := t.Value.(String); ok {
-			return prefixes.traverse(string(s), resolver, tr)
+			return prefixes.PrefixesOf(string(s), func(node *trieNode) error {
+				return node.Traverse(resolver, tr)
+			})
 		}
 		return nil
 	}
@@ -388,13 +122,18 @@ func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversal
 		return nil
 	}
 
+	// A closure shared with checkMember would escape, allocating per lookup.
 	if s, ok := value.(String); ok {
-		return suffixes.traverseSuffix(string(s), resolver, tr)
+		return suffixes.SuffixesOf(string(s), func(node *trieNode) error {
+			return node.Traverse(resolver, tr)
+		})
 	}
 
 	checkMember := func(t *Term) error {
 		if s, ok := t.Value.(String); ok {
-			return suffixes.traverseSuffix(string(s), resolver, tr)
+			return suffixes.SuffixesOf(string(s), func(node *trieNode) error {
+				return node.Traverse(resolver, tr)
+			})
 		}
 		return nil
 	}

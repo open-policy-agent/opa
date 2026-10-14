@@ -146,6 +146,11 @@ type Server struct {
 	cipherSuites                *[]uint16
 	hooks                       hooks.Hooks
 
+	// Set by Init, so Shutdown can take the reload trigger back off the store.
+	// A server that is replaced rather than shut down would otherwise leave a
+	// trigger behind pointing at itself.
+	storeTriggerHandle storage.TriggerHandle
+
 	compileUnknownsCache     *lru.Cache[string, []ast.Ref]
 	compileMaskingRulesCache *lru.Cache[string, ast.Ref]
 }
@@ -223,10 +228,12 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	config := storage.TriggerConfig{
 		OnCommit: s.reload,
 	}
-	if _, err := s.store.Register(ctx, txn, config); err != nil {
+	handle, err := s.store.Register(ctx, txn, config)
+	if err != nil {
 		s.store.Abort(ctx, txn)
 		return nil, err
 	}
+	s.storeTriggerHandle = handle
 
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
@@ -257,10 +264,28 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	return s, s.store.Commit(ctx, txn)
 }
 
+// unregisterStoreTrigger takes the reload trigger registered by Init back off
+// the store. A no-op if Init never ran, or if the server has already shut down.
+func (s *Server) unregisterStoreTrigger(ctx context.Context) {
+	if s.storeTriggerHandle == nil {
+		return
+	}
+
+	if err := storage.Txn(ctx, s.store, storage.WriteParams, func(txn storage.Transaction) error {
+		s.storeTriggerHandle.Unregister(ctx, txn)
+		return nil
+	}); err != nil {
+		s.manager.Logger().Error("Error unregistering store trigger: %v", err)
+	}
+	s.storeTriggerHandle = nil
+}
+
 // Shutdown will attempt to gracefully shutdown each of the http servers
 // currently in use by the OPA Server. If any exceed the deadline specified
 // by the context an error will be returned.
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.unregisterStoreTrigger(ctx)
+
 	errChan := make(chan error)
 	for _, srvr := range s.httpListeners {
 		go func(s httpListener) {
@@ -1185,6 +1210,18 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
+// bundlesNotActivatedError names the bundles that have not been activated yet,
+// if the bundle plugin is available to report them.
+func (s *Server) bundlesNotActivatedError() error {
+	const msg = "one or more bundles are not activated"
+	if bp := bundlePlugin.Lookup(s.manager); bp != nil {
+		if names := bp.NotActivated(); len(names) > 0 {
+			return fmt.Errorf("%s: %s", msg, strings.Join(names, ", "))
+		}
+	}
+	return errors.New(msg)
+}
+
 func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 	// Look for a discovery plugin first, if it exists and isn't ready
 	// then don't bother with the others.
@@ -1229,7 +1266,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	// normal bundles that are configured.
 	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
 		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
-		writeHealthResponse(w, errors.New("one or more bundles are not activated"))
+		writeHealthResponse(w, s.bundlesNotActivatedError())
 		return
 	}
 
@@ -1869,12 +1906,22 @@ func escapedPathValue(r *http.Request) string {
 		return pathValue
 	}
 
-	i := strings.Index(r.URL.Path, pathValue)
-	if i == -1 || i > len(escaped) {
+	// pathValue is the decoded remainder of the path after the route's fixed
+	// segments, so skip the same number of segments in the escaped path.
+	prefix, ok := strings.CutSuffix(r.URL.Path, pathValue)
+	if !ok {
 		return pathValue
 	}
 
-	return escaped[i:]
+	for range strings.Count(prefix, "/") {
+		i := strings.IndexByte(escaped, '/')
+		if i == -1 {
+			return pathValue
+		}
+		escaped = escaped[i+1:]
+	}
+
+	return escaped
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {

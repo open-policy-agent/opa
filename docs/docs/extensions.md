@@ -217,6 +217,34 @@ If no status is provided the plugin is assumed to be working OK.
 Typically the plugin should report `StatusNotReady` at creation time and update to `StatusOK` (or `StatusErr`) when
 appropriate.
 
+### Plugin Configuration Validation
+
+OPA passes the plugin's configuration to the factory's `Validate` function as raw
+bytes and doesn't check its keys, so a misspelled option is silently ignored. To have
+OPA [warn about unrecognized options](./configuration#configuration-validation)
+under your plugin's configuration, register the keys it recognizes with
+[`config.RegisterConfigSpec`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/config#RegisterConfigSpec).
+[`config.SpecsFromStruct`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/config#SpecsFromStruct)
+derives them from the JSON field names of your config struct, so they stay in sync
+with what `Validate` decodes:
+
+```golang
+import "github.com/open-policy-agent/opa/v1/config"
+
+func init() {
+    config.RegisterConfigSpec(config.SpecsFromStruct[Config]("plugins", PluginName)...)
+}
+```
+
+With this in place, `plugins.println_decision_logger.stdrr: true` in the example
+below is reported as
+`unknown configuration option "plugins.println_decision_logger.stdrr" encountered`.
+Nested structs are checked too, and a map or slice of structs matches any entry.
+Maps and slices of other types accept any keys.
+
+Unrecognized options are warnings only. Return an error from `Validate` to reject
+a configuration.
+
 ### Putting It Together
 
 The example below shows how you can implement a custom [Decision Logger](./management-decision-logs)

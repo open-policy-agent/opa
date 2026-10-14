@@ -5,12 +5,21 @@
 package topdown
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"math"
 	"math/rand/v2"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/prefixtrie"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
 )
 
 func TestBuiltinSprintf(t *testing.T) {
@@ -114,7 +123,7 @@ func TestBuiltinSprintf(t *testing.T) {
 	}
 }
 
-func TestAnyStartsWithAny(t *testing.T) {
+func TestBuiltinAnyPrefixMatch(t *testing.T) {
 	tests := []struct {
 		note     string
 		strs     []string
@@ -127,21 +136,60 @@ func TestAnyStartsWithAny(t *testing.T) {
 		{note: "empty string only matches empty prefix", strs: []string{"", "b"}, prefixes: []string{"a", "c"}},
 		{note: "prefix equals string", strs: []string{"abc", "x"}, prefixes: []string{"q", "abc"}, exp: true},
 		{note: "prefix longer than string", strs: []string{"ab", "x"}, prefixes: []string{"abc", "y"}},
-		{note: "match is not the nearest string", strs: []string{"ab", "abd", "abc"}, prefixes: []string{"q", "abc"}, exp: true},
-		{note: "prefix sorts after every string", strs: []string{"a", "b"}, prefixes: []string{"c", "d"}},
+		{note: "nested prefixes", strs: []string{"abd"}, prefixes: []string{"abc", "a"}, exp: true},
 		{note: "byte-wise comparison", strs: []string{"é", "e"}, prefixes: []string{"\xc3", "z"}, exp: true},
 		{note: "duplicates", strs: []string{"ab", "ab"}, prefixes: []string{"ab", "ab"}, exp: true},
 	}
 	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			if got := anyStartsWithAny(tc.strs, tc.prefixes); got != tc.exp {
-				t.Errorf("expected %v, got %v", tc.exp, got)
-			}
-		})
+		for _, cached := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/cached=%v", tc.note, cached), func(t *testing.T) {
+				bctx := affixBuiltinContext(cached)
+				// A cached run records the collection, then builds its trie, then
+				// answers from the cache.
+				for range 3 {
+					if got := callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, tc.strs, tc.prefixes); got != tc.exp {
+						t.Errorf("expected %v, got %v", tc.exp, got)
+					}
+				}
+			})
+		}
 	}
 }
 
-func TestAnyStartsWithAnyMatchesBruteForce(t *testing.T) {
+func TestBuiltinAnySuffixMatch(t *testing.T) {
+	tests := []struct {
+		note     string
+		strs     []string
+		suffixes []string
+		exp      bool
+	}{
+		{note: "no strings", suffixes: []string{"a"}},
+		{note: "no suffixes", strs: []string{"a"}},
+		{note: "empty suffix", strs: []string{"a", "b"}, suffixes: []string{""}, exp: true},
+		{note: "suffix equals string", strs: []string{"abc", "x"}, suffixes: []string{"q", "abc"}, exp: true},
+		{note: "suffix longer than string", strs: []string{"bc", "x"}, suffixes: []string{"abc", "y"}},
+		{note: "nested suffixes", strs: []string{"xbc"}, suffixes: []string{"abc", "c"}, exp: true},
+		{note: "multi-byte rune", strs: []string{"café"}, suffixes: []string{"é"}, exp: true},
+		{note: "byte-wise comparison", strs: []string{"é"}, suffixes: []string{"\xa9"}, exp: true},
+		// A search string that isn't valid UTF-8 is compared byte by byte like
+		// any other, rather than having its runes decoded.
+		{note: "invalid UTF-8", strs: []string{"a\xff"}, suffixes: []string{"\xff", "z"}, exp: true},
+	}
+	for _, tc := range tests {
+		for _, cached := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/cached=%v", tc.note, cached), func(t *testing.T) {
+				bctx := affixBuiltinContext(cached)
+				for range 3 {
+					if got := callAffixBuiltin(t, bctx, builtinAnySuffixMatch, tc.strs, tc.suffixes); got != tc.exp {
+						t.Errorf("expected %v, got %v", tc.exp, got)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestBuiltinAnyAffixMatchMatchesBruteForce(t *testing.T) {
 	rng := rand.New(rand.NewPCG(1, 2))
 	randStrings := func() []string {
 		strs := make([]string, rng.IntN(8))
@@ -155,13 +203,410 @@ func TestAnyStartsWithAnyMatchesBruteForce(t *testing.T) {
 		return strs
 	}
 
+	// One cache for every case, so that collections are both looked up and
+	// evicted while the results are checked.
+	bctx := affixBuiltinContext(true)
 	for range 10000 {
-		strs, prefixes := randStrings(), randStrings()
-		exp := slices.ContainsFunc(strs, func(s string) bool {
-			return slices.ContainsFunc(prefixes, func(p string) bool { return strings.HasPrefix(s, p) })
+		strs, bases := randStrings(), randStrings()
+
+		expPrefix := slices.ContainsFunc(strs, func(s string) bool {
+			return slices.ContainsFunc(bases, func(p string) bool { return strings.HasPrefix(s, p) })
 		})
-		if got := anyStartsWithAny(slices.Clone(strs), prefixes); got != exp {
-			t.Fatalf("anyStartsWithAny(%q, %q): expected %v, got %v", strs, prefixes, exp, got)
+		// Twice, so that the second call matches with a trie.
+		for range 2 {
+			if got := callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, strs, bases); got != expPrefix {
+				t.Fatalf("any_prefix_match(%q, %q): expected %v, got %v", strs, bases, expPrefix, got)
+			}
 		}
+
+		expSuffix := slices.ContainsFunc(strs, func(s string) bool {
+			return slices.ContainsFunc(bases, func(p string) bool { return strings.HasSuffix(s, p) })
+		})
+		for range 2 {
+			if got := callAffixBuiltin(t, bctx, builtinAnySuffixMatch, strs, bases); got != expSuffix {
+				t.Fatalf("any_suffix_match(%q, %q): expected %v, got %v", strs, bases, expSuffix, got)
+			}
+		}
+
+		// A single search string is matched differently, with and without a trie.
+		for _, s := range strs {
+			for _, tc := range []struct {
+				fn    BuiltinFunc
+				match func(string, string) bool
+			}{
+				{builtinAnyPrefixMatch, strings.HasPrefix},
+				{builtinAnySuffixMatch, strings.HasSuffix},
+			} {
+				exp := slices.ContainsFunc(bases, func(b string) bool { return tc.match(s, b) })
+				for range 2 {
+					var got bool
+					if err := tc.fn(bctx, []*ast.Term{ast.StringTerm(s), stringsArray(bases)}, func(r *ast.Term) error {
+						got = bool(r.Value.(ast.Boolean))
+						return nil
+					}); err != nil {
+						t.Fatal(err)
+					}
+					if got != exp {
+						t.Fatalf("matching %q against %q: expected %v, got %v", s, bases, exp, got)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestBuiltinReverse(t *testing.T) {
+	long := strings.Repeat("ab\xffé", 100) // past the 255-byte stack buffer
+	tests := []struct {
+		note string
+		s    string
+		exp  string
+	}{
+		{note: "empty", s: "", exp: ""},
+		{note: "ascii", s: "abc", exp: "cba"},
+		{note: "multi-byte runes", s: "añb€", exp: "€bña"},
+		{note: "invalid byte first", s: "\xffab", exp: "ba\xff"},
+		{note: "invalid byte last", s: "ab\xff", exp: "\xffba"},
+		{note: "invalid byte between runes", s: "é\xff€", exp: "€\xffé"},
+		{note: "truncated rune", s: "a\xe2\x82", exp: "\x82\xe2a"},
+		{note: "encoded replacement character", s: "a�b", exp: "b�a"},
+		{note: "long", s: long, exp: strings.Repeat("é\xffba", 100)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var got string
+			if err := builtinReverse(BuiltinContext{}, []*ast.Term{ast.StringTerm(tc.s)}, func(r *ast.Term) error {
+				got = string(r.Value.(ast.String))
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.exp {
+				t.Errorf("expected %q, got %q", tc.exp, got)
+			}
+		})
+	}
+}
+
+func TestReverseStringArbitraryBytes(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 4))
+	for range 10000 {
+		b := make([]byte, rng.IntN(300))
+		for i := range b {
+			b[i] = byte(rng.Uint32())
+		}
+		s := string(b)
+
+		got := reverseString(s)
+
+		// Whatever the input, the output holds the same bytes.
+		if !slices.Equal(slices.Sorted(slices.Values([]byte(got))), slices.Sorted(slices.Values(b))) {
+			t.Fatalf("reverseString(%q) = %q: not a rearrangement of the input", s, got)
+		}
+		// And a valid string comes back out as its runes in reverse.
+		if valid := strings.ToValidUTF8(s, ""); reverseString(reverseString(valid)) != valid {
+			t.Fatalf("reverseString is not its own inverse for %q", valid)
+		}
+	}
+}
+
+func TestBuiltinAnySuffixMatchInvalidUTF8(t *testing.T) {
+	// Suffix matching reverses the strings, which used to panic on bytes that
+	// aren't valid UTF-8.
+	var got bool
+	err := builtinAnySuffixMatch(BuiltinContext{}, []*ast.Term{ast.StringTerm("a\xff"), ast.StringTerm("\xff")}, func(r *ast.Term) error {
+		got = bool(r.Value.(ast.Boolean))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Error("expected a match")
+	}
+}
+
+func TestBuiltinAnyAffixMatchCache(t *testing.T) {
+	bctx := affixBuiltinContext(true)
+	bases := ast.NewArray(ast.StringTerm("/api/"), ast.StringTerm(".rego"))
+
+	call := func(fn BuiltinFunc, s string, bases *ast.Array) bool {
+		t.Helper()
+		var result bool
+		if err := fn(bctx, []*ast.Term{ast.StringTerm(s), ast.NewTerm(bases)}, func(r *ast.Term) error {
+			result = bool(r.Value.(ast.Boolean))
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	prefixes := bctx.InterQueryBuiltinValueCache.GetCache(anyPrefixMatchCacheName)
+	seen := bctx.InterQueryBuiltinValueCache.GetCache(anyPrefixMatchSeenCacheName)
+
+	// The first time, the collection is only recorded as seen, by hash.
+	if !call(builtinAnyPrefixMatch, "/api/x", bases) {
+		t.Fatal("expected a prefix match")
+	}
+	if v, ok := seen.Get(affixSeenKey(bases)); !ok {
+		t.Fatal("expected the collection to be recorded as seen")
+	} else if _, ok := v.(*affixSeen); !ok {
+		t.Fatalf("expected a seen marker, got %v", v)
+	}
+	if v, ok := prefixes.Get(bases); ok {
+		t.Fatalf("expected no trie yet, got %v", v)
+	}
+
+	// The second time, its trie is built and cached.
+	if call(builtinAnyPrefixMatch, "/nope", bases) {
+		t.Fatal("expected no prefix match")
+	}
+	cached, _ := prefixes.Get(bases)
+	if _, ok := cached.(*prefixtrie.Trie[struct{}]); !ok {
+		t.Fatalf("expected the prefix trie to be cached, got %v", cached)
+	}
+
+	// An equal collection that isn't the same value finds the same trie.
+	equal := ast.NewArray(ast.StringTerm("/api/"), ast.StringTerm(".rego"))
+	if !call(builtinAnyPrefixMatch, "/api/y", equal) {
+		t.Fatal("expected a prefix match")
+	}
+	if again, _ := prefixes.Get(equal); again != cached {
+		t.Error("expected an equal collection to reuse the cached trie")
+	}
+
+	// The same collection as suffixes is a different trie, in a cache of its own.
+	if call(builtinAnySuffixMatch, "/api/x", bases) {
+		t.Fatal("expected no suffix match")
+	}
+	if !call(builtinAnySuffixMatch, "x.rego", bases) {
+		t.Fatal("expected a suffix match")
+	}
+	suffixes := bctx.InterQueryBuiltinValueCache.GetCache(anySuffixMatchCacheName)
+	if v, _ := suffixes.Get(bases); v == cached {
+		t.Error("expected a separately cached suffix trie")
+	} else if _, ok := v.(*prefixtrie.Trie[struct{}]); !ok {
+		t.Errorf("expected the suffix trie to be cached, got %v", v)
+	}
+
+	// A collection with a non-string member is an error, and isn't recorded.
+	invalid := ast.NewArray(ast.StringTerm("a"), ast.NumberTerm("1"))
+	for range 2 {
+		err := builtinAnyPrefixMatch(bctx, []*ast.Term{ast.StringTerm("a"), ast.NewTerm(invalid)}, func(*ast.Term) error { return nil })
+		if err == nil {
+			t.Fatal("expected an error for a non-string base")
+		}
+	}
+	if _, ok := prefixes.Get(invalid); ok {
+		t.Error("expected an invalid collection not to be cached")
+	}
+	if _, ok := seen.Get(affixSeenKey(invalid)); ok {
+		t.Error("expected an invalid collection not to be recorded as seen")
+	}
+}
+
+func TestBuiltinAnyAffixMatchCacheMarkersDontEvictTries(t *testing.T) {
+	bctx := affixBuiltinContext(true)
+	static := []string{"/api/", "/admin/"}
+
+	for range 2 {
+		callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/api/x"}, static)
+	}
+	prefixes := bctx.InterQueryBuiltinValueCache.GetCache(anyPrefixMatchCacheName)
+	trie, ok := prefixes.Get(stringsArray(static).Value)
+	if !ok {
+		t.Fatal("expected the static collection's trie to be cached")
+	}
+
+	// Each query's own collection, seen once, many times over the trie cache's size.
+	for i := range 100 {
+		callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/api/x"}, []string{fmt.Sprintf("/user/%d/", i)})
+	}
+	if again, ok := prefixes.Get(stringsArray(static).Value); !ok || again != trie {
+		t.Error("expected the static collection's trie to survive collections seen only once")
+	}
+}
+
+func TestBuiltinAnyAffixMatchCacheRebuildsEvictedTrie(t *testing.T) {
+	bctx := affixBuiltinContext(true)
+	bases := []string{"/api/", "/admin/"}
+	key := stringsArray(bases).Value
+	prefixes := bctx.InterQueryBuiltinValueCache.GetCache(anyPrefixMatchCacheName)
+
+	for range 2 {
+		callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/api/x"}, bases)
+	}
+	prefixes.Delete(key)
+
+	// Matched without a trie, and marked to be built again on the next call.
+	if !callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/api/x"}, bases) {
+		t.Fatal("expected a prefix match")
+	}
+	if _, ok := prefixes.Get(key); ok {
+		t.Fatal("expected the trie not to be rebuilt straight away")
+	}
+	if callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/nope"}, bases) {
+		t.Fatal("expected no prefix match")
+	}
+	if _, ok := prefixes.Get(key); !ok {
+		t.Error("expected the trie to be rebuilt")
+	}
+}
+
+func TestBuiltinAnyAffixMatchCacheConcurrentBuild(t *testing.T) {
+	inner := cache.NewInterQueryValueCache(t.Context(), &cache.Config{})
+	counting := &countingInsertsCache{InterQueryValueCache: inner, name: anyPrefixMatchCacheName}
+	bctx := BuiltinContext{InterQueryBuiltinValueCache: counting}
+	bases := stringsArray([]string{"/api/", "/admin/"})
+
+	call := func() (bool, error) {
+		var result bool
+		err := builtinAnyPrefixMatch(bctx, []*ast.Term{ast.StringTerm("/api/x"), bases}, func(r *ast.Term) error {
+			result = bool(r.Value.(ast.Boolean))
+			return nil
+		})
+		return result, err
+	}
+
+	if _, err := call(); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 50)
+	for range 50 {
+		wg.Go(func() {
+			if found, err := call(); err != nil {
+				errs <- err
+			} else if !found {
+				errs <- errors.New("expected a prefix match")
+			}
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+
+	if n := counting.inserts.Load(); n != 1 {
+		t.Errorf("expected the trie to be built and cached once, got %d", n)
+	}
+}
+
+func TestBuiltinAnyAffixMatchCacheSeenDisabled(t *testing.T) {
+	disabled := true
+	config := &cache.Config{InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+		NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+			anyPrefixMatchSeenCacheName: {Disabled: &disabled},
+		},
+	}}
+	bctx := BuiltinContext{InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(t.Context(), config)}
+	bases := []string{"/api/", "/admin/"}
+
+	for range 3 {
+		if !callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/api/x"}, bases) {
+			t.Fatal("expected a prefix match")
+		}
+	}
+	if v, ok := bctx.InterQueryBuiltinValueCache.GetCache(anyPrefixMatchCacheName).Get(stringsArray(bases).Value); ok {
+		t.Errorf("expected no trie without the %s cache, got %v", anyPrefixMatchSeenCacheName, v)
+	}
+}
+
+func affixSeenKey(bases ast.Value) ast.Value {
+	return ast.Number(strconv.Itoa(bases.Hash()))
+}
+
+// countingInsertsCache counts the inserts into one of its named caches.
+type countingInsertsCache struct {
+	cache.InterQueryValueCache
+	name    string
+	inserts atomic.Int64
+}
+
+func (c *countingInsertsCache) GetCache(name string) cache.InterQueryValueCacheBucket {
+	b := c.InterQueryValueCache.GetCache(name)
+	if name != c.name || b == nil {
+		return b
+	}
+	return countingInsertsBucket{b, &c.inserts}
+}
+
+type countingInsertsBucket struct {
+	cache.InterQueryValueCacheBucket
+	inserts *atomic.Int64
+}
+
+func (b countingInsertsBucket) Insert(k ast.Value, v any) int {
+	b.inserts.Add(1)
+	return b.InterQueryValueCacheBucket.Insert(k, v)
+}
+
+func TestBuiltinAnyAffixMatchCacheDisabled(t *testing.T) {
+	disabled := true
+	config := &cache.Config{InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{
+		NamedCacheConfigs: map[string]*cache.NamedValueCacheConfig{
+			anyPrefixMatchCacheName: {Disabled: &disabled},
+		},
+	}}
+	bctx := BuiltinContext{InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(t.Context(), config)}
+
+	if !callAffixBuiltin(t, bctx, builtinAnyPrefixMatch, []string{"/api/x"}, []string{"/api/", "/admin/"}) {
+		t.Fatal("expected a prefix match")
+	}
+	if c := bctx.InterQueryBuiltinValueCache.GetCache(anyPrefixMatchCacheName); c != nil {
+		t.Errorf("expected the %s cache to be disabled, got %v", anyPrefixMatchCacheName, c)
+	}
+}
+
+func affixBuiltinContext(cached bool) BuiltinContext {
+	if !cached {
+		return BuiltinContext{}
+	}
+	return BuiltinContext{InterQueryBuiltinValueCache: cache.NewInterQueryValueCache(context.Background(), &cache.Config{})}
+}
+
+func callAffixBuiltin(t *testing.T, bctx BuiltinContext, fn BuiltinFunc, strs, bases []string) bool {
+	t.Helper()
+	var result bool
+	err := fn(bctx, []*ast.Term{stringsArray(strs), stringsArray(bases)}, func(r *ast.Term) error {
+		result = bool(r.Value.(ast.Boolean))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func stringsArray(strs []string) *ast.Term {
+	terms := make([]*ast.Term, len(strs))
+	for i, s := range strs {
+		terms[i] = ast.StringTerm(s)
+	}
+	return ast.ArrayTerm(terms...)
+}
+
+func TestBuiltinSubstringHugeLength(t *testing.T) {
+	for _, tc := range []struct{ base, want string }{{"abc", "bc"}, {"äbc", "bc"}} {
+		for _, length := range []int64{math.MaxInt64, math.MaxInt64 - 1} {
+			rule := fmt.Sprintf(`p := x if { x := substring(%q, 1, %d) }`, tc.base, length)
+			runTopDownTestCase(t, map[string]any{}, tc.base, []string{rule}, fmt.Sprintf("%q", tc.want))
+		}
+	}
+}
+
+func TestBuiltinIndexOfN(t *testing.T) {
+	for _, tc := range []struct{ base, search, want string }{
+		{"dogcatdogcat", "cat", "[3, 9]"},
+		{"aaaa", "aa", "[0, 1, 2]"},
+		{"abc", "abcd", "[]"},
+		{"abc", "x", "[]"},
+		{"äbcäbc", "bc", "[1, 4]"},
+		{"abcabc", "ä", "[]"},
+	} {
+		rule := fmt.Sprintf(`p := x if { x := indexof_n(%q, %q) }`, tc.base, tc.search)
+		runTopDownTestCase(t, map[string]any{}, tc.base+"/"+tc.search, []string{rule}, tc.want)
 	}
 }

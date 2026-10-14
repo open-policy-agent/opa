@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/pluginset"
 	"github.com/open-policy-agent/opa/v1/ast"
 	bundleApi "github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/download"
@@ -3556,7 +3557,7 @@ bundle:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+	_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3593,7 +3594,7 @@ bundles:
 `
 	manager := getTestManager(t, conf)
 	trigger := plugins.TriggerManual
-	_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+	_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -3652,7 +3653,7 @@ bundles:
 		t.Run(name, func(t *testing.T) {
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+			_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3715,7 +3716,7 @@ decision_logs:
 		t.Run(name, func(t *testing.T) {
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+			_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {
@@ -3785,7 +3786,7 @@ status:
 		t.Run(name, func(t *testing.T) {
 			manager := getTestManager(t, tc.conf)
 			trigger := plugins.TriggerManual
-			_, err := getPluginSet(nil, manager, manager.GetConfig(), nil, nil, &trigger)
+			_, err := pluginset.New(nil, manager, manager.GetConfig(), nil, nil, &trigger)
 
 			if tc.wantErr {
 				if err == nil {

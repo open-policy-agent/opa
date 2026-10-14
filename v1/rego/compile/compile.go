@@ -336,7 +336,7 @@ func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters
 		case "sql":
 			sql, err := compile.QueriesToSQL(pq.Queries, mappings, dialect)
 			if err != nil {
-				return nil, fmt.Errorf("convert to queries: %w", err)
+				return nil, compile.TranslationErrors(err)
 			}
 			ret.push(target, dialect, sql, maskResult)
 		}

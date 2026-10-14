@@ -523,10 +523,12 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedDR: MustParseRule(`default allow = false`),
 		},
 		{
-			note:       "match and non-indexable rules",
-			ruleset:    "filtering",
-			input:      `{"x": 1}`,
-			expectedRS: mod.RuleSet(Var("filtering")),
+			note:    "match and non-indexable rules",
+			ruleset: "filtering",
+			input:   `{"x": 1}`,
+			expectedRS: mod.RuleSet(Var("filtering")).Diff(NewRuleSet(
+				MustParseRuleWithOpts(`filtering if { input.x[_] = 1 }`, opts),
+			)),
 		},
 		{
 			note:    "non-indexable rules",
@@ -1084,6 +1086,19 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
+			note: "internal.member_2: lhs = constant collection",
+			module: module(`package test
+			p if {
+				x = ["a"]
+				x in input.foo
+			}`),
+			ruleset: "p",
+			input:   `{"foo": [["a"]]}`,
+			expectedRS: []string{
+				`p if { x = ["a"]; x in input.foo }`,
+			},
+		},
+		{
 			note: "internal.member_2: rhs = value (2 out of 3)",
 			module: module(`package test
 			p if {
@@ -1502,6 +1517,42 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset:    "p",
 			input:      `{"roles": ["user", "guest"]}`,
 			expectedRS: []string{},
+		},
+		{
+			note: "equality and membership on one ref: collection",
+			module: module(`package test
+			p if { input.r == "admin" }
+			p if { "admin" in input.r }
+			p if { input.r[_] == "admin" }`),
+			ruleset: "p",
+			input:   `{"r": ["admin"]}`,
+			expectedRS: []string{
+				`p if { internal.member_2("admin", input.r) }`,
+				`p if { equal(input.r[_], "admin") }`,
+			},
+		},
+		{
+			note: "equality and membership on one ref: scalar",
+			module: module(`package test
+			p if { input.r == "admin" }
+			p if { "admin" in input.r }
+			p if { input.r[_] == "admin" }`),
+			ruleset: "p",
+			input:   `{"r": "admin"}`,
+			expectedRS: []string{
+				`p if { equal(input.r, "admin") }`,
+			},
+		},
+		{
+			note: "membership in an object's values",
+			module: module(`package test
+			p if { input.r == "admin" }
+			p if { "admin" in input.r }`),
+			ruleset: "p",
+			input:   `{"r": {"role": "admin"}}`,
+			expectedRS: []string{
+				`p if { internal.member_2("admin", input.r) }`,
+			},
 		},
 		{
 			note: "wildcard ref equality: reverse order value == ref[_] (match)",
@@ -2534,6 +2585,37 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 			{`{"subject": "carol", "action": "read"}`, 0}, // carol is not in the first
 			{`{"subject": "alice", "action": "nope"}`, 0}, // neither action matches
 			{`{"subject": "dave", "action": "read"}`, 0},  // neither subject matches
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	t.Run("membership alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			"a" in input.r
+			"b" in input.r
+			input.y in [1, 2]
+		}
+		p if {
+			input.r == "a"
+			input.y in [3, 4]
+		}
+		p if input.r == "c"
+		p if input.r == "d"
+		p if input.r == "e"`)
+		t.Log(index.mermaid())
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"r": ["b"], "y": 1}`, 1},
+			{`{"r": "a", "y": 1}`, 0},
+			{`{"r": ["a"], "y": 3}`, 0},
+			{`{"r": "a", "y": 3}`, 1},
 		} {
 			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
 				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)

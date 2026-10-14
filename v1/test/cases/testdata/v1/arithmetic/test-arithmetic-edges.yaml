@@ -1,0 +1,108 @@
+---
+cases:
+  # Results are rendered with sprintf because the golden-case loader parses expected
+  # numbers as float64, which cannot represent these values. sprintf formats the exact
+  # integer, so the assertion is on the arithmetic rather than on the loader.
+  - note: "arithmetic/int32 window edges (results crossing into wider integers)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {
+        	"plus_max": sprintf("%v", [2147483647 + 1]),
+        	"minus_min": sprintf("%v", [-2147483648 - 1]),
+        	"mul_max": sprintf("%v", [2147483647 * 2147483647]),
+        	"mul_min": sprintf("%v", [-2147483648 * -2147483648]),
+        	"just_outside": sprintf("%v", [2147483648 + 1]),
+        	"int64_edge": sprintf("%v", [9223372036854775807 + 1]),
+        	"exponent_form": sprintf("%v", [1e30 + 1]),
+        	"trailing_zeros": sprintf("%v", [10.00 + 5]),
+        }
+    data: {}
+    want_result:
+      - x:
+          plus_max: "2147483648"
+          minus_min: "-2147483649"
+          mul_max: "4611686014132420609"
+          mul_min: "4611686018427387904"
+          just_outside: "2147483649"
+          int64_edge: "9223372036854775808"
+          exponent_form: "1000000000000000000000000000001"
+          trailing_zeros: "15"
+  - note: "arithmetic/abs, round, ceil and floor on integers and at the window edges"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {
+        	"abs_negative": sprintf("%v", [abs(-5)]),
+        	"abs_window_min": sprintf("%v", [abs(-2147483648)]),
+        	"abs_int64_min": sprintf("%v", [abs(-9223372036854775808)]),
+        	"abs_float": sprintf("%v", [abs(-2.5)]),
+        	"round_half_up": sprintf("%v", [round(2.5)]),
+        	"round_half_away_negative": sprintf("%v", [round(-2.5)]),
+        	"round_down": sprintf("%v", [round(2.4)]),
+        	"round_integer": sprintf("%v", [round(-5)]),
+        	"round_trailing_zeros": sprintf("%v", [round(10.00)]),
+        }
+    data: {}
+    want_result:
+      - x:
+          abs_negative: "5"
+          abs_window_min: "2147483648"
+          abs_int64_min: "9223372036854775808"
+          abs_float: "2.5"
+          round_half_up: "3"
+          round_half_away_negative: "-3"
+          round_down: "2"
+          round_integer: "-5"
+          round_trailing_zeros: "10"
+  - note: "arithmetic/division is exact on ints only when the divisor divides the dividend"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {
+        	"exact": sprintf("%v", [6 / 3]),
+        	"exact_negative": sprintf("%v", [-6 / 3]),
+        	"fraction": sprintf("%v", [1 / 4]),
+        	"zero_dividend": sprintf("%v", [0 / 5]),
+        }
+    data: {}
+    want_result:
+      - x:
+          exact: "2"
+          exact_negative: "-2"
+          fraction: "0.25"
+          zero_dividend: "0"
+  - note: "arithmetic/divide+error+float zero divisor"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := 1 / 0.0
+    data: {}
+    want_error_code: eval_builtin_error
+    want_error: divide by zero
+    strict_error: true
+  - note: "arithmetic/remainder takes the sign of the dividend, and accepts integral floats"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {
+        	"negative_dividend": sprintf("%v", [-17 % 5]),
+        	"negative_divisor": sprintf("%v", [17 % -5]),
+        	"integral_float": sprintf("%v", [4.0 % 3]),
+        }
+    data: {}
+    want_result:
+      - x:
+          negative_dividend: "-2"
+          negative_divisor: "2"
+          integral_float: "1"

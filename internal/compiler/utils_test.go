@@ -82,9 +82,42 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
        input.client_certificates[0] = "foo"
     }`
 
+	authz := `
+	package system.authz
+
+	import data.system.authz.jwt
+	import data.utils.jwt as shared
+
+	default allow := false
+
+	allow if {
+	   jwt.bearer_token == "foo"
+	}
+
+	allow if {
+	   shared.bearer_token == "foo"
+	}`
+
+	authzSubPackageHelper := `
+	package system.authz.jwt
+
+	bearer_token := t if {
+	   t := substring(input.identty, 7, -1)
+	}`
+
+	sharedHelper := `
+	package utils.jwt
+
+	bearer_token := t if {
+	   v := input.other_token
+	   startswith(v, "Bearer ")
+	   t := substring(v, count("Bearer "), -1)
+	}`
+
 	tests := []struct {
 		note    string
 		modules []string
+		ref     string
 		wantErr bool
 		errs    []string
 	}{
@@ -93,6 +126,25 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 		{note: "multiple errors", modules: []string{module2}, wantErr: true, errs: []string{"match error", "undefined ref: input.identty"}},
 		{note: "wrong item type path", modules: []string{module3}, wantErr: true, errs: []string{"match error"}},
 		{note: "wrong item type certs", modules: []string{module4}, wantErr: true, errs: []string{"match error"}},
+		{
+			note:    "dependency in sub-package is checked",
+			modules: []string{authz, authzSubPackageHelper},
+			ref:     "data.system.authz.allow",
+			wantErr: true,
+			errs:    []string{"undefined ref: input.identty"},
+		},
+		{
+			note:    "dependency outside the authz package is not checked",
+			modules: []string{authz, authzSubPackageHelper, sharedHelper},
+			ref:     "data.system.authz.allow",
+			wantErr: true,
+			errs:    []string{"undefined ref: input.identty"},
+		},
+		{
+			note:    "shared dependency alone is not checked",
+			modules: []string{authz, sharedHelper},
+			ref:     "data.system.authz.allow",
+		},
 	}
 
 	for _, tc := range tests {
@@ -115,7 +167,12 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 				t.Fatal("unexpected error:", c.Errors)
 			}
 
-			err := VerifyAuthorizationPolicySchema(c, ast.MustParseRef("data.policy.allow"))
+			ref := tc.ref
+			if ref == "" {
+				ref = "data.policy.allow"
+			}
+
+			err := VerifyAuthorizationPolicySchema(c, ast.MustParseRef(ref))
 
 			if tc.wantErr {
 				if err == nil {
@@ -126,6 +183,10 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 					if !strings.Contains(err.Error(), e) {
 						t.Errorf("Expected error %v not found", e)
 					}
+				}
+
+				if strings.Contains(err.Error(), "input.other_token") {
+					t.Errorf("Unexpected error for out-of-scope dependency: %v", err)
 				}
 			} else if err != nil {
 				t.Fatalf("Unexpected error %v", err)

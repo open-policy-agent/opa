@@ -12,11 +12,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -148,6 +150,49 @@ func TestBundleSignVerification(t *testing.T) {
 		_, err = reader.Read()
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
+		}
+	})
+}
+
+func TestReadBundleFilesTreatsMisnamedSignatureFilesAsContent(t *testing.T) {
+	// Only the root .signatures.json is skipped when signing. Similarly named
+	// files and nested .signatures.json are signed as content (issue #9289).
+	files := map[string]string{
+		"/data.json":            `{"x": 1}`,
+		"/.signatures.json":     `{"signatures": []}`,
+		"/data.signatures.json": `{"x": 2}`,
+		"/signatures.json":      `{"x": 3}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		load, err := initload.WalkPaths([]string{rootDir}, nil, true)
+		if err != nil {
+			t.Fatalf("WalkPaths: %v", err)
+		}
+
+		hash, err := bundle.NewSignatureHasher(bundle.HashingAlgorithm(defaultHashingAlg))
+		if err != nil {
+			t.Fatalf("NewSignatureHasher: %v", err)
+		}
+
+		got, err := readBundleFiles(load.BundlesLoader, hash)
+		if err != nil {
+			t.Fatalf("readBundleFiles: %v", err)
+		}
+
+		trimmedRoot := strings.TrimPrefix(rootDir, "/")
+		signed := make(map[string]bool, len(got))
+		for _, fi := range got {
+			signed[strings.TrimPrefix(strings.TrimPrefix(fi.Name, trimmedRoot), "/")] = true
+		}
+
+		for _, want := range []string{"data.json", "data.signatures.json", "signatures.json"} {
+			if !signed[want] {
+				t.Errorf("expected %q to be signed as content; got %v", want, signed)
+			}
+		}
+		if signed[".signatures.json"] {
+			t.Errorf("root .signatures.json must be skipped when signing; got %v", signed)
 		}
 	})
 }

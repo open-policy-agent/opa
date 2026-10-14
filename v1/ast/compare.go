@@ -307,6 +307,12 @@ func NumberCompare(x, y Number) int {
 		}
 	}
 
+	if xd, ok := parseDecimal(xs); ok {
+		if yd, ok := parseDecimal(ys); ok {
+			return xd.compare(yd)
+		}
+	}
+
 	var xf, yf float64
 	var xIsF, yIsF bool
 

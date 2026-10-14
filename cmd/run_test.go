@@ -277,6 +277,43 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 	})
 }
 
+func TestInitRuntimeSharedAuthzDependencyNotSchemaChecked(t *testing.T) {
+
+	fs := map[string]string{
+		"test/authz.rego": `package system.authz
+		import rego.v1
+
+		import data.utils.jwt
+
+		default allow := false
+
+		allow if {
+		  jwt.bearer_token != ""
+		}`,
+		"test/jwt.rego": `package utils.jwt
+		import rego.v1
+
+		bearer_token := t if {
+		  v := input.other_token
+		  startswith(v, "Bearer ")
+		  t := substring(v, count("Bearer "), -1)
+		}`,
+	}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		rootDir = filepath.Join(rootDir, "test")
+
+		params := newTestRunParams()
+		if err := params.authorization.Set("basic"); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := initRuntime(t.Context(), params, []string{rootDir}, false); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestRunServerUploadPolicy(t *testing.T) {
 	v0Policy := `package test
 	p { q["a"] }
