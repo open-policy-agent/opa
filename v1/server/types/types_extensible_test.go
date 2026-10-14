@@ -6,7 +6,11 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func TestDataRequestV1_ExtraFields(t *testing.T) {
@@ -253,5 +257,81 @@ func TestDataResponseV1_ReservedFieldsNotOverridden(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTopLevelKeysKnown(t *testing.T) {
+	known := map[string]bool{"input": true, "decision_id": true}
+	tests := []struct {
+		data string
+		want bool
+	}{
+		{`{}`, true},
+		{`null`, true},
+		{`{"input": {"user": "alice"}}`, true},
+		{`{"input": 1, "decision_id": "x"}`, true},
+		{`{"input": {"extra": {"deep": [{"other": 1}]}}}`, true},
+		{`{"input": ["a", {"b": "c"}, "d"], "decision_id": "x"}`, true},
+		{`{"input": "has \"quotes\" and {braces}, commas"}`, true},
+		{`{"input": "\\", "decision_id": "x"}`, true},
+		{`{"input": {}, "request_id": "123"}`, false},
+		{`{"request_id": "123", "input": {}}`, false},
+		{`{"input": [1, 2], "request_id": "123"}`, false},
+		{`{"Input": {}}`, false},
+		{`{"\u0069nput": {}}`, false},
+		{`{"input": "unterminated`, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.data, func(t *testing.T) {
+			if got := topLevelKeysKnown([]byte(tc.data), known); got != tc.want {
+				t.Errorf("topLevelKeysKnown(%s) = %v, want %v", tc.data, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDataRequestV1_EscapedKeyExtras(t *testing.T) {
+	var req DataRequestV1
+	if err := json.Unmarshal([]byte(`{"input": {}, "request\u005fid": "123"}`), &req); err != nil {
+		t.Fatal(err)
+	}
+	if req.Metadata["request_id"] != "123" {
+		t.Errorf("expected request_id='123' in Metadata, got %v", req.Metadata)
+	}
+}
+
+// no_extras/10-16       94254     12804 ns/op     18344 B/op    216 allocs/op // decoding extras on every call
+// extras/10-16          88120     13597 ns/op     21176 B/op    228 allocs/op // decoding extras on every call
+// no_extras/1000-16       992   1209217 ns/op   1731869 B/op  17070 allocs/op // decoding extras on every call
+// extras/1000-16          991   1210239 ns/op   1734701 B/op  17082 allocs/op // decoding extras on every call
+// no_extras/10-16      121662      9955 ns/op     14600 B/op    197 allocs/op // scanning top-level keys first
+// extras/10-16          85192     14239 ns/op     21176 B/op    228 allocs/op // scanning top-level keys first
+// no_extras/1000-16      1324    905507 ns/op   1396978 B/op  17045 allocs/op // scanning top-level keys first
+// extras/1000-16          928   1258173 ns/op   1734700 B/op  17082 allocs/op // scanning top-level keys first
+func BenchmarkDataRequestV1Unmarshal(b *testing.B) {
+	for _, n := range []int{10, 1000} {
+		var sb strings.Builder
+		sb.WriteString(`{"input":{"items":[`)
+		for i := range n {
+			if i > 0 {
+				sb.WriteByte(',')
+			}
+			fmt.Fprintf(&sb, `{"id":%d,"name":"user-%d","roles":["a","b"],"attrs":{"x":true}}`, i, i)
+		}
+		sb.WriteString(`]}`)
+		noExtras := []byte(sb.String() + `}`)
+		withExtras := []byte(sb.String() + `,"request_id":"123"}`)
+
+		for name, body := range map[string][]byte{"no_extras": noExtras, "extras": withExtras} {
+			b.Run(fmt.Sprintf("%s/%d", name, n), func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					var req DataRequestV1
+					if err := util.UnmarshalJSON(body, &req); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
 	}
 }

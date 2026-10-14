@@ -61,11 +61,15 @@ func UnmarshalExtras[T any](data []byte, into any) (map[string]any, error) {
 	if err := util.UnmarshalJSON(data, into); err != nil {
 		return nil, err
 	}
+	known := knownJSONFields[T]()
+	// Only decode data a second time if there are extras to collect.
+	if topLevelKeysKnown(data, known) {
+		return nil, nil
+	}
 	var raw map[string]json.RawMessage
 	if err := util.UnmarshalJSON(data, &raw); err != nil {
 		return nil, err
 	}
-	known := knownJSONFields[T]()
 	var extra map[string]any
 	for k, val := range raw {
 		if known[k] {
@@ -81,6 +85,46 @@ func UnmarshalExtras[T any](data []byte, into any) (map[string]any, error) {
 		extra[k] = v
 	}
 	return extra, nil
+}
+
+// topLevelKeysKnown reports whether every top-level key of the JSON object in
+// data is in known, without decoding values. It returns false for keys with
+// escape sequences and for malformed input, leaving those to a full decode.
+func topLevelKeysKnown(data []byte, known map[string]bool) bool {
+	depth := 0
+	expectKey := false
+	for i := 0; i < len(data); i++ {
+		switch data[i] {
+		case '{':
+			depth++
+			expectKey = depth == 1
+		case '[':
+			depth++
+		case '}', ']':
+			depth--
+		case ',':
+			expectKey = depth == 1
+		case '"':
+			start := i + 1
+			escaped := false
+			for i++; i < len(data) && data[i] != '"'; i++ {
+				if data[i] == '\\' {
+					escaped = true
+					i++
+				}
+			}
+			if i >= len(data) {
+				return false
+			}
+			if expectKey {
+				if escaped || !known[string(data[start:i])] {
+					return false
+				}
+				expectKey = false
+			}
+		}
+	}
+	return true
 }
 
 // MarshalExtras marshals v (typically an alias of T to avoid recursing through
