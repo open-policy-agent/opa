@@ -155,6 +155,40 @@ func TestCompileHandlerMultiTarget(t *testing.T) {
 	}
 }
 
+// A policy the target cannot render is a client error, not a server error.
+func TestCompileHandlerTranslationError(t *testing.T) {
+	t.Parallel()
+
+	payload, err := json.Marshal(map[string]any{
+		"input":    map[string]any{},
+		"unknowns": []string{"input.fruits"},
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	expBody, err := json.Marshal(map[string]any{
+		"code":    "evaluation_error",
+		"message": "error(s) occurred while evaluating query",
+		"errors": []map[string]any{
+			{"code": "pe_fragment_error", "message": "null value can only be used with 'eq' or 'ne' operators"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal expected response: %v", err)
+	}
+
+	f := setup(t, "package filters\ninclude if input.fruits.price > null\n", nil)
+	req, err := http.NewRequest("POST", "/v1/compile/filters/include", bytes.NewBuffer(payload))
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/vnd.opa.sql.postgresql+json")
+	if err := f.executeRequest(req, http.StatusBadRequest, string(expBody)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCompileHandlerInvalidMappings(t *testing.T) {
 	t.Parallel()
 
