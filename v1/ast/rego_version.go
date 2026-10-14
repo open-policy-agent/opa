@@ -188,16 +188,6 @@ func (s RegoVersionSpan) regoVersion() RegoVersion {
 	return s.min
 }
 
-// IsCompatible reports whether v lies within s. RegoV0CompatV1 requires both RegoV0 and RegoV1.
-func (s RegoVersionSpan) IsCompatible(v RegoVersion) bool {
-	if v == RegoV0CompatV1 {
-		return s.IsCompatible(RegoV0) && s.IsCompatible(RegoV1)
-	}
-
-	l := v.level()
-	return l >= 0 && s.min.level() <= l && l <= s.max.level()
-}
-
 // Int returns the integer form of Min, as recorded in bundle manifests and the store.
 func (s RegoVersionSpan) Int() int {
 	return s.min.Int()

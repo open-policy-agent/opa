@@ -738,7 +738,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		}
 	}
 
-	if mod.regoVersion.IsCompatible(RegoV1) || mod.regoVersion.IsCompatible(RegoV2) {
+	if mod.regoVersion.Max().level() >= RegoV1.level() {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
 				errs = append(errs, CheckRegoV1(r)...)

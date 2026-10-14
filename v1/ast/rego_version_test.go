@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"slices"
 	"strconv"
 	"testing"
 )
@@ -313,32 +312,5 @@ func TestRegoVersionSpanRaisedTo(t *testing.T) {
 			}
 			assertSpan(t, s, tc.exp)
 		})
-	}
-}
-
-func TestRegoVersionSpanIsCompatible(t *testing.T) {
-	versions := []RegoVersion{RegoUndefined, RegoV0, RegoV0CompatV1, RegoV1, RegoV2}
-
-	tests := []struct {
-		span RegoVersionSpan
-		exp  []RegoVersion
-	}{
-		{span: RegoVersionSpan{}},
-		{span: RegoVersionSpanOf(RegoV0), exp: []RegoVersion{RegoV0}},
-		{span: RegoVersionSpanOf(RegoV0CompatV1), exp: []RegoVersion{RegoV0, RegoV0CompatV1, RegoV1}},
-		{span: RegoVersionSpan{RegoV0, RegoV2}, exp: []RegoVersion{RegoV0, RegoV0CompatV1, RegoV1, RegoV2}},
-		{span: RegoVersionSpanOf(RegoV1), exp: []RegoVersion{RegoV1}},
-		{span: RegoVersionSpan{RegoV1, RegoV2}, exp: []RegoVersion{RegoV1, RegoV2}},
-		{span: RegoVersionSpanOf(RegoV2), exp: []RegoVersion{RegoV2}},
-	}
-
-	for _, tc := range tests {
-		for _, v := range versions {
-			t.Run(tc.span.String()+"/"+v.String(), func(t *testing.T) {
-				if exp, act := slices.Contains(tc.exp, v), tc.span.IsCompatible(v); exp != act {
-					t.Fatalf("expected %v, got %v", exp, act)
-				}
-			})
-		}
 	}
 }
