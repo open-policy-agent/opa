@@ -2,6 +2,8 @@ package compile_test
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -166,6 +168,49 @@ mask.fruit.owner := {"replace": {"value": "***"}}
 				}
 			}
 		})
+	})
+	t.Run("every over a known domain", func(t *testing.T) {
+		for _, tc := range []struct {
+			note   string
+			banned int
+			exp    string
+			err    string
+		}{
+			{note: "unrolled", banned: 2, exp: "WHERE (fruits.name <> E'0' AND fruits.name <> E'1')"},
+			{note: "domain over the limit", banned: 33, err: `"every" not permitted`},
+		} {
+			t.Run(tc.note, func(t *testing.T) {
+				banned := make([]string, tc.banned)
+				for i := range banned {
+					banned[i] = strconv.Itoa(i)
+				}
+				prep, err := compile.New(
+					compile.Target("sql", "postgresql"),
+					compile.ParsedUnknowns(ast.MustParseTerm("input.fruits")),
+					compile.ParsedQuery(ast.MustParseBody("data.filters.include")),
+					compile.Rego(
+						rego.Module("filters.rego", "package filters\ninclude if every g in input.banned { input.fruits.name != g }\n"),
+						rego.Input(map[string]any{"banned": banned}),
+					),
+				).Prepare(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+				filters, err := prep.Compile(t.Context())
+				if tc.err != "" {
+					if err == nil || !strings.Contains(err.Error(), tc.err) {
+						t.Fatalf("expected error containing %q, got %v", tc.err, err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if act := filters.One().Query; act != tc.exp {
+					t.Errorf("expected %q, got %q", tc.exp, act)
+				}
+			})
+		}
 	})
 }
 
