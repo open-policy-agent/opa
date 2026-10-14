@@ -1506,10 +1506,11 @@ func TestExecMalformedRemoteBundle(t *testing.T) {
 		"bundles.test.resource=" + bundlePath,
 	}
 
-	// Note(philipc): We can set this timeout almost arbitrarily high or
-	// low-- the test will time out before it ever succeeds, due to the
-	// faulty bundle.
-	params.Timeout = time.Millisecond * 50
+	// The bundle error is returned as soon as the first download fails, well
+	// before this timeout. It only needs to be long enough for startup and
+	// that download to finish on a slow runner; otherwise the download is
+	// cancelled and the error is "context deadline exceeded" instead.
+	params.Timeout = 10 * time.Second
 
 	params.Paths = append(params.Paths, t.TempDir())
 	err := runExec(params)
