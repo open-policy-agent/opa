@@ -3,7 +3,11 @@
 
 package compile
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
 
 func TestTranslateField(t *testing.T) {
 	tests := []struct {
@@ -65,6 +69,24 @@ func TestTranslateField(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			if act := translateField(tc.field, tc.translations); act != tc.exp {
 				t.Errorf("expected %q, got %q", tc.exp, act)
+			}
+		})
+	}
+}
+
+func TestBodiesToUCASTMirrorsComparison(t *testing.T) {
+	for _, tc := range []struct{ expr, op string }{
+		{`10 < input.fruits.price`, "gt"},
+		{`10 <= input.fruits.price`, "gte"},
+		{`10 > input.fruits.price`, "lt"},
+		{`10 >= input.fruits.price`, "lte"},
+		{`input.fruits.price < 10`, "lt"},
+		{`input.fruits.price >= 10`, "gte"},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			node := BodiesToUCAST([]ast.Body{ast.MustParseBody(tc.expr)}, &Opts{})
+			if node == nil || node.Op != tc.op {
+				t.Errorf("expected operator %q, got %+v", tc.op, node)
 			}
 		})
 	}

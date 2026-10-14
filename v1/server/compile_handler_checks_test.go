@@ -270,7 +270,22 @@ red_herring if true
 		{
 			note:   "happy path, comparison, reversed",
 			rego:   `include if 10 <= input.fruits.price`,
+			result: map[string]any{"type": "field", "field": "fruits.price", "operator": "gte", "value": float64(10)},
+		},
+		{
+			note:   "happy path, comparison, reversed, exclusive",
+			rego:   `include if 10 < input.fruits.price`,
 			result: map[string]any{"type": "field", "field": "fruits.price", "operator": "gt", "value": float64(10)},
+		},
+		{
+			note:   "happy path, comparison, reversed, greater",
+			rego:   `include if 10 >= input.fruits.price`,
+			result: map[string]any{"type": "field", "field": "fruits.price", "operator": "lte", "value": float64(10)},
+		},
+		{
+			note:   "happy path, comparison, reversed, greater, exclusive",
+			rego:   `include if 10 > input.fruits.price`,
+			result: map[string]any{"type": "field", "field": "fruits.price", "operator": "lt", "value": float64(10)},
 		},
 		{
 			note:   "happy path, not-equal",
