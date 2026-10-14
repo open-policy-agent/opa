@@ -786,10 +786,12 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 func (p *Plugin) loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
 	bundleName := getNormalizedBundleName(name)
 
+	// Persisted bundles were downloaded, so they keep the legacy manifest placement.
+	warn := p.log(name).Warn
 	if src != nil {
-		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, src.Signing)
+		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, src.Signing, warn)
 	}
-	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, nil)
+	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, nil, warn)
 }
 
 func (p *Plugin) log(name string) logging.Logger {

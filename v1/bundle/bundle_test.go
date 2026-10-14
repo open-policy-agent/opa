@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestManifestAddRoot(t *testing.T) {
@@ -409,8 +410,9 @@ func TestReadWithBaseDirUnqualifiedWasmResolver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := "/foo/bar/authz/allow/policy.wasm"
-	if len(b.WasmModules) != 1 || b.WasmModules[0].Path != exp {
+	// Wasm paths are bundle-relative, so the resolver matches without rewriting.
+	exp := "/authz/allow/policy.wasm"
+	if len(b.WasmModules) != 1 || b.WasmModules[0].Path != exp || b.WasmModules[0].URL != "/foo/bar"+exp {
 		t.Fatalf("expected wasm module at %q, got %+v", exp, b.WasmModules)
 	}
 	if got := b.Manifest.WasmResolvers[0].Module; got != exp {
@@ -1036,10 +1038,11 @@ func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 		legacyWasmModulePath = filepath.Join(baseDir, legacyWasmModulePath)
 	}
 
+	// Resolver module values and wasm Paths are bundle-relative. URLs keep baseDir.
 	wasmResolverPath := "/authz/allow/policy.wasm"
-	fullWasmResolverPath := wasmResolverPath
-	if baseDir != "" {
-		fullWasmResolverPath = filepath.Join(baseDir, wasmResolverPath)
+	fullWasmResolverPath := filepath.Join(baseDir, wasmResolverPath)
+	if baseDir == "" {
+		fullWasmResolverPath = wasmResolverPath
 	}
 
 	files := [][2]string{
@@ -1051,7 +1054,7 @@ func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 		{"/policy.wasm", `legacy-wasm-module`},
 		{wasmResolverPath, `wasm-module`},
 		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
-		{"/.manifest", fmt.Sprintf(`{"wasm":[{"entrypoint": "authz/allow", "module": "%s"}]}`, fullWasmResolverPath)},
+		{"/.manifest", fmt.Sprintf(`{"wasm":[{"entrypoint": "authz/allow", "module": "%s"}]}`, wasmResolverPath)},
 	}
 
 	buf := archive.MustWriteTarGz(files)
@@ -1079,7 +1082,7 @@ func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 	expManifest.WasmResolvers = []WasmResolver{
 		{
 			Entrypoint: "authz/allow",
-			Module:     fullWasmResolverPath,
+			Module:     wasmResolverPath,
 		},
 	}
 
@@ -1112,12 +1115,12 @@ func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 		WasmModules: []WasmModuleFile{
 			{
 				URL:  legacyWasmModulePath,
-				Path: legacyWasmModulePath,
+				Path: "/policy.wasm",
 				Raw:  []byte(`legacy-wasm-module`),
 			},
 			{
 				URL:         fullWasmResolverPath,
-				Path:        fullWasmResolverPath,
+				Path:        wasmResolverPath,
 				Raw:         []byte("wasm-module"),
 				Entrypoints: []ast.Ref{ast.MustParseRef("data.authz.allow")},
 			},
@@ -1158,13 +1161,6 @@ func TestReadRejectsDuplicateManifests(t *testing.T) {
 			files: [][2]string{
 				{"/.manifest", `{"revision": "from-json"}`},
 				{"/.manifest.pb", string(pbBytes)},
-			},
-		},
-		{
-			note: "two json manifests at different paths (HasSuffix shadowing)",
-			files: [][2]string{
-				{"/.manifest", `{"revision": "from-root"}`},
-				{"/sub/release.manifest", `{"revision": "from-sub"}`},
 			},
 		},
 	}
@@ -1381,7 +1377,8 @@ func TestReadWithSignatures(t *testing.T) {
 }
 
 func TestReadWithSignaturesWithBaseDir(t *testing.T) {
-	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvbyJ9.eyJmaWxlcyI6W3sibmFtZSI6ImZvby9iYXIvLm1hbmlmZXN0IiwiaGFzaCI6IjUwN2EyYzM4YTE0NDFkYjU4ZDJjYjg3OTgyYzQyYWE5MWE0MzQyZWY0MjJhNmI1NDJlZGRlYmVlZjZmMDQxMmYiLCJhbGdvcml0aG0iOiJTSEEtMjU2In0seyJuYW1lIjoiZm9vL2Jhci9hL2IvYy9kYXRhLmpzb24iLCJoYXNoIjoiYTYxNWVlYWVlMjFkZTUxNzlkZTA4MGRlOGMzMDUyYzhkYTkwMTEzODQwNmJhNzFjMzhjMDMyODQ1ZjdkNTRmNCIsImFsZ29yaXRobSI6IlNIQS0yNTYifSx7Im5hbWUiOiJmb28vYmFyL2h0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImY2NjQ0NjFlMzAzYjM3YzIwYzVlMGJlMjkwMDg4MTY3OGNkZjhlODYwYWE0MzNhNWExNGQ0OTRiYTNjNjY2NDkiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJzY29wZSI6IndyaXRlIn0.qTHkuBDVuT-Zl5pbJdZ6LoJ9eooFOhhpRdCheauDrlA`
+	// Signature names are bundle-relative, never prefixed by the base dir.
+	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvbyJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI1MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiJhNjE1ZWVhZWUyMWRlNTE3OWRlMDgwZGU4YzMwNTJjOGRhOTAxMTM4NDA2YmE3MWMzOGMwMzI4NDVmN2Q1NGY0IiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6Imh0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImY2NjQ0NjFlMzAzYjM3YzIwYzVlMGJlMjkwMDg4MTY3OGNkZjhlODYwYWE0MzNhNWExNGQ0OTRiYTNjNjY2NDkiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJzY29wZSI6IndyaXRlIn0.DMgdfdn8HfmkZVGH0C38EWhexXMq7R5nL-VAwbtRy5k`
 
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
@@ -1454,9 +1451,9 @@ func TestIsStructuredDoc(t *testing.T) {
 }
 
 func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
-	// The signatures file is matched by basename (".signatures.json"), like the
-	// manifest, so it is found under any prefix. Similarly named files are
-	// content, and a second signatures file is rejected when verifying.
+	// The signatures file is matched by basename (".signatures.json") but must
+	// be at the bundle root. Similarly named files are content, and a second
+	// signatures file is rejected when verifying.
 	descriptorHasPath := func(descs []*Descriptor, want string) bool {
 		for _, d := range descs {
 			if d.Path() == want {
@@ -1475,7 +1472,7 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 			{"/data.json", `{"x":4}`},
 		}
 		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
-		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes)
+		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes, NewCustomReader(loader).checkRootFile)
 		if err != nil {
 			t.Fatalf("preProcessBundle: %v", err)
 		}
@@ -1492,13 +1489,14 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 		}
 	})
 
-	t.Run("signatures file is found under a wrapping directory", func(t *testing.T) {
+	t.Run("signatures file under a wrapping directory is accepted in legacy mode", func(t *testing.T) {
 		files := [][2]string{
 			{"/mybundle/.signatures.json", `{"plugin":"real"}`},
 			{"/mybundle/data.json", `{"x":1}`},
 		}
 		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
-		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes)
+		r := NewCustomReader(loader).WithLegacyManifestPlacement(func(string, ...any) {})
+		b, descs, err := preProcessBundle(loader, false, DefaultSizeLimitBytes, r.checkRootFile)
 		if err != nil {
 			t.Fatalf("preProcessBundle: %v", err)
 		}
@@ -1513,26 +1511,27 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 		}
 	})
 
-	t.Run("multiple signatures files are rejected when verifying", func(t *testing.T) {
+	t.Run("duplicate root signatures files are rejected when verifying", func(t *testing.T) {
 		files := [][2]string{
 			{"/.signatures.json", `{"plugin":"real"}`},
-			{"/sub/.signatures.json", `{"plugin":"other"}`},
+			{"/.signatures.json", `{"plugin":"other"}`},
 			{"/data.json", `{"x":1}`},
 		}
 		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
-		if _, _, err := preProcessBundle(loader, false, DefaultSizeLimitBytes); err == nil || !strings.Contains(err.Error(), "multiple signatures files") {
+		if _, _, err := preProcessBundle(loader, false, DefaultSizeLimitBytes, NewCustomReader(loader).checkRootFile); err == nil || !strings.Contains(err.Error(), "multiple signatures files") {
 			t.Fatalf("expected multiple signatures files error, got %v", err)
 		}
 	})
 
-	t.Run("multiple signatures files are tolerated under skip-verify", func(t *testing.T) {
+	t.Run("duplicate and nested signatures files are dropped under skip-verify", func(t *testing.T) {
 		files := [][2]string{
 			{"/.signatures.json", `{"plugin":"real"}`},
-			{"/sub/.signatures.json", `{"plugin":"other"}`},
+			{"/.signatures.json", `{"plugin":"other"}`},
+			{"/sub/.signatures.json", `{"plugin":"nested"}`},
 			{"/data.json", `{"x":1}`},
 		}
 		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
-		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes)
+		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes, NewCustomReader(loader).checkRootFile)
 		if err != nil {
 			t.Fatalf("skipVerify should tolerate multiple signatures files, got %v", err)
 		}
@@ -1556,7 +1555,7 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 			{"/data.json", `{"x":2}`},
 		}
 		loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")
-		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes)
+		b, descs, err := preProcessBundle(loader, true, DefaultSizeLimitBytes, NewCustomReader(loader).checkRootFile)
 		if err != nil {
 			t.Fatalf("preProcessBundle: %v", err)
 		}
@@ -3030,7 +3029,7 @@ func TestHashBundleFiles(t *testing.T) {
 				})
 			}
 
-			f, err := hashBundleFiles(h, &Bundle{Data: tc.data, Manifest: tc.manifest, Wasm: tc.wasm, PlanModules: plans})
+			f, err := hashBundleFiles(h, &Bundle{Data: tc.data, Manifest: tc.manifest, Wasm: tc.wasm, PlanModules: plans}, false)
 			if err != nil {
 				t.Fatal("Unexpected error:", err)
 			}
@@ -3610,4 +3609,146 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReaderManifestPlacement(t *testing.T) {
+	const rootErr = "must be at the bundle root"
+
+	type result struct {
+		b     Bundle
+		warns []string
+		err   error
+	}
+	read := func(files [][2]string, legacy, skipVerify bool) result {
+		var res result
+		r := NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+			WithSkipBundleVerification(skipVerify)
+		if legacy {
+			r = r.WithLegacyManifestPlacement(func(f string, a ...any) {
+				res.warns = append(res.warns, fmt.Sprintf(f, a...))
+			})
+		}
+		res.b, res.err = r.Read()
+		return res
+	}
+
+	nested := [][2]string{
+		{"/bundle/.manifest", `{"revision": "rev1"}`},
+		{"/bundle/data.json", `{"x": 1}`},
+	}
+
+	t.Run("strict rejects nested manifest", func(t *testing.T) {
+		res := read(nested, false, false)
+		if res.err == nil || !strings.Contains(res.err.Error(), rootErr) {
+			t.Fatalf("expected %q error, got %v", rootErr, res.err)
+		}
+	})
+
+	t.Run("legacy loads nested manifest with one warning", func(t *testing.T) {
+		res := read(nested, true, false)
+		if res.err != nil {
+			t.Fatal(res.err)
+		}
+		if res.b.Manifest.Revision != "rev1" {
+			t.Errorf("expected revision rev1, got %q", res.b.Manifest.Revision)
+		}
+		exp := map[string]any{"bundle": map[string]any{"x": json.Number("1")}}
+		if !reflect.DeepEqual(res.b.Data, exp) {
+			t.Errorf("expected data %v, got %v", exp, res.b.Data)
+		}
+		if len(res.warns) != 1 {
+			t.Fatalf("expected 1 warning, got %v", res.warns)
+		}
+		for _, s := range []string{"bundle/.manifest", "is expected at the bundle root", "will fail to load in a future OPA release"} {
+			if !strings.Contains(res.warns[0], s) {
+				t.Errorf("expected warning to contain %q, got %q", s, res.warns[0])
+			}
+		}
+	})
+
+	t.Run("legacy accepts nested signatures and patch with one warning each", func(t *testing.T) {
+		res := read([][2]string{
+			{"/.manifest", `{}`},
+			{"/sub/.signatures.json", `{"plugin":"other"}`},
+		}, true, true)
+		if res.err != nil {
+			t.Fatal(res.err)
+		}
+		if len(res.warns) != 1 || !strings.Contains(res.warns[0], "sub/.signatures.json") {
+			t.Errorf("expected one signatures warning, got %v", res.warns)
+		}
+
+		res = read([][2]string{
+			{"/.manifest", `{"roots": ["a"]}`},
+			{"/sub/patch.json", `{"data": [{"op": "add", "path": "/a/b", "value": 1}]}`},
+		}, true, false)
+		if res.err != nil {
+			t.Fatal(res.err)
+		}
+		if len(res.warns) != 1 || !strings.Contains(res.warns[0], "sub/patch.json") {
+			t.Errorf("expected one patch warning, got %v", res.warns)
+		}
+		if len(res.b.Patch.Data) != 1 {
+			t.Errorf("expected patch to be decoded, got %v", res.b.Patch)
+		}
+	})
+
+	t.Run("strict rejects nested signatures and patch", func(t *testing.T) {
+		for _, f := range []string{"/sub/.signatures.json", "/sub/patch.json"} {
+			res := read([][2]string{{"/.manifest", `{}`}, {f, `{}`}}, false, false)
+			if res.err == nil || !strings.Contains(res.err.Error(), rootErr) {
+				t.Errorf("%s: expected %q error, got %v", f, rootErr, res.err)
+			}
+		}
+	})
+
+	t.Run("suffix-named manifest is the manifest only in legacy mode", func(t *testing.T) {
+		files := [][2]string{{"/foo.manifest", `{"revision": "rev1"}`}}
+
+		res := read(files, false, false)
+		if res.err != nil {
+			t.Fatal(res.err)
+		}
+		if res.b.Manifest.Revision != "" {
+			t.Errorf("strict mode must ignore foo.manifest, got revision %q", res.b.Manifest.Revision)
+		}
+
+		res = read(files, true, false)
+		if res.err != nil {
+			t.Fatal(res.err)
+		}
+		if res.b.Manifest.Revision != "rev1" {
+			t.Errorf("legacy mode must read foo.manifest, got revision %q", res.b.Manifest.Revision)
+		}
+	})
+}
+
+func TestGenerateSignatureWasmModuleNamesFollowWriter(t *testing.T) {
+	test.WithTempFS(map[string]string{
+		"/dir//sub/.manifest":  `{}`,
+		"/dir/sub/data.json":   `{"x": 1}`,
+		"/dir/sub/policy.wasm": "wasm-module",
+		"/dir/sub/p/plan.json": `{}`,
+	}, func(root string) {
+		loader := NewDirectoryLoader(filepath.Join(root, "dir") + "//sub/")
+		b, err := NewCustomReader(loader).WithSkipBundleVerification(true).Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b.WasmModules) != 1 {
+			t.Fatalf("expected one wasm module, got %d", len(b.WasmModules))
+		}
+
+		if err := b.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := NewWriter(&buf).Write(b); err != nil {
+			t.Fatal(err)
+		}
+		vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "", nil)
+		if _, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read(); err != nil {
+			t.Fatalf("expected signed bundle to verify, got %v", err)
+		}
+	})
 }

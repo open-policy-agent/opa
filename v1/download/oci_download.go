@@ -308,7 +308,8 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		WithBundleEtag(etag).
 		WithRegoVersion(d.bundleParserOpts.RegoVersion).
 		WithProcessAnnotations(d.bundleParserOpts.ProcessAnnotation).
-		WithBundlePersistence(d.persist)
+		WithBundlePersistence(d.persist).
+		WithLegacyManifestPlacement(d.logger.Warn)
 
 	if d.sizeLimitBytes != nil {
 		reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)

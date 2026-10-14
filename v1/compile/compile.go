@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -20,6 +21,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/planner"
@@ -449,11 +451,12 @@ func (c *Compiler) Build(ctx context.Context) error {
 			return err
 		}
 
-		c.bundle.PlanModules = append(c.bundle.PlanModules, bundle.PlanModuleFile{
+		// The new plan replaces any plans from input bundles, which are stale.
+		c.bundle.PlanModules = []bundle.PlanModuleFile{{
 			Path: planPath,
 			URL:  planPath,
 			Raw:  bs,
-		})
+		}}
 	case TargetRego:
 		// nop
 	}
@@ -584,13 +587,33 @@ func (c *Compiler) initBundle(usePath bool) error {
 		names := util.KeysSorted(load.Bundles)
 
 		bundles := make([]*bundle.Bundle, 0, len(names))
+		prefixes := make(map[string]string, len(names))
 		for _, k := range names {
+			// Merged bundles are placed under the path they were loaded from.
+			var prefix string
+			if len(names) > 1 {
+				if prefix, err = bundleUtils.MergedBundlePrefix(k); err != nil {
+					return err
+				}
+				if other, ok := prefixes[prefix]; ok {
+					return fmt.Errorf("bundles %q and %q would both be placed under %q", other, k, prefix)
+				}
+				prefixes[prefix] = k
+			}
+			placeBundle(load.Bundles[k], prefix)
 			bundles = append(bundles, load.Bundles[k])
 		}
 
 		result, err := bundle.MergeWithRegoVersion(bundles, c.regoVersion, usePath)
 		if err != nil {
 			return fmt.Errorf("bundle merge failed: %v", err)
+		}
+
+		// Merging needed the pre-merge paths. Now match the merged manifest's file_rego_versions keys.
+		for i := range result.Modules {
+			if result.Modules[i].RelativePath != "" {
+				result.Modules[i].RelativePath = result.Modules[i].URL
+			}
 		}
 
 		c.bundle = result
@@ -622,6 +645,34 @@ func (c *Compiler) initBundle(usePath bool) error {
 	c.bundle = result
 
 	return nil
+}
+
+// placeBundle sets the output paths of the bundle's files relative to its
+// root, under prefix. Module disk paths are kept for error reporting.
+func placeBundle(b *bundle.Bundle, prefix string) {
+	for i := range b.Modules {
+		if b.Modules[i].RelativePath != "" {
+			b.Modules[i].URL = path.Join("/", prefix, b.Modules[i].RelativePath)
+		}
+	}
+	// Wasm and plan paths are already relative to the bundle root.
+	for i := range b.WasmModules {
+		if prefix != "" {
+			b.WasmModules[i].Path = path.Join("/", prefix, b.WasmModules[i].Path)
+		}
+		b.WasmModules[i].URL = b.WasmModules[i].Path
+	}
+	for i := range b.PlanModules {
+		if prefix != "" {
+			b.PlanModules[i].Path = path.Join("/", prefix, b.PlanModules[i].Path)
+		}
+		b.PlanModules[i].URL = b.PlanModules[i].Path
+	}
+	if prefix != "" {
+		for i := range b.Manifest.WasmResolvers {
+			b.Manifest.WasmResolvers[i].Module = path.Join("/", prefix, b.Manifest.WasmResolvers[i].Module)
+		}
+	}
 }
 
 func (c *Compiler) optimize(ctx context.Context) error {
@@ -806,6 +857,10 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}}
 
 	flattenedAnnotations := c.compiler.GetAnnotationSet().Flatten()
+
+	// The new module replaces any wasm modules from input bundles, so their
+	// resolvers are stale too.
+	c.bundle.Manifest.WasmResolvers = nil
 
 	// Each entrypoint needs an entry in the manifest
 	for i, e := range c.entrypointrefs {
@@ -1302,16 +1357,27 @@ func (o *optimizer) getSupportModuleFilename(used map[string]int, module *ast.Mo
 
 	if err == nil && safePathPattern.MatchString(fileName) {
 		fileName = o.outputprefix + "/" + fileName
-		uniqueFileName := fileName
-		if c, ok := used[fileName]; ok {
-			uniqueFileName += fmt.Sprintf(".%d", c)
+		uniqueFileName := fileName + ".rego"
+		if c := used[fileName]; c > 0 {
+			uniqueFileName = fmt.Sprintf("%s.%d.rego", fileName, c)
 		}
 		used[fileName]++
-		uniqueFileName += ".rego"
+		// Bundle module URLs have a leading slash, so compare normalized names.
+		for o.moduleExists(uniqueFileName) {
+			uniqueFileName = fmt.Sprintf("%s.%d.rego", fileName, used[fileName])
+			used[fileName]++
+		}
 		return uniqueFileName
 	}
 
 	return fmt.Sprintf("%v/%v/%v/%v.rego", o.outputprefix, o.nsprefix, entrypointIndex, supportIndex)
+}
+
+func (o *optimizer) moduleExists(name string) bool {
+	name = path.Clean("/" + name)
+	return slices.ContainsFunc(o.bundle.Modules, func(mf bundle.ModuleFile) bool {
+		return path.Clean("/"+mf.URL) == name
+	})
 }
 
 var safePathPattern = regexp.MustCompile(`^[\w-_/]+$`)
@@ -1319,11 +1385,14 @@ var safePathPattern = regexp.MustCompile(`^[\w-_/]+$`)
 func compile(c *ast.Capabilities, b *bundle.Bundle, dbg debug.Debug, enablePrintStatements bool) (*ast.Compiler, error) {
 
 	modules := map[string]*ast.Module{}
+	seen := map[string]struct{}{}
 
 	for _, mf := range b.Modules {
-		if _, ok := modules[mf.URL]; ok {
+		normalized := path.Clean("/" + mf.URL)
+		if _, ok := seen[normalized]; ok {
 			return nil, fmt.Errorf("duplicate module URL: %s", mf.URL)
 		}
+		seen[normalized] = struct{}{}
 
 		modules[mf.URL] = mf.Parsed
 	}

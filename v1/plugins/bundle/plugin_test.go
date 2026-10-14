@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/download"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
+	testLog "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/runtime/info"
@@ -5321,6 +5323,51 @@ func TestLoadBundleFromDisk(t *testing.T) {
 
 	if !result.Equal(b) {
 		t.Fatal("expected the test bundle to be equal to the one loaded from disk")
+	}
+}
+
+func TestLoadBundleFromDiskLegacyManifestPlacement(t *testing.T) {
+	t.Parallel()
+
+	logger := testLog.New()
+	manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.Logger(logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugin := New(&Config{}, manager)
+
+	dir := t.TempDir()
+	bundleDir := filepath.Join(dir, "foo")
+	if err := os.MkdirAll(bundleDir, os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	tarball := archive.MustWriteTarGz([][2]string{
+		{"bundle/.manifest", `{"revision":"legacy"}`},
+		{"bundle/data.json", `{"a":1}`},
+	})
+	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), tarball.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := plugin.loadBundleFromDisk(dir, "foo", nil)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	exp := map[string]any{"bundle": map[string]any{"a": json.Number("1")}}
+	if !reflect.DeepEqual(exp, result.Data) {
+		t.Fatalf("expected data %v, got %v", exp, result.Data)
+	}
+
+	var warned bool
+	for _, e := range logger.Entries() {
+		if e.Level == logging.Warn && strings.Contains(e.Message, "is expected at the bundle root") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Fatal("expected deprecation warning to be logged")
 	}
 }
 

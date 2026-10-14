@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -128,7 +129,8 @@ func TestBundleSignVerification(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				filesInBundle = append(filesInBundle, [2]string{path, string(bs)})
+				// Entries are relative to the bundle root, as opa build writes them.
+				filesInBundle = append(filesInBundle, [2]string{strings.TrimPrefix(path, rootDir), string(bs)})
 			}
 			return nil
 		})
@@ -173,7 +175,7 @@ func TestReadBundleFilesTreatsMisnamedSignatureFilesAsContent(t *testing.T) {
 			t.Fatalf("NewSignatureHasher: %v", err)
 		}
 
-		got, err := readBundleFiles(load.BundlesLoader, hash)
+		got, err := readBundleFiles([]string{rootDir}, load.BundlesLoader, hash)
 		if err != nil {
 			t.Fatalf("readBundleFiles: %v", err)
 		}
@@ -191,6 +193,78 @@ func TestReadBundleFilesTreatsMisnamedSignatureFilesAsContent(t *testing.T) {
 		}
 		if signed[".signatures.json"] {
 			t.Errorf("root .signatures.json must be skipped when signing; got %v", signed)
+		}
+	})
+}
+
+func TestReadBundleFilesNames(t *testing.T) {
+	files := map[string]string{
+		"a/.manifest":           `{"roots": ["a"]}`,
+		"a/data.json":           `{"a": 1}`,
+		"b/.manifest":           `{"roots": ["b"]}`,
+		"b/data.json":           `{"b": 1}`,
+		"n/outside.json":        `{"o": 1}`,
+		"n/sub/.manifest":       `{"revision": "r1"}`,
+		"n/sub/bar/data.json":   `{"y": 2}`,
+		"n/sub/example/ex.rego": `package example`,
+	}
+
+	tests := []struct {
+		note   string
+		paths  []string
+		exp    []string
+		expErr string
+	}{
+		{
+			note:  "multiple paths are prefixed",
+			paths: []string{"a", "b"},
+			exp:   []string{"a/.manifest", "a/data.json", "b/.manifest", "b/data.json"},
+		},
+		{
+			note:  "nested manifest roots names at its directory",
+			paths: []string{"n"},
+			exp:   []string{".manifest", "bar/data.json", "example/ex.rego"},
+		},
+		{
+			note:   "duplicate prefix",
+			paths:  []string{"a", "./a/"},
+			expErr: "would both be placed under",
+		},
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		t.Chdir(rootDir)
+
+		hash, err := bundle.NewSignatureHasher(defaultHashingAlg)
+		if err != nil {
+			t.Fatalf("NewSignatureHasher: %v", err)
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.note, func(t *testing.T) {
+				load, err := initload.WalkPaths(tc.paths, nil, true)
+				if err != nil {
+					t.Fatalf("WalkPaths: %v", err)
+				}
+				got, err := readBundleFiles(tc.paths, load.BundlesLoader, hash)
+				if tc.expErr != "" {
+					if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+						t.Fatalf("expected error %q, got %v", tc.expErr, err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("readBundleFiles: %v", err)
+				}
+				names := make([]string, 0, len(got))
+				for _, fi := range got {
+					names = append(names, fi.Name)
+				}
+				slices.Sort(names)
+				if !slices.Equal(names, tc.exp) {
+					t.Fatalf("expected %v, got %v", tc.exp, names)
+				}
+			})
 		}
 	})
 }

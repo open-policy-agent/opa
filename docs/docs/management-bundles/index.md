@@ -65,6 +65,12 @@ Finally, you can also sign your bundle with `opa build`.
 opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo/
 ```
 
+When multiple bundles are provided (e.g., `opa build -b foo/ -b bar/`), they are merged into
+a single bundle. The files of each input bundle are placed under the path it was provided with
+(e.g., `/foo/...` and `/bar/...`), and a new `.manifest` is written at the root of the result.
+Leading `..` segments are replaced with the name of the directory they refer to, so
+`opa build -b ../foo/ -b bar/` run from `/src/app` places files under `/src/foo/...` and `/bar/...`.
+
 For more information, see the [`opa build` command documentation.](./cli/#build)
 
 ## Bundle Service API
@@ -298,7 +304,38 @@ $ opa eval -b bundle.tar.gz data --format=raw
 ```
 
 Bundle files may contain an optional `.manifest` file that stores bundle
-metadata. The file should contain a JSON serialized object, with the following
+metadata.
+
+The directory containing the `.manifest` file is the root of the bundle. All
+paths in the bundle are relative to it, including the file names in
+`.signatures.json` and the paths in the manifest's `file_rego_versions` and
+`wasm` fields. If there is no `.manifest`, the top-level directory is the
+bundle root. The `.manifest`, `.signatures.json`, and `patch.json` files must
+be at the bundle root.
+
+When OPA loads a bundle directory (e.g., `opa build -b foo/` or `opa run -b foo/`),
+it uses the directory containing the `.manifest` file as the bundle root, even
+when that directory is nested below the provided path. Files outside of that
+directory are not part of the bundle. `opa build` and `opa sign` warn about any
+policy or data files they leave out, but other commands (e.g., `opa eval`,
+`opa run`, `opa test`) do not. A bundle directory must not contain manifests in
+more than one directory, so keep other `.manifest` files (e.g., in test
+fixtures) out of directories that you load as bundles.
+
+Bundle tarballs must have the `.manifest` file at the root of the archive, which
+is where `opa build` writes it. Tarballs loaded from disk with a nested manifest
+are rejected.
+
+:::warning
+For compatibility, bundles that the bundle plugin downloads over HTTP or from
+an OCI registry (including their persisted copies) are still loaded as they were before when a `.manifest`,
+`.signatures.json`, or `patch.json` file is not at the root of the archive,
+and OPA logs a warning each time such a bundle is loaded. These bundles will
+fail to load in a future OPA release. Rebuild them with `opa build` to place
+the manifest at the root.
+:::
+
+The `.manifest` file should contain a JSON serialized object, with the following
 fields:
 
 - `revision` - If the bundle service is capable of serving different revisions of the same
@@ -555,7 +592,7 @@ following form:
 
 | Field                | Type     | Required | Description                                                                         |
 | -------------------- | -------- | -------- | ----------------------------------------------------------------------------------- |
-| `files[_].name`      | `string` | Yes      | Path of a file in the bundle.                                                       |
+| `files[_].name`      | `string` | Yes      | Path of a file, relative to the bundle root.                                        |
 | `files[_].hash`      | `string` | Yes      | Output of the hashing algorithm applied to the file.                                |
 | `files[_].algorithm` | `string` | Yes      | Name of the hashing algorithm.                                                      |
 | `scope`              | `string` | No       | Represents the fragment of signings.                                                |

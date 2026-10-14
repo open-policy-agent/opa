@@ -49,6 +49,54 @@ See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles
 
 Authored by @johanfylling
 
+### Bundles are rooted at their `.manifest` file
+
+Breaking change: OPA now treats the directory containing a bundle's `.manifest` file as the bundle root, as the
+[bundle documentation](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format) describes.
+Previously, the root depended on the path a bundle was loaded from, which made bundle contents, data placement,
+and signatures depend on how a path was typed.
+
+- **Bundle directories** (`opa build -b`, `opa run -b`, `opa eval -b`, `opa sign --bundle`, ...) are rooted at
+  the directory containing `.manifest`, even when it is nested below the provided path. Files above it are not
+  part of the bundle. `opa build` and `opa sign` warn about policy and data files they leave out, but other
+  commands do not, so keep other `.manifest` files (e.g., test fixtures) out of directories loaded as bundles.
+- **Bundle tarballs** loaded from disk must have `.manifest` at the root of the archive. `opa build` always writes
+  it there.
+- **Signatures**: file names in `.signatures.json` are relative to the bundle root, with `/` separators on every
+  platform. Bundles signed by `opa sign <dir>` or `opa build -b <dir>` with older OPA versions must be re-signed,
+  and `--exclude-files-verify` patterns may need updating.
+- **`opa build` with multiple bundles** places each bundle's files under the path it was given with `-b`, with a
+  new `.manifest` at the root. Leading `..` segments are replaced with the name of the directory they refer to.
+  Merging fails when two bundles would be placed under the same path. `opa sign` with multiple bundle paths
+  names files under each bundle's path, like `opa build` does when merging. A merged `opa build` output has its
+  own new `.manifest`, so signatures from multiple separate source bundles cannot be used to verify a merged build.
+- **`opa build -t plan` and `-t wasm`** replace any plan, or wasm resolvers that were carried in from the input bundles.
+- `.manifest`, `.signatures.json`, and `patch.json` must be at the bundle root, and only files named exactly
+  `.manifest` are treated as manifests.
+
+For example, consider this tarball, built without `opa build`:
+
+```console
+$ tar tzf bundle.tar.gz
+bundle/.manifest
+bundle/data.json
+bundle/authz.rego
+```
+
+Previously, `opa run -b bundle.tar.gz` loaded it with `bundle/data.json` placed under `data.bundle`. It is now
+rejected because `.manifest` is not at the root of the archive. Running `opa build -b bundle/` on the extracted
+directory produces a bundle rooted at `bundle/`, with `data.json` placed at the root of `data`.
+
+To avoid breaking existing deployments, bundles that the bundle plugin downloads over HTTP or from an OCI registry
+(and their persisted copies) are still loaded as before, and OPA logs a warning each time a bundle with a misplaced `.manifest`, `.signatures.json`,
+or `patch.json` is loaded. **These bundles will fail to load in a future OPA release.** Rebuild them with
+`opa build` to place the manifest at the root.
+
+Go API: the `bundle.Reader` expects bundle-relative descriptor paths, so directory loaders configured with the
+`SlashRooted` or `Passthrough` path formats now have their manifests rejected. When `Reader.WithBaseDir` is used,
+module paths include the manifest's directory, which directory loaders report through a `RootOffset() string`
+method. Custom loaders that wrap a directory loader should forward `RootOffset`.
+
 ### Stricter handling of bundle signature filenames ([#9300](https://github.com/open-policy-agent/opa/pull/9300))
 
 Breaking change: We have corrected a long-standing bug in bundle signing and verification, which will cause bundles containing files matching the suffix pattern `*signatures.json` to no longer pass verification in newer versions of OPA.

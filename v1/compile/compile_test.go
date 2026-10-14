@@ -1,10 +1,13 @@
 package compile
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"maps"
 	"os"
@@ -15,6 +18,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -189,6 +193,14 @@ func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 			b, err := loader.NewFileLoader().WithFS(fsys).AsBundle(root2)
 			if err != nil {
 				panic(err)
+			}
+
+			// Merged bundles are placed under the path they were given.
+			for i := range a.Modules {
+				a.Modules[i].URL = path.Join("/", filepath.ToSlash(root1), a.Modules[i].RelativePath)
+			}
+			for i := range b.Modules {
+				b.Modules[i].URL = path.Join("/", filepath.ToSlash(root2), b.Modules[i].RelativePath)
 			}
 
 			exp, err := bundle.Merge([]*bundle.Bundle{a, b})
@@ -3192,6 +3204,284 @@ func TestCompilerSetMetadata(t *testing.T) {
 	}
 }
 
+func TestCompilerMultipleBundlePlacement(t *testing.T) {
+	rv := strconv.Itoa(ast.RegoV1.Int())
+	defaultFiles := map[string]string{
+		"a/.manifest": `{"roots": ["a"], "rego_version": ` + rv + `, "file_rego_versions": {"/x.rego": 0}}`,
+		"a/x.rego":    "package a\n\np = 1\n",
+		"b/.manifest": `{"roots": ["b"], "rego_version": ` + rv + `}`,
+		"b/y.rego":    "package b\n\nq := 1\n",
+	}
+	wasmFiles := map[string]string{
+		"w/.manifest":   `{"roots": ["w"], "rego_version": ` + rv + `, "wasm": [{"entrypoint": "w/p", "module": "/policy.wasm"}]}`,
+		"w/policy.wasm": "not-really-wasm",
+		"x/.manifest":   `{"roots": ["x"], "rego_version": ` + rv + `}`,
+		"x/y.rego":      "package x\n\nq := 1\n",
+	}
+
+	// Prefixes are the paths as typed, so expected names may depend on root.
+	abs := func(root string) string { return path.Join("/", filepath.ToSlash(root)) }
+
+	tests := []struct {
+		note  string
+		files map[string]string
+		cwd   string
+		paths func(root string) []string
+		exp   func(root string) []string
+		err   string
+	}{
+		{
+			note:  "absolute paths",
+			paths: func(root string) []string { return []string{filepath.Join(root, "a"), filepath.Join(root, "b")} },
+			exp: func(root string) []string {
+				return []string{"/.manifest", "/data.json", abs(root) + "/a/x.rego", abs(root) + "/b/y.rego"}
+			},
+		},
+		{
+			note: "file URLs",
+			paths: func(root string) []string {
+				return []string{"file://" + filepath.ToSlash(filepath.Join(root, "a")), "file://" + filepath.ToSlash(filepath.Join(root, "b"))}
+			},
+			exp: func(root string) []string {
+				return []string{"/.manifest", "/data.json", abs(root) + "/a/x.rego", abs(root) + "/b/y.rego"}
+			},
+		},
+		{
+			note:  "wasm modules and resolvers",
+			files: wasmFiles,
+			cwd:   ".",
+			paths: func(string) []string { return []string{"w", "x"} },
+			exp: func(string) []string {
+				return []string{"/.manifest", "/data.json", "/w/policy.wasm", "/x/y.rego"}
+			},
+		},
+		{
+			note:  "single bundle with wasm",
+			files: wasmFiles,
+			paths: func(root string) []string { return []string{filepath.Join(root, "w")} },
+			exp:   func(string) []string { return []string{"/.manifest", "/data.json", "/policy.wasm"} },
+		},
+		{
+			note:  "duplicate prefix with trailing slash",
+			cwd:   ".",
+			paths: func(string) []string { return []string{"a", "a/"} },
+			err:   "would both be placed under",
+		},
+		{
+			note:  "duplicate prefix with dot",
+			cwd:   ".",
+			paths: func(string) []string { return []string{"a", "./a/."} },
+			err:   "would both be placed under",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := defaultFiles
+			if tc.files != nil {
+				files = tc.files
+			}
+			test.WithTempFS(files, func(root string) {
+				if tc.cwd != "" {
+					t.Chdir(filepath.Join(root, tc.cwd))
+				}
+				buf := bytes.NewBuffer(nil)
+				compiler := New().WithPaths(tc.paths(root)...).WithAsBundle(true).WithOutput(buf)
+				err := compiler.Build(t.Context())
+				if tc.err != "" {
+					if err == nil || !strings.Contains(err.Error(), tc.err) {
+						t.Fatalf("expected error containing %q, got %v", tc.err, err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				exp := tc.exp(root)
+				slices.Sort(exp)
+				if names := tarEntryNames(t, buf); !slices.Equal(names, exp) {
+					t.Fatalf("expected entries %v but got %v", exp, names)
+				}
+
+				// RelativePath must match the merged manifest's file_rego_versions keys.
+				for _, m := range compiler.bundle.Modules {
+					if m.RelativePath != m.URL {
+						t.Errorf("expected RelativePath %q to equal URL %q", m.RelativePath, m.URL)
+					}
+					expV := ast.RegoV1
+					if strings.HasSuffix(m.URL, "/a/x.rego") {
+						expV = ast.RegoV0
+					}
+					if got, err := compiler.bundle.RegoVersionForFile(m.RelativePath, ast.RegoUndefined); err != nil || got != expV {
+						t.Errorf("%s: expected rego version %v, got %v (err: %v)", m.URL, expV, got, err)
+					}
+				}
+				for _, m := range compiler.bundle.WasmModules {
+					if m.URL != m.Path {
+						t.Errorf("expected wasm URL %q to equal Path %q", m.URL, m.Path)
+					}
+				}
+				if tc.note == "wasm modules and resolvers" {
+					rs := compiler.bundle.Manifest.WasmResolvers
+					if len(rs) != 1 || rs[0].Module != "/w/policy.wasm" {
+						t.Fatalf("unexpected wasm resolvers: %+v", rs)
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestCompilerTargetReplacesInheritedArtifacts(t *testing.T) {
+	rv := strconv.Itoa(ast.DefaultRegoVersion.Int())
+	files := map[string]string{
+		"w/.manifest": `{"roots": ["w"], "rego_version": ` + rv + `}`,
+		"w/w.rego":    "package w\n\np := 1\n",
+		"x/.manifest": `{"roots": ["x"], "rego_version": ` + rv + `}`,
+		"x/x.rego":    "package x\n\nq := 1\n",
+	}
+	caps := wasmABIVersions(ast.WasmABIVersion{Version: 1})
+
+	tests := []struct {
+		note   string
+		target string
+		paths  []string
+		entry  string
+		check  func(t *testing.T, out *bytes.Buffer)
+	}{
+		{
+			note:   "plan",
+			target: TargetPlan,
+			paths:  []string{"in.tar.gz"},
+			entry:  "w/p",
+			check: func(t *testing.T, out *bytes.Buffer) {
+				var plans []string
+				for _, n := range tarEntryNames(t, out) {
+					if strings.HasSuffix(n, "plan.json") {
+						plans = append(plans, n)
+					}
+				}
+				if !slices.Equal(plans, []string{"/plan.json"}) {
+					t.Fatalf("expected exactly one plan entry, got %v", plans)
+				}
+			},
+		},
+		{
+			note:   "wasm",
+			target: TargetWasm,
+			paths:  []string{"in.tar.gz", "x"},
+			entry:  "x/q",
+			check: func(t *testing.T, out *bytes.Buffer) {
+				b, err := bundle.NewReader(out).Read()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(b.Manifest.WasmResolvers) != 1 || b.Manifest.WasmResolvers[0].Entrypoint != "x/q" {
+					t.Fatalf("expected only the x/q resolver, got %+v", b.Manifest.WasmResolvers)
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(files, func(root string) {
+				t.Chdir(root)
+
+				first := bytes.NewBuffer(nil)
+				err := New().WithPaths("w").WithTarget(tc.target).WithEntrypoints("w/p").
+					WithRoots("w").WithCapabilities(caps).WithOutput(first).Build(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile("in.tar.gz", first.Bytes(), 0o600); err != nil {
+					t.Fatal(err)
+				}
+
+				second := bytes.NewBuffer(nil)
+				err = New().WithPaths(tc.paths...).WithAsBundle(true).WithTarget(tc.target).
+					WithEntrypoints(tc.entry).WithCapabilities(caps).WithOutput(second).Build(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+				tc.check(t, second)
+			})
+		})
+	}
+}
+
+func TestCompilerDuplicateModuleURLIsNormalized(t *testing.T) {
+	mod := ast.MustParseModule("package a\n\np := 1\n")
+	b := &bundle.Bundle{Modules: []bundle.ModuleFile{
+		{URL: "a.rego", Parsed: mod},
+		{URL: "/a.rego", Parsed: mod},
+	}}
+	if _, err := compile(ast.CapabilitiesForThisVersion(), b, debug.Discard(), false); err == nil || !strings.Contains(err.Error(), "duplicate module URL") {
+		t.Fatalf("expected duplicate module URL error, got %v", err)
+	}
+}
+
+func TestCompilerOptimizationSupportModuleNameCollision(t *testing.T) {
+	files := map[string]string{
+		".manifest": `{"roots": ["test", "foo"]}`,
+		"optimized/test.rego": `package test
+
+p if { input.x == data.foo }
+
+keep := 3
+`,
+		"data.json": `{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		buf := bytes.NewBuffer(nil)
+		err := New().WithRegoVersion(ast.RegoV1).WithPaths(root).WithAsBundle(true).
+			WithOptimizationLevel(1).WithEntrypoints("test/p").WithOutput(buf).Build(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		names := tarEntryNames(t, bytes.NewReader(buf.Bytes()))
+		for i := 1; i < len(names); i++ {
+			if names[i] == names[i-1] {
+				t.Fatalf("duplicate tar entry %q in %v", names[i], names)
+			}
+		}
+
+		b, err := bundle.NewReader(bytes.NewReader(buf.Bytes())).WithRegoVersion(ast.RegoV1).Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.ContainsFunc(b.Modules, func(m bundle.ModuleFile) bool {
+			return slices.ContainsFunc(m.Parsed.Rules, func(r *ast.Rule) bool { return r.Head.Name == "keep" })
+		}) {
+			t.Fatalf("expected rule keep to survive, got modules %v", names)
+		}
+	})
+}
+
+func tarEntryNames(t *testing.T, r io.Reader) []string {
+	t.Helper()
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := tar.NewReader(gr)
+	var names []string
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, h.Name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 func TestCompilerSetRoots(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
@@ -3256,7 +3546,17 @@ func TestCompilerOutput(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if !exp.Equal(result) {
+			// Output URLs are relative to the bundle root.
+			for i := range exp.Modules {
+				exp.Modules[i].URL = exp.Modules[i].RelativePath
+			}
+			expWritten := *exp
+			expWritten.Modules = slices.Clone(exp.Modules)
+			for i := range expWritten.Modules {
+				expWritten.Modules[i].Path = expWritten.Modules[i].RelativePath
+			}
+
+			if !expWritten.Equal(result) {
 				t.Fatalf("expected-1:\n\n%+v\n\ngot-1:\n\n%+v", *exp, result)
 			}
 

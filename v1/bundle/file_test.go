@@ -3,11 +3,13 @@ package bundle
 import (
 	"bytes"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 
@@ -172,14 +174,14 @@ func TestTarballLoaderWithFilter(t *testing.T) {
 		"/policy_test.rego":       "package foo\n test_p { p }",
 		"/a/b/c/policy.rego":      "package bar\n q = 1",
 		"/a/b/c/policy_test.rego": "package bar\n test_q { q }",
-		"/a/.manifest":            `{"roots": ["a", "foo"]}`,
+		"/.manifest":              `{"roots": ["a", "foo"]}`,
 	}
 
 	expectedFiles := map[string]string{
 		"/a/data.json":       `{"foo": "not-bar"}`,
 		"/policy.rego":       "package foo\n p = 1",
 		"/a/b/c/policy.rego": "package bar\n q = 1",
-		"/a/.manifest":       `{"roots": ["a", "foo"]}`,
+		"/.manifest":         `{"roots": ["a", "foo"]}`,
 	}
 
 	gzFileIn := map[string]string{
@@ -309,14 +311,14 @@ func TestDirectoryLoaderWithFilter(t *testing.T) {
 		"/policy_test.rego":       "package foo\n test_p { p }",
 		"/a/b/c/policy.rego":      "package bar\n q = 1",
 		"/a/b/c/policy_test.rego": "package bar\n test_q { q }",
-		"/a/.manifest":            `{"roots": ["a", "foo"]}`,
+		"/.manifest":              `{"roots": ["a", "foo"]}`,
 	}
 
 	expectedFiles := map[string]struct{}{
 		"/a/data.json":       {},
 		"/policy.rego":       {},
 		"/a/b/c/policy.rego": {},
-		"/a/.manifest":       {},
+		"/.manifest":         {},
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
@@ -488,7 +490,17 @@ func TestNewDirectoryLoaderNormalizedRoot(t *testing.T) {
 		{
 			note:     "trailing slash",
 			root:     "/a/b/c/",
-			expected: "/a/b/c/",
+			expected: "/a/b/c",
+		},
+		{
+			note:     "double slash",
+			root:     "/a//b",
+			expected: "/a/b",
+		},
+		{
+			note:     "inner dot dot",
+			root:     "a/../a/b",
+			expected: "a/b",
 		},
 		{
 			note:     "empty",
@@ -566,6 +578,12 @@ func TestFormatPathChrootedManifests(t *testing.T) {
 			want:     sep + ".manifest.pb",
 		},
 		{
+			note:     "signatures file at chroot .",
+			fileName: ".signatures.json",
+			root:     ".",
+			want:     sep + ".signatures.json",
+		},
+		{
 			note:     "json manifest at named chroot",
 			fileName: filepath.Join("a", "b", ".manifest"),
 			root:     filepath.Join("a", "b"),
@@ -587,4 +605,131 @@ func TestFormatPathChrootedManifests(t *testing.T) {
 			}
 		})
 	}
+}
+
+// collectLoaderFiles drains the loader and returns descriptors keyed by Path().
+func collectLoaderFiles(l DirectoryLoader) (map[string]*Descriptor, error) {
+	out := map[string]*Descriptor{}
+	for {
+		f, err := l.NextFile()
+		if err == io.EOF {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		out[f.Path()] = f
+	}
+}
+
+func TestLoadersRootAtManifestDir(t *testing.T) {
+	const multiDirErr = "bundle contains manifest files in multiple directories"
+
+	rooted := map[string]string{
+		"dir/sub/.manifest": `{}`,
+		"dir/sub/x.rego":    "package x",
+		"dir/sub/n/y.rego":  "package n",
+		"dir/top.rego":      "package top",
+	}
+
+	tests := []struct {
+		note  string
+		files map[string]string
+		roots []string
+		err   string
+	}{
+		{
+			note:  "rooted at manifest dir, unclean roots",
+			files: rooted,
+			roots: []string{"dir", "dir//sub", "dir/sub/", "dir/../dir/sub"},
+		},
+		{
+			note:  "manifests in multiple dirs",
+			files: map[string]string{"dir/a/.manifest": `{}`, "dir/b/.manifest": `{}`},
+			roots: []string{"dir"},
+			err:   multiDirErr,
+		},
+	}
+
+	sep := string(filepath.Separator)
+	type mkLoader func(t *testing.T, files map[string]string, root string, run func(DirectoryLoader, string))
+	loaders := map[string]mkLoader{
+		"directory": func(t *testing.T, files map[string]string, root string, run func(DirectoryLoader, string)) {
+			tmp := map[string]string{}
+			for k, v := range files {
+				tmp["/"+k] = v
+			}
+			test.WithTempFS(tmp, func(dir string) {
+				run(NewDirectoryLoader(dir+sep+filepath.FromSlash(root)), filepath.Join(dir, "dir", "sub"))
+			})
+		},
+		"fs": func(t *testing.T, files map[string]string, root string, run func(DirectoryLoader, string)) {
+			fsys := fstest.MapFS{}
+			for k, v := range files {
+				fsys[k] = &fstest.MapFile{Data: []byte(v)}
+			}
+			// The fs loader's URLs are chrooted paths.
+			run(NewFSLoaderWithRoot(fsys, root), "")
+		},
+	}
+
+	for _, tc := range tests {
+		for name, mk := range loaders {
+			for _, root := range tc.roots {
+				t.Run(tc.note+"/"+name+"/"+root, func(t *testing.T) {
+					mk(t, tc.files, root, func(l DirectoryLoader, urlBase string) {
+						got, err := collectLoaderFiles(l)
+						if tc.err != "" {
+							if err == nil || !strings.Contains(err.Error(), tc.err) {
+								t.Fatalf("expected %q, got %v", tc.err, err)
+							}
+							return
+						}
+						if err != nil {
+							t.Fatal(err)
+						}
+						exp := []string{"/.manifest", "/n/y.rego", "/x.rego"}
+						if paths := slices.Sorted(maps.Keys(got)); !slices.Equal(paths, exp) {
+							t.Fatalf("expected %v, got %v", exp, paths)
+						}
+						expURL := "/x.rego"
+						if urlBase != "" {
+							expURL = filepath.Join(urlBase, "x.rego")
+						}
+						if got["/x.rego"].URL() != expURL {
+							t.Fatalf("expected URL %q, got %q", expURL, got["/x.rego"].URL())
+						}
+					})
+				})
+			}
+		}
+	}
+}
+
+// offsetForwarder wraps a loader and forwards RootOffset.
+type offsetForwarder struct {
+	DirectoryLoader
+}
+
+func (o offsetForwarder) RootOffset() string {
+	return o.DirectoryLoader.(rootOffsetter).RootOffset()
+}
+
+func TestWrappedLoaderRootOffset(t *testing.T) {
+	test.WithTempFS(map[string]string{
+		"/sub/.manifest": `{}`,
+		"/sub/x.rego":    "package x",
+	}, func(root string) {
+		l := offsetForwarder{NewDirectoryLoader(root)}
+		b, err := NewCustomReader(l).WithBaseDir("/base").Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b.Modules) != 1 || filepath.ToSlash(b.Modules[0].Path) != "/base/sub/x.rego" {
+			t.Fatalf("expected module path /base/sub/x.rego, got %+v", b.Modules)
+		}
+		if b.Modules[0].RelativePath != "/x.rego" {
+			t.Errorf("expected RelativePath /x.rego, got %q", b.Modules[0].RelativePath)
+		}
+	})
 }
