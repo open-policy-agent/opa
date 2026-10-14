@@ -139,7 +139,7 @@ jobs:
           fi
 
           echo "Success: no retracted dependencies"
-        timeout-minutes: 10
+        timeout-minutes: 30
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
