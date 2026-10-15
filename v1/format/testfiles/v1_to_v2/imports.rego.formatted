@@ -1,0 +1,7 @@
+package test
+
+import rego.v2
+
+p if input.a and input.b
+
+q if 1 in input.xs

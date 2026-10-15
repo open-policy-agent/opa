@@ -1937,6 +1937,65 @@ corge contains 1 if {
 				"rego_compile_error: import must not shadow import data.foo",
 			},
 		},
+
+		{
+			note:               "v0 manager, v2 bundle",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
+		{
+			note:               "v1 manager, v2 bundle",
+			managerRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
+		{
+			note:               "v1 manager, v2 bundle, shadowed import",
+			managerRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note:               "v2 manager, no bundle rego version",
+			managerRegoVersion: ast.RegoV2,
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
+		{
+			note:               "v2 manager, v1 bundle",
+			managerRegoVersion: ast.RegoV2,
+			bundleRegoVersion:  pointTo(ast.RegoV1),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:               "v2 manager, v2 bundle",
+			managerRegoVersion: ast.RegoV2,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2888,6 +2947,8 @@ func bundleRegoVersion(v ast.RegoVersion) int {
 		return 0
 	case ast.RegoV1:
 		return 1
+	case ast.RegoV2:
+		return 2
 	}
 	panic("unknown ast.RegoVersion")
 }

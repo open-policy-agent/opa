@@ -1,0 +1,7 @@
+6 errors occurred:
+testfiles/v1_to_v2/keyword_var_names.rego:4: rego_parse_error: and keyword cannot be used for variable name
+testfiles/v1_to_v2/keyword_var_names.rego:5: rego_parse_error: and keyword cannot be used for variable name
+testfiles/v1_to_v2/keyword_var_names.rego:8: rego_parse_error: or keyword cannot be used for variable name
+testfiles/v1_to_v2/keyword_var_names.rego:8: rego_parse_error: or keyword cannot be used for variable name
+testfiles/v1_to_v2/keyword_var_names.rego:10: rego_parse_error: and keyword cannot be used for variable name
+testfiles/v1_to_v2/keyword_var_names.rego:10: rego_parse_error: and keyword cannot be used for variable name

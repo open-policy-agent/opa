@@ -685,17 +685,26 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		stmts:    stmts,
 	}
 
-	mod.regoVersion = regoCompatibilityMode
 	if regoCompatibilityMode == RegoUndefined {
-		mod.regoVersion = DefaultRegoVersion
+		mod.regoVersion = RegoVersionSpanOf(DefaultRegoVersion)
+	} else {
+		mod.regoVersion = RegoVersionSpanOf(regoCompatibilityMode)
 	}
 
 	for i, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
-			if mod.regoVersion == RegoV0 && (RegoV1CompatibleRef.Equal(stmt.Path.Value) || RegoV2CompatibleRef.Equal(stmt.Path.Value)) {
-				mod.regoVersion = RegoV0CompatV1
+			var err error
+			switch {
+			case RegoV1CompatibleRef.Equal(stmt.Path.Value):
+				mod.regoVersion, err = mod.regoVersion.RaisedTo(RegoV1)
+			case RegoV2CompatibleRef.Equal(stmt.Path.Value):
+				mod.regoVersion, err = mod.regoVersion.RaisedTo(RegoV2)
+			}
+			if err != nil {
+				// Unreachable; indicates mod.regoVersion was invalid
+				panic(fmt.Sprintf("illegal %s import", stmt))
 			}
 		case *Rule:
 			setRuleModule(stmt, mod)
@@ -729,7 +738,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		}
 	}
 
-	if mod.regoVersion == RegoV0CompatV1 || mod.regoVersion == RegoV1 {
+	if mod.regoVersion.Max().level() >= RegoV1.level() {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
 				errs = append(errs, CheckRegoV1(r)...)
@@ -763,9 +772,9 @@ var headFutureKeywords = map[string]string{
 // misparsed around. Unimported, the keyword is just a var, so `p if { ... }`
 // parses as the body `p` followed by a rule named `if`. idx is stmt's index
 // within stmts.
-func missingHeadKeyword(v RegoVersion, stmt Body, stmts []Statement, idx int) (string, bool) {
+func missingHeadKeyword(v RegoVersionSpan, stmt Body, stmts []Statement, idx int) (string, bool) {
 	// From v1 on these are ordinary keywords.
-	if v != RegoV0 {
+	if v.Max() != RegoV0 {
 		return "", false
 	}
 

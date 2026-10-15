@@ -334,6 +334,68 @@ p contains x if {
 }`,
 			expResult: []string{"a", "b", "c"},
 		},
+		{
+			note:        "v2 module, rego-v2, no capabilities",
+			regoVersion: ast.RegoV2,
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+	x == "a" or x == "b"
+}`,
+			expResult: []string{"a", "b"},
+		},
+		{
+			note:         "v2 module, rego-v2, v1 capabilities",
+			regoVersion:  ast.RegoV2,
+			capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+	x == "a" or x == "b"
+}`,
+			expResult: []string{"a", "b"},
+		},
+		{
+			note:        "v2 module, rego-v2, v2 capabilities without rego_v2 feature",
+			regoVersion: ast.RegoV2,
+			capabilities: func() *ast.Capabilities {
+				caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV2))
+
+				feats := make([]string, 0, len(caps.Features))
+				for _, feat := range caps.Features {
+					if feat != ast.FeatureRegoV2 {
+						feats = append(feats, feat)
+					}
+				}
+				caps.Features = feats
+
+				return caps
+			}(),
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+	x == "a" or x == "b"
+}`,
+			expErrs: []string{
+				"rego_parse_error: illegal capabilities: rego_v2 feature required for parsing v2 Rego",
+			},
+		},
+		{
+			note:        "v2 module, rego-v1, no capabilities",
+			regoVersion: ast.RegoV1,
+			module: `package test
+
+p contains x if {
+	some x in ["a", "b", "c"]
+	x == "a" or x == "b"
+}`,
+			expErrs: []string{
+				"test.rego:5: rego_parse_error: unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.or` for `x or y` expressions)",
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -3757,6 +3819,46 @@ func TestQueryRegoVersionImports(t *testing.T) {
 			query:       "input.a or input.b",
 			allowed:     true,
 		},
+		{
+			note:        "v1, rego.v2 and rego.v1, or",
+			regoVersion: ast.RegoV1,
+			imports:     []string{"rego.v2", "rego.v1"},
+			query:       "input.a or input.b",
+			allowed:     true,
+		},
+		{
+			note:        "v2, or",
+			regoVersion: ast.RegoV2,
+			query:       "input.a or input.b",
+			allowed:     true,
+		},
+		{
+			note:        "v2, and",
+			regoVersion: ast.RegoV2,
+			query:       "input.a and input.b",
+			allowed:     false,
+		},
+		{
+			note:        "v2, not body",
+			regoVersion: ast.RegoV2,
+			query:       "not { input.a; input.b }",
+			allowed:     true,
+		},
+		{
+			// rego.v1 doesn't lower a v2 baseline.
+			note:        "v2, rego.v1, or",
+			regoVersion: ast.RegoV2,
+			imports:     []string{"rego.v1"},
+			query:       "input.a or input.b",
+			allowed:     true,
+		},
+		{
+			note:        "v2, rego.v2, or",
+			regoVersion: ast.RegoV2,
+			imports:     []string{"rego.v2"},
+			query:       "input.a or input.b",
+			allowed:     true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -3814,6 +3916,16 @@ q if input.a or input.b
 import future.keywords.not
 import future.keywords.or
 import rego.v1
+
+q if not { input.c; input.d }
+
+q if input.a or input.b
+`,
+		},
+		{
+			note:        "v2",
+			regoVersion: ast.RegoV2,
+			exp: `package partial.test
 
 q if not { input.c; input.d }
 

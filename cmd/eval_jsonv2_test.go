@@ -3849,6 +3849,52 @@ p contains 2 if {
 			query:       "data.test.p",
 			expectedErr: "rego_parse_error",
 		},
+		{
+			note: "v2 bundle, logical keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 2}`,
+				"policy.rego": `package test
+allow if {
+	1 < 2 or 2 < 1
+}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note: "v1 bundle, v2 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy2.rego": 2
+	}
+}`,
+				"policy1.rego": `package test
+p contains 1 if {
+	1 < 2
+}
+`,
+				"policy2.rego": `package test
+p contains 2 if {
+	1 < 2 or 2 < 1
+}
+`,
+			},
+			query: "data.test.p",
+		},
+		{
+			note: "v2 bundle, logical keyword as variable",
+			files: map[string]string{
+				".manifest": `{"rego_version": 2}`,
+				"policy.rego": `package test
+allow if {
+	and := 1
+	and == 1
+}`,
+			},
+			query:       "data.test.allow",
+			expectedErr: "rego_parse_error",
+		},
 	}
 
 	bundleTypeCases := []struct {

@@ -101,6 +101,7 @@ const WildcardPrefix = "$"
 // Keywords contains strings that map to language keywords.
 var Keywords = KeywordsForRegoVersion(DefaultRegoVersion)
 
+// KeywordsV0 is the set of keywords in Rego v0, the legacy Rego syntax.
 var KeywordsV0 = [...]string{
 	"not",
 	"package",
@@ -115,6 +116,7 @@ var KeywordsV0 = [...]string{
 	"some",
 }
 
+// KeywordsV1 is the set of keywords in Rego v1, the current default syntax.
 var KeywordsV1 = [...]string{
 	"not",
 	"package",
@@ -133,14 +135,38 @@ var KeywordsV1 = [...]string{
 	"every",
 }
 
+// KeywordsV2 is the set of keywords in Rego v2: KeywordsV1 plus "and" and "or".
+var KeywordsV2 = [...]string{
+	"not",
+	"package",
+	"import",
+	"as",
+	"default",
+	"else",
+	"with",
+	"null",
+	"true",
+	"false",
+	"some",
+	"if",
+	"contains",
+	"in",
+	"every",
+	"and",
+	"or",
+}
+
 func KeywordsForRegoVersion(v RegoVersion) []string {
 	switch v {
 	case RegoV0:
 		return KeywordsV0[:]
 	case RegoV1, RegoV0CompatV1:
 		return KeywordsV1[:]
+	case RegoV2:
+		return KeywordsV2[:]
+	default:
+		return nil
 	}
-	return nil
 }
 
 // IsKeyword returns true if s is a language keyword.
@@ -163,6 +189,12 @@ func IsKeywordInRegoVersion(s string, regoVersion RegoVersion) bool {
 		}
 	case RegoV1, RegoV0CompatV1:
 		for _, x := range KeywordsV1 {
+			if x == s {
+				return true
+			}
+		}
+	case RegoV2:
+		for _, x := range KeywordsV2 {
 			if x == s {
 				return true
 			}
@@ -199,7 +231,7 @@ type (
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
 		stmts       []Statement
-		regoVersion RegoVersion
+		regoVersion RegoVersionSpan
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -323,8 +355,10 @@ type (
 )
 
 // SetModuleRegoVersion sets the RegoVersion for the Module.
+//
+// Deprecated: use Module.SetRegoVersionSpan instead.
 func SetModuleRegoVersion(mod *Module, v RegoVersion) {
-	mod.regoVersion = v
+	mod.SetRegoVersion(v)
 }
 
 // Compare returns an integer indicating whether mod is less than, equal to,
@@ -411,17 +445,29 @@ func (mod *Module) RuleSet(name Var) RuleSet {
 	return rs
 }
 
-func (mod *Module) regoV1Compatible() bool {
-	return mod.regoVersion == RegoV1 || mod.regoVersion == RegoV0CompatV1
-}
-
+// RegoVersion returns the RegoVersion for the module.
+//
+// Deprecated: Use Module.RegoVersionSpan instead.
 func (mod *Module) RegoVersion() RegoVersion {
-	return mod.regoVersion
+	return mod.regoVersion.regoVersion()
 }
 
 // SetRegoVersion sets the RegoVersion for the module.
 // Note: Setting a rego-version that does not match the module's rego-version might have unintended consequences.
+//
+// Deprecated: Use Module.SetRegoVersionSpan instead.
 func (mod *Module) SetRegoVersion(v RegoVersion) {
+	mod.regoVersion = RegoVersionSpanOf(v)
+}
+
+// RegoVersionSpan returns the RegoVersionSpan for this module; holding the span of RegoVersion:s it conforms to.
+func (mod *Module) RegoVersionSpan() RegoVersionSpan {
+	return mod.regoVersion
+}
+
+// SetRegoVersionSpan sets the RegoVersionSpan for the module.
+// Note: Setting a rego-version that does not match the module's rego-version might have unintended consequences.
+func (mod *Module) SetRegoVersionSpan(v RegoVersionSpan) {
 	mod.regoVersion = v
 }
 

@@ -500,6 +500,7 @@ p contains "B" if {
 func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 	regoV0 := ast.RegoV0.Int()
 	regoV1 := ast.RegoV1.Int()
+	regoV2 := ast.RegoV2.Int()
 	regoDef := ast.RegoV1.Int()
 
 	tests := []struct {
@@ -765,6 +766,106 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			expFileRegoVersions: map[string]int{
 				"/a/test1.rego": 1,
 				"/a/test2.rego": 1,
+				"/b/test2.rego": 1,
+			},
+		},
+		{
+			note: "v1 and v2 bundles, merged as v1",
+			bundles: []*bundle.Bundle{
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"a"},
+						RegoVersion: &regoV2,
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
+				},
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"b"},
+						RegoVersion: &regoV1,
+						FileRegoVersions: map[string]int{
+							"/test1.rego": 2,
+						},
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+						{
+							Path:         "b/test2.rego",
+							URL:          "b/test2.rego",
+							RelativePath: "/test2.rego",
+							Raw:          []byte("package b"),
+						},
+					},
+				},
+			},
+			regoVersion:          ast.RegoV1,
+			expGlobalRegoVersion: &regoV1,
+			// every v2 module, whether from the global or a per-file rego-version, gets an override
+			expFileRegoVersions: map[string]int{
+				"/a/test1.rego": 2,
+				"/b/test1.rego": 2,
+			},
+		},
+		{
+			note: "v1 and v2 bundles, merged as v2",
+			bundles: []*bundle.Bundle{
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"a"},
+						RegoVersion: &regoV2,
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
+				},
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"b"},
+						RegoVersion: &regoV1,
+						FileRegoVersions: map[string]int{
+							"/test1.rego": 2,
+						},
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+						{
+							Path:         "b/test2.rego",
+							URL:          "b/test2.rego",
+							RelativePath: "/test2.rego",
+							Raw:          []byte("package b"),
+						},
+					},
+				},
+			},
+			regoVersion:          ast.RegoV2,
+			expGlobalRegoVersion: &regoV2,
+			expFileRegoVersions: map[string]int{
 				"/b/test2.rego": 1,
 			},
 		},

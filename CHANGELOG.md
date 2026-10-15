@@ -14,7 +14,7 @@ of the general `--log-level`. Set it to `debug` to keep those lines out of logs 
 
 Authored by @srenatus
 
-### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224))
+### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224), [#9269](https://github.com/open-policy-agent/opa/issues/9269))
 
 `import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
 import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
@@ -30,6 +30,13 @@ allow if input.user.admin or not (input.user.suspended or input.user.locked)
 ```
 
 See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
+
+Additionally: bundles can be declared as Rego v2 by setting the `rego_version` manifest attribute to `2` (individua 
+bundle modules by setting `file_rego_versions`); and the Go API accepts the new `ast.RegoV2` rego-version when parsing,
+compiling, and formatting Rego modules. 
+The `rego.v2` import is a redundant no-op for modules loaded these ways.
+
+See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format).
 
 Authored by @johanfylling
 

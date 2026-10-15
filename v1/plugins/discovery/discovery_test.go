@@ -1302,6 +1302,49 @@ bundles.authz.service := v if {
 }`},
 			},
 		},
+		{
+			note:              "v2 bundle",
+			bundleRegoVersion: 2,
+			modules: map[string]versionedModule{
+				"policy.rego": {-1, `package config
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "b"}
+	v.a == "b" or v.a == "c"
+}
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+bundles.authz.service := v if {
+	v := "localhost"
+}`},
+			},
+		},
+		{
+			note:              "v1 bundle, v2 per-file override",
+			bundleRegoVersion: 1,
+			modules: map[string]versionedModule{
+				"policy1.rego": {2, `package config
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "b"}
+	v.a == "b" or v.a == "c"
+}`},
+				"policy2.rego": {-1, `package config
+
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+
+bundles.authz.service := v if {
+	v := "localhost"
+}`},
+			},
+		},
 	}
 
 	for _, tc := range tests {
