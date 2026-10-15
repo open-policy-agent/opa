@@ -442,6 +442,10 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         return {
           name: "events-data",
 
+          getPathsToWatch() {
+            return [path.join(context.siteDir, "src/data/events/*.json")];
+          },
+
           async loadContent() {
             const events = await loadEvents(path.join(context.siteDir, "src/data/events/*.json"));
             return { events };
@@ -459,6 +463,11 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
       async function eventsPagesGen(context, _options) {
         return {
           name: "events-pages-gen",
+
+          getPathsToWatch() {
+            return [path.join(context.siteDir, "src/data/events/*.json")];
+          },
+
           async loadContent() {
             const events = await loadEvents(path.join(context.siteDir, "src/data/events/*.json"));
             return { events };

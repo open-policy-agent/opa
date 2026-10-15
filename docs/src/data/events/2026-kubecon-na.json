@@ -8,22 +8,138 @@
     {
       "day": "Monday",
       "date": "November 9",
-      "items": []
+      "items": [
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Traffic Handling Patterns in the Agentic Era",
+          "datetime": "11:15 - 11:40",
+          "room": "Grand Ballroom IG, Salt Palace",
+          "speakers": [
+            {
+              "name": "Pradheep Shrinivasan",
+              "title": "Cisco"
+            },
+            {
+              "name": "Boteng Yao",
+              "title": "Google"
+            }
+          ],
+          "link": "https://events.linuxfoundation.org/kubecon-cloudnativecon-north-america/co-located-events/cncf-hosted-co-located-schedule/?id=1268232"
+        },
+        {
+          "type": "session",
+          "sessionType": "lightning",
+          "title": "Project Lightning Talk: Rego Without Borders: Breaking Down Language Barriers for Security Policy",
+          "datetime": "12:34 - 12:39",
+          "room": "Regency Ballroom B-D, Hyatt Regency",
+          "speakers": [
+            {
+              "name": "Philip Conrad",
+              "title": "OPA Maintainer, Apple"
+            }
+          ],
+          "link": "https://events.linuxfoundation.org/kubecon-cloudnativecon-north-america/program/schedule/?id=1325640"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "When in-toto Met OPA: Turning Attestations into E2E Security & Compliance with Cloud Native Policies",
+          "datetime": "15:55 - 16:20",
+          "room": "255 BC, Salt Palace",
+          "speakers": [
+            {
+              "name": "Snahil Singh",
+              "title": "Apple"
+            },
+            {
+              "name": "Trishank Kuppusamy",
+              "title": "Apple"
+            }
+          ],
+          "link": "https://events.linuxfoundation.org/kubecon-cloudnativecon-north-america/co-located-events/cncf-hosted-co-located-schedule/?id=1269657"
+        },
+        {
+          "type": "session",
+          "sessionType": "lightning",
+          "title": "Who Let the Agent in? Securing Agentic AI with Non-Human Identity in Cloud Native Infrastructure",
+          "datetime": "17:15 - 17:25",
+          "room": "251 D-F, Salt Palace",
+          "speakers": [
+            {
+              "name": "Mahendran Selvakumar",
+              "title": "Tata Consultancy Services Limited"
+            }
+          ],
+          "link": "https://events.linuxfoundation.org/kubecon-cloudnativecon-north-america/co-located-events/cncf-hosted-co-located-schedule/?id=1266390"
+        }
+      ]
     },
     {
       "day": "Tuesday",
       "date": "November 10",
-      "items": []
+      "items": [
+        {
+          "type": "booth",
+          "location": "Project Pavilion (P-11B)",
+          "hours": "10:30 – 14:30"
+        }
+      ]
     },
     {
       "day": "Wednesday",
       "date": "November 11",
-      "items": []
+      "items": [
+        {
+          "type": "booth",
+          "location": "Project Pavilion (P-11B)",
+          "hours": "10:15 – 13:25"
+        }
+      ]
     },
     {
       "day": "Thursday",
       "date": "November 12",
-      "items": []
+      "items": [
+        {
+          "type": "booth",
+          "location": "Project Pavilion (P-11B)",
+          "hours": "10:15 – 11:55"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "OPA Intro & Deep Dive",
+          "datetime": "14:40 - 15:10",
+          "room": "250 D-F, Salt Palace",
+          "highlight": true,
+          "speakers": [
+            {
+              "name": "Sebastian Spaink",
+              "title": "OPA Maintainer"
+            },
+            {
+              "name": "Johan Fylling",
+              "title": "OPA Maintainer"
+            }
+          ],
+          "link": "https://events.linuxfoundation.org/kubecon-cloudnativecon-north-america/program/schedule/?id=1289713"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Life After Strimzi 1.0.0",
+          "datetime": "15:30 - 16:00",
+          "room": "251 D-F, Salt Palace",
+          "speakers": [
+            {
+              "name": "Jakub Scholz",
+              "title": "Cloudera"
+            }
+          ],
+          "link": "https://events.linuxfoundation.org/kubecon-cloudnativecon-north-america/program/schedule/?id=1289715"
+        }
+      ]
     }
   ]
 }
