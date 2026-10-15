@@ -4877,15 +4877,6 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 
 		for _, expr := range query {
 			if cannotBeTriviallyNegated(vis, expr) {
-				// Expressions that cannot be trivially negated -- those containing nested
-				// refs or calls, or 'every' expressions -- are saved as support rules
-				// instead of being inlined: negating them inline would change the
-				// semantics of the query, or the negation isn't expressible at all.
-				// For example, the complement of `not f(input.x)` is _not_ `f(input.x)`
-				// --it is `not input.x` OR `f(input.x)`, and the complement of an 'every'
-				// expression cannot be written as a single negated expression, as
-				// 'not every' is illegal Rego.
-				//
 				// NOTE(tsandall): Since this would require the complement function to undo the
 				// copy propagation optimization, just bail out here. If this becomes a problem
 				// in the future, we can handle more cases.
