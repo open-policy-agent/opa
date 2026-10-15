@@ -5,7 +5,6 @@
 package rego_test
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -40,7 +39,7 @@ blocked if {
 		`{"xs": [1, 1]}`,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	pq, err := rego.New(
 		rego.Query("data.p.allow"),
