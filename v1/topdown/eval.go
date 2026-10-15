@@ -4876,10 +4876,15 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 		}
 
 		for _, expr := range query {
-			if containsNestedRefOrCall(vis, expr) {
-				// Expressions containing nested refs or calls cannot be trivially negated
-				// because the semantics would change. For example, the complement of `not f(input.x)`
-				// is _not_ `f(input.x)`--it is `not input.x` OR `f(input.x)`.
+			if cannotBeTriviallyNegated(vis, expr) {
+				// Expressions that cannot be trivially negated -- those containing nested
+				// refs or calls, or 'every' expressions -- are saved as support rules
+				// instead of being inlined: negating them inline would change the
+				// semantics of the query, or the negation isn't expressible at all.
+				// For example, the complement of `not f(input.x)` is _not_ `f(input.x)`
+				// --it is `not input.x` OR `f(input.x)`, and the complement of an 'every'
+				// expression cannot be written as a single negated expression, as
+				// 'not every' is illegal Rego.
 				//
 				// NOTE(tsandall): Since this would require the complement function to undo the
 				// copy propagation optimization, just bail out here. If this becomes a problem
@@ -4928,7 +4933,13 @@ func (v *nestedCheckVisitor) visit(x any) bool {
 	return v.found
 }
 
-func containsNestedRefOrCall(vis *nestedCheckVisitor, expr *ast.Expr) bool {
+// cannotBeTriviallyNegated returns true if the negation of expr cannot be
+// inlined as a single negated expression. This is the case for expressions
+// containing nested refs or calls, where negating expr would change the
+// semantics of the query, and for 'every' expressions, where 'not every'
+// isn't parseable Rego, and the unknowns inside the 'every' body are not
+// accounted for by the variable safety check in canInlineNegation.
+func cannotBeTriviallyNegated(vis *nestedCheckVisitor, expr *ast.Expr) bool {
 	if expr.IsEquality() {
 		for _, term := range expr.Operands() {
 			if containsNestedRefOrCallInTerm(vis, term) {
@@ -4948,24 +4959,31 @@ func containsNestedRefOrCall(vis *nestedCheckVisitor, expr *ast.Expr) bool {
 		return false
 	}
 
+	if _, ok := expr.Terms.(*ast.Every); ok {
+		// 'not every' isn't parseable Rego, and the unknowns in the 'every' body
+		// are opaque to the variable safety check in canInlineNegation: save the
+		// negation in a support rule instead of inlining it.
+		return true
+	}
+
 	if n, ok := expr.Terms.(*ast.Not); ok {
-		return containsNestedRefOrCallInBody(vis, n.Body)
+		return cannotBeTriviallyNegatedInBody(vis, n.Body)
 	}
 
 	if a, ok := expr.Terms.(*ast.LogicalAnd); ok {
-		return containsNestedRefOrCallInBody(vis, a.Lhs) || containsNestedRefOrCallInBody(vis, a.Rhs)
+		return cannotBeTriviallyNegatedInBody(vis, a.Lhs) || cannotBeTriviallyNegatedInBody(vis, a.Rhs)
 	}
 
 	if o, ok := expr.Terms.(*ast.LogicalOr); ok {
-		return containsNestedRefOrCallInBody(vis, o.Lhs) || containsNestedRefOrCallInBody(vis, o.Rhs)
+		return cannotBeTriviallyNegatedInBody(vis, o.Lhs) || cannotBeTriviallyNegatedInBody(vis, o.Rhs)
 	}
 
 	return containsNestedRefOrCallInTerm(vis, expr.Terms.(*ast.Term))
 }
 
-func containsNestedRefOrCallInBody(vis *nestedCheckVisitor, body ast.Body) bool {
+func cannotBeTriviallyNegatedInBody(vis *nestedCheckVisitor, body ast.Body) bool {
 	for _, expr := range body {
-		if containsNestedRefOrCall(vis, expr) {
+		if cannotBeTriviallyNegated(vis, expr) {
 			return true
 		}
 	}
