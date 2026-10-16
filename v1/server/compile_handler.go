@@ -40,6 +40,7 @@ const (
 
 	unknownsCacheSize    = 500
 	maskingRuleCacheSize = 500
+	schemasCacheSize     = 500
 
 	// These need to be kept up to date with `CompileApiKnownHeaders()` below
 	multiTargetJSON  = "application/vnd.opa.multitarget+json"
@@ -51,6 +52,7 @@ const (
 	sqlMySQLJSON     = "application/vnd.opa.sql.mysql+json"
 	sqlSQLServerJSON = "application/vnd.opa.sql.sqlserver+json"
 	sqliteJSON       = "application/vnd.opa.sql.sqlite+json"
+	luceneSolrJSON   = "application/vnd.opa.lucene.solr+json"
 
 	// back-compat
 	applicationJSON = "application/json"
@@ -67,6 +69,7 @@ func CompileAPIKnownHeaders() []string {
 		sqlMySQLJSON,
 		sqlSQLServerJSON,
 		sqliteJSON,
+		luceneSolrJSON,
 	}
 }
 
@@ -237,6 +240,11 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	switch target {
 	case "multi":
 		for i, targetTuple := range orig.Options.TargetDialects {
+			if strings.HasPrefix(targetTuple, "lucene+") {
+				writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter,
+					"options.targetDialects: %s can not be combined with other targets, use its Accept header", targetTuple))
+				return
+			}
 			s := strings.Split(targetTuple, "+")
 			target, dialect := s[0], s[1]
 			multi[i] = [2]string{target, dialect}
@@ -244,6 +252,22 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		targetOption = append(targetOption, rego_compile.Target(target, dialect))
+	}
+
+	if target == "lucene" {
+		if annotationsCompiler == nil {
+			var errs ast.Errors
+			annotationsCompiler, errs = prepareAnnotations(ctx, comp, s.store, txn, s.manager.ParserOptions())
+			if len(errs) > 0 {
+				writer.Error(w, http.StatusBadRequest,
+					types.NewErrorV1(types.CodeEvaluation, types.MsgEvaluationError).
+						WithASTErrors(errs))
+				return
+			}
+		}
+		if schema := s.compileFiltersSchema(annotationsCompiler, urlPath, request.Query, unknowns); schema != nil {
+			targetOption = append(targetOption, rego_compile.Schema(schema))
+		}
 	}
 
 	unks := make([]*ast.Term, len(unknowns))
@@ -458,6 +482,33 @@ func (s *Server) compileFiltersMaskRule(m metrics.Metrics, comp *ast.Compiler, p
 	return mr, nil
 }
 
+// compileFiltersSchema finds the schema of the document a Lucene filter searches.
+func (s *Server) compileFiltersSchema(comp *ast.Compiler, path string, query ast.Body, unknowns []ast.Ref) any {
+	if len(query) != 1 {
+		return nil
+	}
+	q, ok := query[0].Terms.(*ast.Term)
+	if !ok {
+		return nil
+	}
+	queryRef, ok := q.Value.(ast.Ref)
+	if !ok {
+		return nil
+	}
+	for _, doc := range unknowns {
+		key := path + "\x00" + doc.String()
+		schema, ok := s.compileSchemasCache.Get(key)
+		if !ok {
+			schema = compile.ExtractSchemaFromAnnotations(comp, queryRef, doc)
+			s.compileSchemasCache.Add(key, schema)
+		}
+		if schema != nil {
+			return schema
+		}
+	}
+	return nil
+}
+
 func readInputCompileFiltersV1(comp *ast.Compiler, reqBytes []byte, urlPath string, queryParserOptions ast.ParserOptions) (*CompileFiltersRequestV1, *compileFiltersRequest, *types.ErrorV1) {
 	var request CompileFiltersRequestV1
 
@@ -593,6 +644,8 @@ func targetDialect(accept string) (string, string) {
 		return "sql", "sqlserver"
 	case sqliteJSON:
 		return "sql", "sqlite"
+	case luceneSolrJSON:
+		return "lucene", "solr"
 	}
 
 	panic("unreachable")

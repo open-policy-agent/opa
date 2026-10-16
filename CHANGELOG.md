@@ -48,6 +48,40 @@ Additionally, OPA will now correctly detect and sign all other files with the su
 
 Authored by @philipaconrad
 
+### Partial evaluation unrolls `every` over a known domain
+
+Partial evaluation now evaluates an `every` over a known collection of at most 32 elements once per element, instead of keeping it in the result when its body has unknowns. The result is the conjunction of the body for each element, which the data filtering targets of the Compile API can translate. See [`every`](https://www.openpolicyagent.org/docs/policy-reference/keywords/every#partial-evaluation).
+
+Authored by @srenatus
+
+### Lucene (Solr) target for the Compile API
+
+The Compile API can now translate a policy into a Lucene query for Solr's `fq` or `q`, with
+`Accept: application/vnd.opa.lucene.solr+json`. The one unknown is the document searched:
+
+```rego
+# METADATA
+# scope: package
+# compile:
+#   unknowns: [input.doc]
+package filters
+
+include if {
+    input.doc.owner == input.user
+    input.doc.level >= 3
+    not input.doc.status == "draft"
+}
+```
+
+For the user `alice`, this compiles to `(owner:"alice" AND level:[3 TO *] AND NOT status:"draft")`.
+Multi-valued fields are compared by their elements, as in `"a" in input.doc.tags`; `schemas`
+annotations declare which fields are, and
+[`solr_schema.rego`](https://www.openpolicyagent.org/filtering/solr_schema.rego) generates them from
+Solr's Schema API. The target can't be combined with others in a multitarget request.
+
+See [Lucene target](https://www.openpolicyagent.org/docs/filtering/fragment#lucene-target).
+
+Authored by @srenatus
 
 ## 1.21.2
 
