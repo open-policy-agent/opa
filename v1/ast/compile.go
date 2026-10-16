@@ -1809,7 +1809,7 @@ func (c *Compiler) checkRuleConflicts() {
 		case conflicts != nil:
 			return !c.err(NewError(TypeErr, rules[0].Loc(), "rule %v conflicts with%v", name, formatConflict(conflicts, rw)))
 
-		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1) || (hasMultiValueSet && hasMultiValueObject):
+		case (len(kinds) > 1 && mixedKindsOverlap(rules)) || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1) || (hasMultiValueSet && hasMultiValueObject):
 			return !c.err(NewError(TypeErr, rules[0].Loc(), "conflicting rules %v found", name))
 
 		case len(defaultRules) > 1:
@@ -5114,6 +5114,29 @@ func (n *TreeNode) flattenMatchingChildren(f func(*Rule) bool) []ruleRef {
 	return util.SortedFunc(ret.s, func(a, b ruleRef) int {
 		return RefCompare(a.ref, b.ref)
 	})
+}
+
+// mixedKindsOverlap reports whether a single-value and a multi-value rule can
+// define the same document. Rules stored at the same node can't when their refs
+// hold different ground terms at some position, like obj[x].y and obj[x].z.
+func mixedKindsOverlap(rules []*Rule) bool {
+	for i, a := range rules {
+		for _, b := range rules[i+1:] {
+			if a.Head.RuleKind() != b.Head.RuleKind() && refsOverlap(a.Ref(), b.Ref()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func refsOverlap(a, b Ref) bool {
+	for i := range min(len(a), len(b)) {
+		if a[i].IsGround() && b[i].IsGround() && !a[i].Equal(b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func formatConflict(conflicts []ruleRef, rw varRewriter) string {
