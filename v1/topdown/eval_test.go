@@ -188,7 +188,7 @@ func TestRefContainsNonScalar(t *testing.T) {
 
 }
 
-func TestContainsNestedRefOrCall(t *testing.T) {
+func TestCannotBeTriviallyNegated(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -251,6 +251,21 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 			input: "f(x) = g(h(y))",
 			want:  true,
 		},
+		{
+			note:  "every - no refs or calls",
+			input: "every x in xs { x }",
+			want:  true,
+		},
+		{
+			note:  "every - refs in body",
+			input: "every x in xs { p[x] }",
+			want:  true,
+		},
+		{
+			note:  "every - ref in domain",
+			input: "every x in p[xs] { x }",
+			want:  true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -259,7 +274,7 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 
 			vis := newNestedCheckVisitor()
 			expr := ast.MustParseExpr(tc.input)
-			result := containsNestedRefOrCall(vis, expr)
+			result := cannotBeTriviallyNegated(vis, expr)
 			if result != tc.want {
 				t.Fatal("Expected", tc.want, "but got", result)
 			}
