@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"weak"
+
+	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 )
 
 func TestAttachRuleAnnotationsMatchesUnsorted(t *testing.T) {
@@ -59,21 +61,38 @@ func TestAttachRuleAnnotationsMatchesUnsorted(t *testing.T) {
 }
 
 func TestStatementBelow(t *testing.T) {
-	at := func(rows ...int) []Statement {
-		stmts := make([]Statement, len(rows))
-		for i, row := range rows {
-			stmts[i] = &Rule{Location: &Location{Row: row}}
-			if row < 0 {
-				stmts[i] = &Annotations{Location: &Location{Row: -row}}
+	// A row of 0 is no location, a package row below 0 no package.
+	at := func(pkg int, imports []int, rules ...int) *Module {
+		loc := func(row int) *Location {
+			if row == 0 {
+				return nil
 			}
+			return &Location{Row: row}
 		}
-		return stmts
+		mod := &Module{}
+		if pkg >= 0 {
+			mod.Package = &Package{Location: loc(pkg)}
+		}
+		for _, row := range imports {
+			mod.Imports = append(mod.Imports, &Import{Location: loc(row)})
+		}
+		for _, row := range rules {
+			mod.Rules = append(mod.Rules, &Rule{Location: loc(row)})
+		}
+		return mod
 	}
 	// The top-most statement below row, the first of those on its row.
-	scan := func(stmts []Statement, row int) Statement {
+	scan := func(mod *Module, row int) Statement {
+		stmts := []Statement{mod.Package}
+		for _, imp := range mod.Imports {
+			stmts = append(stmts, imp)
+		}
+		for _, r := range mod.Rules {
+			stmts = append(stmts, r)
+		}
 		var found Statement
 		for _, stmt := range stmts {
-			if _, ok := stmt.(*Annotations); ok || stmt == nil || stmt.Loc() == nil || stmt.Loc().Row <= row {
+			if stmt.Loc() == nil || stmt.Loc().Row <= row {
 				continue
 			}
 			if found == nil || stmt.Loc().Row < found.Loc().Row {
@@ -82,23 +101,49 @@ func TestStatementBelow(t *testing.T) {
 		}
 		return found
 	}
-	tests := map[string][]Statement{
-		"sorted":          at(1, 3, 3, 7),
-		"annotations":     at(1, -2, 3, -4, 5),
-		"unsorted":        at(5, 2, 9, 2),
-		"empty":           nil,
-		"no location":     append(at(1, 4), &Rule{}, nil, at(6)[0]),
-		"annotation last": at(1, 2, -9),
+	tests := map[string]*Module{
+		"sorted":              at(1, []int{3}, 5, 5, 8),
+		"unsorted":            at(1, nil, 9, 4, 4, 6),
+		"imports below rules": at(1, []int{7}, 3, 9),
+		"no package":          at(-1, nil, 2, 5),
+		"no locations":        at(0, []int{0}, 0, 3),
+		"empty":               at(-1, nil),
 	}
-	for note, stmts := range tests {
+	for note, mod := range tests {
 		t.Run(note, func(t *testing.T) {
-			next := statementBelow(stmts)
+			next := statementBelow(mod)
 			for row := range 10 {
-				if got, exp := next(row), scan(stmts, row); got != exp {
+				if got, exp := next(row), scan(mod, row); got != exp {
 					t.Errorf("row %d: got %v, want %v", row, got, exp)
 				}
 			}
 		})
+	}
+}
+
+// A module decoded from JSON has locations and METADATA comments, but no parsed
+// statements.
+func TestCompileMetadataOfDecodedModule(t *testing.T) {
+	opts := astJSON.Defaults()
+	opts.MarshalOptions.IncludeLocation = astJSON.NodeToggle{Package: true, Import: true, Rule: true, Comment: true}
+	astJSON.SetOptions(opts)
+	t.Cleanup(resetJSONOptions)
+
+	src := "package p\n\n# METADATA\n# title: hello\nallow if {\n\tm := rego.metadata.rule()\n\tm.title == \"hello\"\n}\n"
+	bs, err := json.Marshal(MustParseModule(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mod Module
+	if err := json.Unmarshal(bs, &mod); err != nil {
+		t.Fatal(err)
+	}
+	c := NewCompiler()
+	if c.Compile(map[string]*Module{"p.rego": &mod}); c.Failed() {
+		t.Fatal(c.Errors)
+	}
+	if a := c.Modules["p.rego"].Rules[0].Annotations; len(a) != 1 || a[0].Title != "hello" {
+		t.Fatalf("annotations: %v", a)
 	}
 }
 
