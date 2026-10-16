@@ -206,8 +206,11 @@ func TestPluginPrometheus(t *testing.T) {
 	if registerMock.Collectors[fixture.plugin.collectors.decisionLogsCounters] != true {
 		t.Fatal("Decision Logs Counters metric was not registered on prometheus")
 	}
-	if len(registerMock.Collectors) != 11 {
-		t.Fatalf("Number of collectors expected (%v), got %v", 11, len(registerMock.Collectors))
+	if registerMock.Collectors[fixture.plugin.collectors.decisionLogsBuffer] != true {
+		t.Fatal("Decision Logs Buffer metric was not registered on prometheus")
+	}
+	if len(registerMock.Collectors) != 12 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 12, len(registerMock.Collectors))
 	}
 
 	lastRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(fixture.plugin.collectors.lastRequest) / 1e6))
@@ -263,8 +266,8 @@ func TestPluginPrometheus(t *testing.T) {
 	fixture.plugin.Reconfigure(ctx, prometheusReenabledConfig)
 	eventually(t, func() bool { return fixture.plugin.config.Prometheus })
 
-	if len(registerMock.Collectors) != 11 {
-		t.Fatalf("Number of collectors expected (%v), got %v", 11, len(registerMock.Collectors))
+	if len(registerMock.Collectors) != 12 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 12, len(registerMock.Collectors))
 	}
 }
 
@@ -350,6 +353,7 @@ func TestPluginPrometheusDecisionLogs(t *testing.T) {
 		t.Fatalf("expected no decision logs counter metrics, got %d", n)
 	}
 
+	m.Counter("decision_logs_chunks_uploaded").Add(2)
 	m.Counter("decision_logs_dropped_buffer_size_limit_exceeded").Add(3)
 	m.Counter("decision_logs_encoding_failure").Incr()
 	m.Counter("some_unrelated_counter").Incr()
@@ -371,6 +375,9 @@ decision_logs_status_gauge{code="decision_log_error",http_code="400"} 1
 	}
 
 	exp = `
+# HELP decision_logs_chunks_uploaded_total Counter for the decision logs metric decision_logs_chunks_uploaded.
+# TYPE decision_logs_chunks_uploaded_total counter
+decision_logs_chunks_uploaded_total 2
 # HELP decision_logs_dropped_buffer_size_limit_exceeded_total Counter for the decision logs metric decision_logs_dropped_buffer_size_limit_exceeded.
 # TYPE decision_logs_dropped_buffer_size_limit_exceeded_total counter
 decision_logs_dropped_buffer_size_limit_exceeded_total 3
@@ -402,6 +409,52 @@ decision_logs_status_gauge{code="",http_code=""} 1
 decision_logs_encoding_failure_total 2
 `
 	if err := testutil.CollectAndCompare(fixture.plugin.collectors.decisionLogsCounters, strings.NewReader(exp), "decision_logs_encoding_failure_total"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type testDecisionLogsBuffer struct {
+	testPlugin
+	bufferType string
+	size       int64
+}
+
+func (p *testDecisionLogsBuffer) BufferSize() (string, int64) {
+	return p.bufferType, p.size
+}
+
+func TestDecisionLogsBufferCollector(t *testing.T) {
+	t.Parallel()
+
+	manager, err := plugins.New(nil, "test-instance-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := newDecisionLogsBufferCollector(manager)
+
+	if n := testutil.CollectAndCount(c); n != 0 {
+		t.Fatalf("expected no metrics without a decision logs plugin, got %d", n)
+	}
+
+	dl := &testDecisionLogsBuffer{bufferType: "size", size: 512}
+	manager.Register("decision_logs", dl)
+
+	exp := `
+# HELP decision_logs_buffer_size_bytes Number of bytes waiting in the decision log size buffer.
+# TYPE decision_logs_buffer_size_bytes gauge
+decision_logs_buffer_size_bytes 512
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(exp)); err != nil {
+		t.Fatal(err)
+	}
+
+	dl.bufferType, dl.size = "event", 7
+	exp = `
+# HELP decision_logs_buffer_size_events Number of items waiting in the decision log event buffer.
+# TYPE decision_logs_buffer_size_events gauge
+decision_logs_buffer_size_events 7
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(exp)); err != nil {
 		t.Fatal(err)
 	}
 }

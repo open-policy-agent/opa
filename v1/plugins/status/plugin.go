@@ -206,7 +206,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]any{"plugin": Name}),
 		trigger:        make(chan trigger),
-		collectors:     newCollectors(parsedConfig.PrometheusConfig),
+		collectors:     newCollectors(parsedConfig.PrometheusConfig, manager),
 	}
 
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
