@@ -32,10 +32,11 @@ type queryIDFactory struct {
 }
 
 type biunifyArraysRecParams struct {
-	a, b   *ast.Array
-	b1, b2 *bindings
-	iter   unifyIterator
-	idx    int
+	a, b    *ast.Array
+	b1, b2  *bindings
+	iter    unifyIterator
+	idx     int
+	inPlace bool // bind and compare elements without a continuation, see unifyInPlace
 }
 
 // Note: The first call to Next() returns 0.
@@ -151,6 +152,7 @@ var (
 	evalFuncPool      = util.NewResettablePool[evalFunc]()
 	evalBuiltinPool   = util.NewResettablePool[evalBuiltin]()
 	bodyContainerPool = util.NewSyncPoolWithConstructor(newBodyContainer)
+	stepContPool      = util.NewResettablePool[stepCont]()
 )
 
 func (e *eval) Run(iter evalIterator) error {
@@ -455,18 +457,47 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return e.evalWith(iter)
 	}
 
-	err := e.evalStep(func(e *eval) error {
-		return e.next(iter)
-	})
+	err := e.evalStep(iter, true)
 
 	// The innermost point an error passes through with every enclosing query's
 	// expression index still intact.
 	return e.withStackTrace(err)
 }
 
-func (e *eval) evalStep(iter evalIterator) (err error) {
+// stepCont is the continuation of an equality or call expression. It is pooled
+// with fn, a method value created once, so a step doesn't allocate a closure.
+// A step holds it until it has tried every solution of the expression.
+type stepCont struct {
+	e       *eval
+	iter    evalIterator
+	fn      func() error
+	advance bool
+}
+
+func (c *stepCont) run() error {
+	return c.e.cont(c.iter, c.advance)
+}
+
+func (c *stepCont) Reset() {
+	c.e, c.iter = nil, nil
+}
+
+// cont continues after a successful step: to the next expression if advance is
+// set, else straight to iter. Taking the flag here, instead of wrapping iter
+// in a closure in the caller, saves one heap-allocated closure per expression.
+func (e *eval) cont(iter evalIterator, advance bool) error {
+	if advance {
+		return e.next(iter)
+	}
+	return iter(e)
+}
+
+func (e *eval) evalStep(iter evalIterator, advance bool) (err error) {
 	expr := e.query[e.index]
 	if expr.Negated {
+		if advance {
+			return e.evalNot(func(e *eval) error { return e.next(iter) })
+		}
 		return e.evalNot(iter)
 	}
 
@@ -486,14 +517,14 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			case expr.IsEquality():
 				err = e.unify(terms[1], terms[2], func() error {
 					defined = true
-					err := iter(e)
+					err := e.cont(iter, advance)
 					e.traceRedo(expr)
 					return err
 				})
 			default:
 				err = e.evalCall(terms, func() error {
 					defined = true
-					err := iter(e)
+					err := e.cont(iter, advance)
 					e.traceRedo(expr)
 					return err
 				})
@@ -508,12 +539,12 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			err = e.unify(terms, rterm, func() error {
 				if e.saveSet.Contains(rterm, e.bindings) {
 					return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-						return iter(e)
+						return e.cont(iter, advance)
 					})
 				}
 				if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
 					defined = true
-					err := iter(e)
+					err := e.cont(iter, advance)
 					e.traceRedo(expr)
 					return err
 				}
@@ -531,7 +562,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = eval.eval(func() error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -543,7 +574,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = en.eval(func(e *eval) error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -555,7 +586,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = ea.eval(func(e *eval) error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -567,7 +598,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			}
 			err = eo.eval(func(e *eval) error {
 				defined = true
-				err := iter(e)
+				err := e.cont(iter, advance)
 				e.traceRedo(expr)
 				return err
 			})
@@ -589,26 +620,29 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 
 	switch terms := expr.Terms.(type) {
 	case []*ast.Term:
-		switch {
-		case expr.IsEquality():
-			err = e.unify(terms[1], terms[2], func() error {
-				return iter(e)
-			})
-		default:
-			err = e.evalCall(terms, func() error {
-				return iter(e)
-			})
+		c := stepContPool.Get()
+		c.e, c.iter, c.advance = e, iter, advance
+		if c.fn == nil {
+			c.fn = c.run
 		}
+
+		if expr.IsEquality() {
+			err = e.unify(terms[1], terms[2], c.fn)
+		} else {
+			err = e.evalCall(terms, c.fn)
+		}
+
+		stepContPool.Put(c)
 	case *ast.Term:
 		rterm := ast.VarTerm(e.fmtVar())
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet != nil && e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-					return iter(e)
+					return e.cont(iter, advance)
 				})
 			}
 			if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
-				return iter(e)
+				return e.cont(iter, advance)
 			}
 			return nil
 		})
@@ -619,7 +653,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			expr:  expr,
 		}
 		err = eval.eval(func() error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	case *ast.Not:
@@ -628,7 +662,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			not: terms,
 		}
 		err = en.eval(func(e *eval) error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	case *ast.LogicalAnd:
@@ -637,7 +671,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			and: terms,
 		}
 		err = ea.eval(func(e *eval) error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	case *ast.LogicalOr:
@@ -646,7 +680,7 @@ func (e *eval) evalStep(iter evalIterator) (err error) {
 			or: terms,
 		}
 		err = eo.eval(func(e *eval) error {
-			return iter(e)
+			return e.cont(iter, advance)
 		})
 
 	default: // guard-rail for adding extra (Expr).Terms types
@@ -698,16 +732,20 @@ func (e *eval) evalNot(iter evalIterator) error {
 	bodyContainer.complementNotWith(e.query[e.index])
 	e.closure(bodyContainer.body, child)
 
-	if err := child.eval(func(*eval) error {
-		child.defined = true
-		return nil
-	}); err != nil {
+	if err := child.eval((*eval).setDefined); err != nil {
 		return err
 	}
 
 	if !child.defined {
 		return iter(e)
 	}
+	return nil
+}
+
+// setDefined records that the query succeeded. Used as a method expression it
+// is a static function value, so no closure is allocated per call.
+func (e *eval) setDefined() error {
+	e.defined = true
 	return nil
 }
 
@@ -836,7 +874,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		err := e.next(iter)
 		oldInput, oldData, pushedFrame = e.evalWithPush(input, data, functionMocks, targets, disable)
 		return err
-	})
+	}, false)
 	err = e.withStackTrace(err)
 
 	e.evalWithPop(oldInput, oldData, pushedFrame)
@@ -1121,9 +1159,9 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return e.saveCall(bi.Decl.Arity(), terms, iter)
 	}
 
-	var bctx *BuiltinContext
+	eval := evalBuiltinPool.Get()
+	defer evalBuiltinPool.Put(eval)
 
-	// Creating a BuiltinContext is expensive, so only do it if the builtin depends on it.
 	if !bi.CanSkipBctx {
 		var parentID uint64
 		if e.parent != nil {
@@ -1139,7 +1177,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			e.time = ast.NumberTerm(int64ToJSONNumber(e.timeStart))
 		}
 
-		bctx = &BuiltinContext{
+		eval.bctxStore = BuiltinContext{
 			Context:                     e.ctx,
 			Metrics:                     e.metrics,
 			Seed:                        e.seed,
@@ -1162,14 +1200,11 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			RequestMetadata:             e.requestMetadata,
 			ResponseMetadata:            e.responseMetadata,
 		}
+		eval.bctx = &eval.bctxStore
 	}
-
-	eval := evalBuiltinPool.Get()
-	defer evalBuiltinPool.Put(eval)
 
 	eval.e = e
 	eval.bi = bi
-	eval.bctx = bctx
 	eval.f = f
 	eval.terms = terms[1:]
 
@@ -1234,6 +1269,7 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 				params.b1, params.b2 = b1, b2
 				params.iter = iter
 				params.idx = 0
+				params.inPlace = !e.traceEnabled && e.saveSet == nil
 				return e.biunifyArraysRec(params)
 			}
 		}
@@ -1251,15 +1287,49 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 }
 
 func (e *eval) biunifyArraysRec(params *biunifyArraysRecParams) error {
-	if params.idx == params.a.Len() {
-		err := params.iter()
-		arraysRecPool.Put(params)
-		return err
+	n := params.a.Len()
+
+	var undos [4]undo
+	nu := 0
+
+	if params.inPlace {
+		for params.idx < n && nu < len(undos) {
+			r := unifyInPlace(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, &undos[nu])
+			if r == unifyNeedsMore {
+				break
+			}
+			if r == unifyFailed {
+				undoAll(undos[:nu])
+				arraysRecPool.Put(params)
+				return nil
+			}
+			if r == unifyBound {
+				nu++
+			}
+			params.idx++
+		}
 	}
-	return e.biunify(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, func() error {
-		params.idx++
-		return e.biunifyArraysRec(params)
-	})
+
+	var err error
+
+	switch {
+	case params.idx == n:
+		err = params.iter()
+		arraysRecPool.Put(params)
+	case params.idx == n-1: // nothing left to continue with after the last element
+		a, b := params.a.Elem(params.idx), params.b.Elem(params.idx)
+		b1, b2, iter := params.b1, params.b2, params.iter
+		arraysRecPool.Put(params)
+		err = e.biunify(a, b, b1, b2, iter)
+	default:
+		err = e.biunify(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, func() error {
+			params.idx++
+			return e.biunifyArraysRec(params)
+		})
+	}
+
+	undoAll(undos[:nu])
+	return err
 }
 
 func (e *eval) biunifyTerms(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterator) error {
@@ -1270,12 +1340,93 @@ func (e *eval) biunifyTerms(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterat
 }
 
 func (e *eval) biunifyTermsRec(a, b []*ast.Term, b1, b2 *bindings, iter unifyIterator, idx int) error {
-	if idx == len(a) {
-		return iter()
+	var undos [4]undo
+	n := 0
+
+	if !e.traceEnabled && e.saveSet == nil {
+		for idx < len(a) && n < len(undos) {
+			r := unifyInPlace(a[idx], b[idx], b1, b2, &undos[n])
+			if r == unifyNeedsMore {
+				break
+			}
+			if r == unifyFailed {
+				undoAll(undos[:n])
+				return nil
+			}
+			if r == unifyBound {
+				n++
+			}
+			idx++
+		}
 	}
-	return e.biunify(a[idx], b[idx], b1, b2, func() error {
-		return e.biunifyTermsRec(a, b, b1, b2, iter, idx+1)
-	})
+
+	var err error
+	if idx == len(a) {
+		err = iter()
+	} else {
+		i := idx
+		err = e.biunify(a[i], b[i], b1, b2, func() error {
+			return e.biunifyTermsRec(a, b, b1, b2, iter, i+1)
+		})
+	}
+
+	undoAll(undos[:n])
+	return err
+}
+
+type unifyResult int8
+
+const (
+	unifyNeedsMore unifyResult = iota // not decided in place, needs biunify
+	unifyFailed                       // the terms don't unify
+	unifyDone                         // unified, nothing was bound
+	unifyBound                        // unified by binding a variable, recorded in the undo
+)
+
+// unifyInPlace unifies pairs that need no continuation: a variable binds, and
+// two scalars compare. Only the former records an undo, for the caller to run
+// once the continuation returns. Callers must not use it when tracing or
+// saving, as biunify does more then.
+func unifyInPlace(a, b *ast.Term, b1, b2 *bindings, u *undo) unifyResult {
+	x, bx := b1.apply(a)
+	y, by := b2.apply(b)
+	_, xVar := x.Value.(ast.Var)
+	_, yVar := y.Value.(ast.Var)
+
+	switch {
+	case xVar && yVar:
+		if bx == by && x.Equal(y) {
+			return unifyDone
+		}
+		bx.bind(x, y, by, u)
+		return unifyBound
+	case xVar && bindable(y.Value):
+		bx.bind(x, y, by, u)
+		return unifyBound
+	case yVar && bindable(x.Value):
+		by.bind(y, x, bx, u)
+		return unifyBound
+	case ast.IsScalar(x.Value) && ast.IsScalar(y.Value):
+		if x.Equal(y) {
+			return unifyDone
+		}
+		return unifyFailed
+	}
+
+	return unifyNeedsMore
+}
+
+// bindable returns true if v can be bound to a variable as is, i.e. isn't a
+// term that has to be evaluated first.
+func bindable(v ast.Value) bool {
+	_, ref := v.(ast.Ref)
+	return !ref && !ast.IsComprehension(v)
+}
+
+func undoAll(undos []undo) {
+	for i := len(undos) - 1; i >= 0; i-- {
+		undos[i].Undo()
+	}
 }
 
 func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyIterator) error {
@@ -2106,17 +2257,28 @@ func (e *eval) updateFromQuery(expr *ast.Expr) {
 }
 
 type evalBuiltin struct {
-	e     *eval
-	bi    *ast.Builtin
-	bctx  *BuiltinContext
-	f     BuiltinFunc
-	terms []*ast.Term
+	e         *eval
+	bi        *ast.Builtin
+	bctx      *BuiltinContext // nil, or &bctxStore
+	f         BuiltinFunc
+	terms     []*ast.Term
+	bctxStore BuiltinContext
+
+	// State of the call in progress for onOutput. The callback is a method value
+	// created once per pooled evalBuiltin, so a call doesn't allocate a closure.
+	iter        unifyIterator
+	operands    []*ast.Term
+	numDeclArgs int
+	endIndex    int
+	cb          func(*ast.Term) error
 }
 
 // Reset clears the fields before this evalBuiltin is returned to its pool,
 // so pooling it doesn't keep terms/bindings from the previous call alive.
 func (e *evalBuiltin) Reset() {
 	e.e, e.bi, e.bctx, e.f, e.terms = nil, nil, nil, nil, nil
+	e.bctxStore = BuiltinContext{}
+	e.iter, e.operands = nil, nil
 }
 
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
@@ -2194,48 +2356,20 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 		e.e.instr.startTimer(evalOpBuiltinCall)
 	}
 
-	var bctx BuiltinContext
 	if e.bctx == nil {
-		bctx = BuiltinContext{
+		e.bctxStore = BuiltinContext{
 			// Location potentially needed for error reporting.
 			Location: e.e.query[e.e.index].Location,
 		}
-	} else {
-		bctx = *e.bctx
+		e.bctx = &e.bctxStore
 	}
 
 	// Normal unification flow for builtins:
-	err := e.f(bctx, operands, func(output *ast.Term) (err error) {
-		e.e.instr.stopTimer(evalOpBuiltinCall)
-
-		switch {
-		case e.bi.Decl.Result() == nil:
-			err = iter()
-		case len(operands) == numDeclArgs:
-			if !ast.Boolean(false).Equal(output.Value) {
-				err = iter()
-			} // else: nothing to do, don't iter()
-		default:
-			err = e.e.unify(e.terms[endIndex], output, iter)
-		}
-
-		// If the NDBCache is present, we can assume this builtin
-		// call was not cached earlier.
-		if e.canUseNDBCache(e.bi) {
-			// Populate the NDBCache from the output term.
-			e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(operands[:endIndex]...), output.Value)
-		}
-
-		if err != nil {
-			// NOTE(sr): We wrap the errors here into Halt{} because we don't want to
-			// record them into builtinErrors below. The errors set here are coming from
-			// the call to iter(), not from the builtin implementation.
-			err = Halt{Err: err}
-		}
-
-		e.e.instr.startTimer(evalOpBuiltinCall)
-		return err
-	})
+	e.iter, e.operands, e.numDeclArgs, e.endIndex = iter, operands, numDeclArgs, endIndex
+	if e.cb == nil {
+		e.cb = e.onOutput
+	}
+	err := e.f(*e.bctx, operands, e.cb)
 
 	if err != nil {
 		if t, ok := err.(Halt); ok {
@@ -2257,12 +2391,57 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 	return err
 }
 
+// onOutput is the callback handed to the built-in: it unifies each output with
+// the call's result term and continues.
+func (e *evalBuiltin) onOutput(output *ast.Term) (err error) {
+	e.e.instr.stopTimer(evalOpBuiltinCall)
+
+	switch {
+	case e.bi.Decl.Result() == nil:
+		err = e.iter()
+	case len(e.operands) == e.numDeclArgs:
+		if !ast.Boolean(false).Equal(output.Value) {
+			err = e.iter()
+		} // else: nothing to do, don't iter()
+	default:
+		err = e.e.unify(e.terms[e.endIndex], output, e.iter)
+	}
+
+	// If the NDBCache is present, we can assume this builtin
+	// call was not cached earlier.
+	if e.canUseNDBCache(e.bi) {
+		// Populate the NDBCache from the output term.
+		e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(e.operands[:e.endIndex]...), output.Value)
+	}
+
+	if err != nil {
+		// NOTE(sr): We wrap the errors here into Halt{} because we don't want to
+		// record them into builtinErrors below. The errors set here are coming from
+		// the call to iter(), not from the builtin implementation.
+		err = Halt{Err: err}
+	}
+
+	e.e.instr.startTimer(evalOpBuiltinCall)
+	return err
+}
+
 type evalFunc struct {
 	terms    []*ast.Term
 	cacheKey []*ast.Term
 	args     []*ast.Term
 	e        *eval
 	ir       *ast.IndexResult
+
+	// State of the rule being evaluated, for argsBound and bodyDone. They are
+	// method values created once per pooled evalFunc, so evaluating a rule
+	// doesn't allocate closures. A function's rules are evaluated one at a time.
+	rule      *ast.Rule
+	child     *eval
+	prev      *ast.Term
+	result    *ast.Term
+	ruleIter  unifyIterator
+	argsBound func() error
+	bodyDone  func(*eval) error
 }
 
 // Reset clears the fields before this evalFunc is returned to its pool,
@@ -2273,6 +2452,7 @@ func (e *evalFunc) Reset() {
 	clear(e.args)
 	e.terms, e.cacheKey, e.args = e.terms[:0], e.cacheKey[:0], e.args[:0]
 	e.e, e.ir = nil, nil
+	e.rule, e.child, e.prev, e.result, e.ruleIter = nil, nil, nil, nil, nil
 }
 
 func (e *evalFunc) eval(iter unifyIterator) error {
@@ -2449,61 +2629,74 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Ter
 	e.e.childWithBindingSizeHint(rule.Body, child, sizeHint)
 	child.findOne = findOne
 
-	var result *ast.Term
+	e.rule, e.child, e.prev, e.result, e.ruleIter = rule, child, prev, nil, iter
+	if e.argsBound == nil {
+		e.argsBound, e.bodyDone = e.onArgsBound, e.onBodyDone
+	}
 
 	child.traceEnter(rule)
 
-	err := child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, func() error {
-		return child.eval(func(child *eval) error {
-			child.traceExit(rule)
-			e.e.evaluated.Record(rule)
+	err := child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, e.argsBound)
 
-			// Partial evaluation must save an expression that tests the output value if the output value
-			// was not captured to handle the case where the output value may be `false`.
-			noOutputCapture := len(rule.Head.Args) == len(e.terms)-1
-			if noOutputCapture && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
-				err := e.e.saveExpr(ast.NewExpr(rule.Head.Value), child.bindings, iter)
-				child.traceRedo(rule)
-				return err
-			}
-
-			result = child.bindings.Plug(rule.Head.Value)
-			if e.cacheKey != nil {
-				e.e.virtualCache.Put(e.cacheKey, result) // the redos confirm this, or the evaluation is aborted
-			}
-
-			if noOutputCapture && ast.Boolean(false).Equal(result.Value) {
-				if prev != nil && !prev.Equal(result) {
-					return functionConflictErr(rule)
-				}
-				prev = result
-				return nil
-			}
-
-			// Partial evaluation should explore all rules and may not produce
-			// a ground result so we do not perform conflict detection or
-			// deduplication. See "ignore conflicts: functions" test case for
-			// an example.
-			if !e.e.partial() && prev != nil {
-				if !prev.Equal(result) {
-					return functionConflictErr(rule)
-				}
-				child.traceRedo(rule)
-				return nil
-			}
-
-			prev = result
-
-			if err := iter(); err != nil {
-				return err
-			}
-
-			child.traceRedo(rule)
-			return nil
-		})
-	})
-
+	result := e.result
+	e.rule, e.child, e.prev, e.result, e.ruleIter = nil, nil, nil, nil, nil
 	return result, err
+}
+
+// onArgsBound evaluates the body of the rule once its arguments are unified.
+func (e *evalFunc) onArgsBound() error {
+	return e.child.eval(e.bodyDone)
+}
+
+// onBodyDone handles each solution of the rule's body: the output value is
+// checked against previous ones and handed to the continuation.
+func (e *evalFunc) onBodyDone(child *eval) error {
+	rule := e.rule
+	child.traceExit(rule)
+	e.e.evaluated.Record(rule)
+
+	// Partial evaluation must save an expression that tests the output value if the output value
+	// was not captured to handle the case where the output value may be `false`.
+	noOutputCapture := len(rule.Head.Args) == len(e.terms)-1
+	if noOutputCapture && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
+		err := e.e.saveExpr(ast.NewExpr(rule.Head.Value), child.bindings, e.ruleIter)
+		child.traceRedo(rule)
+		return err
+	}
+
+	e.result = child.bindings.Plug(rule.Head.Value)
+	if e.cacheKey != nil {
+		e.e.virtualCache.Put(e.cacheKey, e.result) // the redos confirm this, or the evaluation is aborted
+	}
+
+	if noOutputCapture && ast.Boolean(false).Equal(e.result.Value) {
+		if e.prev != nil && !e.prev.Equal(e.result) {
+			return functionConflictErr(rule)
+		}
+		e.prev = e.result
+		return nil
+	}
+
+	// Partial evaluation should explore all rules and may not produce
+	// a ground result so we do not perform conflict detection or
+	// deduplication. See "ignore conflicts: functions" test case for
+	// an example.
+	if !e.e.partial() && e.prev != nil {
+		if !e.prev.Equal(e.result) {
+			return functionConflictErr(rule)
+		}
+		child.traceRedo(rule)
+		return nil
+	}
+
+	e.prev = e.result
+
+	if err := e.ruleIter(); err != nil {
+		return err
+	}
+
+	child.traceRedo(rule)
+	return nil
 }
 
 func (e *evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
