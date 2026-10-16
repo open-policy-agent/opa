@@ -318,7 +318,7 @@ package p
 // BenchmarkParseRuleAnnotations parses modules where every rule has its own
 // METADATA block, as generated policies often do.
 func BenchmarkParseRuleAnnotations(b *testing.B) {
-	for _, n := range []int{100, 500} {
+	for _, n := range []int{100, 500, 5000} {
 		b.Run(fmt.Sprintf("rules=%d", n), func(b *testing.B) {
 			var sb strings.Builder
 			sb.WriteString("package p\n\n")

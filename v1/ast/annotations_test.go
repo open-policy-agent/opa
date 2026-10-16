@@ -58,6 +58,50 @@ func TestAttachRuleAnnotationsMatchesUnsorted(t *testing.T) {
 	}
 }
 
+func TestStatementBelow(t *testing.T) {
+	at := func(rows ...int) []Statement {
+		stmts := make([]Statement, len(rows))
+		for i, row := range rows {
+			stmts[i] = &Rule{Location: &Location{Row: row}}
+			if row < 0 {
+				stmts[i] = &Annotations{Location: &Location{Row: -row}}
+			}
+		}
+		return stmts
+	}
+	// The top-most statement below row, the first of those on its row.
+	scan := func(stmts []Statement, row int) Statement {
+		var found Statement
+		for _, stmt := range stmts {
+			if _, ok := stmt.(*Annotations); ok || stmt == nil || stmt.Loc() == nil || stmt.Loc().Row <= row {
+				continue
+			}
+			if found == nil || stmt.Loc().Row < found.Loc().Row {
+				found = stmt
+			}
+		}
+		return found
+	}
+	tests := map[string][]Statement{
+		"sorted":          at(1, 3, 3, 7),
+		"annotations":     at(1, -2, 3, -4, 5),
+		"unsorted":        at(5, 2, 9, 2),
+		"empty":           nil,
+		"no location":     append(at(1, 4), &Rule{}, nil, at(6)[0]),
+		"annotation last": at(1, 2, -9),
+	}
+	for note, stmts := range tests {
+		t.Run(note, func(t *testing.T) {
+			next := statementBelow(stmts)
+			for row := range 10 {
+				if got, exp := next(row), scan(stmts, row); got != exp {
+					t.Errorf("row %d: got %v, want %v", row, got, exp)
+				}
+			}
+		})
+	}
+}
+
 func TestEntrypointAnnotationScopeRequirements(t *testing.T) {
 	tests := []struct {
 		note        string

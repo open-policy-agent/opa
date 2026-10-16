@@ -452,17 +452,16 @@ func attachRuleAnnotationsUnsorted(mod *Module) {
 }
 
 func attachAnnotationsNodes(mod *Module) Errors {
+	if len(mod.Annotations) == 0 {
+		return nil
+	}
 	var errs Errors
 	// Find first non-annotation statement following each annotation and attach
 	// the annotation to that statement.
+	next := statementBelow(mod.stmts)
 	for _, a := range mod.Annotations {
-		for _, stmt := range mod.stmts {
-			if _, ok := stmt.(*Annotations); !ok {
-				if stmt.Loc().Row > a.Location.Row {
-					a.node = stmt
-					break
-				}
-			}
+		if stmt := next(a.Location.Row); stmt != nil {
+			a.node = stmt
 		}
 
 		if a.Scope == "" {
@@ -493,6 +492,29 @@ func attachAnnotationsNodes(mod *Module) Errors {
 	}
 
 	return errs
+}
+
+// statementBelow returns a function finding the top-most statement below row
+// that isn't an annotation, leaving out statements without a location.
+func statementBelow(stmts []Statement) func(row int) Statement {
+	others := make([]Statement, 0, len(stmts))
+	for _, stmt := range stmts {
+		if _, ok := stmt.(*Annotations); !ok && stmt != nil && stmt.Loc() != nil {
+			others = append(others, stmt)
+		}
+	}
+	byRow := func(x, y Statement) int { return x.Loc().Row - y.Loc().Row }
+	if !slices.IsSortedFunc(others, byRow) { // the parser's are in source order
+		slices.SortStableFunc(others, byRow)
+	}
+	return func(row int) Statement {
+		// The first statement past row, or len(others) if there is none.
+		i, _ := slices.BinarySearchFunc(others, row+1, func(stmt Statement, row int) int { return stmt.Loc().Row - row })
+		if i < len(others) {
+			return others[i]
+		}
+		return nil
+	}
 }
 
 func validateAnnotationScopeAttachment(a *Annotations) *Error {
