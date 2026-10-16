@@ -1858,6 +1858,7 @@ func TestInterfaceToValueNumberRange(t *testing.T) {
 		{input: "1e30000"},
 		{input: "12345678901234567890123456789012345678901234567890"},
 		{input: "1e40000", err: "invalid number: number too big"},
+		{input: "1E40000", err: "invalid number: number too big"},
 		{input: "-1e40000", err: "invalid number: number too big"},
 		{input: "1e-40000", err: "invalid number: number too big"},
 		{input: "1e2147483648", err: "invalid number: invalid float"},

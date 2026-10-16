@@ -869,20 +869,23 @@ func validateNumber(s string) error {
 // NumberChecked returns s as a Number, or an error if it is not a number that can be handled
 // when evaluating, like one with an out-of-range exponent.
 func NumberChecked(s string) (Number, error) {
-	// Only the exponent forms can be out of range, and only large ones.
-	if i := exponentIndex(s); i >= 0 && !smallExponent(s, i) {
-		if err := validateNumber(s); err != nil {
-			return "", fmt.Errorf("invalid number: %w", err)
+	// Only the exponent forms can be out of range. Kept inlinable: this runs for every
+	// non-interned JSON number.
+	for i := range len(s) {
+		if s[i]|0x20 == 'e' { // 'e' or 'E'
+			return Number(s), checkExponent(s, i)
 		}
 	}
 	return Number(s), nil
 }
 
-func exponentIndex(s string) int {
-	if i := strings.IndexByte(s, 'e'); i >= 0 {
-		return i
+func checkExponent(s string, i int) error {
+	if !smallExponent(s, i) {
+		if err := validateNumber(s); err != nil {
+			return fmt.Errorf("invalid number: %w", err)
+		}
 	}
-	return strings.IndexByte(s, 'E')
+	return nil
 }
 
 // smallExponent reports whether the number s, with its exponent marker at i, is certainly
