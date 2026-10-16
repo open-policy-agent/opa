@@ -181,6 +181,8 @@ type Compiler struct {
 	plan                       *executionPlan       // computed execution plan (cached)
 	unusedImports              []*Import            // imports found unused during ref resolution, reported by CheckUnusedImports
 	unrecoverableErr           bool                 // at least one recorded error prevents the remaining stages from running
+
+	reuse ruleReuseState
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -692,6 +694,15 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 
 	c.init()
 
+	if c.reuse.enabled {
+		c.compileWithReuse(modules)
+	} else {
+		c.compileModules(modules)
+	}
+	c.reuse.prev, c.reuse.reparse = nil, nil // don't keep these alive with the compiler
+}
+
+func (c *Compiler) compileModules(modules map[string]*Module) {
 	c.Modules = make(map[string]*Module, len(modules))
 	c.sorted = util.KeysSorted(modules)
 
@@ -1168,6 +1179,9 @@ func (c *Compiler) buildRuleIndices() {
 		if node.External != nil {
 			// Skip external sources - they build indices dynamically
 			return true
+		}
+		if node.Index != nil {
+			return false // carried over by Compiler.WithRuleReuse
 		}
 		rules := node.Values // must be len > 0 here
 		hasNonGroundRef := false

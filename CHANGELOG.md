@@ -5,6 +5,28 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Incremental compilation for bundles of generated rules
+
+Bundles made mostly of plain rules that are regenerated in full while only a few of them change,
+such as rules generated from a policy database, can now be activated incrementally:
+
+```yaml
+bundles:
+  authz:
+    service: example
+    rule_reuse: true
+```
+
+An activation then reuses what the previous one parsed and compiled for every rule whose source
+text is unchanged, and only parses and compiles the new ones. Switching a bundle of 80000 such
+rules to a revision with one rule changed took 0.19 s instead of 4.9 s, at a third of the peak
+heap. The bundle status metrics `counter_rego_module_compile_reused_rules`,
+`counter_rego_module_parse_skipped_rules` and `counter_rego_module_compile_full` show what an
+activation did. See [Incremental Compilation](https://www.openpolicyagent.org/docs/management-bundles#incremental-compilation)
+for which rules qualify, and when OPA falls back to compiling everything.
+
+Authored by @srenatus
+
 ### Configurable log level for HTTP access logs
 
 Added `--log-level-request` (default `info`) to control the level at which the HTTP

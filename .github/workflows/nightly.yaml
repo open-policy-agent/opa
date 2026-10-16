@@ -66,6 +66,38 @@ jobs:
               "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
+  rule-reuse-fuzzer:
+    name: Go Fuzzer (rule reuse)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .go-version
+
+      - name: go test -fuzz
+        run: go test ./v1/ast -fuzz FuzzCompilerRuleReuse -fuzztime 30m -v -run '^$'
+
+      - name: Dump crashers
+        if: ${{ failure() }}
+        run: find v1/ast/testdata/fuzz/FuzzCompilerRuleReuse ! -type d -print -exec cat {} \;
+
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        with:
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
+            }
+
   govulncheck:
     name: Go vulnerability check
     runs-on: ubuntu-24.04

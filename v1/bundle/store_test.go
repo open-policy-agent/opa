@@ -3654,7 +3654,7 @@ func TestErasePolicies(t *testing.T) {
 			for _, root := range tc.roots {
 				roots[root] = struct{}{}
 			}
-			remaining, _, err := erasePolicies(t.Context(), mockStore, txn, ast.ParserOptions{}, roots)
+			remaining, _, err := erasePolicies(t.Context(), mockStore, txn, ast.ParserOptions{}, nil, roots)
 			if !tc.expectErr && err != nil {
 				t.Fatalf("unepected error: %s", err)
 			} else if tc.expectErr && err == nil {
@@ -4934,4 +4934,88 @@ func FuzzPackageOnly(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestActivate_RuleReuseMetrics(t *testing.T) {
+	ctx := t.Context()
+	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+	rule := func(id string) string {
+		return "# METADATA\n# labels:\n#   id: \"" + id + "\"\n#   version: \"1\"\nallow if input.x == \"" + id + "\"\n\n"
+	}
+	popts := ast.ParserOptions{RegoVersion: ast.RegoV1, ProcessAnnotation: true}
+
+	var prev *ast.Compiler
+	activate := func(src string) map[string]any {
+		t.Helper()
+		parsed, err := ast.ParseModuleWithOpts("test/rules.rego", src, popts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := metrics.New()
+		c := ast.NewCompiler().WithRuleReuse(prev)
+		txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+		err = Activate(&ActivateOpts{Ctx: ctx, Store: store, Txn: txn, Compiler: c, Metrics: m, ParserOptions: popts,
+			Bundles: map[string]*Bundle{"b": {
+				Manifest: Manifest{Roots: &[]string{"test"}},
+				Modules:  []ModuleFile{{Path: "test/rules.rego", Raw: []byte(src), Parsed: parsed}},
+			}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Commit(ctx, txn); err != nil {
+			t.Fatal(err)
+		}
+		prev = c
+		return m.All()
+	}
+
+	got := activate("package test\n\n" + rule("a") + rule("b"))
+	if got["counter_rego_module_compile_full"] != uint64(1) || got["counter_rego_module_compile_reused_rules"] != uint64(0) {
+		t.Fatalf("first activation: %v", got)
+	}
+	got = activate("package test\n\n" + rule("a") + rule("b") + rule("c"))
+	if _, ok := got["counter_rego_module_compile_full"]; ok || got["counter_rego_module_compile_reused_rules"] != uint64(2) {
+		t.Fatalf("second activation: %v", got)
+	}
+}
+
+func TestActivate_RuleReuseForStoredPolicies(t *testing.T) {
+	ctx := t.Context()
+	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+	popts := ast.ParserOptions{RegoVersion: ast.RegoV1, ProcessAnnotation: true}
+	var prev *ast.Compiler
+
+	activate := func(name, root, src string) ast.RuleReuseStats {
+		t.Helper()
+		parsed, err := ast.ParseModuleWithOpts(root+"/x.rego", src, popts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := ast.NewCompiler().WithRuleReuse(prev)
+		txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+		err = Activate(&ActivateOpts{Ctx: ctx, Store: store, Txn: txn, Compiler: c, Metrics: metrics.New(),
+			ParserOptions: popts, RuleReuseCompiler: func() *ast.Compiler { return prev },
+			Bundles: map[string]*Bundle{name: {
+				Manifest: Manifest{Roots: &[]string{root}},
+				Modules:  []ModuleFile{{Path: root + "/x.rego", Raw: []byte(src), Parsed: parsed}},
+			}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Commit(ctx, txn); err != nil {
+			t.Fatal(err)
+		}
+		prev = c
+		return c.RuleReuseStats()
+	}
+
+	activate("a", "a", "package a\n\nallow if input.x == 1\n\nallow if input.x == 2\n")
+	activate("b", "b", "package b\n\nallow if input.y == 1\n")
+	if s := activate("b", "b", "package b\n\nallow if input.y == 1\n\nallow if input.y == 2\n"); !s.Incremental || s.ParseSkipped != 2 {
+		t.Fatalf("b's switch: %+v", s)
+	}
+	// A function in b forces a full compile, with a's rules parsed again.
+	if s := activate("b", "b", "package b\n\nf(x) := x\n"); s.Incremental {
+		t.Fatalf("b with a function: %+v", s)
+	}
 }

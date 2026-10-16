@@ -362,6 +362,7 @@ type ActivateOpts struct {
 	Bundles                  map[string]*Bundle                               // Optional
 	ExtraModules             map[string]*ast.Module                           // Optional
 	ExternalSources          *util.HasherMap[ast.Ref, ast.ExternalRuleSource] // Optional
+	RuleReuseCompiler        func() *ast.Compiler                             // Optional, see Reader.WithRuleReuse; applies to policies read back from the store
 	AuthorizationDecisionRef ast.Ref
 	ParserOptions            ast.ParserOptions
 	Plugin                   string
@@ -420,7 +421,7 @@ func Deactivate(opts *DeactivateOpts) error {
 			erase[root] = struct{}{}
 		}
 	}
-	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, opts.BundleNames, erase)
+	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, nil, opts.BundleNames, erase)
 	return err
 }
 
@@ -467,9 +468,14 @@ func activateBundles(opts *ActivateOpts) error {
 		}
 	}
 
+	var parse moduleParser
+	if opts.RuleReuseCompiler != nil {
+		parse = reuseModuleParser(opts.RuleReuseCompiler)
+	}
+
 	// Erase data and policies at new + old roots, and remove the old
 	// manifests before activating a new snapshot bundle.
-	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, names, erase)
+	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, parse, names, erase)
 	if err != nil {
 		return err
 	}
@@ -530,10 +536,12 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Compile the modules all at once to avoid having to re-do work.
 	remainingAndExtra := make(map[string]*ast.Module, len(remaining)+len(opts.ExtraModules))
-	maps.Copy(remainingAndExtra, remaining)
+	for id, p := range remaining {
+		remainingAndExtra[id] = p.module
+	}
 	maps.Copy(remainingAndExtra, opts.ExtraModules)
 
-	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef, opts.ExternalSources)
+	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, remaining, opts.legacy, opts.AuthorizationDecisionRef, opts.ExternalSources, opts.ParserOptions)
 	if err != nil {
 		return err
 	}
@@ -681,12 +689,12 @@ func valueToManifest(v any) (Manifest, error) {
 
 // erase bundles by name and roots. This will clear all policies and data at its roots and remove its
 // manifest from storage.
-func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
+func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, parse moduleParser, names map[string]struct{}, roots map[string]struct{}) (map[string]storedPolicy, error) {
 	if err := eraseData(ctx, store, txn, roots); err != nil {
 		return nil, err
 	}
 
-	remaining, removed, err := erasePolicies(ctx, store, txn, parserOpts, roots)
+	remaining, removed, err := erasePolicies(ctx, store, txn, parserOpts, parse, roots)
 	if err != nil {
 		return nil, err
 	}
@@ -769,7 +777,17 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 	return nil, errors.New("corrupt rego version")
 }
 
-func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
+// storedPolicy is a policy read back from the store, with what parsed it.
+type storedPolicy struct {
+	module *ast.Module
+	raw    []byte
+	opts   ast.ParserOptions
+}
+
+func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, parse moduleParser, roots map[string]struct{}) (map[string]storedPolicy, []string, error) {
+	if parse == nil {
+		parse = parseModule
+	}
 	ids, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, nil, err
@@ -790,7 +808,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		return opts
 	}
 
-	remaining := map[string]*ast.Module{}
+	remaining := map[string]storedPolicy{}
 	var removed []string
 
 	for _, id := range ids {
@@ -805,8 +823,9 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 			return nil, nil, err
 		}
 		var module *ast.Module
+		opts := parserOptsFor(id)
 		if !erase {
-			if module, err = ast.ParseModuleWithOpts(id, string(bs), parserOptsFor(id)); err != nil {
+			if module, err = parse(id, bs, opts); err != nil {
 				return nil, nil, err
 			}
 			if erase, err = underRoots(module.Package, roots); err != nil {
@@ -821,7 +840,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 			removed = append(removed, id)
 			continue
 		}
-		remaining[id] = module
+		remaining[id] = storedPolicy{module, bs, opts}
 	}
 
 	return remaining, removed, nil
@@ -984,7 +1003,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, stored map[string]storedPolicy, legacy bool, authorizationDecisionRef ast.Ref, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource], parserOpts ast.ParserOptions) error {
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
@@ -1005,18 +1024,42 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	maps.Copy(modules, extraModules)
 
 	// include all the new bundle modules
+	files := map[string]ModuleFile{}
 	for bundleName, b := range bundles {
-		if legacy {
-			for _, mf := range b.Modules {
-				modules[mf.Path] = mf.Parsed
+		for _, mf := range b.Modules {
+			name := mf.Path
+			if !legacy {
+				name = modulePathWithPrefix(bundleName, mf.Path)
 			}
-		} else {
-			maps.Copy(modules, b.ParsedModules(bundleName))
+			modules[name] = mf.Parsed
+			files[name] = mf
 		}
 	}
 
+	// Rule reuse may have put compiled rules in place of parsing them. Such
+	// modules are parsed again if the compile falls back to compiling everything.
+	compiler = compiler.WithReparser(func(name string) (*ast.Module, error) {
+		if p, ok := stored[name]; ok {
+			return parseModule(name, p.raw, p.opts)
+		}
+		mf, ok := files[name]
+		if !ok {
+			return nil, errors.New("not a bundle module")
+		}
+		popts := parserOpts
+		popts.RegoVersion = mf.Parsed.RegoVersion()
+		return parseModule(mf.Path, mf.Raw, popts)
+	})
+
 	if compiler.Compile(modules); compiler.Failed() {
 		return compiler.Errors
+	}
+	if s := compiler.RuleReuseStats(); s.Enabled {
+		m.Counter(metrics.RegoModuleCompileReusedRules).Add(uint64(s.Reused))
+		m.Counter(metrics.RegoModuleParseSkippedRules).Add(uint64(s.ParseSkipped))
+		if !s.Incremental {
+			m.Counter(metrics.RegoModuleCompileFull).Incr()
+		}
 	}
 
 	if authorizationDecisionRef.Equal(ast.InternedEmptyRefValue) {
