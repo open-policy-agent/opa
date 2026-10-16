@@ -14,6 +14,7 @@ import (
 
 	prometheus_client "github.com/prometheus/client_golang/prometheus"
 	otelprometheus "go.opentelemetry.io/contrib/bridges/prometheus"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -24,7 +25,14 @@ import (
 	"github.com/open-policy-agent/opa/internal/configpolicy"
 	"github.com/open-policy-agent/opa/internal/tlsutil"
 	"github.com/open-policy-agent/opa/v1/config"
+	"github.com/open-policy-agent/opa/v1/version"
 )
+
+type resourceConfig struct {
+	ServiceInstanceID     string `json:"service_instance_id,omitempty"`
+	ServiceNamespace      string `json:"service_namespace,omitempty"`
+	DeploymentEnvironment string `json:"deployment_environment,omitempty"`
+}
 
 type metricsExportConfig struct {
 	Type                  string            `json:"type,omitempty"`
@@ -37,6 +45,7 @@ type metricsExportConfig struct {
 	TLSCertPrivateKeyFile string            `json:"tls_private_key_file,omitempty"`
 	TLSCACertFile         string            `json:"tls_ca_cert_file,omitempty"`
 	Headers               map[string]string `json:"headers,omitempty"`
+	Resource              resourceConfig    `json:"resource"`
 }
 
 //go:embed validate.rego
@@ -72,6 +81,23 @@ func httpTLSOption(encryptionScheme string, tlsConfig *tls.Config) otlpmetrichtt
 		return otlpmetrichttp.WithInsecure()
 	}
 	return otlpmetrichttp.WithTLSClientConfig(tlsConfig)
+}
+
+func resourceAttributes(cfg *metricsExportConfig) []attribute.KeyValue {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceNameKey.String(cfg.ServiceName),
+		semconv.ServiceVersionKey.String(version.Version),
+	}
+	if cfg.Resource.ServiceInstanceID != "" {
+		attrs = append(attrs, semconv.ServiceInstanceIDKey.String(cfg.Resource.ServiceInstanceID))
+	}
+	if cfg.Resource.ServiceNamespace != "" {
+		attrs = append(attrs, semconv.ServiceNamespaceKey.String(cfg.Resource.ServiceNamespace))
+	}
+	if cfg.Resource.DeploymentEnvironment != "" {
+		attrs = append(attrs, semconv.DeploymentEnvironmentKey.String(cfg.Resource.DeploymentEnvironment))
+	}
+	return attrs
 }
 
 // Init initializes metrics export based on the provided configuration.
@@ -131,11 +157,7 @@ func Init(ctx context.Context, raw []byte, id string, gatherer prometheus_client
 		return nil, fmt.Errorf("create OTLP metric exporter: %w", err)
 	}
 
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(cfg.ServiceName),
-		),
-	)
+	res, err := resource.New(ctx, resource.WithAttributes(resourceAttributes(cfg)...))
 	if err != nil {
 		return nil, err
 	}
