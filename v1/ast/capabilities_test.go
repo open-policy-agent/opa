@@ -381,6 +381,7 @@ func TestLoadCapabilitiesFile(t *testing.T) {
 
 func TestCapabilitiesForThisVersion(t *testing.T) {
 	v0Features := []string{
+		FeatureImpossibleNegationCheck,
 		FeatureKeywordsInRefs,
 		FeatureRegoV1,
 		FeatureRegoV1Import,
@@ -412,6 +413,7 @@ func TestCapabilitiesForThisVersion(t *testing.T) {
 			note:        "v1",
 			regoVersion: RegoV1,
 			features: []string{
+				FeatureImpossibleNegationCheck,
 				FeatureKeywordsInRefs,
 				FeatureRegoV1,
 				FeatureRegoV2Import,

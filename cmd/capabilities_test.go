@@ -161,6 +161,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureRegoV2Import,
 				ast.FeatureKeywordsInRefs,
 				ast.FeatureTemplateStrings,
+				ast.FeatureImpossibleNegationCheck,
 			},
 			expFutureKeywords: []string{
 				"not",
@@ -178,6 +179,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureRegoV2Import,
 				ast.FeatureRegoV1,
 				ast.FeatureKeywordsInRefs,
+				ast.FeatureImpossibleNegationCheck,
 			},
 			expFutureKeywords: []string{
 				"in",
