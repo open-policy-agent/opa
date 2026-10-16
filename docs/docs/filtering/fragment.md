@@ -198,7 +198,7 @@ If your filtering rules use other built-ins with _known values_, that's OK -- se
 
 Many Rego constructs are available for building filters, with certain restrictions:
 
-1. `every` may not be used with _unknown_ values
+1. `every` may not be used with _unknown_ values, unless it ranges over a known collection (see [`every`](../policy-reference/keywords/every#partial-evaluation))
 2. `default` rules (or functions) may not be used in combination with _unknown_ values
 
 Nonetheless, you can use rules and functions to structure your policy, as long as these restrictions are observed:
