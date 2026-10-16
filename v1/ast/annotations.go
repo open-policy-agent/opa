@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -451,35 +452,36 @@ func attachRuleAnnotationsUnsorted(mod *Module) {
 	}
 }
 
-func attachAnnotationsNodes(mod *Module) Errors {
-	var errs Errors
-	// Find first non-annotation statement following each annotation and attach
-	// the annotation to that statement.
+func attachAnnotationsNodes(mod *Module) (errs Errors) {
+	nodeRowIndex := makeNodeRowIndex(mod, make([]Node, 0, len(mod.Imports)+len(mod.Rules)))
+	pkgRow := -1
+	if mod.Package != nil && mod.Package.Location != nil {
+		pkgRow = mod.Package.Location.Row
+	}
+
 	for _, a := range mod.Annotations {
-		for _, stmt := range mod.stmts {
-			if _, ok := stmt.(*Annotations); !ok {
-				if stmt.Loc().Row > a.Location.Row {
-					a.node = stmt
+		if a.Location != nil {
+			if a.Location.Row < pkgRow {
+				a.Scope = cmp.Or(a.Scope, annotationScopePackage)
+				a.node = mod.Package
+			} else {
+				for _, node := range nodeRowIndex {
+					if node.Loc().Row < a.Location.Row {
+						continue
+					}
+					a.node = node
+					if a.Scope != "" {
+						// do nothing
+					} else if _, ok := node.(*Import); ok {
+						a.Scope = cmp.Or(a.Scope, "import")
+					} else {
+						if a.Entrypoint {
+							a.Scope = cmp.Or(a.Scope, annotationScopeDocument)
+						}
+						a.Scope = cmp.Or(a.Scope, annotationScopeRule)
+					}
 					break
 				}
-			}
-		}
-
-		if a.Scope == "" {
-			switch a.node.(type) {
-			case *Rule:
-				a.Scope = annotationScopeRule
-				if a.Entrypoint {
-					a.Scope = annotationScopeDocument
-				}
-			case *Package:
-				a.Scope = annotationScopePackage
-			case *Import:
-				// Note that this isn't a valid scope, but set here so that the
-				// validate function called below can print an error message with
-				// a context that makes sense ("invalid scope: 'import'" instead of
-				// "invalid scope: '')
-				a.Scope = "import"
 			}
 		}
 
@@ -493,6 +495,23 @@ func attachAnnotationsNodes(mod *Module) Errors {
 	}
 
 	return errs
+}
+
+func makeNodeRowIndex(mod *Module, nodeRowIndex []Node) []Node {
+	for i := range mod.Rules {
+		if mod.Rules[i].Location != nil {
+			nodeRowIndex = append(nodeRowIndex, mod.Rules[i])
+		}
+	}
+	for i := range mod.Imports {
+		if mod.Imports[i].Location != nil {
+			nodeRowIndex = append(nodeRowIndex, mod.Imports[i])
+		}
+	}
+
+	return util.SortedFunc(nodeRowIndex, func(a, b Node) int {
+		return a.Loc().Row - b.Loc().Row
+	})
 }
 
 func validateAnnotationScopeAttachment(a *Annotations) *Error {

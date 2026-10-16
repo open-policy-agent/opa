@@ -682,7 +682,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		Package: pkg,
 		// The comments slice only holds comments that were not their own statements.
 		Comments: comments,
-		stmts:    stmts,
 	}
 
 	mod.regoVersion = regoCompatibilityMode
@@ -742,7 +741,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 	}
 
 	errs = append(errs, attachAnnotationsNodes(mod)...)
-
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -838,7 +836,6 @@ type ParserErrorDetail struct {
 }
 
 func newParserErrorDetail(bs []byte, offset int) *ParserErrorDetail {
-
 	// Find first non-space character at or before offset position.
 	if offset >= len(bs) {
 		offset = len(bs) - 1
