@@ -27,6 +27,23 @@ func getNetFromOperand(v ast.Value) (*net.IPNet, error) {
 	return cidrnet, nil
 }
 
+// isPlainIPv6Net reports whether n is an IPv6 network that is not IPv4-mapped. The family of a
+// network parsed from a CIDR is unambiguous (its mask has 16 bytes), unlike the family of a bare
+// IP, since net.ParseIP returns the same 16 bytes for 1.2.3.4 and ::ffff:1.2.3.4.
+func isPlainIPv6Net(n *net.IPNet) bool {
+	return len(n.IP) == net.IPv6len && len(n.Mask) == net.IPv6len && n.IP.To4() == nil
+}
+
+// ipv6NetContainsNet reports whether the IPv6 network a contains all addresses of the IPv6 network b,
+// by comparing prefixes. (*net.IPNet).Contains can't be used for the last address of b, since it
+// turns IPv4-mapped addresses (::ffff:a.b.c.d) into 4 bytes that never match an IPv6 network. The last
+// address of e.g. "::/80" is ::ffff:ffff:ffff, so "::/80" would not contain itself.
+func ipv6NetContainsNet(a, b *net.IPNet) bool {
+	aOnes, _ := a.Mask.Size()
+	bOnes, _ := b.Mask.Size()
+	return aOnes <= bOnes && a.IP.Equal(b.IP.Mask(a.Mask))
+}
+
 func getLastIP(cidr *net.IPNet) (net.IP, error) {
 	prefixLen, bits := cidr.Mask.Size()
 	if prefixLen == 0 && bits == 0 {
@@ -99,6 +116,10 @@ func builtinNetCIDRContains(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	cidrnetB, err := getNetFromOperand(operands[1].Value)
 	if err != nil {
 		return fmt.Errorf("not a valid textual representation of an IP address or CIDR: %s", string(bStr))
+	}
+
+	if isPlainIPv6Net(cidrnetA) && isPlainIPv6Net(cidrnetB) {
+		return iter(ast.InternedTerm(ipv6NetContainsNet(cidrnetA, cidrnetB)))
 	}
 
 	// We can determine if cidr A contains cidr B if and only if A contains
