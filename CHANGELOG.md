@@ -48,11 +48,6 @@ Additionally, OPA will now correctly detect and sign all other files with the su
 
 Authored by @philipaconrad
 
-### Partial evaluation no longer panics on negated `every` over an unknown
-
-Partial evaluation panicked with an interface conversion error when the query negated a rule whose body holds an `every` over a part of the input left unknown, e.g. via `opa eval --partial --unknowns input`. The negation is now saved in a support rule instead of being inlined, which preserves the semantics of the original policy.
-
-Authored by @choksi2212
 
 ## 1.21.2
 
