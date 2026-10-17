@@ -607,6 +607,76 @@ func TestMaskRuleMask(t *testing.T) {
 			event: `{"input": {"bar": 1, ":path": "token"}}`,
 			exp:   `{"input": {"bar": 1, ":path": "upserted"}, "masked": ["/input/:path"]}`,
 		},
+		{
+			note: "erase array-rooted input element",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/input/0",
+			},
+			event: `{"input": ["secret", "public"]}`,
+			exp:   `{"input": ["public"], "erased": ["/input/0"]}`,
+		},
+		{
+			note: "erase array-rooted result element",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/result/1",
+			},
+			event: `{"result": ["a", "secret", "c"]}`,
+			exp:   `{"result": ["a", "c"], "erased": ["/result/1"]}`,
+		},
+		{
+			note: "upsert array-rooted result element",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/result/0",
+				Value: "**REDACTED**",
+			},
+			event: `{"result": ["secret", "public"]}`,
+			exp:   `{"result": ["**REDACTED**", "public"], "masked": ["/result/0"]}`,
+		},
+		{
+			// Control: an array nested under an object root already worked. If this
+			// ever fails, the three cases above are not testing what they claim to.
+			note: "erase element of array nested under object root",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/input/users/0",
+			},
+			event: `{"input": {"users": ["secret", "public"]}}`,
+			exp:   `{"input": {"users": ["public"]}, "erased": ["/input/users/0"]}`,
+		},
+		{
+			// Negative: an out-of-range index on an array root must stay undefined
+			// rather than silently erasing something else.
+			note: "erase array-rooted input element: index out of range",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/input/5",
+			},
+			event: `{"input": ["a"]}`,
+			exp:   `{"input": ["a"]}`,
+		},
+		{
+			note: "erase array-rooted input element: index out of range, fail undefined path on",
+			ptr: &maskRule{
+				OP:                maskOPRemove,
+				Path:              "/input/5",
+				failUndefinedPath: true,
+			},
+			event:  `{"input": ["a"]}`,
+			exp:    `{"input": ["a"]}`,
+			expErr: errMaskInvalidObject,
+		},
+		{
+			note: "erase array-rooted input element: non-numeric key",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/input/notanindex",
+			},
+			event: `{"input": ["a"]}`,
+			exp:   `{"input": ["a"]}`,
+		},
 	}
 
 	for _, tc := range tests {
