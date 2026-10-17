@@ -1844,6 +1844,96 @@ main = time.now_ns()
 
 }
 
+func TestDecisionLoggingWithNDBCacheMasking(t *testing.T) {
+
+	ctx := t.Context()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = time.now_ns()
+`,
+			"log.rego": `
+package system.log
+import rego.v1
+
+mask contains "/nd_builtin_cache/rand.intn"
+mask contains "/input/secret"
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true,
+			"nd_builtin_cache": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	ndbc := builtins.NDBCache{}
+	ndbc.Put("rand.intn", ast.NewArray(ast.StringTerm("z"), ast.IntNumberTerm(7)), ast.Number("3"))
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Now:      time.Unix(0, 1619868194450288000).UTC(),
+		Input:    map[string]any{"secret": "foo", "keep": "bar"},
+		NDBCache: ndbc,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry but got %d", len(entries))
+	}
+
+	// Control: an identically shaped /input rule must erase, proving masking is live
+	// and the policy loaded. Without this a failure below is ambiguous.
+	erased, _ := entries[0].Fields["erased"].([]any)
+	expectedErased := []any{"/input/secret", "/nd_builtin_cache/rand.intn"}
+	stringLess := func(a, b string) bool { return a < b }
+	if !cmp.Equal(expectedErased, erased, cmpopts.SortSlices(stringLess)) {
+		t.Errorf("unexpected erased field in decision log:\n%s", cmp.Diff(expectedErased, erased, cmpopts.SortSlices(stringLess)))
+	}
+
+	cache, ok := entries[0].Fields["nd_builtin_cache"].(map[string]any)
+	if !ok {
+		t.Fatal("ND builtins cache missing.")
+	}
+	if _, ok := cache["rand.intn"]; ok {
+		t.Error(`Expected masked field "/nd_builtin_cache/rand.intn" to be removed, but it was present.`)
+	}
+	// Control: the sibling entry must survive, so this is a sub-path erase and not a
+	// whole-object erase that would pass the assertion above for the wrong reason.
+	if _, ok := cache["time.now_ns"]; !ok {
+		t.Error("Unmasked ND builtins cache entry time.now_ns was removed.")
+	}
+}
+
 func TestQueryCaching(t *testing.T) {
 
 	ctx := t.Context()
