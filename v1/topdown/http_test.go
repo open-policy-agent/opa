@@ -3631,6 +3631,77 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	}
 }
 
+// TestHTTPSendAllowNetUnix ensures an allow-listed URL authority cannot
+// authorize a unix:// destination. useSocket dials the socket query parameter
+// and ignores the host, so allow_net must reject the scheme outright.
+func TestHTTPSendAllowNetUnix(t *testing.T) {
+	t.Parallel()
+
+	tmpF, err := os.CreateTemp(t.TempDir(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	socketPath := tmpF.Name()
+	tmpF.Close()
+	_ = os.Remove(socketPath)
+
+	socket, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var calls int
+	rs := http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			calls++
+			w.WriteHeader(http.StatusOK)
+		}),
+	}
+
+	go func() {
+		_ = rs.Serve(socket)
+	}()
+	defer rs.Close()
+
+	rawURL := "unix://localhost/end/point?socket=" + url.PathEscape(socketPath)
+	rules := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": %q}, resp); x := remove_headers(resp) }`, rawURL)}
+
+	unixErr := &Error{
+		Code:    "eval_builtin_error",
+		Message: "http.send: disallowed unix socket destination when allow_net is set",
+	}
+
+	tests := []struct {
+		note     string
+		options  func(*Query) *Query
+		expected any
+	}{
+		{
+			"http.send unix allow_net lists decorative host",
+			setAllowNet([]string{"localhost"}),
+			unixErr,
+		},
+		{
+			"http.send unix allow_net empty",
+			setAllowNet([]string{}),
+			unixErr,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		startingCalls := calls
+		runTopDownTestCase(t, data, tc.note, append(rules, httpSendHelperRules...), tc.expected, tc.options)
+		// Error expectations run the query once (no partial-eval replay).
+		if calls != startingCalls {
+			t.Errorf("%s: expected socket not to be contacted, got %d calls", tc.note, calls-startingCalls)
+		}
+	}
+}
+
 type tracemock struct {
 	called int
 }
