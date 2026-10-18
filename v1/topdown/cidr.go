@@ -61,6 +61,62 @@ func getLastIP(cidr *net.IPNet) (net.IP, error) {
 	return lastIP, nil
 }
 
+// containsIP reports whether network n contains ip.
+//
+// net.IPNet.Contains cannot be used for the derived start and end addresses
+// of another network: it shrinks IPv4-mapped IPv6 addresses (ip.To4()) to 4
+// bytes, so it reports that e.g. ::/80 does not contain its own last address
+// ::ffff:ffff:ffff — the 4-byte address fails the length check against the
+// 16-byte network. Addresses are therefore compared in the network's own
+// family: IPv6 networks are compared in 16-byte form, which keeps
+// IPv4-mapped IPv6 addresses intact. A 4-byte IPv4 address is not a member
+// of an IPv6 network, matching the mixed-family behavior of Contains.
+func containsIP(n *net.IPNet, ip net.IP) bool {
+	if n == nil || ip == nil {
+		return false
+	}
+
+	if len(n.Mask) != net.IPv6len {
+		// IPv4 network: same semantics as net.IPNet.Contains.
+		ip4 := ip.To4()
+		if ip4 == nil {
+			return false
+		}
+
+		nn4 := n.IP.To4()
+		if nn4 == nil {
+			return false
+		}
+
+		for i := range ip4 {
+			if ip4[i]&n.Mask[i] != nn4[i]&n.Mask[i] {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	// IPv6 network: compare in 16-byte form so that IPv4-mapped IPv6
+	// addresses are not converted to IPv4 first.
+	if len(ip) != net.IPv6len {
+		return false
+	}
+
+	nn := n.IP.To16()
+	if nn == nil {
+		return false
+	}
+
+	for i := range ip {
+		if ip[i]&n.Mask[i] != nn[i]&n.Mask[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func builtinNetCIDRIntersects(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	cidrnetA, err := getNetFromOperand(operands[0].Value)
 	if err != nil {
@@ -104,13 +160,13 @@ func builtinNetCIDRContains(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	// We can determine if cidr A contains cidr B if and only if A contains
 	// the starting address of B and the last address in B.
 	cidrContained := false
-	if cidrnetA.Contains(cidrnetB.IP) {
+	if containsIP(cidrnetA, cidrnetB.IP) {
 		// Only spend time calculating the last IP if the starting IP is already verified to be in cidr A
 		lastIP, err := getLastIP(cidrnetB)
 		if err != nil {
 			return err
 		}
-		cidrContained = cidrnetA.Contains(lastIP)
+		cidrContained = containsIP(cidrnetA, lastIP)
 	}
 
 	return iter(ast.InternedTerm(cidrContained))
