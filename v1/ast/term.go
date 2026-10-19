@@ -878,6 +878,12 @@ func NumberChecked(s string) (Number, error) {
 	return Number(s), nil
 }
 
+// NumberTooLarge reports whether s is a valid number whose magnitude exceeds
+// the bound enforced by NumberChecked. It returns false for invalid numbers.
+func NumberTooLarge(s string) bool {
+	return validateNumber(s) == errNumberTooBig
+}
+
 func exponentIndex(s string) int {
 	if i := strings.IndexByte(s, 'e'); i >= 0 {
 		return i

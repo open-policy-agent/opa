@@ -528,3 +528,36 @@ cases:
         }
     want_result:
       - x: true
+  - note: units_parse_bytes/large exponent within bound
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e30000") > 0
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/tiny value with long zero prefix accepted
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e-30000") >= 0
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/long low-exponent mantissa accepted
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes(sprintf("1.%040000d", [0])) == 1
+        }
+    want_result:
+      - x: true
