@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.21.3
 
 ### Security Fix: TODO-CVE-XXXX-XXXXX - Bundle signature verification could be side-stepped (TODO-ADVISORY-LINK)
 
