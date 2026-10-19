@@ -579,14 +579,26 @@ To generate a `.signatures.json` file for policy and data files that will be par
 When OPA receives a policy bundle that doesn't include the `.signatures.json` file and the bundle is not configured to
 use a signature, OPA does not perform signature verification and activates the bundle just as it always has.
 
-If the actual bundle contains the `.signatures.json` file but the bundle is not configured to use a signature, verification fails.
+A bundle is configured to verify signatures when it has a `bundles[_].signing` block (or `discovery.signing` for discovery
+bundles), or when it is loaded from the filesystem with `--verification-key`. Any `signing` block enables the feature, including an
+empty one. `keyid` selects which key to use and is not what enables enforcement.
 
-| `.signatures.json` exists | bundle configured to verify signature | verification performed | result                                              |
-| ------------------------- | ------------------------------------- | ---------------------- | --------------------------------------------------- |
-| `no`                      | `no`                                  | `no`                   | `NA`                                                |
-| `no`                      | `yes`                                 | `yes`                  | `fail`                                              |
-| `yes`                     | `no`                                  | `yes`                  | `fail`                                              |
-| `yes`                     | `yes`                                 | `yes`                  | `depends on the verification steps described below` |
+If the top-level [`keys`](./configuration/#keys) value is set without
+a `signing` block set, signature verification is only applied to bundles containing signatures. This is weaker as a bundle without
+a signature is still activated regardless. You must add a `signing` block
+to enforce verification.
+
+If a bundle contains a `.signatures.json` file but no verification key is available at all, verification fails,
+because OPA has nothing to verify the signature against.
+
+| `.signatures.json` exists | verification configured by              | verification performed | result                                              |
+| ------------------------- | --------------------------------------- | ---------------------- | --------------------------------------------------- |
+| `no`                      | nothing                                 | `no`                   | `NA`                                                |
+| `no`                      | top-level `keys` only                   | `no`                   | `activated` (warning logged at startup)             |
+| `no`                      | `signing` block or `--verification-key` | `yes`                  | `fail` — bundle missing .signatures.json file       |
+| `yes`                     | nothing                                 | `yes`                  | `fail` — verification key not provided              |
+| `yes`                     | top-level `keys` only                   | `yes`                  | `depends on the verification steps described below` |
+| `yes`                     | `signing` block or `--verification-key` | `yes`                  | `depends on the verification steps described below` |
 
 When OPA receives a signed bundle it opens the `.signatures.json` file, grabs the JWT and performs the following steps:
 
@@ -724,7 +736,9 @@ The `"value"` field defines the value to be added or replaced. Only required for
 #### Current Limitations
 
 - _Delta_ bundles only support updates to data. Policies cannot be updated using _delta_ bundles.
-- _Delta_ bundles do not support bundle signing.
+- _Delta_ bundles do not support bundle signing. A bundle configured to verify signatures **rejects** _delta_ bundles with
+  `delta bundles do not support signature verification`. Use `--skip-verify`, set `bundles[_].signing.allow_unsigned_delta_bundles`,
+  or remove the `signing` block, to serve _delta_ bundles.
 - Unlike _snapshot_ bundles, activated _delta_ bundles are not persisted to disk when the `bundles[_].persist` field is `true`.
 
 #### Delta Bundle FAQ

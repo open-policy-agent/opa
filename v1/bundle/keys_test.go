@@ -12,8 +12,168 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
+
+func TestVerificationConfigSignatureRequired(t *testing.T) {
+	keyConfigs := map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := map[string]struct {
+		vc                func(t *testing.T) *VerificationConfig
+		signatureRequired bool
+	}{
+		"new_verification_config_with_keyid": {
+			vc:                func(*testing.T) *VerificationConfig { return NewVerificationConfig(keyConfigs, "foo", "", nil) },
+			signatureRequired: true,
+		},
+		"new_verification_config_no_keyid": {
+			vc:                func(*testing.T) *VerificationConfig { return NewVerificationConfig(keyConfigs, "", "", nil) },
+			signatureRequired: true,
+		},
+		"zero_value": {
+			vc:                func(*testing.T) *VerificationConfig { return &VerificationConfig{} },
+			signatureRequired: true,
+		},
+		"nil_config": {
+			vc:                func(*testing.T) *VerificationConfig { return nil },
+			signatureRequired: false,
+		},
+		"unmarshalled_signing_block": {
+			vc: func(t *testing.T) *VerificationConfig {
+				var vc VerificationConfig
+				if err := util.Unmarshal([]byte(`{"scope": "write"}`), &vc); err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				return &vc
+			},
+			signatureRequired: true,
+		},
+		"unmarshalled_empty_signing_block": {
+			vc: func(t *testing.T) *VerificationConfig {
+				var vc VerificationConfig
+				if err := util.Unmarshal([]byte(`{}`), &vc); err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				return &vc
+			},
+			signatureRequired: true,
+		},
+		"with_optional_signature": {
+			vc: func(*testing.T) *VerificationConfig {
+				return NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature()
+			},
+			signatureRequired: false,
+		},
+		"unmarshalled_signing_block_allowing_unsigned_delta_bundles": {
+			// The delta opt-out does not weaken snapshot verification
+			vc: func(t *testing.T) *VerificationConfig {
+				var vc VerificationConfig
+				if err := util.Unmarshal([]byte(`{"allow_unsigned_delta_bundles": true}`), &vc); err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				return &vc
+			},
+			signatureRequired: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if act := tc.vc(t).SignatureRequired(); act != tc.signatureRequired {
+				t.Fatalf("Expected SignatureRequired() to be %v but got %v", tc.signatureRequired, act)
+			}
+		})
+	}
+}
+
+// allowUnsignedDeltaBundles sets the `allow_unsigned_delta_bundles` opt-out on vc.
+func allowUnsignedDeltaBundles(vc *VerificationConfig) *VerificationConfig {
+	vc.AllowUnsignedDeltaBundles = true
+	return vc
+}
+
+// unmarshalVerificationConfig parses conf the way a `signing` block in the bundle or
+// discovery config is parsed, with keys as the configured verification keys.
+func unmarshalVerificationConfig(t *testing.T, conf string, keys map[string]*KeyConfig) *VerificationConfig {
+	t.Helper()
+
+	var vc VerificationConfig
+	if err := util.Unmarshal([]byte(conf), &vc); err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if err := vc.ValidateAndInjectDefaults(keys); err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	return &vc
+}
+
+// TestVerificationConfigUnsignedDeltaBundlesAllowed covers the
+// `allow_unsigned_delta_bundles` opt-out, which lets a bundle service keep serving
+// unsigned delta bundles while snapshot bundles must still be signed.
+func TestVerificationConfigUnsignedDeltaBundlesAllowed(t *testing.T) {
+	keyConfigs := map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := map[string]struct {
+		vc         func(t *testing.T) *VerificationConfig
+		expAllowed bool
+	}{
+		"unset_on_strict_config": {
+			vc:         func(*testing.T) *VerificationConfig { return NewVerificationConfig(keyConfigs, "foo", "", nil) },
+			expAllowed: false,
+		},
+		"set_on_strict_config": {
+			vc: func(*testing.T) *VerificationConfig {
+				return allowUnsignedDeltaBundles(NewVerificationConfig(keyConfigs, "foo", "", nil))
+			},
+			expAllowed: true,
+		},
+		"unmarshalled_unset": {
+			vc: func(t *testing.T) *VerificationConfig {
+				return unmarshalVerificationConfig(t, `{"keyid": "foo"}`, keyConfigs)
+			},
+			expAllowed: false,
+		},
+		"unmarshalled_true": {
+			vc: func(t *testing.T) *VerificationConfig {
+				return unmarshalVerificationConfig(t, `{"keyid": "foo", "allow_unsigned_delta_bundles": true}`, keyConfigs)
+			},
+			expAllowed: true,
+		},
+		"unmarshalled_false": {
+			vc: func(t *testing.T) *VerificationConfig {
+				return unmarshalVerificationConfig(t, `{"keyid": "foo", "allow_unsigned_delta_bundles": false}`, keyConfigs)
+			},
+			expAllowed: false,
+		},
+		"unmarshalled_only_opt_out": {
+			// A `signing` block carrying nothing but the opt-out is still an opt-in to
+			// verification for snapshot bundles.
+			vc: func(t *testing.T) *VerificationConfig {
+				return unmarshalVerificationConfig(t, `{"allow_unsigned_delta_bundles": true}`, keyConfigs)
+			},
+			expAllowed: true,
+		},
+		"unset_on_optional_signature_config": {
+			vc: func(*testing.T) *VerificationConfig {
+				return NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature()
+			},
+			expAllowed: true,
+		},
+		"nil_config": {
+			vc:         func(*testing.T) *VerificationConfig { return nil },
+			expAllowed: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if act := tc.vc(t).UnsignedDeltaBundlesAllowed(); act != tc.expAllowed {
+				t.Fatalf("Expected UnsignedDeltaBundlesAllowed() to be %v but got %v", tc.expAllowed, act)
+			}
+		})
+	}
+}
 
 func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 	tests := map[string]struct {
@@ -22,10 +182,11 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 		wantErr    bool
 		err        error
 	}{
-		"valid_config_no_key": {
+		"no_keys_configured": {
+			// A `signing` block with no top-level `keys` can never verify anything
 			map[string]*KeyConfig{},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "", nil),
-			false, nil,
+			true, errors.New("no verification keys configured"),
 		},
 		"valid_config_with_key": {
 			map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}},
@@ -51,6 +212,7 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 				if tc.err != nil && tc.err.Error() != err.Error() {
 					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
 				}
+				return
 			} else if err != nil {
 				t.Fatalf("Unexpected error %v", err)
 			}

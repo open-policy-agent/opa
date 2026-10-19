@@ -152,6 +152,12 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 
 	result.logger = manager.Logger().WithFields(map[string]any{"plugin": Name})
 
+	if config.Signing != nil && !config.Signing.SignatureRequired() {
+		result.logger.Warn("Keys are configured but no \"signing\" block is set for the discovery bundle: " +
+			"a signature is verified when present, but a bundle without a .signatures.json file is accepted. " +
+			"Add a \"signing\" block to require signatures.")
+	}
+
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
 }
