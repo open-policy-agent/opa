@@ -5,7 +5,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.21.3
 
-### Security Fix: TODO-CVE-XXXX-XXXXX - Bundle signature verification could be side-stepped (TODO-ADVISORY-LINK)
+### Security Fix: TODO-CVE-XXXX-XXXXX - Bundle signature verification could be side-stepped ([GHSA-g2pf-6v5v-qcc8](https://github.com/open-policy-agent/opa/security/advisories/GHSA-g2pf-6v5v-qcc8))
 
 An attacker able to alter bundle bytes could supply arbitrary policy and data to an OPA that was [configured](https://www.openpolicyagent.org/docs/configuration#bundles) 
 to verify bundle signatures. This could happen if the attacker controls any of: 
