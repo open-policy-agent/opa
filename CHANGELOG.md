@@ -5,7 +5,53 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Security Fix: TODO-CVE-XXXX-XXXXX - Bundle signature verification could be side-stepped (TODO-ADVISORY-LINK)
+### Configurable log level for HTTP access logs
+
+Added `--log-level-request` (default `info`) to control the level at which the HTTP
+server's "Received request."/"Sent response." access log lines are emitted, independent
+of the general `--log-level`. Set it to `debug` to keep those lines out of logs unless
+`--log-level` is also turned up.
+
+Authored by @srenatus
+
+### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224))
+
+`import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
+import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
+In a v0 module it also implies `rego.v1`. It is gated by the new `rego_v2_import` capability
+feature.
+
+```rego
+package example
+
+import rego.v2
+
+allow if input.user.admin or not (input.user.suspended or input.user.locked)
+```
+
+See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
+
+Authored by @johanfylling
+
+### Stricter handling of bundle signature filenames ([#9300](https://github.com/open-policy-agent/opa/pull/9300))
+
+Breaking change: We have corrected a long-standing bug in bundle signing and verification, which will cause bundles containing files matching the suffix pattern `*signatures.json` to no longer pass verification in newer versions of OPA.
+These bundles will need to be re-signed by this or newer versions of OPA to have a correct `.signatures.json` file.
+Bundles that do not contain filenames with the `*signatures.json` pattern are unaffected, and will continue to verify correctly across OPA versions.
+
+OPA has historically been very lax in deciding where to source bundle signature data from during bundle verification, and would attempt to load bundle signatures data from *any* file in the bundle that had the filename suffix pattern `*signatures.json`.
+
+This could cause surprising behavior at bundle verification time, and resulted in all files with the `*signatures.json` pattern being ignored for signing, allowing filenames like `foosignatures.json` to be added to a bundle without being integrity-checked by the bundle signature.
+
+OPA now identifies the bundle signatures file by its exact basename `.signatures.json` (the same way it locates the bundle manifest and data files), so it is found regardless of any directory prefix, and a bundle containing more than one signatures file is rejected.
+Additionally, OPA will now correctly detect and sign all other files with the suffix pattern `*signatures.json`, which may cause bundles signed by this and future versions of OPA to have different signatures from the same content signed by older versions of OPA.
+
+Authored by @philipaconrad
+
+
+## 1.21.3
+
+### Security Fix: TODO-CVE-XXXX-XXXXX - Bundle signature verification could be side-stepped ([GHSA-g2pf-6v5v-qcc8](https://github.com/open-policy-agent/opa/security/advisories/GHSA-g2pf-6v5v-qcc8))
 
 An attacker able to alter bundle bytes could supply arbitrary policy and data to an OPA that was [configured](https://www.openpolicyagent.org/docs/configuration#bundles) 
 to verify bundle signatures. This could happen if the attacker controls any of: 
@@ -92,49 +138,6 @@ Bundle services that must keep serving unsigned _delta_ bundles after upgrading 
 _Snapshot_ bundles must still be signed.
 
 Reported by Brian Willows (@BrianWillows, Graith Internet, graith.co.uk), authored by @johanfylling.
-
-### Configurable log level for HTTP access logs
-
-Added `--log-level-request` (default `info`) to control the level at which the HTTP
-server's "Received request."/"Sent response." access log lines are emitted, independent
-of the general `--log-level`. Set it to `debug` to keep those lines out of logs unless
-`--log-level` is also turned up.
-
-Authored by @srenatus
-
-### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224))
-
-`import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
-import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
-In a v0 module it also implies `rego.v1`. It is gated by the new `rego_v2_import` capability
-feature.
-
-```rego
-package example
-
-import rego.v2
-
-allow if input.user.admin or not (input.user.suspended or input.user.locked)
-```
-
-See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
-
-Authored by @johanfylling
-
-### Stricter handling of bundle signature filenames ([#9300](https://github.com/open-policy-agent/opa/pull/9300))
-
-Breaking change: We have corrected a long-standing bug in bundle signing and verification, which will cause bundles containing files matching the suffix pattern `*signatures.json` to no longer pass verification in newer versions of OPA.
-These bundles will need to be re-signed by this or newer versions of OPA to have a correct `.signatures.json` file.
-Bundles that do not contain filenames with the `*signatures.json` pattern are unaffected, and will continue to verify correctly across OPA versions.
-
-OPA has historically been very lax in deciding where to source bundle signature data from during bundle verification, and would attempt to load bundle signatures data from *any* file in the bundle that had the filename suffix pattern `*signatures.json`.
-
-This could cause surprising behavior at bundle verification time, and resulted in all files with the `*signatures.json` pattern being ignored for signing, allowing filenames like `foosignatures.json` to be added to a bundle without being integrity-checked by the bundle signature.
-
-OPA now identifies the bundle signatures file by its exact basename `.signatures.json` (the same way it locates the bundle manifest and data files), so it is found regardless of any directory prefix, and a bundle containing more than one signatures file is rejected.
-Additionally, OPA will now correctly detect and sign all other files with the suffix pattern `*signatures.json`, which may cause bundles signed by this and future versions of OPA to have different signatures from the same content signed by older versions of OPA.
-
-Authored by @philipaconrad
 
 
 ## 1.21.2
