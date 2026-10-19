@@ -506,3 +506,191 @@ func TestParseConfigTriggerMode(t *testing.T) {
 		})
 	}
 }
+
+func TestParseBundlesConfigSignatureRequired(t *testing.T) {
+	tests := []struct {
+		note             string
+		conf             string
+		keys             map[string]*keys.Config
+		expSigning       *bool // nil when no verification config should be built at all
+		expSignatureReqd bool
+		expErr           string
+	}{
+		{
+			note:             "no signing block, top-level keys injected",
+			conf:             `{"b1":{"service": "s1"}}`,
+			keys:             map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expSigning:       new(true),
+			expSignatureReqd: false,
+		},
+		{
+			note:       "no signing block, no keys",
+			conf:       `{"b1":{"service": "s1"}}`,
+			keys:       map[string]*keys.Config{},
+			expSigning: new(false),
+		},
+		{
+			// The null unmarshals to a nil pointer, so the top-level `keys`
+			// injection still fires: same shape as omitting the block entirely.
+			note:             "null signing block with keys is injected",
+			conf:             `{"b1":{"service": "s1", "signing": null}}`,
+			keys:             map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expSigning:       new(true),
+			expSignatureReqd: false,
+		},
+		{
+			note:       "null signing block without keys leaves Signing nil",
+			conf:       `{"b1":{"service": "s1", "signing": null}}`,
+			keys:       map[string]*keys.Config{},
+			expSigning: new(false),
+		},
+		{
+			note:             "empty signing block requires a signature",
+			conf:             `{"b1":{"service": "s1", "signing": {}}}`,
+			keys:             map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expSigning:       new(true),
+			expSignatureReqd: true,
+		},
+		{
+			note:             "scope only requires a signature",
+			conf:             `{"b1":{"service": "s1", "signing": {"scope": "write"}}}`,
+			keys:             map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expSigning:       new(true),
+			expSignatureReqd: true,
+		},
+		{
+			note:             "exclude_files only requires a signature",
+			conf:             `{"b1":{"service": "s1", "signing": {"exclude_files": ["data.json"]}}}`,
+			keys:             map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expSigning:       new(true),
+			expSignatureReqd: true,
+		},
+		{
+			note:             "keyid requires a signature",
+			conf:             `{"b1":{"service": "s1", "signing": {"keyid": "foo"}}}`,
+			keys:             map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expSigning:       new(true),
+			expSignatureReqd: true,
+		},
+		{
+			note:   "signing block with no keys is a config error",
+			conf:   `{"b1":{"service": "s1", "signing": {}}}`,
+			keys:   map[string]*keys.Config{},
+			expErr: `invalid configuration for bundle "b1": no verification keys configured`,
+		},
+		{
+			note:   "unknown keyid is a config error",
+			conf:   `{"b1":{"service": "s1", "signing": {"keyid": "bar"}}}`,
+			keys:   map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}},
+			expErr: `invalid configuration for bundle "b1": key id bar not found`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			conf, err := NewConfigBuilder().WithBytes([]byte(tc.conf)).WithServices([]string{"s1"}).
+				WithKeyConfigs(tc.keys).Parse()
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+				if err.Error() != tc.expErr {
+					t.Fatalf("Expected error %q but got %v", tc.expErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			signing := conf.Bundles["b1"].Signing
+			if exp := *tc.expSigning; exp != (signing != nil) {
+				t.Fatalf("Expected Signing != nil to be %v but got %v", exp, signing != nil)
+			}
+
+			if signing == nil {
+				return
+			}
+
+			if act := signing.SignatureRequired(); act != tc.expSignatureReqd {
+				t.Fatalf("Expected SignatureRequired() to be %v but got %v", tc.expSignatureReqd, act)
+			}
+		})
+	}
+}
+
+// TestParseBundlesConfigAllowUnsignedDeltaBundles covers the
+// `bundles[_].signing.allow_unsigned_delta_bundles` opt-out, which keeps unsigned
+// delta bundles loadable on a bundle service that verifies snapshot signatures.
+func TestParseBundlesConfigAllowUnsignedDeltaBundles(t *testing.T) {
+	keyConfigs := map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := []struct {
+		note                    string
+		conf                    string
+		keys                    map[string]*keys.Config
+		expSignatureRequired    bool
+		expUnsignedDeltaAllowed bool
+	}{
+		{
+			note:                    "unset",
+			conf:                    `{"b1":{"service": "s1", "signing": {"keyid": "foo"}}}`,
+			keys:                    keyConfigs,
+			expSignatureRequired:    true,
+			expUnsignedDeltaAllowed: false,
+		},
+		{
+			note:                    "set to true",
+			conf:                    `{"b1":{"service": "s1", "signing": {"keyid": "foo", "allow_unsigned_delta_bundles": true}}}`,
+			keys:                    keyConfigs,
+			expSignatureRequired:    true,
+			expUnsignedDeltaAllowed: true,
+		},
+		{
+			note:                    "set to false",
+			conf:                    `{"b1":{"service": "s1", "signing": {"keyid": "foo", "allow_unsigned_delta_bundles": false}}}`,
+			keys:                    keyConfigs,
+			expSignatureRequired:    true,
+			expUnsignedDeltaAllowed: false,
+		},
+		{
+			note:                    "set to true without keyid",
+			conf:                    `{"b1":{"service": "s1", "signing": {"allow_unsigned_delta_bundles": true}}}`,
+			keys:                    keyConfigs,
+			expSignatureRequired:    true,
+			expUnsignedDeltaAllowed: true,
+		},
+		{
+			note:                    "no signing block, top-level keys injected",
+			conf:                    `{"b1":{"service": "s1"}}`,
+			keys:                    keyConfigs,
+			expSignatureRequired:    false,
+			expUnsignedDeltaAllowed: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			conf, err := NewConfigBuilder().WithBytes([]byte(tc.conf)).WithServices([]string{"s1"}).
+				WithKeyConfigs(tc.keys).Parse()
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			signing := conf.Bundles["b1"].Signing
+			if signing == nil {
+				t.Fatal("Expected a verification config but got nil")
+			}
+
+			if act := signing.SignatureRequired(); act != tc.expSignatureRequired {
+				t.Fatalf("Expected SignatureRequired() to be %v but got %v", tc.expSignatureRequired, act)
+			}
+
+			if act := signing.UnsignedDeltaBundlesAllowed(); act != tc.expUnsignedDeltaAllowed {
+				t.Fatalf("Expected UnsignedDeltaBundlesAllowed() to be %v but got %v", tc.expUnsignedDeltaAllowed, act)
+			}
+		})
+	}
+}

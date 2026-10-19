@@ -456,6 +456,12 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 }
 
 func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*Source) Loader {
+	if source.Signing != nil && !source.Signing.SignatureRequired() {
+		p.log(name).Warn("Keys are configured but no \"signing\" block is set for this bundle: " +
+			"a signature is verified when present, but a bundle without a .signatures.json file is accepted. " +
+			"Add a \"signing\" block to require signatures.")
+	}
+
 	if u, err := url.Parse(source.Resource); err == nil && u.Scheme == "file" {
 		return &fileLoader{
 			name:             name,

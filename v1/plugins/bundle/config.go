@@ -178,7 +178,10 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 				return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
 			}
 		} else if len(keys) > 0 {
-			source.Signing = bundle.NewVerificationConfig(keys, "", "", nil)
+			// No `signing` block means verification was not opted into, so the injected
+			// config is signature-optional: a signature that is present is verified,
+			// but a bundle without one is accepted.
+			source.Signing = bundle.NewVerificationConfig(keys, "", "", nil).WithOptionalSignature()
 		}
 
 		if strings.HasPrefix(source.Resource, "file://") {

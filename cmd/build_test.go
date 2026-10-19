@@ -3434,7 +3434,7 @@ func TestBuildManifestWarning(t *testing.T) {
 			},
 			bundleMode: true,
 			buildArgs:  []string{"bundle"},
-			expectedStderr: func(root string) string {
+			expectedStderr: func(_ string) string {
 				return ""
 			},
 		},
@@ -3444,7 +3444,7 @@ func TestBuildManifestWarning(t *testing.T) {
 			},
 			bundleMode: false,
 			buildArgs:  []string{"bundle"},
-			expectedStderr: func(root string) string {
+			expectedStderr: func(_ string) string {
 				return ""
 			},
 		},

@@ -1149,3 +1149,128 @@ func TestWarnOnNonBundleContentType(t *testing.T) {
 		t.Errorf("Expected log entry: %s", expectLogged)
 	}
 }
+
+// TestDownloaderSignatureVerification is a regression test for when a compromised or MITM'd bundle service is serving bundles over HTTP.
+// This is the same Reader construction the OCI downloader uses.
+func TestDownloaderSignatureVerification(t *testing.T) {
+	t.Parallel()
+
+	keyConfigs := map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	module := `package test
+
+p := 7`
+
+	newBundle := func(t *testing.T, variant string) bundle.Bundle {
+		t.Helper()
+
+		b := bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+			Data:     map[string]any{},
+			Modules: []bundle.ModuleFile{
+				{
+					Path: "/example.rego",
+					URL:  "/example.rego",
+					Raw:  []byte(module),
+				},
+			},
+		}
+		b.Manifest.Init()
+
+		if variant == "unsigned" {
+			return b
+		}
+
+		if err := b.GenerateSignature(bundle.NewSigningConfig("secret", "HS256", ""), "foo", true); err != nil {
+			t.Fatal("unexpected error:", err)
+		}
+
+		if variant == "tampered" {
+			// a valid signature over different content: exercises the per-file
+			// hash loop rather than the .signatures.json presence check
+			b.Modules[0].Raw = []byte("package test\n\np := 99")
+		}
+
+		return b
+	}
+
+	tests := []struct {
+		note    string
+		variant string
+		vc      *bundle.VerificationConfig
+		expErr  string
+	}{
+		{
+			note:    "strict config rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config with no keyid rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config accepts signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+		{
+			note:    "strict config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config accepts stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:    "optional signature config verifies signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			fixture := newTestFixture(t)
+			defer fixture.server.stop()
+
+			fixture.server.bundles["test/signing"] = newBundle(t, tc.variant)
+
+			d := New(Config{}, fixture.client, "/bundles/test/signing").
+				WithCallback(func(_ context.Context, u Update) error { return u.Error }).
+				WithBundleVerificationConfig(tc.vc).
+				WithLazyLoadingMode(true)
+
+			err := d.oneShot(ctx)
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("expected error but got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error to contain %q but got %v", tc.expErr, err)
+			}
+		})
+	}
+}
