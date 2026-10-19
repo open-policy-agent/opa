@@ -160,15 +160,20 @@ func extractNumAndUnit(s string) (string, string, error) {
 		}
 	}
 
-	if firstNonNumIdx == -1 { // only digits, '.', or valid scientific notation
-		return s, "", nil
-	}
+	num, unit := s, ""
 	if firstNonNumIdx == 0 { // only units (starts with non-digit)
 		return "", s, nil
 	}
+	if firstNonNumIdx > 0 {
+		num, unit = s[:firstNonNumIdx], s[firstNonNumIdx:]
+	}
 
-	// Return the number and the rest as the unit
-	return s[:firstNonNumIdx], s[firstNonNumIdx:], nil
+	// Check before big.Rat/big.Float expands e.g. "1e999999" to a plain decimal.
+	if ast.NumberTooLarge(num) {
+		return "", "", errors.New("exponent too large")
+	}
+
+	return num, unit, nil
 }
 
 func init() {

@@ -96,3 +96,39 @@ cases:
     want_error_code: eval_builtin_error
     want_error: "units.parse_bytes: exponent too large"
     strict_error: true
+  - note: units_parse_bytes/exponent too large expanded mantissa
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e999999")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse_bytes: exponent too large"
+    strict_error: true
+  - note: units_parse_bytes/exponent too large negative expanded mantissa
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e-999999")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse_bytes: exponent too large"
+    strict_error: true
+  - note: units_parse_bytes/exponent too large long mantissa
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes(sprintf("1%040000d", [0]))
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse_bytes: exponent too large"
+    strict_error: true
