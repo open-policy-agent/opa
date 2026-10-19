@@ -102,7 +102,10 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 			return fmt.Errorf("invalid configuration for discovery service: %s", err.Error())
 		}
 	} else if len(confKeys) > 0 {
-		c.Signing = bundle.NewVerificationConfig(cpy, "", "", nil)
+		// No `signing` block means verification was not opted into, so the injected
+		// config is signature-optional: a signature that is present is verified,
+		// but a bundle without one is accepted.
+		c.Signing = bundle.NewVerificationConfig(cpy, "", "", nil).WithOptionalSignature()
 	}
 
 	if c.Resource != nil {

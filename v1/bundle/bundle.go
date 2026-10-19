@@ -652,6 +652,11 @@ func (r *Reader) Read() (Bundle, error) {
 		bundle.Data = map[string]any{}
 	}
 
+	// Delta bundles carry no signature, so a config that requires one cannot accept them unless it explicitly opts out.
+	if bundle.Type() == DeltaBundleType && !r.skipVerify && !r.verificationConfig.UnsignedDeltaBundlesAllowed() {
+		return empty, errors.New("delta bundles do not support signature verification")
+	}
+
 	var modules []ModuleFile
 	var manifestPath string
 	for _, f := range descriptors {
@@ -896,20 +901,19 @@ func (r *Reader) checkSignaturesAndDescriptors(signatures SignaturesConfig) erro
 		return nil
 	}
 
-	if signatures.isEmpty() && r.verificationConfig != nil && r.verificationConfig.KeyID != "" {
-		return errors.New("bundle missing .signatures.json file")
-	}
-
-	if !signatures.isEmpty() {
-		if r.verificationConfig == nil {
-			return errors.New("verification key not provided")
+	if signatures.isEmpty() {
+		if r.verificationConfig.SignatureRequired() {
+			return errors.New("bundle missing .signatures.json file")
 		}
-
-		// verify the JWT signatures included in the `.signatures.json` file
-		return r.verifyBundleSignature(signatures)
+		return nil
 	}
 
-	return nil
+	if r.verificationConfig == nil {
+		return errors.New("verification key not provided")
+	}
+
+	// verify the JWT signatures included in the `.signatures.json` file
+	return r.verifyBundleSignature(signatures)
 }
 
 func (r *Reader) verifyBundleSignature(sc SignaturesConfig) error {
