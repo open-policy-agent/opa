@@ -6922,13 +6922,19 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 			}
 
 			// Vars bound by this `some .. in` must not also appear in the domain.
-			bound := NewVarSet()
+			boundVis := varVisitorPool.Get().WithParams(VarVisitorParams{
+				SkipRefHead:    true,
+				SkipObjectKeys: true,
+				SkipClosures:   true,
+			})
 			if key != nil {
-				bound.Update(key.Vars())
+				boundVis.Walk(key)
 			}
 			if val != nil {
-				bound.Update(val.Vars())
+				boundVis.Walk(val)
 			}
+			bound := boundVis.Vars().Copy()
+			varVisitorPool.Put(boundVis)
 			domainVis := varVisitorPool.Get().WithParams(VarVisitorParams{SkipClosures: true})
 			domainVis.Walk(container)
 			nerrs := len(errs)
