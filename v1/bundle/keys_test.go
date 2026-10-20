@@ -188,6 +188,12 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "", nil),
 			true, errors.New("no verification keys configured"),
 		},
+		"no_keys_configured_with_key_id": {
+			// the missing key is named rather than reported as a generic missing-keys error
+			map[string]*KeyConfig{},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
+			true, errors.New("key id foo not found"),
+		},
 		"valid_config_with_key": {
 			map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
