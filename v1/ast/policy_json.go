@@ -226,6 +226,10 @@ func (imp *Import) MarshalJSON() ([]byte, error) {
 		if imp.Location != nil {
 			data["location"] = imp.Location
 		}
+
+		if imp.AliasLocation != nil {
+			data["alias_location"] = imp.AliasLocation
+		}
 	}
 
 	return json.Marshal(data)

@@ -11904,3 +11904,34 @@ func TestParseUnaryMinusLeavesInternedTermsUntouched(t *testing.T) {
 		t.Fatalf("interned 0 term has location %v", loc)
 	}
 }
+
+func TestImportAliasLocation(t *testing.T) {
+	mod := MustParseModule("package test\n\nimport data.foo\nimport data.bar\n  as baz")
+
+	if mod.Imports[0].AliasLocation != nil {
+		t.Errorf("expected no alias location, got %v", mod.Imports[0].AliasLocation)
+	}
+
+	loc := mod.Imports[1].AliasLocation
+	assertLocationText(t, "baz", loc)
+
+	if loc.Row != 5 || loc.Col != 6 {
+		t.Errorf("expected alias at 5:6, got %d:%d", loc.Row, loc.Col)
+	}
+}
+
+func TestImportCannotBeAliasedErrorLocation(t *testing.T) {
+	_, err := ParseModuleWithOpts("test.rego", "package test\n\nimport future.keywords as xyz", ParserOptions{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	errs, ok := err.(Errors)
+	if !ok || len(errs) != 1 {
+		t.Fatalf("expected one error, got %v", err)
+	}
+
+	if errs[0].Location.Row != 3 || errs[0].Location.Col != 27 {
+		t.Errorf("expected error at 3:27, got %d:%d", errs[0].Location.Row, errs[0].Location.Col)
+	}
+}
