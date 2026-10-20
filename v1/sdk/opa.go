@@ -434,6 +434,15 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 			}
 			*record.Input = asJSON
 		}
+		if record.NDBuiltinCache != nil {
+			if ndbc, ok := (*record.NDBuiltinCache).(builtins.NDBCache); ok {
+				asJSON, err := ast.JSON(ndbc.AsValue())
+				if err != nil {
+					return nil, err
+				}
+				*record.NDBuiltinCache = asJSON
+			}
+		}
 		if err := logger.Log(ctx, record); err != nil {
 			return result, fmt.Errorf("decision log: %w", err)
 		}
