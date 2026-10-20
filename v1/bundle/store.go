@@ -758,7 +758,11 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 						if err != nil {
 							return nil, errors.New("corrupt rego version")
 						}
-						versions[k] = moduleInfo{RegoVersion: ast.RegoVersionFromInt(int(i))}
+						rv, err := ast.RegoVersionFromIntStrict(int(i))
+						if err != nil {
+							return nil, fmt.Errorf("corrupt rego version: %w", err)
+						}
+						versions[k] = moduleInfo{RegoVersion: rv}
 					}
 				}
 			}
@@ -884,7 +888,7 @@ func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn
 ) error {
 	var regoVersion ast.RegoVersion
 	if mf.Parsed != nil {
-		regoVersion = mf.Parsed.RegoVersion()
+		regoVersion = mf.Parsed.RegoVersionSpan().Min()
 	}
 
 	if regoVersion == ast.RegoUndefined {
@@ -895,7 +899,9 @@ func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn
 		}
 	}
 
-	if regoVersion != ast.RegoUndefined && regoVersion != runtimeRegoVersion {
+	// A module without a recorded rego-version is read back at the runtime's, so only record one
+	// whose integer form differs. An undefined runtime records every version.
+	if regoVersion != ast.RegoUndefined && (runtimeRegoVersion == ast.RegoUndefined || regoVersion.Int() != runtimeRegoVersion.Int()) {
 		if err := write(ctx, store, txn, moduleRegoVersionPath(storagePath), regoVersion.Int()); err != nil {
 			return fmt.Errorf("failed to write rego version for module '%s': %w", storagePath, err)
 		}

@@ -1021,8 +1021,9 @@ const (
 	RegoV1 = v1.RegoV1
 )
 
+// Deprecated: Use RegoVersionFromIntStrict in the v1 package, which reports unknown values as an error.
 func RegoVersionFromInt(i int) RegoVersion {
-	return v1.RegoVersionFromInt(i)
+	return v1.RegoVersionFromInt(i) //nolint:staticcheck // kept for v0 compatibility
 }
 
 // Parser is used to parse Rego statements.

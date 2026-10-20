@@ -96,6 +96,7 @@ func TestParseJSONOutput(t *testing.T) {
     {
       "body": [
         {
+          "generated": true,
           "index": 0,
           "terms": {
             "type": "boolean",
@@ -179,6 +180,7 @@ p = 1
     {
       "body": [
         {
+          "generated": true,
           "index": 0,
           "location": {
             "file": "TEMPDIR/x.rego",
@@ -652,6 +654,7 @@ func TestParseRefsJSONOutput(t *testing.T) {
     {
       "body": [
         {
+          "generated": true,
           "index": 0,
           "terms": {
             "type": "boolean",
@@ -743,6 +746,7 @@ a.b.c := true
     {
       "body": [
         {
+          "generated": true,
           "index": 0,
           "location": {
             "file": "TEMPDIR/x.rego",
@@ -929,6 +933,7 @@ allow = true if {
     {
       "body": [
         {
+          "generated": true,
           "index": 0,
           "location": {
             "file": "TEMPDIR/x.rego",

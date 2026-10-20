@@ -284,7 +284,16 @@ signature verification of a discovery bundle **CANNOT** be modified via discover
 It is recommended to sign discovery bundles because those bundles
 include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
 unsigned discovery bundles that themselves require non-discovery bundles to be signed.
+
+Note that a discovered configuration may _omit_ the `keys` section, which disables signature enforcement for every bundle
+loaded afterwards. An unsigned discovery bundle therefore places the verification of all other bundles in the hands of
+whoever serves it, which is not recommended.
 :::
+
+Verification is enforced when a `discovery.signing` block is present, whatever it contains; a discovery bundle with
+no `.signatures.json` file is then rejected.
+Configuring top-level `keys` without a `discovery.signing` block is _not_ an opt-in: the signature is verified
+when present, but a discovery bundle without one is activated, and OPA logs a warning at startup.
 
 To enable signature verification for discovery bundles, add the `signing` field to your discovery configuration and define the verification key:
 

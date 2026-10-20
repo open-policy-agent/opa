@@ -1219,6 +1219,40 @@ p contains 42 if {
 			expManifest: `{"revision":"","roots":[""],"rego_version":1}`,
 		},
 		{
+			note: "v2 bundle rego-version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 2}`,
+				"test.rego": `package test
+
+p contains 42 if {
+	input.x == 1 or input.y == 2
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":2}`,
+		},
+		{
+			note: "v1 bundle rego-version, v2 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/test2.rego": 2
+	}
+}`,
+				"test1.rego": `package test
+
+p contains 1 if {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p contains 2 if {
+	input.x == 1 or input.y == 2
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"%ROOT%/test2.rego":2}}`,
+		},
+		{
 			note: "v0 bundle rego-version, v1 per-file override",
 			files: map[string]string{
 				".manifest": `{
@@ -3434,7 +3468,7 @@ func TestBuildManifestWarning(t *testing.T) {
 			},
 			bundleMode: true,
 			buildArgs:  []string{"bundle"},
-			expectedStderr: func(root string) string {
+			expectedStderr: func(_ string) string {
 				return ""
 			},
 		},
@@ -3444,7 +3478,7 @@ func TestBuildManifestWarning(t *testing.T) {
 			},
 			bundleMode: false,
 			buildArgs:  []string{"bundle"},
-			expectedStderr: func(root string) string {
+			expectedStderr: func(_ string) string {
 				return ""
 			},
 		},

@@ -163,6 +163,24 @@ in bundle responses to identify the revision of the bundle. OPA will include the
 check the `If-None-Match` header and reply with HTTP `304 Not Modified` if the
 bundle has not changed since the last update.
 
+When a bundle service is backed by replicas that update at different times, a
+request can be answered by a replica that still has an older bundle, which OPA
+would then activate. Setting `bundles[_].polling.superseded_etag_ttl_seconds`
+makes OPA send the `Etag` values of bundles it replaced within that time in
+addition to the current one, as a comma-separated `If-None-Match` list. A
+server that treats the list as specified in
+[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#field.if-none-match) replies
+`304 Not Modified` if any of them matches, so the older bundle is not served.
+
+:::warning
+The bundle service must support multiple values in `If-None-Match`. A service
+comparing the header to a single `Etag` value will never reply `304` and OPA
+will download the bundle on every poll.
+:::
+
+A rollback to a bundle that was replaced less than `superseded_etag_ttl_seconds`
+ago is not served until the time has passed.
+
 ### HTTP Long Polling
 
 With the periodic bundle downloading (i.e. `short polling`) technique, OPA sends regular requests to the remote HTTP
@@ -289,14 +307,15 @@ fields:
 
 - `rego_version` - An optional field that specifies the rego-version of the Rego source files
   in the bundle. The value of this field is an `integer`; where `0` corresponds to v0 Rego ([OPA v0.x](./v0-compatibility/) syntax),
-  and `1` corresponds to v1 Rego (current OPA v1.x syntax).
+  `1` corresponds to v1 Rego (current OPA v1.x syntax), and `2` corresponds to v2 Rego (v1 syntax where [`and`, `or`](./policy-reference/keywords/logical), and [`not`](./policy-reference/keywords/not#improved-negation-semantics)
+  are keywords without imports). Other values are rejected.
   If the field is not included in the manifest, OPA will enforce v1 syntax, or v0 if executed with
   the `--v0-compatible` flag.
   An existing bundle `rego_version` field takes precedence to the `--v0-compatible` flag.
 
 - `file_rego_versions` - An optional field that specifies per-file rego-version overrides to the
   `rego_version` field. The value of this field is a `map` where the keys are file paths relative to the
-  bundle root directory (paths are absolute and start with `/`) and the values are `integer` rego-versions.
+  bundle root directory (paths are absolute and start with `/`) and the values are `integer` rego-versions, as for `rego_version`.
   Glob patterns are accepted, to allow for a single entry to apply to multiple files. The behaviour is undefined
   for overlapping patterns. If a file is not matched by any pattern, the `rego_version` field is used.
   Existing bundle `rego_version` and `file_rego_versions` fields takes precedence to the `--v0-compatible` flag.
@@ -579,14 +598,26 @@ To generate a `.signatures.json` file for policy and data files that will be par
 When OPA receives a policy bundle that doesn't include the `.signatures.json` file and the bundle is not configured to
 use a signature, OPA does not perform signature verification and activates the bundle just as it always has.
 
-If the actual bundle contains the `.signatures.json` file but the bundle is not configured to use a signature, verification fails.
+A bundle is configured to verify signatures when it has a `bundles[_].signing` block (or `discovery.signing` for discovery
+bundles), or when it is loaded from the filesystem with `--verification-key`. Any `signing` block enables the feature, including an
+empty one. `keyid` selects which key to use and is not what enables enforcement.
 
-| `.signatures.json` exists | bundle configured to verify signature | verification performed | result                                              |
-| ------------------------- | ------------------------------------- | ---------------------- | --------------------------------------------------- |
-| `no`                      | `no`                                  | `no`                   | `NA`                                                |
-| `no`                      | `yes`                                 | `yes`                  | `fail`                                              |
-| `yes`                     | `no`                                  | `yes`                  | `fail`                                              |
-| `yes`                     | `yes`                                 | `yes`                  | `depends on the verification steps described below` |
+If the top-level [`keys`](./configuration/#keys) value is set without
+a `signing` block set, signature verification is only applied to bundles containing signatures. This is weaker as a bundle without
+a signature is still activated regardless. You must add a `signing` block
+to enforce verification.
+
+If a bundle contains a `.signatures.json` file but no verification key is available at all, verification fails,
+because OPA has nothing to verify the signature against.
+
+| `.signatures.json` exists | verification configured by              | verification performed | result                                              |
+| ------------------------- | --------------------------------------- | ---------------------- | --------------------------------------------------- |
+| `no`                      | nothing                                 | `no`                   | `NA`                                                |
+| `no`                      | top-level `keys` only                   | `no`                   | `activated` (warning logged at startup)             |
+| `no`                      | `signing` block or `--verification-key` | `yes`                  | `fail` — bundle missing .signatures.json file       |
+| `yes`                     | nothing                                 | `yes`                  | `fail` — verification key not provided              |
+| `yes`                     | top-level `keys` only                   | `yes`                  | `depends on the verification steps described below` |
+| `yes`                     | `signing` block or `--verification-key` | `yes`                  | `depends on the verification steps described below` |
 
 When OPA receives a signed bundle it opens the `.signatures.json` file, grabs the JWT and performs the following steps:
 
@@ -724,7 +755,9 @@ The `"value"` field defines the value to be added or replaced. Only required for
 #### Current Limitations
 
 - _Delta_ bundles only support updates to data. Policies cannot be updated using _delta_ bundles.
-- _Delta_ bundles do not support bundle signing.
+- _Delta_ bundles do not support bundle signing. A bundle configured to verify signatures **rejects** _delta_ bundles with
+  `delta bundles do not support signature verification`. Use `--skip-verify`, set `bundles[_].signing.allow_unsigned_delta_bundles`,
+  or remove the `signing` block, to serve _delta_ bundles.
 - Unlike _snapshot_ bundles, activated _delta_ bundles are not persisted to disk when the `bundles[_].persist` field is `true`.
 
 #### Delta Bundle FAQ

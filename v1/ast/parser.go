@@ -27,33 +27,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// RegoVersion defines the Rego syntax requirements for a module.
-type RegoVersion uint8
-
 const (
-	// DefaultRegoVersion is the default Rego version for this OPA version.
-	DefaultRegoVersion = RegoV1
-
 	// DefaultMaxParsingRecursionDepth is the default maximum recursion depth for the parser
 	DefaultMaxParsingRecursionDepth = 100000
-)
-
-const (
-	// RegoUndefined represents a Rego version unknown to OPA, like for a policy that has
-	// yet to be parsed and a no version information has been provided by other means.
-	RegoUndefined RegoVersion = iota
-	// RegoV0 is the original Rego syntax, which was used by default in OPA < 1.0.
-	RegoV0
-	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1
-	// syntax (requiring Rego v1 imports in a module to use v1 keywords).
-	// For more information, see https://www.openpolicyagent.org/docs/v0-compatibility
-	RegoV0CompatV1
-	// RegoV1 is the Rego syntax enforced by OPA 1.0 and later versions, including the following changes:
-	// - Keywords `in`, `every`, `ìf` and `contains` now part of the default set, and don't require explicit import
-	// - Using 'if' and 'contains' now required in rule heads
-	// - Most compiler checks previously enabled in "strict mode" now enabled by default
-	// For more information, see https://www.openpolicyagent.org/docs/v0-upgrade
-	RegoV1
 )
 
 var (
@@ -75,33 +51,6 @@ var (
 	metadataParserPool = util.NewSyncPool[metadataParser]()
 	noScanOptions      []scanner.ScanOption
 )
-
-func (v RegoVersion) Int() int {
-	if v == RegoV1 {
-		return 1
-	}
-	return 0
-}
-
-func (v RegoVersion) String() string {
-	switch v {
-	case RegoV0:
-		return "v0"
-	case RegoV1:
-		return "v1"
-	case RegoV0CompatV1:
-		return "v0v1"
-	default:
-		return "unknown"
-	}
-}
-
-func RegoVersionFromInt(i int) RegoVersion {
-	if i == 1 {
-		return RegoV1
-	}
-	return RegoV0
-}
 
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
@@ -347,18 +296,26 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	allowedFutureKeywords := map[string]tokens.Token{}
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
-		if !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
+	if v := p.po.EffectiveRegoVersion(); v == RegoV1 || v == RegoV2 {
+		feature := FeatureRegoV1
+		if v == RegoV2 {
+			feature = FeatureRegoV2
+		}
+		if !p.po.Capabilities.ContainsFeature(feature) {
 			return nil, nil, Errors{
-				&Error{Code: ParseErr, Message: "illegal capabilities: rego_v1 feature required for parsing v1 Rego"},
+				&Error{Code: ParseErr, Message: fmt.Sprintf("illegal capabilities: %s feature required for parsing %s Rego", feature, v)},
 			}
 		}
 
 		// rego-v1 includes all v0 future keywords in the default language definition
 		maps.Copy(allowedFutureKeywords, futureKeywordsV0)
+		if v == RegoV2 {
+			// rego-v2 also includes all v1 future keywords
+			maps.Copy(allowedFutureKeywords, futureKeywordsV1)
+		}
 
 		for _, kw := range p.po.Capabilities.FutureKeywords {
-			if tok, ok := futureKeywords[kw]; ok {
+			if tok, ok := futureKeywordsV1[kw]; ok {
 				allowedFutureKeywords[kw] = tok
 			} else {
 				// For sake of error reporting, we still need to check that keywords in capabilities are known in v0
@@ -405,6 +362,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				}
 				selected[kw] = tok
 			}
+		} else if p.po.EffectiveRegoVersion() == RegoV2 {
+			// For now, v2 contains all known future keywords
+			selected = map[string]tokens.Token{}
+			maps.Copy(selected, allFutureKeywords)
 		} else {
 			selected = make(map[string]tokens.Token, len(p.po.FutureKeywords))
 		}
@@ -717,6 +678,7 @@ func (p *Parser) parseImport() *Import {
 			v, ok := alias.Value.(Var)
 			if ok {
 				imp.Alias = v
+				imp.AliasLocation = alias.Location
 				return &imp
 			}
 		}
@@ -916,7 +878,7 @@ func (p *Parser) parseRules() []*Rule {
 			}
 		}
 
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.Body = implicitTrueBody(rule.Location)
 		return []*Rule{&rule}
 	}
 
@@ -1003,7 +965,7 @@ func (p *Parser) parseRules() []*Rule {
 		p.scan()
 
 	case usesContains:
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.Body = implicitTrueBody(rule.Location)
 		rule.generatedBody = true
 		rule.Location = rule.Head.Location
 
@@ -1114,9 +1076,8 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	hasLBrace := p.s.tok == tokens.LBrace
 
 	if !hasIf && !hasLBrace {
-		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+		rule.Body = implicitTrueBody(rule.Location)
 		rule.generatedBody = true
-		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 
@@ -4009,11 +3970,7 @@ func convertYAMLMapKeyTypes(x any, path []string) (any, error) {
 
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
-var futureKeywords = map[string]tokens.Token{
-	"not": tokens.Not,
-	"and": tokens.LogicalAnd,
-	"or":  tokens.LogicalOr,
-}
+var futureKeywords = map[string]tokens.Token{}
 
 // futureKeywordsV0 is the source of truth for future keywords that were
 // not yet a standard part of Rego in v0, and required importing.
@@ -4024,7 +3981,28 @@ var futureKeywordsV0 = map[string]tokens.Token{
 	"if":       tokens.If,
 }
 
+// futureKeywordsV1 is the source of truth for future keywords in v1
+var futureKeywordsV1 = map[string]tokens.Token{
+	"not": tokens.Not,
+	"and": tokens.LogicalAnd,
+	"or":  tokens.LogicalOr,
+}
+
+var futureKeywordsV2 = map[string]tokens.Token{}
+
 var allFutureKeywords map[string]tokens.Token
+
+// futureKeywordsForBaseline returns the future keywords a module parsed at baseline v can import.
+func futureKeywordsForBaseline(v RegoVersion) map[string]tokens.Token {
+	switch v {
+	case RegoV1:
+		return futureKeywordsV1
+	case RegoV2:
+		return futureKeywordsV2
+	default:
+		return allFutureKeywords
+	}
+}
 
 // experimentalFutureKeywords are future keywords that exist in the parser but are
 // intentionally hidden from the default capabilities advertisement.
@@ -4050,7 +4028,10 @@ func IsFutureKeywordForRegoVersion(s string, v RegoVersion) bool {
 	case RegoV0, RegoV0CompatV1:
 		_, yes = futureKeywordsV0[s]
 	case RegoV1:
-		_, yes = futureKeywords[s]
+		_, yes = futureKeywordsV1[s]
+	case RegoV2:
+		// v2 currently has no future keywords
+		return false
 	}
 
 	return yes
@@ -4070,7 +4051,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "`future` imports cannot be aliased")
+		p.errorf(imp.AliasLocation, "`future` imports cannot be aliased")
 		return
 	}
 
@@ -4113,8 +4094,13 @@ func (p *Parser) regoImport(imp *Import) {
 }
 
 func (p *Parser) regoV1Import(imp *Import) {
-	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
+	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV1) && !p.po.Capabilities.ContainsFeature(FeatureRegoV2) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV1CompatibleRef)
+		return
+	}
+
+	if imp.Alias != "" {
+		p.errorf(imp.AliasLocation, "`rego` imports cannot be aliased")
 		return
 	}
 
@@ -4123,41 +4109,32 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "`rego` imports cannot be aliased")
-		return
-	}
-
-	p.regoV1Compatible()
+	p.addKeywords(futureKeywordsV0)
 }
 
 func (p *Parser) regoV2Import(imp *Import) {
-	if !p.po.Capabilities.ContainsFeature(FeatureRegoV2Import) {
+	if !p.po.Capabilities.ContainsFeature(FeatureRegoV2Import) && !p.po.Capabilities.ContainsFeature(FeatureRegoV2) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV2CompatibleRef)
 		return
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "`rego` imports cannot be aliased")
+		p.errorf(imp.AliasLocation, "`rego` imports cannot be aliased")
 		return
 	}
 
-	if p.po.EffectiveRegoVersion() != RegoV1 {
-		// v2 implies v1
-		p.regoV1Compatible()
+	if p.po.EffectiveRegoVersion() == RegoV2 {
+		// We're parsing for Rego v2, where the 'rego.v2' import is a no-op.
+		return
 	}
 
-	for kw, tok := range futureKeywords {
-		p.s.s.AddKeyword(kw, tok)
-	}
-
+	p.addKeywords(futureKeywordsV0)
+	p.addKeywords(futureKeywordsV1)
 	p.notBodies = true
 }
 
-// regoV1Compatible imports all future keywords with the rego.v1 import.
-func (p *Parser) regoV1Compatible() {
-	p.s.s.SetRegoV1Compatible()
-	for kw, tok := range futureKeywordsV0 {
+func (p *Parser) addKeywords(keywords map[string]tokens.Token) {
+	for kw, tok := range keywords {
 		p.s.s.AddKeyword(kw, tok)
 	}
 }
@@ -4165,6 +4142,7 @@ func (p *Parser) regoV1Compatible() {
 func init() {
 	allFutureKeywords = map[string]tokens.Token{}
 	maps.Copy(allFutureKeywords, futureKeywords)
+	maps.Copy(allFutureKeywords, futureKeywordsV1)
 	maps.Copy(allFutureKeywords, futureKeywordsV0)
 
 	allFutureKeywordTokens = make(map[tokens.Token]struct{}, len(allFutureKeywords))

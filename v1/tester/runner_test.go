@@ -1163,10 +1163,15 @@ test_p if {
 }
 
 func TestRun_DefaultRegoVersion(t *testing.T) {
+	v2Rule := func(s string) *ast.Rule {
+		return ast.MustParseRuleWithOpts(s, ast.ParserOptions{RegoVersion: ast.RegoV2})
+	}
+
 	tests := []struct {
-		note    string
-		module  ast.Module
-		expErrs []string
+		note        string
+		regoVersion ast.RegoVersion
+		module      ast.Module
+		expErrs     []string
 	}{
 		{
 			note: "no v1 violations",
@@ -1195,6 +1200,35 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 				"rego_compile_error: import must not shadow import data.foo",
 			},
 		},
+		{
+			note:        "v2 default, no violations",
+			regoVersion: ast.RegoV2,
+			module: ast.Module{
+				Package: ast.MustParsePackage(`package test`),
+				Rules: []*ast.Rule{
+					v2Rule(`p if { false or true }`),
+					v2Rule(`test_p if { p }`),
+				},
+			},
+		},
+		{
+			note:        "v2 default, v1 violations",
+			regoVersion: ast.RegoV2,
+			module: ast.Module{
+				Package: ast.MustParsePackage(`package test`),
+				Imports: ast.MustParseImports(`
+					import data.foo
+					import data.bar as foo
+				`),
+				Rules: []*ast.Rule{
+					v2Rule(`p if { false or true }`),
+					v2Rule(`test_p if { p }`),
+				},
+			},
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1208,6 +1242,9 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 				SetStore(store).
 				SetModules(map[string]*ast.Module{"test": &tc.module}).
 				SetTimeout(10 * time.Second)
+			if tc.regoVersion != ast.RegoUndefined {
+				runner = runner.SetDefaultRegoVersion(tc.regoVersion)
+			}
 
 			ch, err := runner.RunTests(ctx, txn)
 			if len(tc.expErrs) > 0 {
@@ -1491,4 +1528,50 @@ func registerSleepBuiltin() {
 		time.Sleep(d)
 		return iter(ast.NullTerm())
 	})
+}
+
+func TestRunnerAttachesNoTracerToTestsWithoutCases(t *testing.T) {
+	decl := &ast.Builtin{
+		Name: "tracers",
+		Decl: types.NewFunction(types.Args(types.N), types.N),
+	}
+
+	builtin := &tester.Builtin{
+		Decl: decl,
+		Func: rego.Function1(
+			&rego.Function{Name: decl.Name, Decl: decl.Decl},
+			func(bctx rego.BuiltinContext, _ *ast.Term) (*ast.Term, error) {
+				return ast.IntNumberTerm(len(bctx.QueryTracers)), nil
+			},
+		),
+	}
+
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_plain if { tracers(0) == 0 }`,
+	}
+
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().SetStore(store).SetModules(modules).AddCustomBuiltins([]*tester.Builtin{builtin})
+	ch, err := runner.RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]bool{}
+	for tr := range ch {
+		got[tr.Name] = tr.Pass()
+	}
+
+	exp := map[string]bool{"test_plain": true}
+	if !maps.Equal(exp, got) {
+		t.Fatal("expected:", exp, "got:", got)
+	}
 }

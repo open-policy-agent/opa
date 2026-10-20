@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast/location"
@@ -691,6 +692,39 @@ func TestRuleString(t *testing.T) {
 	}
 }
 
+func TestKeywordsForRegoVersion(t *testing.T) {
+	versions := []RegoVersion{RegoV0, RegoV0CompatV1, RegoV1, RegoV2}
+
+	tests := []struct {
+		keyword string
+		exp     []RegoVersion // versions where keyword is a keyword
+	}{
+		{keyword: "package", exp: versions},
+		{keyword: "not", exp: versions},
+		{keyword: "if", exp: []RegoVersion{RegoV0CompatV1, RegoV1, RegoV2}},
+		{keyword: "contains", exp: []RegoVersion{RegoV0CompatV1, RegoV1, RegoV2}},
+		{keyword: "in", exp: []RegoVersion{RegoV0CompatV1, RegoV1, RegoV2}},
+		{keyword: "every", exp: []RegoVersion{RegoV0CompatV1, RegoV1, RegoV2}},
+		{keyword: "and", exp: []RegoVersion{RegoV2}},
+		{keyword: "or", exp: []RegoVersion{RegoV2}},
+		{keyword: "foo"},
+	}
+
+	for _, tc := range tests {
+		for _, v := range append(versions, RegoUndefined) {
+			t.Run(tc.keyword+"/"+v.String(), func(t *testing.T) {
+				exp := slices.Contains(tc.exp, v)
+				if act := IsKeywordInRegoVersion(tc.keyword, v); act != exp {
+					t.Errorf("IsKeywordInRegoVersion: expected %v, got %v", exp, act)
+				}
+				if act := slices.Contains(KeywordsForRegoVersion(v), tc.keyword); act != exp {
+					t.Errorf("KeywordsForRegoVersion: expected %v, got %v", exp, act)
+				}
+			})
+		}
+	}
+}
+
 func TestRuleString_DefaultRegoVersion(t *testing.T) {
 	// ast.Rule.String() will respect the rego-version of the ast.Module it is part of.
 
@@ -722,6 +756,24 @@ p contains x if { x = "a" }`,
 
 p contains x if { x = "a" }`,
 			exp: `p contains x if { x = "a" }`,
+		},
+		{
+			note:        "v2",
+			regoVersion: RegoV2,
+			module: `package a.b.c
+
+p contains x if { x = "a"; x == "a" or x == "b" }`,
+			exp: `p contains x if { x = "a"; equal(x, "a") or equal(x, "b") }`,
+		},
+		{
+			note:        "v0, rego.v2 import",
+			regoVersion: RegoV0,
+			module: `package a.b.c
+
+import rego.v2
+
+p contains x if { x = "a"; x == "a" or x == "b" }`,
+			exp: `p contains x if { x = "a"; equal(x, "a") or equal(x, "b") }`,
 		},
 	}
 
@@ -1073,6 +1125,110 @@ d.e.f := 3 if { true }
 e.f.g contains 1 if { true }
 f.g.h[1] := 4 if { true }
 g := 5 if { false } else = 6 if { false } else = 7 if { true }`,
+		},
+		{
+			note:        "v2, basic",
+			regoVersion: RegoV2,
+			module: `package test
+
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
+
+g := 5 if {
+	false
+} else := 6 if {
+	false
+} else := 7
+
+h if {
+	input.a or input.b
+}`,
+			exp: `package test
+
+a := 1 if { true }
+b contains 1 if { true }
+c[1] := 2 if { true }
+d.e.f := 3 if { true }
+e.f.g contains 1 if { true }
+f.g.h[1] := 4 if { true }
+g := 5 if { false } else = 6 if { false } else = 7 if { true }
+h = true if { input.a or input.b }`,
+		},
+		{
+			note:        "v0, rego.v2 import",
+			regoVersion: RegoV0,
+			module: `package test
+
+import rego.v2
+
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
+
+g := 5 if {
+	false
+} else := 6 if {
+	false
+} else := 7
+
+h if {
+	input.a or input.b
+}`,
+			exp: `package test
+
+import rego.v2
+
+a := 1 if { true }
+b contains 1 if { true }
+c[1] := 2 if { true }
+d.e.f := 3 if { true }
+e.f.g contains 1 if { true }
+f.g.h[1] := 4 if { true }
+g := 5 if { false } else = 6 if { false } else = 7 if { true }
+h = true if { input.a or input.b }`,
+		},
+		{
+			note:        "v1, rego.v2 import",
+			regoVersion: RegoV1,
+			module: `package test
+
+import rego.v2
+
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
+
+g := 5 if {
+	false
+} else := 6 if {
+	false
+} else := 7
+
+h if {
+	input.a or input.b
+}`,
+			exp: `package test
+
+import rego.v2
+
+a := 1 if { true }
+b contains 1 if { true }
+c[1] := 2 if { true }
+d.e.f := 3 if { true }
+e.f.g contains 1 if { true }
+f.g.h[1] := 4 if { true }
+g := 5 if { false } else = 6 if { false } else = 7 if { true }
+h = true if { input.a or input.b }`,
 		},
 	}
 

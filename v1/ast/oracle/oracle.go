@@ -131,7 +131,7 @@ func parserOptions(popts ast.ParserOptions, compiler *ast.Compiler, shadowed *as
 	popts.Capabilities = util.Or(popts.Capabilities, compiler.Capabilities)
 
 	if popts.RegoVersion == ast.RegoUndefined && shadowed != nil {
-		popts.RegoVersion = shadowed.RegoVersion()
+		popts.RegoVersion = shadowed.RegoVersionSpan().Min()
 	}
 
 	return popts

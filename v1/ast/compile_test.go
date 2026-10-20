@@ -4092,6 +4092,106 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 	runStrictnessTestCase(t, cases)
 }
 
+func TestCompilerRegoV1ChecksByRegoVersion(t *testing.T) {
+	checks := []struct {
+		note   string
+		module string
+		expErr string
+	}{
+		{note: "deprecated built-in", module: "p := any([true])", expErr: "deprecated built-in function calls in expression: any"},
+		{note: "duplicate import", module: "import input.foo\nimport data.foo\np := foo", expErr: "import must not shadow import input.foo"},
+		{note: "keyword override", module: "input := 1", expErr: "rules must not shadow input"},
+	}
+
+	versions := []struct {
+		note        string
+		regoVersion RegoVersion
+		imports     string
+		expChecked  bool
+	}{
+		{note: "v0", regoVersion: RegoV0},
+		{note: "v0, rego.v1", regoVersion: RegoV0, imports: "import rego.v1", expChecked: true},
+		{note: "v0, rego.v2", regoVersion: RegoV0, imports: "import rego.v2", expChecked: true},
+		{note: "v1", regoVersion: RegoV1, expChecked: true},
+		{note: "v1, rego.v2", regoVersion: RegoV1, imports: "import rego.v2", expChecked: true},
+		{note: "v2", regoVersion: RegoV2, expChecked: true},
+	}
+
+	for _, v := range versions {
+		for _, c := range checks {
+			t.Run(v.note+"/"+c.note, func(t *testing.T) {
+				mod := MustParseModuleWithOpts("package test\n"+v.imports+"\n"+c.module, ParserOptions{RegoVersion: v.regoVersion})
+
+				compiler := NewCompiler()
+				compiler.Compile(map[string]*Module{"test": mod})
+
+				if !v.expChecked {
+					if compiler.Failed() {
+						t.Fatalf("unexpected error(s): %v", compiler.Errors)
+					}
+					return
+				}
+				if !strings.Contains(compiler.Errors.Error(), c.expErr) {
+					t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", c.expErr, compiler.Errors)
+				}
+			})
+		}
+	}
+}
+
+func TestCompilerDefaultRegoVersionForUndefinedModule(t *testing.T) {
+	tests := []struct {
+		note               string
+		defaultRegoVersion RegoVersion
+		expFeatures        []string
+		expChecked         bool
+		expErr             string
+	}{
+		{note: "v0", defaultRegoVersion: RegoV0},
+		{note: "v0v1", defaultRegoVersion: RegoV0CompatV1, expChecked: true},
+		{note: "v1", defaultRegoVersion: RegoV1, expFeatures: []string{FeatureRegoV1}, expChecked: true},
+		{note: "v2", defaultRegoVersion: RegoV2, expFeatures: []string{FeatureRegoV2}, expChecked: true},
+		{note: "undefined", defaultRegoVersion: RegoUndefined, expErr: "cannot determine rego version for module"},
+	}
+
+	compile := func(t *testing.T, v RegoVersion, module string) *Compiler {
+		t.Helper()
+		mod := MustParseModule(module)
+		mod.SetRegoVersionSpan(RegoVersionSpan{})
+		compiler := NewCompiler().WithDefaultRegoVersion(v)
+		compiler.Compile(map[string]*Module{"test": mod})
+		return compiler
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := compile(t, tc.defaultRegoVersion, "package test\np := 1")
+			if tc.expErr != "" {
+				if !strings.Contains(compiler.Errors.Error(), tc.expErr) {
+					t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", tc.expErr, compiler.Errors)
+				}
+				return
+			}
+			if compiler.Failed() {
+				t.Fatalf("unexpected error(s): %v", compiler.Errors)
+			}
+			if !slices.Equal(compiler.Required.Features, tc.expFeatures) {
+				t.Fatalf("expected features to be %v but got %v", tc.expFeatures, compiler.Required.Features)
+			}
+
+			for module, exp := range map[string]string{
+				"input := 1":       "rules must not shadow input",
+				"p := any([true])": "deprecated built-in function calls in expression: any",
+			} {
+				compiler = compile(t, tc.defaultRegoVersion, "package test\n"+module)
+				if tc.expChecked != strings.Contains(compiler.Errors.Error(), exp) {
+					t.Fatalf("expected %q reported: %v, got errors: %v", exp, tc.expChecked, compiler.Errors)
+				}
+			}
+		})
+	}
+}
+
 func TestCompilerCheckKeywordOverrides(t *testing.T) {
 	cases := []strictnessTestCase{
 		{
@@ -7477,6 +7577,58 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
 		},
 		{
+			note: "some/in key used in domain",
+			module: `
+				package test
+				p if {
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var i assigned before"),
+		},
+		{
+			note: "some/in key used in domain after some",
+			module: `
+				package test
+				p if {
+					some i
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i assigned before"),
+		},
+		{
+			note: "some/in key used in domain after assignment",
+			module: `
+				package test
+				p if {
+					i := 0
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i assigned before"),
+		},
+		{
+			note: "some/in value used in domain",
+			module: `
+				package test
+				p if {
+					some x in [[0]][x]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var x assigned before"),
+		},
+		{
+			note: "some/in ref key rooted in domain var",
+			module: `
+				package test
+				p if {
+					some [input.xs[j], y] in input.ys[j]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var j assigned before"),
+		},
+		{
 			note: "declare unused err",
 			module: `
 				package test
@@ -7604,6 +7756,46 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				if exp.Compare(result) != 0 {
 					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 				}
+			}
+		})
+	}
+}
+
+func TestRewriteSomeInDomainOverlapAllowed(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+	}{
+		{
+			note: "global ref head in pattern",
+			module: `
+				package t
+				b contains y if { some [input.x, y] in input.arr }
+			`,
+		},
+		{
+			note: "object key in pattern",
+			module: `
+				package t
+				b contains v if { some {k: v} in input.objs[k] }
+			`,
+		},
+		{
+			note: "local ref head in pattern",
+			module: `
+				package t
+				f(xs) := y if { some [xs[0], y] in xs }
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test.rego": MustParseModule(tc.module)}
+			c.Compile(c.Modules)
+			if c.Failed() {
+				t.Fatalf("unexpected compile errors: %v", c.Errors)
 			}
 		})
 	}
@@ -12654,6 +12846,17 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			features: []string{"rego_v1"},
 		},
 		{
+			note: "trivial v2",
+			module: `
+				package x
+
+				p if { input > 7 }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			builtins: []string{"eq", "gt"},
+			features: []string{"rego_v2"},
+		},
+		{
 			note: "rego.v1 import, v0 module",
 			module: `
 				package x
@@ -12688,6 +12891,18 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			features: []string{"rego_v1"},
+		},
+		{
+			note: "rego.v1 import, v2 module",
+			module: `
+				package x
+
+				import rego.v1
+
+				p if { true }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"},
 		},
 		{
 			note: "rego.v2 import, v0 module",
@@ -12739,6 +12954,31 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			features: []string{"rego_v1", "rego_v2_import"},
 		},
 		{
+			note: "rego.v2 import, v2 module",
+			module: `
+				package x
+
+				import rego.v2
+
+				p if { input.a and input.b }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"},
+		},
+		{
+			note: "rego.v1 and rego.v2 imports, v2 module",
+			module: `
+				package x
+
+				import rego.v1
+				import rego.v2
+
+				p if { input.a and input.b }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"},
+		},
+		{
 			note: "future.keywords wildcard, v0 module",
 			module: `
 				package x
@@ -12768,6 +13008,16 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			features: []string{"rego_v1"},
 			keywords: []string{"and", "not", "or"},
+		},
+		{
+			note: "future.keywords wildcard, v2 module",
+			module: `
+				package x
+
+				import future.keywords
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"},
 		},
 		{
 			// The wildcard import must activate every keyword it reports as required.
@@ -12800,6 +13050,21 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			features: []string{"rego_v1"},
 			keywords: []string{"and", "not", "or"},
+		},
+		{
+			note: "future.keywords wildcard, not body and and/or used, v2 module",
+			module: `
+				package x
+
+				import future.keywords
+
+				p if {
+					not { input.a; input.b }
+					input.c and input.d or input.e
+				}
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"},
 		},
 		{
 			note: "future.keywords specific, v0 module",
@@ -12838,6 +13103,22 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords.every
 			`,
 			features: []string{"rego_v1"},
+		},
+		{
+			note: "future.keywords specific, v2 module",
+			module: `
+				package x
+
+				import future.keywords.in
+				import future.keywords.if
+				import future.keywords.contains
+				import future.keywords.every
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"},
 		},
 		{
 			note: "rewriting erases assignment",
@@ -12914,6 +13195,16 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			features: []string{"rego_v1"}, // rego_v1 includes rule_head_ref_string_prefixes
 		},
 		{
+			note: "dots in the head, v2 module",
+			module: `
+				package x
+
+				a.b.c := 7
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			features: []string{"rego_v2"}, // rego_v2 includes rule_head_ref_string_prefixes
+		},
+		{
 			note: "dynamic dots in the head, v0 module",
 			module: `
 				package x
@@ -12944,6 +13235,17 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			builtins: []string{"assign", "eq"},
 			features: []string{"rego_v1"}, // rego_v1 includes rule_head_refs
+		},
+		{
+			note: "dynamic dots in the head, v2 module",
+			module: `
+				package x
+
+				a[x].c[y] := z if { x := "b"; y := "c"; z := "d" }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV2}},
+			builtins: []string{"assign", "eq"},
+			features: []string{"rego_v2"}, // rego_v2 includes rule_head_refs
 		},
 		{
 			note: "template-string",
@@ -13820,6 +14122,14 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p.q.r := 42`,
 		},
 		{
+			note: "rego-v2 feature, ref-head rule",
+			features: []string{
+				FeatureRegoV2,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
 			note: "string-prefix-ref-head feature, general-ref-head rule",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
@@ -13840,6 +14150,14 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			note: "rego-v1 feature, general-ref-head rule",
 			features: []string{
 				FeatureRegoV1,
+			},
+			module: `package test
+				p[q].r[s] := 42 if { q := "foo"; s := "bar" }`,
+		},
+		{
+			note: "rego-v2 feature, general-ref-head rule",
+			features: []string{
+				FeatureRegoV2,
 			},
 			module: `package test
 				p[q].r[s] := 42 if { q := "foo"; s := "bar" }`,
@@ -13917,6 +14235,15 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				import future.keywords.contains
 				p.x contains 1`,
 		},
+		{
+			note: "rego-v2 feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRegoV2,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
 
 		{
 			note:     "no features, general-ref-head with contains kw",
@@ -13954,6 +14281,15 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				import future.keywords
 				p[x] contains 1 if x = "foo"`,
 		},
+		{
+			note: "rego-v2 feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRegoV2,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+		},
 
 		{
 			note: "no features, rego.v1 import",
@@ -13981,6 +14317,15 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			},
 		},
 		{
+			note: "rego-v2 feature, rego.v1 import",
+			module: `package test
+				import rego.v1
+				p if { true }`,
+			features: []string{
+				FeatureRegoV2,
+			},
+		},
+		{
 			note: "no features, rego.v2 import",
 			module: `package test
 				import rego.v2
@@ -13996,6 +14341,15 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				FeatureRegoV1,
 			},
 			expectedErr: "rego_compile_error: rego.v2 import is not supported",
+		},
+		{
+			note: "rego-v2 feature, rego.v2 import",
+			module: `package test
+				import rego.v2
+				p if { input.a and input.b }`,
+			features: []string{
+				FeatureRegoV2,
+			},
 		},
 		{
 			note: "rego-v2-import feature, rego.v2 import",

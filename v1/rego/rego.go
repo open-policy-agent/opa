@@ -2171,25 +2171,11 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 		return nil, err
 	}
 	popts.RegoVersion = r.regoVersion
-	popts = parserOptionsFromRegoVersionImport(queryImports, popts)
+	popts = future.ParserOptionsWithRegoVersionImports(queryImports, popts)
 	popts.SkipRules = true
 	popts.Capabilities = r.capabilities
 
 	return ast.ParseBodyWithOpts(r.query, popts)
-}
-
-func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) ast.ParserOptions {
-	for _, imp := range imports {
-		switch {
-		case ast.RegoV1CompatibleRef.Equal(imp.Path.Value):
-			popts.RegoVersion = ast.RegoV1
-		case ast.RegoV2CompatibleRef.Equal(imp.Path.Value):
-			// TODO: when we introduce ast.RegoV2, it should be applied here instead
-			popts.RegoVersion = ast.RegoV1
-			popts.AllFutureKeywords = true
-		}
-	}
-	return popts
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
@@ -2739,15 +2725,15 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 			}
 
 			if applyCompatRegoVersion {
-				support[i].SetRegoVersion(ast.RegoV0CompatV1)
+				support[i].SetRegoVersionSpan(ast.RegoVersionSpanOf(ast.RegoV0CompatV1))
 			} else {
-				support[i].SetRegoVersion(r.regoVersion)
+				support[i].SetRegoVersionSpan(ast.RegoVersionSpanOf(r.regoVersion))
 			}
 		}
 	} else {
 		// If the target rego-version is not v0, then we apply the target rego-version to the support modules.
 		for i := range support {
-			support[i].SetRegoVersion(r.regoVersion)
+			support[i].SetRegoVersionSpan(ast.RegoVersionSpanOf(r.regoVersion))
 		}
 	}
 

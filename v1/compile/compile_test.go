@@ -500,6 +500,7 @@ p contains "B" if {
 func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 	regoV0 := ast.RegoV0.Int()
 	regoV1 := ast.RegoV1.Int()
+	regoV2 := ast.RegoV2.Int()
 	regoDef := ast.RegoV1.Int()
 
 	tests := []struct {
@@ -765,6 +766,106 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			expFileRegoVersions: map[string]int{
 				"/a/test1.rego": 1,
 				"/a/test2.rego": 1,
+				"/b/test2.rego": 1,
+			},
+		},
+		{
+			note: "v1 and v2 bundles, merged as v1",
+			bundles: []*bundle.Bundle{
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"a"},
+						RegoVersion: &regoV2,
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
+				},
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"b"},
+						RegoVersion: &regoV1,
+						FileRegoVersions: map[string]int{
+							"/test1.rego": 2,
+						},
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+						{
+							Path:         "b/test2.rego",
+							URL:          "b/test2.rego",
+							RelativePath: "/test2.rego",
+							Raw:          []byte("package b"),
+						},
+					},
+				},
+			},
+			regoVersion:          ast.RegoV1,
+			expGlobalRegoVersion: &regoV1,
+			// every v2 module, whether from the global or a per-file rego-version, gets an override
+			expFileRegoVersions: map[string]int{
+				"/a/test1.rego": 2,
+				"/b/test1.rego": 2,
+			},
+		},
+		{
+			note: "v1 and v2 bundles, merged as v2",
+			bundles: []*bundle.Bundle{
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"a"},
+						RegoVersion: &regoV2,
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
+				},
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"b"},
+						RegoVersion: &regoV1,
+						FileRegoVersions: map[string]int{
+							"/test1.rego": 2,
+						},
+					},
+					Data: map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+						{
+							Path:         "b/test2.rego",
+							URL:          "b/test2.rego",
+							RelativePath: "/test2.rego",
+							Raw:          []byte("package b"),
+						},
+					},
+				},
+			},
+			regoVersion:          ast.RegoV2,
+			expGlobalRegoVersion: &regoV2,
+			expFileRegoVersions: map[string]int{
 				"/b/test2.rego": 1,
 			},
 		},
@@ -4002,4 +4103,97 @@ func (p prettyBundle) String() string {
 	}
 
 	return strings.Join(buf, "\n")
+}
+
+func TestCompilerWithBundleVerificationConfig(t *testing.T) {
+	keyConfigs := map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	mod := `package test
+
+p := 7`
+
+	tests := []struct {
+		note   string
+		signed bool
+		vc     *bundle.VerificationConfig
+		expErr string
+	}{
+		{
+			note:   "strict config rejects unsigned bundle",
+			vc:     bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr: "bundle missing .signatures.json file",
+		},
+		{
+			note:   "strict config with no keyid rejects unsigned bundle",
+			vc:     bundle.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr: "bundle missing .signatures.json file",
+		},
+		{
+			note:   "strict config accepts signed bundle",
+			signed: true,
+			vc:     bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+		{
+			note: "optional signature config accepts unsigned bundle",
+			vc:   bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(map[string]string{"bundle.tar.gz": ""}, func(root string) {
+				bundleFile := filepath.Join(root, "bundle.tar.gz")
+
+				b := bundle.Bundle{
+					Manifest: bundle.Manifest{Roots: &[]string{"test"}, Revision: "123"},
+					Data:     map[string]any{},
+					Modules: []bundle.ModuleFile{
+						{
+							URL:    path.Join(bundleFile, "policy.rego"),
+							Path:   "/policy.rego",
+							Raw:    []byte(mod),
+							Parsed: ast.MustParseModule(mod),
+						},
+					},
+				}
+
+				if tc.signed {
+					if err := b.GenerateSignature(bundle.NewSigningConfig("secret", "HS256", ""), "foo", true); err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+				}
+
+				f, err := os.Create(bundleFile)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if err := bundle.Write(f, b); err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if err := f.Close(); err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				err = New().
+					WithPaths(bundleFile).
+					WithAsBundle(true).
+					WithBundleVerificationConfig(tc.vc).
+					Build(t.Context())
+
+				if tc.expErr == "" {
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+					return
+				}
+
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("expected error to contain:\n\n%s\n\ngot:\n\n%v", tc.expErr, err)
+				}
+			})
+		})
+	}
 }

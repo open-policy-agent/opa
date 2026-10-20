@@ -22,7 +22,7 @@ message Manifest {
   // Wasm resolvers attached to the bundle. JSON key is `wasm`.
   repeated WasmResolver wasm = 3;
 
-  // Global Rego version for the bundle. Currently 0 (RegoV0) or 1 (RegoV1).
+  // Global Rego version for the bundle: 0 (RegoV0), 1 (RegoV1) or 2 (RegoV2).
   int32 rego_version = 4;
 
   // Per-file Rego version overrides keyed by file path.

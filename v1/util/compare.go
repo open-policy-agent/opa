@@ -5,6 +5,7 @@
 package util
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -181,9 +182,8 @@ func compareJSONNumber(a, b json.Number) int {
 	}
 	if ai, ok := Atoi(string(a)); ok {
 		if bi, ok := Atoi(string(b)); ok {
-			return ai - bi
+			return cmp.Compare(ai, bi)
 		}
-		return -1
 	}
 	bigA, ok := new(big.Float).SetString(string(a))
 	if !ok {

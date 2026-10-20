@@ -35,7 +35,7 @@ type Manifest struct {
 	Roots []string `protobuf:"bytes,2,rep,name=roots" json:"roots,omitempty"`
 	// Wasm resolvers attached to the bundle. JSON key is `wasm`.
 	Wasm []*WasmResolver `protobuf:"bytes,3,rep,name=wasm" json:"wasm,omitempty"`
-	// Global Rego version for the bundle. Currently 0 (RegoV0) or 1 (RegoV1).
+	// Global Rego version for the bundle: 0 (RegoV0), 1 (RegoV1) or 2 (RegoV2).
 	RegoVersion *int32 `protobuf:"varint,4,opt,name=rego_version,json=regoVersion" json:"rego_version,omitempty"`
 	// Per-file Rego version overrides keyed by file path.
 	FileRegoVersions map[string]int32 `protobuf:"bytes,5,rep,name=file_rego_versions,json=fileRegoVersions" json:"file_rego_versions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`

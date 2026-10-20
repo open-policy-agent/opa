@@ -5,7 +5,9 @@
 package bundle
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -18,6 +20,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1937,6 +1940,65 @@ corge contains 1 if {
 				"rego_compile_error: import must not shadow import data.foo",
 			},
 		},
+
+		{
+			note:               "v0 manager, v2 bundle",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
+		{
+			note:               "v1 manager, v2 bundle",
+			managerRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
+		{
+			note:               "v1 manager, v2 bundle, shadowed import",
+			managerRegoVersion: ast.RegoV1,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note:               "v2 manager, no bundle rego version",
+			managerRegoVersion: ast.RegoV2,
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
+		{
+			note:               "v2 manager, v1 bundle",
+			managerRegoVersion: ast.RegoV2,
+			bundleRegoVersion:  pointTo(ast.RegoV1),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:               "v2 manager, v2 bundle",
+			managerRegoVersion: ast.RegoV2,
+			bundleRegoVersion:  pointTo(ast.RegoV2),
+			module: `package foo
+corge contains 1 if {
+	input.x == 2 or input.y == 3
+}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2888,6 +2950,8 @@ func bundleRegoVersion(v ast.RegoVersion) int {
 		return 0
 	case ast.RegoV1:
 		return 1
+	case ast.RegoV2:
+		return 2
 	}
 	panic("unknown ast.RegoVersion")
 }
@@ -7907,5 +7971,652 @@ func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
 	}
 	if status.State != state {
 		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, state)
+	}
+}
+
+// bundleVariant builds the shared test bundle in one of the three shapes an
+// attacker with write access to the bundle bytes can produce:
+//
+//   - "unsigned": .signatures.json removed
+//   - "signed":   untouched, validly signed
+//   - "tampered": a valid signature over different policy content
+func bundleVariant(t *testing.T, variant string) bundle.Bundle {
+	t.Helper()
+
+	switch variant {
+	case "unsigned":
+		return getTestBundle(t)
+	case "signed":
+		return getTestSignedBundle(t)
+	case "tampered":
+		b := getTestSignedBundle(t)
+		attacker := `package gork
+			p contains x if { x = 99 }`
+		b.Modules[0].Raw = []byte(attacker)
+		b.Modules[0].Parsed = ast.MustParseModule(attacker)
+		return b
+	case "delta":
+		// Delta bundles carry no signature at all
+		return bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: "delta", Roots: &[]string{"a"}},
+			Patch: bundle.Patch{Data: []bundle.PatchOperation{
+				{Op: "upsert", Path: "/a/b", Value: "attacker"},
+			}},
+		}
+	}
+
+	t.Fatalf("unknown bundle variant %q", variant)
+	return bundle.Bundle{}
+}
+
+// writeBundleTarball writes b as a tarball at <dir>/bundle.tar.gz and returns a
+// `file://` resource URL for it.
+func writeBundleTarball(t *testing.T, dir string, b bundle.Bundle) string {
+	t.Helper()
+
+	name := path.Join(dir, "bundle.tar.gz")
+
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	if err := bundle.NewWriter(f).UseModulePath(true).Write(b); err != nil {
+		t.Fatal(err)
+	}
+
+	return "file://" + name
+}
+
+// extractBundleToDir unpacks b into dir so the on-disk layout is exactly what the
+// signature covers. The directory loader derives its paths from the filesystem
+// rather than a tarball, so signed directory bundles have to be materialised this
+// way for the per-file hashes to line up.
+func extractBundleToDir(t *testing.T, dir string, b bundle.Bundle) {
+	t.Helper()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal(err)
+	}
+
+	gr, err := gzip.NewReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gr.Close()
+
+	tr := tar.NewReader(gr)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		target := filepath.Join(dir, filepath.FromSlash(strings.TrimPrefix(hdr.Name, "/")))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		f, err := os.Create(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.Copy(f, tr); err != nil { //nolint:gosec // test fixture, bounded input
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// TestPluginFileLoaderSignatureVerification is a regression test for when an attacker with write access to a
+// `file://` bundle path strips .signatures.json and the bundle activates unverified.
+func TestPluginFileLoaderSignatureVerification(t *testing.T) {
+	t.Parallel()
+
+	keyConfigs := map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := []struct {
+		note    string
+		variant string
+		vc      *bundle.VerificationConfig
+		expErr  string
+	}{
+		{
+			note:    "strict config rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config with no keyid rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config accepts signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+		{
+			note:    "strict config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config accepts stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:    "optional signature config accepts signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:    "no config accepts stripped bundle",
+			variant: "unsigned",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			url := writeBundleTarball(t, t.TempDir(), bundleVariant(t, tc.variant))
+
+			mgr := getTestManager()
+			p := New(&Config{Bundles: map[string]*Source{
+				"test": {
+					SizeLimitBytes: 1e5,
+					Resource:       url,
+					Signing:        tc.vc,
+				},
+			}}, mgr)
+
+			ch := make(chan Status)
+			p.Register("test", func(s Status) { ch <- s })
+
+			if err := p.Start(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			defer p.Stop(t.Context())
+
+			s := <-ch
+
+			if tc.expErr == "" {
+				if s.LastSuccessfulActivation.IsZero() {
+					t.Fatalf("expected successful activation but got message %q", s.Message)
+				}
+				return
+			}
+
+			if !s.LastSuccessfulActivation.IsZero() {
+				t.Fatal("expected activation to fail but bundle was activated")
+			}
+
+			if !strings.Contains(s.Message, tc.expErr) {
+				t.Fatalf("expected status message to contain %q but got %q", tc.expErr, s.Message)
+			}
+		})
+	}
+}
+
+// TestPluginFileLoaderDeltaBundleVerification covers the delta-bundle downgrade: a
+// bundle configured to verify signatures rejects delta bundles, which carry none,
+// unless `signing.allow_unsigned_delta_bundles` is set. The opt-out is delta-only,
+// so snapshot bundles must still be signed.
+func TestPluginFileLoaderDeltaBundleVerification(t *testing.T) {
+	t.Parallel()
+
+	keyConfigs := map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	strict := func() *bundle.VerificationConfig {
+		return bundle.NewVerificationConfig(keyConfigs, "foo", "", nil)
+	}
+	allowUnsignedDeltaBundles := func() *bundle.VerificationConfig {
+		vc := strict()
+		vc.AllowUnsignedDeltaBundles = true
+		return vc
+	}
+
+	tests := []struct {
+		note    string
+		variant string
+		vc      *bundle.VerificationConfig
+		expErr  string
+	}{
+		{
+			note:    "strict config rejects delta bundle",
+			variant: "delta",
+			vc:      strict(),
+			expErr:  "delta bundles do not support signature verification",
+		},
+		{
+			note:    "allow_unsigned_delta_bundles accepts delta bundle",
+			variant: "delta",
+			vc:      allowUnsignedDeltaBundles(),
+		},
+		{
+			note:    "optional signature config accepts delta bundle",
+			variant: "delta",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:    "no config accepts delta bundle",
+			variant: "delta",
+		},
+		{
+			note:    "allow_unsigned_delta_bundles rejects stripped snapshot bundle",
+			variant: "unsigned",
+			vc:      allowUnsignedDeltaBundles(),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "allow_unsigned_delta_bundles accepts signed snapshot bundle",
+			variant: "signed",
+			vc:      allowUnsignedDeltaBundles(),
+		},
+		{
+			note:    "allow_unsigned_delta_bundles rejects tampered snapshot bundle",
+			variant: "tampered",
+			vc:      allowUnsignedDeltaBundles(),
+			expErr:  "digest mismatch",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			url := writeBundleTarball(t, t.TempDir(), bundleVariant(t, tc.variant))
+
+			mgr := getTestManager()
+			p := New(&Config{Bundles: map[string]*Source{
+				"test": {
+					SizeLimitBytes: 1e5,
+					Resource:       url,
+					Signing:        tc.vc,
+				},
+			}}, mgr)
+
+			ch := make(chan Status)
+			p.Register("test", func(s Status) { ch <- s })
+
+			if err := p.Start(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			defer p.Stop(t.Context())
+
+			s := <-ch
+
+			if tc.expErr != "" {
+				if !s.LastSuccessfulActivation.IsZero() {
+					t.Fatal("expected activation to fail but bundle was activated")
+				}
+
+				if !strings.Contains(s.Message, tc.expErr) {
+					t.Fatalf("expected status message to contain %q but got %q", tc.expErr, s.Message)
+				}
+				return
+			}
+
+			if s.LastSuccessfulActivation.IsZero() {
+				t.Fatalf("expected successful activation but got message %q", s.Message)
+			}
+
+			if tc.variant != "delta" {
+				return
+			}
+
+			// the delta bundle's patch is applied
+			txn := storage.NewTransactionOrDie(t.Context(), mgr.Store)
+			defer mgr.Store.Abort(t.Context(), txn)
+
+			value, err := mgr.Store.Read(t.Context(), txn, storage.MustParsePath("/a/b"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if exp := "attacker"; value != exp {
+				t.Fatalf("expected patched value %q but got %v", exp, value)
+			}
+		})
+	}
+}
+
+// TestPluginDirectoryLoaderSignatureVerification is the same vector for a
+// `file://` resource that points at a directory rather than a tarball.
+func TestPluginDirectoryLoaderSignatureVerification(t *testing.T) {
+	t.Parallel()
+
+	keyConfigs := map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := []struct {
+		note    string
+		variant string
+		vc      *bundle.VerificationConfig
+		expErr  string
+	}{
+		{
+			note:    "strict config rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config with no keyid rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config accepts signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+		{
+			note:    "strict config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "digest mismatch",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			extractBundleToDir(t, dir, bundleVariant(t, tc.variant))
+
+			mgr := getTestManager()
+			p := New(&Config{Bundles: map[string]*Source{
+				"test": {
+					SizeLimitBytes: 1e5,
+					Resource:       "file://" + dir,
+					Signing:        tc.vc,
+				},
+			}}, mgr)
+
+			ch := make(chan Status)
+			p.Register("test", func(s Status) { ch <- s })
+
+			if err := p.Start(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			defer p.Stop(t.Context())
+
+			s := <-ch
+
+			if tc.expErr == "" {
+				if s.LastSuccessfulActivation.IsZero() {
+					t.Fatalf("expected successful activation but got message %q", s.Message)
+				}
+				return
+			}
+
+			if !s.LastSuccessfulActivation.IsZero() {
+				t.Fatal("expected activation to fail but bundle was activated")
+			}
+
+			if !strings.Contains(s.Message, tc.expErr) {
+				t.Fatalf("expected status message to contain %q but got %q", tc.expErr, s.Message)
+			}
+		})
+	}
+}
+
+// TestLoadStrippedBundleFromDisk covers the bundle persistence directory
+func TestLoadStrippedBundleFromDisk(t *testing.T) {
+	t.Parallel()
+
+	keyConfigs := map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := []struct {
+		note    string
+		variant string
+		vc      *bundle.VerificationConfig
+		expErr  string
+	}{
+		{
+			note:    "strict config rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config with no keyid rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "optional signature config accepts stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:    "strict config accepts signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+		{
+			note:    "strict config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+			expErr:  "digest mismatch",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			manager := getTestManager()
+			defer manager.Stop(t.Context())
+			plugin := New(&Config{}, manager)
+
+			dir := t.TempDir()
+			bundleName := "foo"
+			bundleDir := filepath.Join(dir, bundleName)
+
+			if err := os.MkdirAll(bundleDir, os.ModePerm); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			var buf bytes.Buffer
+			if err := bundle.NewWriter(&buf).UseModulePath(true).Write(bundleVariant(t, tc.variant)); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), buf.Bytes(), 0o644); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			_, err := plugin.loadBundleFromDisk(dir, bundleName, &Source{Signing: tc.vc})
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("expected error but got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error to contain %q but got %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
+// TestPluginSupersededETags serves bundles from a server that implements
+// RFC 9110 conditional requests, and that can be made to lag behind, as one
+// replica of a replicated bundle service would.
+func TestPluginSupersededETags(t *testing.T) {
+	t.Parallel()
+
+	versionBundle := func(v string) (string, []byte) {
+		module := "package example\n\nrev := " + fmt.Sprintf("%q", v)
+		var buf bytes.Buffer
+		err := bundle.NewWriter(&buf).Write(bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: v},
+			Data:     map[string]any{"version": v},
+			Modules: []bundle.ModuleFile{{
+				URL:    "/example.rego",
+				Path:   "/example.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fmt.Sprintf("%q", "etag-"+v), buf.Bytes()
+	}
+
+	ttl := int64(60)
+	for _, tc := range []struct {
+		note          string
+		ttl           *int64
+		expLagVersion string // active after the lagging replica was hit
+		expConditions []string
+	}{
+		{
+			note:          "disabled",
+			expLagVersion: "v1",
+			expConditions: []string{``, `"etag-v1"`, `"etag-v2"`, `"etag-v1"`, `"etag-v2"`},
+		},
+		{
+			note:          "enabled",
+			ttl:           &ttl,
+			expLagVersion: "v2",
+			expConditions: []string{``, `"etag-v1"`, `"etag-v2", "etag-v1"`, `"etag-v2", "etag-v1"`, `"etag-v2", "etag-v1"`},
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			var mtx sync.Mutex
+			published := []string{"v1"}
+			lagging := false
+			var conditions []string
+
+			etags := map[string]string{}
+			archives := map[string][]byte{}
+			for _, v := range []string{"v1", "v2", "v3"} {
+				etag, archive := versionBundle(v)
+				etags[v], archives[v] = etag, archive
+			}
+
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mtx.Lock()
+				defer mtx.Unlock()
+
+				conditions = append(conditions, r.Header.Get("If-None-Match"))
+				v := published[len(published)-1]
+				if lagging {
+					v = published[len(published)-2]
+				}
+				w.Header().Set("ETag", etags[v])
+				// ServeContent evaluates If-None-Match, including etag lists.
+				http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(archives[v]))
+			}))
+			defer s.Close()
+
+			ctx := t.Context()
+			manager := getTestManagerWithOpts(fmt.Appendf(nil, `{"services": {"default": {"url": %q}}}`, s.URL))
+			mode := plugins.TriggerManual
+			plugin := New(&Config{
+				Bundles: map[string]*Source{
+					"test": {
+						Service:        "default",
+						SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+						Config: download.Config{
+							Trigger: &mode,
+							Polling: download.PollingConfig{SupersededETagTTLSeconds: tc.ttl},
+						},
+					},
+				},
+			}, manager)
+			if err := plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+			defer plugin.Stop(ctx)
+
+			poll := func(expVersion string) {
+				t.Helper()
+				if err := plugin.Loaders()["test"].Trigger(ctx); err != nil {
+					t.Fatal(err)
+				}
+				act, err := storage.ReadOne(ctx, manager.Store, storage.MustParsePath("/version"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if act != expVersion {
+					t.Fatalf("expected active version %v, got %v", expVersion, act)
+				}
+				txn := storage.NewTransactionOrDie(ctx, manager.Store)
+				defer manager.Store.Abort(ctx, txn)
+				ids, err := manager.Store.ListPolicies(ctx, txn)
+				if err != nil || len(ids) != 1 {
+					t.Fatalf("expected one policy, got %v (err: %v)", ids, err)
+				}
+				raw, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+				if err != nil || !strings.Contains(string(raw), fmt.Sprintf("rev := %q", expVersion)) {
+					t.Fatalf("expected module with rev %v, got %s (err: %v)", expVersion, raw, err)
+				}
+			}
+			set := func(f func()) {
+				mtx.Lock()
+				defer mtx.Unlock()
+				f()
+			}
+
+			poll("v1")
+			set(func() { published = append(published, "v2") })
+			poll("v2")
+
+			// the replica serves the previous bundle
+			set(func() { lagging = true })
+			poll(tc.expLagVersion)
+
+			// the replica caught up
+			set(func() { lagging = false })
+			poll("v2")
+
+			set(func() { published = append(published, "v3") })
+			poll("v3")
+
+			mtx.Lock()
+			defer mtx.Unlock()
+			if !slices.Equal(conditions, tc.expConditions) {
+				t.Fatalf("expected If-None-Match headers %q, got %q", tc.expConditions, conditions)
+			}
+		})
 	}
 }

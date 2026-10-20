@@ -1590,6 +1590,33 @@ p contains 2 if {
 				"rego_parse_error: number cannot be used for rule name",
 			},
 		},
+		{
+			note:              "v2 bundle, logical keywords used",
+			bundleRegoVersion: 2,
+			files: map[string]string{
+				".manifest": `{"rego_version": 2}`,
+				"policy.rego": `package test
+p contains v if {
+	v := input.x
+	v == 1 or v == 2
+}`,
+			},
+		},
+		{
+			note:              "v2 bundle, logical keyword as variable",
+			bundleRegoVersion: 2,
+			files: map[string]string{
+				".manifest": `{"rego_version": 2}`,
+				"policy.rego": `package test
+p contains v if {
+	and := input.x
+	v := and
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: unexpected and keyword",
+			},
+		},
 	}
 
 	bundleTypeCases := []struct {

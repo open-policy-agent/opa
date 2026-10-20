@@ -1611,3 +1611,132 @@ func TestSchemas(t *testing.T) {
 		})
 	}
 }
+
+// TestAsBundleWithVerificationConfig is a regression test for when an attacker with write access
+// to a local bundle file strips .signatures.json.
+func TestAsBundleWithVerificationConfig(t *testing.T) {
+	keyConfigs := map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	mod := "package b.c\np=1"
+
+	tests := []struct {
+		note       string
+		variant    string
+		vc         *bundle.VerificationConfig
+		skipVerify bool
+		expErr     string
+	}{
+		{
+			note:    "strict config rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config with no keyid rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config with scope only rejects stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "write", nil),
+			expErr:  "bundle missing .signatures.json file",
+		},
+		{
+			note:    "strict config accepts signed bundle",
+			variant: "signed",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+		{
+			note:    "strict config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config rejects tampered bundle",
+			variant: "tampered",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+			expErr:  "digest mismatch",
+		},
+		{
+			note:    "optional signature config accepts stripped bundle",
+			variant: "unsigned",
+			vc:      bundle.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:       "skip verify accepts stripped bundle",
+			variant:    "unsigned",
+			vc:         bundle.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			skipVerify: true,
+		},
+		{
+			note:    "no config accepts stripped bundle",
+			variant: "unsigned",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(map[string]string{"bundle.tar.gz": ""}, func(rootDir string) {
+				bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+				b := bundle.Bundle{
+					Manifest: bundle.Manifest{Roots: &[]string{"a", "b/c"}, Revision: "123"},
+					Data:     map[string]any{"a": map[string]any{"b": []int{4, 5, 6}}},
+					Modules: []bundle.ModuleFile{
+						{
+							URL:    path.Join(bundleFile, "policy.rego"),
+							Path:   "/policy.rego",
+							Raw:    []byte(mod),
+							Parsed: ast.MustParseModule(mod),
+						},
+					},
+				}
+
+				if tc.variant != "unsigned" {
+					if err := b.GenerateSignature(bundle.NewSigningConfig("secret", "HS256", ""), "foo", true); err != nil {
+						t.Fatalf("Unexpected error: %s", err)
+					}
+				}
+
+				if tc.variant == "tampered" {
+					// a valid signature over different content
+					b.Data = map[string]any{"a": map[string]any{"b": []int{7, 8, 9}}}
+				}
+
+				f, err := os.Create(bundleFile)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if err := bundle.Write(f, b); err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if err := f.Close(); err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				_, err = NewFileLoader().
+					WithBundleVerificationConfig(tc.vc).
+					WithSkipBundleVerification(tc.skipVerify).
+					AsBundle(bundleFile)
+
+				if tc.expErr == "" {
+					if err != nil {
+						t.Fatalf("Unexpected error: %s", err)
+					}
+					return
+				}
+
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q but got %v", tc.expErr, err)
+				}
+			})
+		})
+	}
+}

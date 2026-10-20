@@ -1302,6 +1302,49 @@ bundles.authz.service := v if {
 }`},
 			},
 		},
+		{
+			note:              "v2 bundle",
+			bundleRegoVersion: 2,
+			modules: map[string]versionedModule{
+				"policy.rego": {-1, `package config
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "b"}
+	v.a == "b" or v.a == "c"
+}
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+bundles.authz.service := v if {
+	v := "localhost"
+}`},
+			},
+		},
+		{
+			note:              "v1 bundle, v2 per-file override",
+			bundleRegoVersion: 1,
+			modules: map[string]versionedModule{
+				"policy1.rego": {2, `package config
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "b"}
+	v.a == "b" or v.a == "c"
+}`},
+				"policy2.rego": {-1, `package config
+
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+
+bundles.authz.service := v if {
+	v := "localhost"
+}`},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -4530,5 +4573,220 @@ func ensurePluginState(t *testing.T, d *Discovery, state plugins.State) {
 	}
 	if status.State != state {
 		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, state)
+	}
+}
+
+func TestLoadUnsignedDiscoveryBundleFromDisk(t *testing.T) {
+	keyConfigs := map[string]*bundleApi.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := []struct {
+		note   string
+		signed bool
+		vc     *bundleApi.VerificationConfig
+		expErr string
+	}{
+		{
+			note:   "strict config rejects unsigned bundle",
+			signed: false,
+			vc:     bundleApi.NewVerificationConfig(keyConfigs, "foo", "", nil),
+			expErr: "bundle missing .signatures.json file",
+		},
+		{
+			note:   "strict config with no keyid rejects unsigned bundle",
+			signed: false,
+			vc:     bundleApi.NewVerificationConfig(keyConfigs, "", "", nil),
+			expErr: "bundle missing .signatures.json file",
+		},
+		{
+			note:   "optional signature config accepts unsigned bundle",
+			signed: false,
+			vc:     bundleApi.NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		{
+			note:   "strict config accepts signed bundle",
+			signed: true,
+			vc:     bundleApi.NewVerificationConfig(keyConfigs, "foo", "", nil),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			dir := t.TempDir()
+
+			manager, err := plugins.New([]byte(`{
+				"labels": {"x": "y"},
+				"services": {
+					"localhost": {
+						"url": "http://localhost:9999"
+					}
+				},
+				"discovery": {"name": "config", "persist": true},
+			}`), "test-id", inmem.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			disco, err := New(manager)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := t.Context()
+
+			disco.bundlePersistPath = filepath.Join(dir, ".opa")
+			disco.config.Signing = tc.vc
+
+			b := makeDataBundle(1, `
+				{
+					"config": {
+						"bundles": {"authz": {"service": "localhost"}}
+					}
+				}
+			`)
+			b.Manifest.Init()
+
+			if tc.signed {
+				if err := b.GenerateSignature(bundleApi.NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+					t.Fatal("Unexpected error:", err)
+				}
+			}
+
+			var buf bytes.Buffer
+			if err := bundleApi.NewWriter(&buf).Write(*b); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			if err := disco.saveBundleToDisk(&buf); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			disco.loadAndActivateBundleFromDisk(ctx)
+
+			if tc.expErr == "" {
+				ensurePluginState(t, disco, plugins.StateOK)
+				return
+			}
+
+			// activation must not have happened
+			ensurePluginState(t, disco, plugins.StateNotReady)
+
+			if disco.status.Code == "" {
+				t.Fatal("expected discovery status to carry an error but got none")
+			}
+
+			if !strings.Contains(disco.status.Message, tc.expErr) {
+				t.Fatalf("expected status message to contain %q but got %q", tc.expErr, disco.status.Message)
+			}
+		})
+	}
+}
+
+// TestStrippedDiscoveryBundleConfigDowngrade is a regression test for when an attacker is able to
+// strip signatures from the discovery bundle.
+func TestStrippedDiscoveryBundleConfigDowngrade(t *testing.T) {
+	tests := []struct {
+		note       string
+		signing    string // the discovery.signing block, verbatim, or "" to omit it
+		expApplied bool   // whether the attacker's config takes effect
+	}{
+		{
+			note:       "keyid set rejects the stripped bundle",
+			signing:    `, "signing": {"keyid": "foo"}`,
+			expApplied: false,
+		},
+		{
+			note:       "scope only rejects the stripped bundle",
+			signing:    `, "signing": {"scope": "write"}`,
+			expApplied: false,
+		},
+		{
+			note:       "empty signing block rejects the stripped bundle",
+			signing:    `, "signing": {}`,
+			expApplied: false,
+		},
+		{
+			// A keys-only config is not a verification opt-in
+			note:       "keys only is signature-optional, so the stripped bundle is accepted",
+			signing:    "",
+			expApplied: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			dir := t.TempDir()
+
+			conf := fmt.Sprintf(`{
+				"labels": {"x": "y"},
+				"services": {
+					"localhost": {
+						"url": "http://localhost:9999"
+					}
+				},
+				"discovery": {"name": "config", "persist": true%s},
+				"keys": {"foo": {"algorithm": "HS256", "key": "secret"}},
+			}`, tc.signing)
+
+			manager, err := plugins.New([]byte(conf), "test-id", inmem.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			disco, err := New(manager)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := t.Context()
+			disco.bundlePersistPath = filepath.Join(dir, ".opa")
+
+			// the attacker's config: no `keys`, and decision logs pointed at their
+			// own endpoint to exfiltrate every decision input
+			attackerBundle := makeDataBundle(1, `
+				{
+					"config": {
+						"labels": {"x": "attacker"},
+						"decision_logs": {"service": "localhost"}
+					}
+				}
+			`)
+			attackerBundle.Manifest.Init()
+
+			// no GenerateSignature call: this is the stripped bundle
+			var buf bytes.Buffer
+			if err := bundleApi.NewWriter(&buf).Write(*attackerBundle); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			if err := disco.saveBundleToDisk(&buf); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			disco.loadAndActivateBundleFromDisk(ctx)
+
+			if tc.expApplied {
+				ensurePluginState(t, disco, plugins.StateOK)
+
+				if p := manager.Plugin(logs.Name); p == nil {
+					t.Fatal("expected the decision log plugin to have been configured")
+				}
+				return
+			}
+
+			ensurePluginState(t, disco, plugins.StateNotReady)
+
+			if exp := "bundle missing .signatures.json file"; !strings.Contains(disco.status.Message, exp) {
+				t.Fatalf("expected status message to contain %q but got %q", exp, disco.status.Message)
+			}
+
+			// the attacker's config must never have taken effect
+			if label := manager.Labels()["x"]; label != "y" {
+				t.Fatalf("expected label x to remain %q but got %q", "y", label)
+			}
+
+			if p := manager.Plugin(logs.Name); p != nil {
+				t.Fatal("expected the decision log plugin not to be configured by the rejected discovery bundle")
+			}
+		})
 	}
 }

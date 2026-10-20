@@ -104,6 +104,12 @@ func (imp *Import) MarshalJSONTo(e *jsontext.Encoder) error {
 		}
 	}
 
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Import && imp.AliasLocation != nil {
+		if err := jsonv2.WriteField(e, "alias_location", imp.AliasLocation); err != nil {
+			return err
+		}
+	}
+
 	if len(imp.Alias) > 0 {
 		e.WriteToken(jsontext.String("alias"))
 		e.WriteToken(jsontext.String(string(imp.Alias)))

@@ -157,6 +157,100 @@ func TestBundleRegoVersion(t *testing.T) {
 	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
 		t.Fatal("expected v0")
 	}
+
+	// Set rego-version to v2
+	b.SetRegoVersion(ast.RegoV2)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 2 {
+		t.Fatal("expected v2")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV2 {
+		t.Fatal("expected v2")
+	}
+
+	// An unknown rego-version falls back to the default
+	unknown := 3
+	b.Manifest.RegoVersion = &unknown
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+}
+
+func TestManifestRegoVersionForFile(t *testing.T) {
+	tests := []struct {
+		note             string
+		regoVersion      *int
+		fileRegoVersions map[string]int
+		exp              ast.RegoVersion
+		expErr           string
+	}{
+		{note: "undefined", exp: ast.RegoUndefined},
+		{note: "v0", regoVersion: new(0), exp: ast.RegoV0},
+		{note: "v1", regoVersion: new(1), exp: ast.RegoV1},
+		{note: "v2", regoVersion: new(2), exp: ast.RegoV2},
+		{note: "per-file v2", regoVersion: new(1), fileRegoVersions: map[string]int{"/test.rego": 2}, exp: ast.RegoV2},
+		{note: "unknown", regoVersion: new(3), exp: ast.RegoUndefined, expErr: "unknown bundle rego-version 3 for file '/test.rego'"},
+		{note: "per-file unknown", fileRegoVersions: map[string]int{"/test.rego": -1}, exp: ast.RegoUndefined, expErr: "unknown bundle rego-version -1 for file '/test.rego'"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m := Manifest{RegoVersion: tc.regoVersion, FileRegoVersions: tc.fileRegoVersions}
+
+			v, err := m.RegoVersionForFile("/test.rego")
+			if v != tc.exp {
+				t.Errorf("expected %v, got %v", tc.exp, v)
+			}
+			if tc.expErr == "" && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tc.expErr != "" && (err == nil || err.Error() != tc.expErr) {
+				t.Errorf("expected error %q, got %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
+func TestRead_UnknownRegoVersion(t *testing.T) {
+	tests := []struct {
+		note     string
+		manifest string
+		module   bool
+		expErr   string
+	}{
+		{
+			note:     "rego_version",
+			manifest: `{"roots": [""], "rego_version": 3}`,
+			expErr:   "manifest has unknown rego-version 3",
+		},
+		{
+			note:     "rego_version, with module",
+			manifest: `{"roots": [""], "rego_version": 3}`,
+			module:   true,
+			expErr:   "unknown bundle rego-version 3 for file '/test.rego'",
+		},
+		{
+			note:     "file_rego_versions",
+			manifest: `{"roots": [""], "file_rego_versions": {"/other.rego": 3}}`,
+			expErr:   "manifest has unknown rego-version 3 for file '/other.rego'",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := [][2]string{{"/.manifest", tc.manifest}}
+			if tc.module {
+				files = append(files, [2]string{"test.rego", "package example"})
+			}
+
+			_, err := NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).Read()
+			if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got %v", tc.expErr, err)
+			}
+		})
+	}
 }
 
 // TestManifestNumericRegoVersionForFileGlobSemantics pins how the
@@ -303,6 +397,120 @@ func TestReadWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestFormatModulesWithOptions(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		module      string
+		preserve    bool
+		exp         string
+	}{
+		{
+			note:        "v0, preserved",
+			regoVersion: ast.RegoV0,
+			module: `package a
+				p[x] { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+p[x] {
+	x := 1
+}
+`,
+		},
+		{
+			note:        "v0 with rego.v1, preserved",
+			regoVersion: ast.RegoV0,
+			module: `package a
+				import rego.v1
+				p contains x if { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+import rego.v1
+
+p contains x if x := 1
+`,
+		},
+		{
+			// Parsed as v0v1 without an import; preserving the version adds it.
+			note:        "v0v1 parser option, preserved",
+			regoVersion: ast.RegoV0CompatV1,
+			module: `package a
+				p := 1`,
+			preserve: true,
+			exp: `package a
+
+import rego.v1
+
+p := 1
+`,
+		},
+		{
+			note:        "v1, preserved",
+			regoVersion: ast.RegoV1,
+			module: `package a
+				p contains x if { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+p contains x if x := 1
+`,
+		},
+		{
+			note:        "v1 with rego.v2, preserved",
+			regoVersion: ast.RegoV1,
+			module: `package a
+				import rego.v2
+				p if { input.a or input.b }`,
+			preserve: true,
+			exp: `package a
+
+import rego.v2
+
+p if input.a or input.b
+`,
+		},
+		{
+			note:        "v2, preserved",
+			regoVersion: ast.RegoV2,
+			module: `package a
+				p if { input.a or input.b }`,
+			preserve: true,
+			exp: `package a
+
+p if input.a or input.b
+`,
+		},
+		{
+			note:        "v2, formatted for v1",
+			regoVersion: ast.RegoV2,
+			module: `package a
+				p if { input.a or input.b }`,
+			exp: `package a
+
+import future.keywords.or
+
+p if input.a or input.b
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{RegoVersion: tc.regoVersion})
+			b := Bundle{Modules: []ModuleFile{{URL: "a.rego", Path: "a.rego", Raw: []byte(tc.module), Parsed: parsed}}}
+
+			if err := b.FormatModulesWithOptions(BundleFormatOptions{RegoVersion: ast.RegoV1, PreserveModuleRegoVersion: tc.preserve}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if act := string(b.Modules[0].Raw); act != tc.exp {
+				t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", tc.exp, act)
+			}
+		})
+	}
+}
+
 func TestRead_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -393,6 +601,12 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v2Module := `package example
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	v2ImportModule := `package example
 		import rego.v2
 
@@ -466,6 +680,32 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			regoVersion: ast.RegoV0,
 		},
 		{
+			note: "v2 bundle manifest",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 2}`},
+				{"test.rego", v2Module},
+			},
+		},
+		{
+			note: "v2 bundle manifest, rego.v2 import",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 2}`},
+				{"test.rego", v2ImportModule},
+			},
+		},
+		{
+			note: "per-file rego version 2",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 1, "file_rego_versions": {"/test.rego": 2}}`},
+				{"test.rego", v2Module},
+			},
+		},
+		{
+			note:        "v2 reader rego-version",
+			files:       [][2]string{{"test.rego", v2Module}},
+			regoVersion: ast.RegoV2,
+		},
+		{
 			note:         "capabilities without and/or",
 			files:        [][2]string{{"test.rego", v1Module}},
 			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
@@ -496,7 +736,7 @@ func TestRead_LogicalKeywords(t *testing.T) {
 		{
 			note:         "capabilities without rego_v2_import",
 			files:        [][2]string{{"test.rego", v2ImportModule}},
-			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import),
+			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import, ast.FeatureRegoV2),
 			expErrs:      []string{"test.rego:2: rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities"},
 		},
 	}
@@ -906,6 +1146,26 @@ func TestReadWithSignatures(t *testing.T) {
 		"no_signatures_file_no_keyid": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
 			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
+			true, errors.New("bundle missing .signatures.json file"),
+		},
+		"no_signatures_file_no_keyid_with_keys": {
+			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "", nil),
+			true, errors.New("bundle missing .signatures.json file"),
+		},
+		"no_signatures_file_scope_only": {
+			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
+			true, errors.New("bundle missing .signatures.json file"),
+		},
+		"no_signatures_file_exclude_only": {
+			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "", []string{"data.json"}),
+			true, errors.New("bundle missing .signatures.json file"),
+		},
+		"no_signatures_file_optional_signature": {
+			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "", nil).WithOptionalSignature(),
 			false, nil,
 		},
 		"no_signatures_file": {
@@ -926,6 +1186,15 @@ func TestReadWithSignatures(t *testing.T) {
 			},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
 			true, errors.New("a/b/c/data.json: digest mismatch (want: 42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d, got: a615eeaee21de5179de080de8c3052c8da901138406ba71c38c032845f7d54f4)"),
+		},
+		"signature_with_unknown_keyid": {
+			// Only reachable via a directly-supplied, unvalidated config
+			[][2]string{
+				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+				{"/.manifest", `{"revision": "quickbrownfaux"}`},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "bar", "write", nil),
+			true, errors.New("verification key corresponding to ID bar not found"),
 		},
 		"no_hashing_alg": {
 			[][2]string{
@@ -1169,6 +1438,208 @@ func TestPreProcessBundleSignaturesFileClassification(t *testing.T) {
 			t.Error("/.signatures.json must not be a content descriptor")
 		}
 	})
+}
+
+// signedTestBundle returns a bundle signed with HS256/"secret" under key id "foo".
+func signedTestBundle(t *testing.T) Bundle {
+	t.Helper()
+
+	module := `package example
+
+p := 1`
+
+	b := Bundle{
+		Manifest: Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]any{"a": json.Number("1")},
+		Modules: []ModuleFile{
+			{
+				Path:   "/example.rego",
+				URL:    "/example.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+	b.Manifest.Init()
+
+	if err := b.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", true); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	return b
+}
+
+func writeTestBundle(t *testing.T, b Bundle) *bytes.Buffer {
+	t.Helper()
+
+	var buf bytes.Buffer
+	if err := NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	return &buf
+}
+
+// TestReadWithOptionalSignature covers the keys-only config shape: a signature that is present is
+// still fully verified, but a bundle without one is accepted.
+func TestReadWithOptionalSignature(t *testing.T) {
+	keyConfigs := map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	tests := map[string]struct {
+		update func(*Bundle)
+		expErr string
+	}{
+		"signed_bundle_verified_via_kid": {
+			update: func(*Bundle) {},
+		},
+		"unsigned_bundle_accepted": {
+			update: func(b *Bundle) { b.Signatures = SignaturesConfig{} },
+		},
+		"signed_and_tampered_bundle_rejected": {
+			update: func(b *Bundle) { b.Data = map[string]any{"a": json.Number("2")} },
+			expErr: "data.json: digest mismatch",
+		},
+		"unsigned_and_tampered_bundle_accepted": {
+			update: func(b *Bundle) {
+				b.Signatures = SignaturesConfig{}
+				b.Data = map[string]any{"a": json.Number("2")}
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			b := signedTestBundle(t)
+			tc.update(&b)
+
+			vc := NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature()
+			_, err := NewReader(writeTestBundle(t, b)).WithBundleVerificationConfig(vc).Read()
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("Expected error but got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("Expected error to contain %q but got %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
+func TestReadStrippedBundleSkipVerify(t *testing.T) {
+	b := signedTestBundle(t)
+	b.Signatures = SignaturesConfig{}
+
+	vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+
+	_, err := NewReader(writeTestBundle(t, b)).
+		WithBundleVerificationConfig(vc).
+		WithSkipBundleVerification(true).
+		Read()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+func TestReadDeltaBundleWithVerificationConfig(t *testing.T) {
+	keyConfigs := map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}
+
+	deltaFiles := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux", "roots": ["a"]}`},
+		{"/patch.json", `{"data": [{"op": "upsert", "path": "/a/b", "value": "attacker"}]}`},
+	}
+
+	// An empty op list is a snapshot, not a delta (Type() keys off len(Patch.Data)),
+	// so it must still hit the missing-signature guard rather than the delta branch.
+	emptyPatchFiles := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux", "roots": ["a"]}`},
+		{"/patch.json", `{"data": []}`},
+	}
+
+	tests := map[string]struct {
+		files      [][2]string
+		vc         *VerificationConfig
+		skipVerify bool
+		err        string
+	}{
+		"strict_config_rejects_delta": {
+			files: deltaFiles,
+			vc:    NewVerificationConfig(keyConfigs, "foo", "", nil),
+			err:   "delta bundles do not support signature verification",
+		},
+		"strict_config_no_keyid_rejects_delta": {
+			files: deltaFiles,
+			vc:    NewVerificationConfig(keyConfigs, "", "", nil),
+			err:   "delta bundles do not support signature verification",
+		},
+		"strict_config_allowing_unsigned_delta_bundles_accepts_delta": {
+			files: deltaFiles,
+			vc:    allowUnsignedDeltaBundles(NewVerificationConfig(keyConfigs, "foo", "", nil)),
+		},
+		"strict_config_not_allowing_unsigned_delta_bundles_rejects_delta": {
+			files: deltaFiles,
+			vc:    unmarshalVerificationConfig(t, `{"keyid": "foo", "allow_unsigned_delta_bundles": false}`, keyConfigs),
+			err:   "delta bundles do not support signature verification",
+		},
+		"config_allowing_unsigned_delta_bundles_still_requires_snapshot_signature": {
+			// The opt-out is delta-only: a stripped snapshot bundle is still rejected
+			files: [][2]string{{"/.manifest", `{"revision": "quickbrownfaux", "roots": ["a"]}`}},
+			vc:    allowUnsignedDeltaBundles(NewVerificationConfig(keyConfigs, "foo", "", nil)),
+			err:   "bundle missing .signatures.json file",
+		},
+		"optional_signature_config_accepts_delta": {
+			files: deltaFiles,
+			vc:    NewVerificationConfig(keyConfigs, "", "", nil).WithOptionalSignature(),
+		},
+		"no_config_accepts_delta": {
+			files: deltaFiles,
+		},
+		"skip_verify_accepts_delta": {
+			files:      deltaFiles,
+			vc:         NewVerificationConfig(keyConfigs, "foo", "", nil),
+			skipVerify: true,
+		},
+		"empty_patch_is_snapshot": {
+			files: emptyPatchFiles,
+			vc:    NewVerificationConfig(keyConfigs, "foo", "", nil),
+			err:   "bundle missing .signatures.json file",
+		},
+		"empty_patch_is_snapshot_when_unsigned_delta_bundles_allowed": {
+			files: emptyPatchFiles,
+			vc:    allowUnsignedDeltaBundles(NewVerificationConfig(keyConfigs, "foo", "", nil)),
+			err:   "bundle missing .signatures.json file",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			reader := NewReader(archive.MustWriteTarGz(tc.files)).
+				WithBundleVerificationConfig(tc.vc).
+				WithSkipBundleVerification(tc.skipVerify)
+
+			_, err := reader.Read()
+
+			if tc.err == "" {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("Expected error but got nil")
+			}
+			if err.Error() != tc.err {
+				t.Fatalf("Expected error %q but got %v", tc.err, err)
+			}
+		})
+	}
 }
 
 func TestReadWithPatch(t *testing.T) {
@@ -1787,7 +2258,7 @@ func TestRoundtrip(t *testing.T) {
 }
 
 func TestRoundtrip_RegoV2Import(t *testing.T) {
-	v0 := 0
+	v0, v1, v2 := 0, 1, 2
 	tests := []struct {
 		note        string
 		regoVersion ast.RegoVersion
@@ -1802,6 +2273,17 @@ func TestRoundtrip_RegoV2Import(t *testing.T) {
 			note:        "v0 manifest",
 			regoVersion: ast.RegoV0,
 			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v0},
+		},
+		{
+			note:        "v2 manifest",
+			regoVersion: ast.RegoV2,
+			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v2},
+		},
+		{
+			note:        "v1 manifest, v2 per-file override",
+			regoVersion: ast.RegoV2,
+			manifest: Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v1,
+				FileRegoVersions: map[string]int{"/foo/policy.rego": 2}},
 		},
 	}
 
@@ -2006,6 +2488,60 @@ func TestReadProtoManifestPreservesFormatIntent(t *testing.T) {
 	}
 	if sawJSON {
 		t.Error("re-written bundle silently downgraded to /.manifest")
+	}
+}
+
+func TestRoundtripSigned_RegoVersionIsVerified(t *testing.T) {
+	for _, proto := range []bool{false, true} {
+		t.Run(fmt.Sprintf("proto manifest: %v", proto), func(t *testing.T) {
+			module := `package foo
+
+allow if input.a or not { input.b; input.c }`
+
+			v2 := 2
+			bundle := Bundle{
+				Data: map[string]any{},
+				Modules: []ModuleFile{
+					{
+						URL:    "/foo/policy.rego",
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModuleWithOpts(module, ast.ParserOptions{RegoVersion: ast.RegoV2}),
+						Raw:    []byte(module),
+					},
+				},
+				Manifest: Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v2},
+			}
+			bundle.SetManifestProto(proto)
+
+			if err := bundle.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+
+			var buf bytes.Buffer
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			read, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			if v := read.RegoVersion(ast.RegoV1); v != ast.RegoV2 {
+				t.Fatalf("expected rego version %v, got %v", ast.RegoV2, v)
+			}
+
+			// The rego-version is part of the signed manifest: changing it after signing fails verification.
+			v1 := 1
+			bundle.Manifest.RegoVersion = &v1
+			buf.Reset()
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			_, err = NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err == nil || !strings.Contains(err.Error(), "digest mismatch") {
+				t.Fatalf("expected digest mismatch for a rego-version changed after signing, got %v", err)
+			}
+		})
 	}
 }
 

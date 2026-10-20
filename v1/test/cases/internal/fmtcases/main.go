@@ -36,8 +36,16 @@ func main() {
 		fmt.Println("Version must be an integer")
 		os.Exit(1)
 	}
-	sourceRegoVersion := ast.RegoVersionFromInt(sv)
-	targetRegoVersion := ast.RegoVersionFromInt(tv)
+	sourceRegoVersion, err := ast.RegoVersionFromIntStrict(sv)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	targetRegoVersion, err := ast.RegoVersionFromIntStrict(tv)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("Formatting test cases '%s'->'%s' to rego-version %s\n", s, t, targetRegoVersion)
 

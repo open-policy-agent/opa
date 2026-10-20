@@ -56,6 +56,7 @@ type Downloader struct {
 	stop               chan chan struct{}                  // used to signal plugin to stop running
 	f                  func(context.Context, Update) error // callback function invoked when download updates occur
 	etag               string                              // HTTP Etag for caching purposes
+	superseded         []supersededETag                    // etags of replaced bundles, oldest first
 	sizeLimitBytes     *int64                              // max bundle file size in bytes (passed to reader)
 	bvc                *bundle.VerificationConfig
 	respHdrTimeoutSec  int64
@@ -68,6 +69,14 @@ type Downloader struct {
 	bundleName         string
 	bundleParserOpts   ast.ParserOptions
 }
+
+type supersededETag struct {
+	etag string
+	at   time.Time
+}
+
+// maxSupersededETags bounds the size of the If-None-Match header.
+const maxSupersededETags = 8
 
 type downloaderResponse struct {
 	b        *bundle.Bundle
@@ -266,6 +275,7 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 		return err
 	}
 
+	prev := d.etag
 	d.etag = resp.etag
 	d.longPollingEnabled = resp.longPoll
 
@@ -274,13 +284,47 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 			return err
 		}
 	}
+	if resp.b != nil {
+		d.supersede(prev, resp.etag)
+	}
 	return nil
+}
+
+// supersede records etag as replaced by current, so that it keeps being sent
+// in If-None-Match until the configured TTL has passed.
+func (d *Downloader) supersede(etag, current string) {
+	if d.config.Polling.SupersededETagTTLSeconds == nil || *d.config.Polling.SupersededETagTTLSeconds == 0 {
+		return
+	}
+	d.superseded = slices.DeleteFunc(d.superseded, func(s supersededETag) bool { return s.etag == etag || s.etag == current })
+	if etag != "" && etag != current {
+		d.superseded = append(d.superseded, supersededETag{etag: etag, at: time.Now()})
+	}
+	if n := len(d.superseded) - maxSupersededETags; n > 0 {
+		d.superseded = d.superseded[n:]
+	}
+}
+
+// ifNoneMatch returns the current etag followed by the superseded ones that
+// have not expired yet.
+func (d *Downloader) ifNoneMatch() string {
+	if d.etag == "" || len(d.superseded) == 0 {
+		return d.etag
+	}
+	ttl := time.Duration(*d.config.Polling.SupersededETagTTLSeconds) * time.Second
+	d.superseded = slices.DeleteFunc(d.superseded, func(s supersededETag) bool { return time.Since(s.at) >= ttl })
+
+	etags := []string{d.etag}
+	for _, s := range slices.Backward(d.superseded) {
+		etags = append(etags, s.etag)
+	}
+	return strings.Join(etags, ", ")
 }
 
 func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*downloaderResponse, error) {
 	d.logger.Debug("Download starting.")
 
-	d.client = d.client.WithHeader("If-None-Match", d.etag)
+	d.client = d.client.WithHeader("If-None-Match", d.ifNoneMatch())
 
 	preferences := []string{fmt.Sprintf("modes=%v,%v", defaultBundleMode, deltaBundleMode)}
 
@@ -392,7 +436,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 		}, nil
 	case http.StatusNotModified:
 		etag := resp.Header.Get("ETag")
-		if etag == "" {
+		if etag == "" || slices.ContainsFunc(d.superseded, func(s supersededETag) bool { return s.etag == etag }) {
 			etag = d.etag
 		}
 		return &downloaderResponse{

@@ -14,7 +14,7 @@ of the general `--log-level`. Set it to `debug` to keep those lines out of logs 
 
 Authored by @srenatus
 
-### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224))
+### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224), [#9269](https://github.com/open-policy-agent/opa/issues/9269))
 
 `import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
 import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
@@ -30,6 +30,13 @@ allow if input.user.admin or not (input.user.suspended or input.user.locked)
 ```
 
 See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
+
+Additionally: bundles can be declared as Rego v2 by setting the `rego_version` manifest attribute to `2` (individua 
+bundle modules by setting `file_rego_versions`); and the Go API accepts the new `ast.RegoV2` rego-version when parsing,
+compiling, and formatting Rego modules. 
+The `rego.v2` import is a redundant no-op for modules loaded these ways.
+
+See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format).
 
 Authored by @johanfylling
 
@@ -47,6 +54,97 @@ OPA now identifies the bundle signatures file by its exact basename `.signatures
 Additionally, OPA will now correctly detect and sign all other files with the suffix pattern `*signatures.json`, which may cause bundles signed by this and future versions of OPA to have different signatures from the same content signed by older versions of OPA.
 
 Authored by @philipaconrad
+
+
+## 1.21.3
+
+### Security Fix: TODO-CVE-XXXX-XXXXX - Bundle signature verification could be side-stepped ([GHSA-g2pf-6v5v-qcc8](https://github.com/open-policy-agent/opa/security/advisories/GHSA-g2pf-6v5v-qcc8))
+
+An attacker able to alter bundle bytes could supply arbitrary policy and data to an OPA that was [configured](https://www.openpolicyagent.org/docs/configuration#bundles) 
+to verify bundle signatures. This could happen if the attacker controls any of: 
+
+- OPA bundle/discovery service (including an artifact store it uses)
+- MitM between OPA and bundle/discovery service
+- write access to a file:// bundle path or the bundle persistence directory
+
+Two separate side-steps are fixed:
+
+#### Issue 1. Signature verification keyed on `keyid` rather than on the `signing` block
+
+OPA only required a `.signatures.json` file when `signing.keyid` was set, so a bundle stripped of its signature was
+accepted if only e.g. `bundles[_].signing` was set instead of `bundles[_].signing.keyid`. Verification now depends on 
+the presence of a `signing` block, as documented; `keyid` only selects which key to use.
+
+**Affected:**
+
+- `bundles[_].signing` or `discovery.signing` configured without `keyid`: an empty block, or one with only `scope` or
+  `exclude_files`.
+- Embedders (SDK, custom plugins, `v1/loader`, `v1/compile`) calling `bundle.NewVerificationConfig(keys, "", ...)` with
+  an empty key id.
+
+**Not affected:**
+
+- Configurations with an explicit `bundles[_].signing.keyid` or `discovery.signing.keyid`.
+- `opa run`/`opa eval`/`opa build` with `--verification-key`, which defaults `--verification-key-id` to `default`.
+  Passing `--verification-key-id ""` explicitly was affected.
+- Configurations with top-level `keys` but no `signing` block: not a verification opt-in before or after this fix.
+  Unsigned bundles are still accepted, and OPA now logs a warning at startup for bundles in this state.
+
+**Workaround:** on affected versions, set an explicit `keyid` on every bundle that must be signed:
+
+```yaml
+bundles:
+  authz:
+    service: acmecorp
+    resource: bundle.tar.gz
+    signing:
+      keyid: my_key # must name an entry under the top-level `keys`
+discovery:
+  resource: /discovery.tar.gz
+  signing:
+    keyid: my_discovery_key
+
+keys:
+  my_key:
+    algorithm: RS256
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      ...
+```
+
+Further behaviour changes:
+
+- A `signing` block with no entries under the top-level `keys` is now a startup configuration error, rather than a
+  configuration that rejects every signed bundle while accepting unsigned ones.
+- `bundle.NewVerificationConfig` now requires signatures by default. Embedders can opt out with
+  `WithSkipBundleVerification(true)` or the new `(*VerificationConfig).WithOptionalSignature()`.
+
+#### Issue 2. Unsigned _delta_ bundle downgrade
+
+_Delta_ bundles skipped verification entirely, so an attacker could replace a signed _snapshot_ bundle with an unsigned
+_delta_ bundle on the same resource. The signed policy stays active while the attacker controls any data inside the
+bundle's roots. _Delta_ bundles [not supporting signing](https://www.openpolicyagent.org/docs/management-bundles#current-limitations)
+was documented, but unenforced. OPA now rejects them with `delta bundles do not support signature verification`.
+
+**Affected:**
+
+- Any bundle or discovery configuration with a `signing` block, with or without `keyid`.
+- `opa run`/`opa eval` with `--verification-key`.
+
+**Not affected:**
+
+- Configurations that don't verify signatures: no `signing` block, or `--skip-verify`. Nothing was verified to begin
+  with.
+
+**Workaround:** there is no configuration that makes affected versions reject _delta_ bundles. Until upgrading, ensure
+the integrity of the bundle bytes themselves: TLS terminated by OPA or a trusted hop, restricted write access to the
+bundle service, artifact store and bundle persistence directory.
+
+Bundle services that must keep serving unsigned _delta_ bundles after upgrading can opt out per bundle with the new
+`bundles[_].signing.allow_unsigned_delta_bundles` (or `discovery.signing.allow_unsigned_delta_bundles`) field.
+_Snapshot_ bundles must still be signed.
+
+Reported by Brian Willows (@BrianWillows, Graith Internet, graith.co.uk), authored by @johanfylling.
 
 
 ## 1.21.2

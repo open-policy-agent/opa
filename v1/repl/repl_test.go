@@ -2053,6 +2053,53 @@ func TestOneShot_RegoVersion(t *testing.T) {
 				},
 			},
 		},
+		{
+			note:        "v2, keywords not used",
+			regoVersion: ast.RegoV2,
+			actions: []action{
+				{
+					line: "a[2] { true }",
+					expErrs: []string{
+						"rego_parse_error: `if` keyword is required before rule body",
+						"rego_parse_error: `contains` keyword is required for partial set rules",
+					},
+				},
+			},
+		},
+		{
+			note:        "v2, logical keywords used in rule",
+			regoVersion: ast.RegoV2,
+			actions: []action{
+				{
+					line:      "a if { input.x or true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:        "v2, logical keywords used in query",
+			regoVersion: ast.RegoV2,
+			actions: []action{
+				{
+					line:      "true and not { false; false }",
+					expOutput: "true\n",
+				},
+			},
+		},
+		{
+			// rego.v1 doesn't lower a v2 baseline.
+			note:        "v2, logical keywords used in query, rego.v1 imported",
+			regoVersion: ast.RegoV2,
+			actions: []action{
+				{
+					line: "import rego.v1",
+				},
+				{
+					line:      "true or false",
+					expOutput: "true\n",
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

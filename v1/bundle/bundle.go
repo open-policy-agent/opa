@@ -200,10 +200,7 @@ func (m *Manifest) AddRoot(r string) {
 
 func (m *Manifest) SetRegoVersion(v ast.RegoVersion) {
 	m.Init()
-	regoVersion := 0
-	if v == ast.RegoV1 {
-		regoVersion = 1
-	}
+	regoVersion := v.Int()
 	m.RegoVersion = &regoVersion
 }
 
@@ -360,6 +357,18 @@ func (m *Manifest) validateAndInjectDefaults(b *Bundle) error {
 			if RootPathsOverlap(roots[i], roots[j]) {
 				return fmt.Errorf("manifest has overlapped roots: '%s' and '%s'", roots[i], roots[j])
 			}
+		}
+	}
+
+	// Validate rego versions in bundle.
+	if m.RegoVersion != nil {
+		if _, err := ast.RegoVersionFromIntStrict(*m.RegoVersion); err != nil {
+			return fmt.Errorf("manifest has %v", err)
+		}
+	}
+	for _, pattern := range util.KeysSorted(m.FileRegoVersions) {
+		if _, err := ast.RegoVersionFromIntStrict(m.FileRegoVersions[pattern]); err != nil {
+			return fmt.Errorf("manifest has %v for file '%s'", err, pattern)
 		}
 	}
 
@@ -656,6 +665,11 @@ func (r *Reader) Read() (Bundle, error) {
 		bundle.Data = map[string]any{}
 	}
 
+	// Delta bundles carry no signature, so a config that requires one cannot accept them unless it explicitly opts out.
+	if bundle.Type() == DeltaBundleType && !r.skipVerify && !r.verificationConfig.UnsignedDeltaBundlesAllowed() {
+		return empty, errors.New("delta bundles do not support signature verification")
+	}
+
 	var modules []ModuleFile
 	var manifestPath string
 	for _, f := range descriptors {
@@ -900,20 +914,19 @@ func (r *Reader) checkSignaturesAndDescriptors(signatures SignaturesConfig) erro
 		return nil
 	}
 
-	if signatures.isEmpty() && r.verificationConfig != nil && r.verificationConfig.KeyID != "" {
-		return errors.New("bundle missing .signatures.json file")
-	}
-
-	if !signatures.isEmpty() {
-		if r.verificationConfig == nil {
-			return errors.New("verification key not provided")
+	if signatures.isEmpty() {
+		if r.verificationConfig.SignatureRequired() {
+			return errors.New("bundle missing .signatures.json file")
 		}
-
-		// verify the JWT signatures included in the `.signatures.json` file
-		return r.verifyBundleSignature(signatures)
+		return nil
 	}
 
-	return nil
+	if r.verificationConfig == nil {
+		return errors.New("verification key not provided")
+	}
+
+	// verify the JWT signatures included in the `.signatures.json` file
+	return r.verifyBundleSignature(signatures)
 }
 
 func (r *Reader) verifyBundleSignature(sc SignaturesConfig) error {
@@ -1214,13 +1227,15 @@ func (b *Bundle) FormatModulesWithOptions(opts BundleFormatOptions) error {
 		}
 
 		if module.Parsed != nil {
+			span := module.Parsed.RegoVersionSpan()
 			fmtOpts.ParserOptions = &ast.ParserOptions{
-				RegoVersion: module.Parsed.RegoVersion(),
+				RegoVersion: span.Min(),
 			}
 			if opts.PreserveModuleRegoVersion {
-				fmtOpts.RegoVersion = module.Parsed.RegoVersion()
+				// An undefined span falls back to RegoVersion, which is then undefined too.
+				fmtOpts.RegoVersion, fmtOpts.RegoVersionSpan = span.Min(), span
 			}
-			if fmtOpts.ParserOptions.RegoVersion == fmtOpts.RegoVersion {
+			if fmtOpts.ParserOptions.RegoVersion == ast.RegoVersionSpanOf(fmtOpts.RegoVersion).Min() {
 				fmtOpts.ParserOptions.Capabilities = fmtOpts.Capabilities
 			}
 		}
@@ -1304,11 +1319,8 @@ func (b *Bundle) ParsedModules(bundleName string) map[string]*ast.Module {
 
 func (b *Bundle) RegoVersion(def ast.RegoVersion) ast.RegoVersion {
 	if v := b.Manifest.RegoVersion; v != nil {
-		switch *v {
-		case 0:
-			return ast.RegoV0
-		case 1:
-			return ast.RegoV1
+		if rv, err := ast.RegoVersionFromIntStrict(*v); err == nil {
+			return rv
 		}
 	}
 	return def
@@ -1320,19 +1332,13 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 
 // RegoVersionForFile returns the rego-version for the specified file path.
 // If there is no defined version for the given path, the default version def is returned.
-// If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
+// If the version does not correspond to ast.RegoV0, ast.RegoV1 or ast.RegoV2, an error is returned.
 func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
-	version, err := b.Manifest.numericRegoVersionForFile(path)
-	if err != nil {
+	v, err := b.Manifest.RegoVersionForFile(path)
+	if err != nil || v == ast.RegoUndefined {
 		return def, err
-	} else if version == nil {
-		return def, nil
-	} else if *version == 0 {
-		return ast.RegoV0, nil
-	} else if *version == 1 {
-		return ast.RegoV1, nil
 	}
-	return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
+	return v, nil
 }
 
 func (m *Manifest) RegoVersionForFile(path string) (ast.RegoVersion, error) {
@@ -1345,7 +1351,11 @@ func (m *Manifest) RegoVersionForFile(path string) (ast.RegoVersion, error) {
 		return ast.RegoUndefined, nil
 	}
 
-	return ast.RegoVersionFromInt(*v), nil
+	rv, err := ast.RegoVersionFromIntStrict(*v)
+	if err != nil {
+		return ast.RegoUndefined, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *v, path)
+	}
+	return rv, nil
 }
 
 func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {
