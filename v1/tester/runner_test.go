@@ -1492,3 +1492,49 @@ func registerSleepBuiltin() {
 		return iter(ast.NullTerm())
 	})
 }
+
+func TestRunnerAttachesNoTracerToTestsWithoutCases(t *testing.T) {
+	decl := &ast.Builtin{
+		Name: "tracers",
+		Decl: types.NewFunction(types.Args(types.N), types.N),
+	}
+
+	builtin := &tester.Builtin{
+		Decl: decl,
+		Func: rego.Function1(
+			&rego.Function{Name: decl.Name, Decl: decl.Decl},
+			func(bctx rego.BuiltinContext, _ *ast.Term) (*ast.Term, error) {
+				return ast.IntNumberTerm(len(bctx.QueryTracers)), nil
+			},
+		),
+	}
+
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_plain if { tracers(0) == 0 }`,
+	}
+
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().SetStore(store).SetModules(modules).AddCustomBuiltins([]*tester.Builtin{builtin})
+	ch, err := runner.RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]bool{}
+	for tr := range ch {
+		got[tr.Name] = tr.Pass()
+	}
+
+	exp := map[string]bool{"test_plain": true}
+	if !maps.Equal(exp, got) {
+		t.Fatal("expected:", exp, "got:", got)
+	}
+}
