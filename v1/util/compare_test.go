@@ -52,3 +52,28 @@ func TestCompare(t *testing.T) {
 		}
 	}
 }
+
+func TestCompareJSONNumbers(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"1", "0.5", 1},
+		{"-1", "-2.5", 1},
+		{"1", "1e0", 0},
+		{"9223372036854775807", "-1", 1},
+		{"-9223372036854775808", "1", -1},
+		{"5", "2", 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.a+"_vs_"+tc.b, func(t *testing.T) {
+			a, b := json.Number(tc.a), json.Number(tc.b)
+			if got := Compare(a, b); got != tc.want {
+				t.Errorf("Compare(%s, %s) = %d; want %d", a, b, got, tc.want)
+			}
+			if got := Compare(b, a); got != -tc.want {
+				t.Errorf("Compare(%s, %s) = %d; want %d", b, a, got, -tc.want)
+			}
+		})
+	}
+}
