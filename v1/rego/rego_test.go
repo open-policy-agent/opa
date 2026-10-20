@@ -34,6 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
+	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -3856,5 +3857,132 @@ q if input.a or input.b
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestPrepareForEvalPartialEvalPreservesRuntime(t *testing.T) {
+	runtime := ast.ObjectTerm(ast.Item(ast.StringTerm("foo"), ast.StringTerm("bar")))
+
+	for _, partial := range []bool{false, true} {
+		t.Run(fmt.Sprintf("partial=%v", partial), func(t *testing.T) {
+			var opts []PrepareOption
+			if partial {
+				opts = append(opts, WithPartialEval())
+			}
+
+			pq, err := New(
+				Query("data.test.x"),
+				Runtime(runtime),
+				Module("test.rego", "package test\n\nx := opa.runtime().foo"),
+			).PrepareForEval(t.Context(), opts...)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rs, err := pq.Eval(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(rs) != 1 || rs[0].Expressions[0].Value != "bar" {
+				t.Fatalf("expected \"bar\", got %v", rs)
+			}
+		})
+	}
+}
+
+type countingPrintHook struct{ calls int }
+
+func (h *countingPrintHook) Print(print.Context, string) error {
+	h.calls++
+	return nil
+}
+
+func TestPrepareForEvalPartialEvalPreservesEvalOptions(t *testing.T) {
+	input := map[string]any{"a": "abc"}
+
+	tests := []struct {
+		note   string
+		module string
+		setup  func() (opts []func(*Rego), check func(*testing.T, ResultSet, error))
+	}{
+		{
+			note:   "strict builtin errors",
+			module: "package test\n\nx := to_number(input.a)",
+			setup: func() ([]func(*Rego), func(*testing.T, ResultSet, error)) {
+				return []func(*Rego){StrictBuiltinErrors(true)}, func(t *testing.T, _ ResultSet, err error) {
+					if err == nil {
+						t.Fatal("expected builtin error")
+					}
+				}
+			},
+		},
+		{
+			note:   "builtin error list",
+			module: "package test\n\nx := to_number(input.a)",
+			setup: func() ([]func(*Rego), func(*testing.T, ResultSet, error)) {
+				var errs []topdown.Error
+				return []func(*Rego){BuiltinErrorList(&errs)}, func(t *testing.T, _ ResultSet, err error) {
+					if err != nil {
+						t.Fatal(err)
+					}
+					if len(errs) != 1 {
+						t.Fatalf("expected 1 collected error, got %d", len(errs))
+					}
+				}
+			},
+		},
+		{
+			note:   "print hook",
+			module: "package test\n\nx if print(input.a)",
+			setup: func() ([]func(*Rego), func(*testing.T, ResultSet, error)) {
+				hook := &countingPrintHook{}
+				return []func(*Rego){EnablePrintStatements(true), PrintHook(hook)}, func(t *testing.T, _ ResultSet, err error) {
+					if err != nil {
+						t.Fatal(err)
+					}
+					if hook.calls != 1 {
+						t.Fatalf("expected 1 print call, got %d", hook.calls)
+					}
+				}
+			},
+		},
+		{
+			note:   "generate json",
+			module: "package test\n\nx := input.a",
+			setup: func() ([]func(*Rego), func(*testing.T, ResultSet, error)) {
+				gen := GenerateJSON(func(*ast.Term, *EvalContext) (any, error) { return "custom", nil })
+				return []func(*Rego){gen}, func(t *testing.T, rs ResultSet, err error) {
+					if err != nil {
+						t.Fatal(err)
+					}
+					if len(rs) != 1 || rs[0].Expressions[0].Value != "custom" {
+						t.Fatalf("expected \"custom\", got %v", rs)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		for _, partial := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/partial=%v", tc.note, partial), func(t *testing.T) {
+				opts, check := tc.setup()
+
+				var prepOpts []PrepareOption
+				if partial {
+					prepOpts = append(prepOpts, WithPartialEval())
+				}
+
+				pq, err := New(append(opts, Query("data.test.x"), Module("test.rego", tc.module))...).
+					PrepareForEval(t.Context(), prepOpts...)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				rs, err := pq.Eval(t.Context(), EvalInput(input))
+				check(t, rs, err)
+			})
+		}
 	}
 }
