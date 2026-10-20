@@ -219,9 +219,10 @@ type (
 	// Import represents a dependency on a document outside of the policy
 	// namespace. Imports are optional.
 	Import struct {
-		Path     *Term     `json:"path"`
-		Alias    Var       `json:"alias,omitempty"`
-		Location *Location `json:"location,omitempty"`
+		Path          *Term     `json:"path"`
+		Alias         Var       `json:"alias,omitempty"`
+		Location      *Location `json:"location,omitempty"`
+		AliasLocation *Location `json:"alias_location,omitempty"`
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the

@@ -409,6 +409,43 @@ func TestImport_MarshalJSON(t *testing.T) {
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"path":{"type":"string","value":"example"}}`,
 		},
+		"alias location included": {
+			Import: func() *Import {
+				v, _ := InterfaceToValue("example")
+				term := Term{
+					Value:    v,
+					Location: NewLocation([]byte{}, "example.rego", 1, 2),
+				}
+				return &Import{
+					Path:          &term,
+					Alias:         "ex",
+					AliasLocation: NewLocation([]byte{}, "example.rego", 1, 12),
+				}
+			}(),
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{
+					IncludeLocation: astJSON.NodeToggle{
+						Import: true,
+					},
+				},
+			},
+			ExpectedJSON: `{"alias":"ex","alias_location":{"file":"example.rego","row":1,"col":12},"path":{"type":"string","value":"example"}}`,
+		},
+		"alias location excluded": {
+			Import: func() *Import {
+				v, _ := InterfaceToValue("example")
+				term := Term{
+					Value:    v,
+					Location: NewLocation([]byte{}, "example.rego", 1, 2),
+				}
+				return &Import{
+					Path:          &term,
+					Alias:         "ex",
+					AliasLocation: NewLocation([]byte{}, "example.rego", 1, 12),
+				}
+			}(),
+			ExpectedJSON: `{"alias":"ex","path":{"type":"string","value":"example"}}`,
+		},
 	}
 
 	for name, data := range testCases {

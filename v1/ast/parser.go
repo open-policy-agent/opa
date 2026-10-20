@@ -717,6 +717,7 @@ func (p *Parser) parseImport() *Import {
 			v, ok := alias.Value.(Var)
 			if ok {
 				imp.Alias = v
+				imp.AliasLocation = alias.Location
 				return &imp
 			}
 		}
@@ -4069,7 +4070,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "`future` imports cannot be aliased")
+		p.errorf(imp.AliasLocation, "`future` imports cannot be aliased")
 		return
 	}
 
@@ -4123,7 +4124,7 @@ func (p *Parser) regoV1Import(imp *Import) {
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "`rego` imports cannot be aliased")
+		p.errorf(imp.AliasLocation, "`rego` imports cannot be aliased")
 		return
 	}
 
@@ -4137,7 +4138,7 @@ func (p *Parser) regoV2Import(imp *Import) {
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "`rego` imports cannot be aliased")
+		p.errorf(imp.AliasLocation, "`rego` imports cannot be aliased")
 		return
 	}
 
