@@ -283,7 +283,7 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	head.Value = rhs
 	head.Location = lhs.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
+	body := implicitTrueBody(rhs.Location)
 
 	return &Rule{
 		Location:      lhs.Location,
@@ -307,7 +307,7 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 	head.generatedValue = true
 	head.Location = term.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location))
+	body := implicitTrueBody(term.Location)
 
 	return &Rule{
 		Location: term.Location,
@@ -336,7 +336,7 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 	}
 	head.Location = rhs.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
+	body := implicitTrueBody(rhs.Location)
 
 	rule := &Rule{
 		Location:      rhs.Location,
@@ -373,7 +373,7 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 	}
 	head.Location = term.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location))
+	body := implicitTrueBody(term.Location)
 
 	rule := &Rule{
 		Location: term.Location,
@@ -406,7 +406,7 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	head.Location = lhs.Location
 	head.Args = Args(call[1:])
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
+	body := implicitTrueBody(rhs.Location)
 
 	rule := &Rule{
 		Location: lhs.Location,
@@ -435,7 +435,7 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	head.Location = loc
 	head.Args = terms[1:]
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)).SetLocation(loc))
+	body := implicitTrueBody(loc)
 
 	rule := &Rule{
 		Location: loc,
@@ -892,4 +892,11 @@ func (d ParserErrorDetail) Lines() []string {
 
 func isNewLineChar(b byte) bool {
 	return b == '\r' || b == '\n'
+}
+
+func implicitTrueBody(loc *Location) Body {
+	expr := NewExpr(BooleanTerm(true).SetLocation(loc)).SetLocation(loc)
+	expr.Generated = true
+
+	return NewBody(expr)
 }

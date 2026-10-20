@@ -916,7 +916,7 @@ func (p *Parser) parseRules() []*Rule {
 			}
 		}
 
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.Body = implicitTrueBody(rule.Location)
 		return []*Rule{&rule}
 	}
 
@@ -1003,7 +1003,7 @@ func (p *Parser) parseRules() []*Rule {
 		p.scan()
 
 	case usesContains:
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.Body = implicitTrueBody(rule.Location)
 		rule.generatedBody = true
 		rule.Location = rule.Head.Location
 
@@ -1114,9 +1114,8 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	hasLBrace := p.s.tok == tokens.LBrace
 
 	if !hasIf && !hasLBrace {
-		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+		rule.Body = implicitTrueBody(rule.Location)
 		rule.generatedBody = true
-		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 

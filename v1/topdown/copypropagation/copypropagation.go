@@ -214,7 +214,9 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 	}
 
 	if p.ensureNonEmptyBody && len(result) == 0 {
-		result = append(result, ast.NewExpr(ast.BooleanTerm(true)))
+		true_ := ast.NewExpr(ast.BooleanTerm(true))
+		true_.Generated = true
+		result = append(result, true_)
 	}
 
 	return result
