@@ -157,6 +157,100 @@ func TestBundleRegoVersion(t *testing.T) {
 	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
 		t.Fatal("expected v0")
 	}
+
+	// Set rego-version to v2
+	b.SetRegoVersion(ast.RegoV2)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 2 {
+		t.Fatal("expected v2")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV2 {
+		t.Fatal("expected v2")
+	}
+
+	// An unknown rego-version falls back to the default
+	unknown := 3
+	b.Manifest.RegoVersion = &unknown
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+}
+
+func TestManifestRegoVersionForFile(t *testing.T) {
+	tests := []struct {
+		note             string
+		regoVersion      *int
+		fileRegoVersions map[string]int
+		exp              ast.RegoVersion
+		expErr           string
+	}{
+		{note: "undefined", exp: ast.RegoUndefined},
+		{note: "v0", regoVersion: new(0), exp: ast.RegoV0},
+		{note: "v1", regoVersion: new(1), exp: ast.RegoV1},
+		{note: "v2", regoVersion: new(2), exp: ast.RegoV2},
+		{note: "per-file v2", regoVersion: new(1), fileRegoVersions: map[string]int{"/test.rego": 2}, exp: ast.RegoV2},
+		{note: "unknown", regoVersion: new(3), exp: ast.RegoUndefined, expErr: "unknown bundle rego-version 3 for file '/test.rego'"},
+		{note: "per-file unknown", fileRegoVersions: map[string]int{"/test.rego": -1}, exp: ast.RegoUndefined, expErr: "unknown bundle rego-version -1 for file '/test.rego'"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m := Manifest{RegoVersion: tc.regoVersion, FileRegoVersions: tc.fileRegoVersions}
+
+			v, err := m.RegoVersionForFile("/test.rego")
+			if v != tc.exp {
+				t.Errorf("expected %v, got %v", tc.exp, v)
+			}
+			if tc.expErr == "" && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tc.expErr != "" && (err == nil || err.Error() != tc.expErr) {
+				t.Errorf("expected error %q, got %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
+func TestRead_UnknownRegoVersion(t *testing.T) {
+	tests := []struct {
+		note     string
+		manifest string
+		module   bool
+		expErr   string
+	}{
+		{
+			note:     "rego_version",
+			manifest: `{"roots": [""], "rego_version": 3}`,
+			expErr:   "manifest has unknown rego-version 3",
+		},
+		{
+			note:     "rego_version, with module",
+			manifest: `{"roots": [""], "rego_version": 3}`,
+			module:   true,
+			expErr:   "unknown bundle rego-version 3 for file '/test.rego'",
+		},
+		{
+			note:     "file_rego_versions",
+			manifest: `{"roots": [""], "file_rego_versions": {"/other.rego": 3}}`,
+			expErr:   "manifest has unknown rego-version 3 for file '/other.rego'",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := [][2]string{{"/.manifest", tc.manifest}}
+			if tc.module {
+				files = append(files, [2]string{"test.rego", "package example"})
+			}
+
+			_, err := NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).Read()
+			if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got %v", tc.expErr, err)
+			}
+		})
+	}
 }
 
 // TestManifestNumericRegoVersionForFileGlobSemantics pins how the
@@ -303,6 +397,120 @@ func TestReadWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestFormatModulesWithOptions(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		module      string
+		preserve    bool
+		exp         string
+	}{
+		{
+			note:        "v0, preserved",
+			regoVersion: ast.RegoV0,
+			module: `package a
+				p[x] { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+p[x] {
+	x := 1
+}
+`,
+		},
+		{
+			note:        "v0 with rego.v1, preserved",
+			regoVersion: ast.RegoV0,
+			module: `package a
+				import rego.v1
+				p contains x if { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+import rego.v1
+
+p contains x if x := 1
+`,
+		},
+		{
+			// Parsed as v0v1 without an import; preserving the version adds it.
+			note:        "v0v1 parser option, preserved",
+			regoVersion: ast.RegoV0CompatV1,
+			module: `package a
+				p := 1`,
+			preserve: true,
+			exp: `package a
+
+import rego.v1
+
+p := 1
+`,
+		},
+		{
+			note:        "v1, preserved",
+			regoVersion: ast.RegoV1,
+			module: `package a
+				p contains x if { x := 1 }`,
+			preserve: true,
+			exp: `package a
+
+p contains x if x := 1
+`,
+		},
+		{
+			note:        "v1 with rego.v2, preserved",
+			regoVersion: ast.RegoV1,
+			module: `package a
+				import rego.v2
+				p if { input.a or input.b }`,
+			preserve: true,
+			exp: `package a
+
+import rego.v2
+
+p if input.a or input.b
+`,
+		},
+		{
+			note:        "v2, preserved",
+			regoVersion: ast.RegoV2,
+			module: `package a
+				p if { input.a or input.b }`,
+			preserve: true,
+			exp: `package a
+
+p if input.a or input.b
+`,
+		},
+		{
+			note:        "v2, formatted for v1",
+			regoVersion: ast.RegoV2,
+			module: `package a
+				p if { input.a or input.b }`,
+			exp: `package a
+
+import future.keywords.or
+
+p if input.a or input.b
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{RegoVersion: tc.regoVersion})
+			b := Bundle{Modules: []ModuleFile{{URL: "a.rego", Path: "a.rego", Raw: []byte(tc.module), Parsed: parsed}}}
+
+			if err := b.FormatModulesWithOptions(BundleFormatOptions{RegoVersion: ast.RegoV1, PreserveModuleRegoVersion: tc.preserve}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if act := string(b.Modules[0].Raw); act != tc.exp {
+				t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", tc.exp, act)
+			}
+		})
+	}
+}
+
 func TestRead_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -393,6 +601,12 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			input.user == "alice" or (input.role == "admin" and input.verified)
 		}`
 
+	v2Module := `package example
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
 	v2ImportModule := `package example
 		import rego.v2
 
@@ -466,6 +680,32 @@ func TestRead_LogicalKeywords(t *testing.T) {
 			regoVersion: ast.RegoV0,
 		},
 		{
+			note: "v2 bundle manifest",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 2}`},
+				{"test.rego", v2Module},
+			},
+		},
+		{
+			note: "v2 bundle manifest, rego.v2 import",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 2}`},
+				{"test.rego", v2ImportModule},
+			},
+		},
+		{
+			note: "per-file rego version 2",
+			files: [][2]string{
+				{"/.manifest", `{"roots": [""], "rego_version": 1, "file_rego_versions": {"/test.rego": 2}}`},
+				{"test.rego", v2Module},
+			},
+		},
+		{
+			note:        "v2 reader rego-version",
+			files:       [][2]string{{"test.rego", v2Module}},
+			regoVersion: ast.RegoV2,
+		},
+		{
 			note:         "capabilities without and/or",
 			files:        [][2]string{{"test.rego", v1Module}},
 			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
@@ -496,7 +736,7 @@ func TestRead_LogicalKeywords(t *testing.T) {
 		{
 			note:         "capabilities without rego_v2_import",
 			files:        [][2]string{{"test.rego", v2ImportModule}},
-			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import),
+			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import, ast.FeatureRegoV2),
 			expErrs:      []string{"test.rego:2: rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities"},
 		},
 	}
@@ -2018,7 +2258,7 @@ func TestRoundtrip(t *testing.T) {
 }
 
 func TestRoundtrip_RegoV2Import(t *testing.T) {
-	v0 := 0
+	v0, v1, v2 := 0, 1, 2
 	tests := []struct {
 		note        string
 		regoVersion ast.RegoVersion
@@ -2033,6 +2273,17 @@ func TestRoundtrip_RegoV2Import(t *testing.T) {
 			note:        "v0 manifest",
 			regoVersion: ast.RegoV0,
 			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v0},
+		},
+		{
+			note:        "v2 manifest",
+			regoVersion: ast.RegoV2,
+			manifest:    Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v2},
+		},
+		{
+			note:        "v1 manifest, v2 per-file override",
+			regoVersion: ast.RegoV2,
+			manifest: Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v1,
+				FileRegoVersions: map[string]int{"/foo/policy.rego": 2}},
 		},
 	}
 
@@ -2237,6 +2488,60 @@ func TestReadProtoManifestPreservesFormatIntent(t *testing.T) {
 	}
 	if sawJSON {
 		t.Error("re-written bundle silently downgraded to /.manifest")
+	}
+}
+
+func TestRoundtripSigned_RegoVersionIsVerified(t *testing.T) {
+	for _, proto := range []bool{false, true} {
+		t.Run(fmt.Sprintf("proto manifest: %v", proto), func(t *testing.T) {
+			module := `package foo
+
+allow if input.a or not { input.b; input.c }`
+
+			v2 := 2
+			bundle := Bundle{
+				Data: map[string]any{},
+				Modules: []ModuleFile{
+					{
+						URL:    "/foo/policy.rego",
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModuleWithOpts(module, ast.ParserOptions{RegoVersion: ast.RegoV2}),
+						Raw:    []byte(module),
+					},
+				},
+				Manifest: Manifest{Roots: &[]string{""}, Revision: "r", RegoVersion: &v2},
+			}
+			bundle.SetManifestProto(proto)
+
+			if err := bundle.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+
+			var buf bytes.Buffer
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			read, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			if v := read.RegoVersion(ast.RegoV1); v != ast.RegoV2 {
+				t.Fatalf("expected rego version %v, got %v", ast.RegoV2, v)
+			}
+
+			// The rego-version is part of the signed manifest: changing it after signing fails verification.
+			v1 := 1
+			bundle.Manifest.RegoVersion = &v1
+			buf.Reset()
+			if err := NewWriter(&buf).Write(bundle); err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			_, err = NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+			if err == nil || !strings.Contains(err.Error(), "digest mismatch") {
+				t.Fatalf("expected digest mismatch for a rego-version changed after signing, got %v", err)
+			}
+		})
 	}
 }
 

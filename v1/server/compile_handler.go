@@ -622,7 +622,7 @@ func prepareAnnotations(
 	for _, module := range mods {
 		vsn, ok := comp.Modules[module]
 		if ok { // NB(sr): I think this should be impossible. Let's try not to panic, and fall back to the default if it _does happen_.
-			po.RegoVersion = vsn.RegoVersion()
+			po.RegoVersion = vsn.RegoVersionSpan().Min()
 		}
 		rego, err := store.GetPolicy(ctx, txn, module)
 		if err != nil {

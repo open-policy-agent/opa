@@ -50,6 +50,72 @@ import (
 	"github.com/open-policy-agent/opa/v1/version"
 )
 
+func TestDecisionRegoV2(t *testing.T) {
+	// `or` without an import only parses at a v2 baseline.
+	module := `package system
+
+main if {
+	input.a or input.b
+}
+`
+
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		files       map[string]string
+	}{
+		{
+			note:  "v2 bundle",
+			files: map[string]string{"/.manifest": `{"rego_version": 2}`, "main.rego": module},
+		},
+		{
+			note:        "v2 runtime",
+			regoVersion: ast.RegoV2,
+			files:       map[string]string{"main.rego": module},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := t.Context()
+
+			server := sdktest.MustNewServer(
+				sdktest.RawBundles(true),
+				sdktest.MockBundle("/bundles/bundle.tar.gz", tc.files),
+			)
+			defer server.Stop()
+
+			config := fmt.Sprintf(`{
+				"services": {
+					"test": {
+						"url": %q
+					}
+				},
+				"bundles": {
+					"test": {
+						"resource": "/bundles/bundle.tar.gz"
+					}
+				}
+			}`, server.URL())
+
+			opa, err := sdk.New(ctx, sdk.Options{
+				Config:      strings.NewReader(config),
+				RegoVersion: tc.regoVersion,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer opa.Stop(ctx)
+
+			if result, err := opa.Decision(ctx, sdk.DecisionOptions{Input: map[string]any{"b": true}}); err != nil {
+				t.Fatal(err)
+			} else if decision, ok := result.Result.(bool); !ok || !decision {
+				t.Fatal("expected true but got:", result.Result)
+			}
+		})
+	}
+}
+
 func TestDefaultRegoVersion(t *testing.T) {
 
 	ctx := t.Context()

@@ -704,7 +704,7 @@ func (r *REPL) cmdShow(args []string) error {
 			return nil
 		}
 		module := r.modules[r.currentModuleID]
-		bs, err := format.AstWithOpts(module, format.Opts{RegoVersion: module.RegoVersion()})
+		bs, err := format.AstWithOpts(module, format.Opts{RegoVersionSpan: module.RegoVersionSpan()})
 		if err != nil {
 			return err
 		}
@@ -1017,7 +1017,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	var unset bool
 
-	if r.regoVersion == ast.RegoV1 {
+	if r.regoVersion == ast.RegoV1 || r.regoVersion == ast.RegoV2 {
 		if errs := ast.CheckRegoV1(rule); errs != nil {
 			return errs
 		}
@@ -1162,22 +1162,11 @@ func (r *REPL) parserOptions() (ast.ParserOptions, error) {
 		return opts, err
 	}
 
-	if r.regoVersion == ast.RegoV1 {
-		opts.RegoVersion = ast.RegoV1
+	if r.regoVersion == ast.RegoV1 || r.regoVersion == ast.RegoV2 {
+		opts.RegoVersion = r.regoVersion
 	}
 
-	for _, i := range imports {
-		switch {
-		case ast.RegoV1CompatibleRef.Equal(i.Path.Value):
-			opts.RegoVersion = ast.RegoV1
-		case ast.RegoV2CompatibleRef.Equal(i.Path.Value):
-			// TODO: when we introduce ast.RegoV2, it should be applied here instead
-			opts.RegoVersion = ast.RegoV1
-			opts.AllFutureKeywords = true
-		}
-	}
-
-	return opts, nil
+	return future.ParserOptionsWithRegoVersionImports(imports, opts), nil
 }
 
 func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
@@ -1430,7 +1419,7 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 	m := ast.Module{
 		Package: p,
 	}
-	m.SetRegoVersion(r.regoVersion)
+	m.SetRegoVersionSpan(ast.RegoVersionSpanOf(r.regoVersion))
 	r.modules[moduleID] = &m
 
 	r.currentModuleID = moduleID

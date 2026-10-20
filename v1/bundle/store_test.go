@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -140,6 +141,47 @@ func TestBundleLazyModeNoPolicyOrData(t *testing.T) {
 			}
 		}
 	}`)
+}
+
+func TestReadModuleInfoFromStore(t *testing.T) {
+	tests := []struct {
+		version int
+		exp     ast.RegoVersion
+		expErr  string
+	}{
+		{version: 0, exp: ast.RegoV0},
+		{version: 1, exp: ast.RegoV1},
+		{version: 2, exp: ast.RegoV2},
+		{version: 3, expErr: "corrupt rego version: unknown rego-version 3"},
+	}
+
+	for _, tc := range tests {
+		t.Run(strconv.Itoa(tc.version), func(t *testing.T) {
+			store := inmemtst.New()
+
+			err := storage.Txn(t.Context(), store, storage.WriteParams, func(txn storage.Transaction) error {
+				if err := write(t.Context(), store, txn, moduleRegoVersionPath("a/policy.rego"), tc.version); err != nil {
+					return err
+				}
+
+				info, err := readModuleInfoFromStore(t.Context(), store, txn)
+				if err != nil {
+					return err
+				}
+				if act := info["a/policy.rego"].RegoVersion; act != tc.exp {
+					t.Errorf("expected %v, got %v", tc.exp, act)
+				}
+				return nil
+			})
+
+			if tc.expErr == "" && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.expErr != "" && (err == nil || err.Error() != tc.expErr) {
+				t.Fatalf("expected error %q, got %v", tc.expErr, err)
+			}
+		})
+	}
 }
 
 func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
@@ -659,6 +701,49 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 				},
 			},
 		},
+		{
+			// The module takes the runtime's rego-version, so it parses as v2 and isn't recorded.
+			note:               "custom bundle without rego-version, lazy, v2 runtime",
+			runtimeRegoVersion: ast.RegoV2,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { input.a and input.b }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 1337 if { input.a or input.b }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
 
 		{
 			note: "custom bundle without rego-version, not lazy",
@@ -764,6 +849,47 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 							{"/.manifest", `{"roots": ["a"]}`},
 							{"a/policy.rego", `package a
 								p[1337] { true }`},
+						},
+					},
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+		{
+			// The module takes the runtime's rego-version, so it parses as v2 and isn't recorded.
+			note:               "custom bundle without rego-version, not lazy, v2 runtime",
+			runtimeRegoVersion: ast.RegoV2,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { input.a and input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					expData: `{
+								"system":{
+									"bundles":{"bundle1":{"etag":"bar","manifest":{"revision":"","roots":["a"]}}}
+								}
+							}`,
+				},
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"]}`},
+							{"a/policy.rego", `package a
+								p contains 1337 if { input.a or input.b }`},
 						},
 					},
 					readWithBundleName: true,
@@ -1635,6 +1761,249 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 				deactivation{
 					bundles: map[string]struct{}{"bundle1": {}, "bundle2": {}},
 					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		// single v2 bundle
+		{
+			note: "v2 bundle, v1 runtime",
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 2}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { input.a and input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					// The module's rego-version differs from the runtime's, so it is recorded.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":2,"revision":"","roots":["a"]}}},
+							"modules":{"bundle1/a/policy.rego":{"rego_version":2}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note:               "v2 bundle, v2 runtime",
+			runtimeRegoVersion: ast.RegoV2,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 2}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { input.a and input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					// The module's rego-version matches the runtime's, so it isn't recorded.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":2,"revision":"","roots":["a"]}}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v2 bundle, lazy, v1 runtime",
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 2}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { input.a and input.b }`},
+						},
+					},
+					lazy:               true,
+					readWithBundleName: true,
+					// Lazy mode takes the module's rego-version from the manifest rather than the parsed module.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":2,"revision":"","roots":["a"]}}},
+							"modules":{"bundle1/a/policy.rego":{"rego_version":2}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note:               "v2 bundle, not lazy, --v0-compatible",
+			runtimeRegoVersion: ast.RegoV0,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 2}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { input.a and input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					// The module's rego-version differs from the runtime's, so it is recorded.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":2,"revision":"","roots":["a"]}}},
+							"modules":{"bundle1/a/policy.rego":{"rego_version":2}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note:               "v1 bundle, not lazy, v2 runtime",
+			runtimeRegoVersion: ast.RegoV2,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+						},
+					},
+					readWithBundleName: true,
+					// The module is older than the runtime, so its rego-version is recorded.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":1,"revision":"","roots":["a"]}}},
+							"modules":{"bundle1/a/policy.rego":{"rego_version":1}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note:               "v0 bundle, not lazy, v2 runtime",
+			runtimeRegoVersion: ast.RegoV2,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								p[42] { true }`},
+						},
+					},
+					readWithBundleName: true,
+					// The module is older than the runtime, so its rego-version is recorded.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}},
+							"modules":{"bundle1/a/policy.rego":{"rego_version":0}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			note: "v1 bundle with per-file v2 module, not lazy",
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a", "b"], "rego_version": 1, "file_rego_versions": {"/b/policy.rego": 2}}`},
+							{"a/policy.rego", `package a
+								p contains 42 if { true }`},
+							{"b/policy.rego", `package b
+								q contains 42 if { input.a or input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					// Only the per-file v2 module differs from the runtime's rego-version, so only it is recorded.
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"file_rego_versions":{"/b/policy.rego":2},"rego_version":1,"revision":"","roots":["a","b"]}}},
+							"modules":{"bundle1/b/policy.rego":{"rego_version":2}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
+		{
+			// The module's span starts at v0, the runtime's rego-version, so nothing is recorded.
+			note:               "v0 bundle, rego.v1 import, not lazy, --v0-compatible",
+			runtimeRegoVersion: ast.RegoV0,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								import rego.v1
+								p contains 42 if { true }`},
+						},
+					},
+					readWithBundleName: true,
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
+				},
+			},
+		},
+		{
+			// The module's span starts at v0, the runtime's rego-version, so nothing is recorded.
+			note:               "v0 bundle, rego.v2 import, not lazy, --v0-compatible",
+			runtimeRegoVersion: ast.RegoV0,
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 0}`},
+							{"a/policy.rego", `package a
+								import rego.v2
+								p contains 42 if { input.a or input.b }`},
+						},
+					},
+					readWithBundleName: true,
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"rego_version":0,"revision":"","roots":["a"]}}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{}}}`,
 				},
 			},
 		},
@@ -4372,7 +4741,7 @@ func TestActivate_LogicalKeywords(t *testing.T) {
 		{
 			note:         "capabilities without rego_v2_import",
 			storedModule: v2ImportModule,
-			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import),
+			capabilities: capabilitiesWithoutFeatures(t, ast.FeatureRegoV2Import, ast.FeatureRegoV2),
 			expErrs:      []string{"rego_parse_error: invalid import, `rego.v2` is not supported by current capabilities"},
 		},
 	}

@@ -158,6 +158,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 			note: "current",
 			expFeatures: []string{
 				ast.FeatureRegoV1,
+				ast.FeatureRegoV2,
 				ast.FeatureRegoV2Import,
 				ast.FeatureKeywordsInRefs,
 				ast.FeatureTemplateStrings,
@@ -177,6 +178,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureRegoV1Import,
 				ast.FeatureRegoV2Import,
 				ast.FeatureRegoV1,
+				ast.FeatureRegoV2,
 				ast.FeatureKeywordsInRefs,
 			},
 			expFutureKeywords: []string{

@@ -386,7 +386,7 @@ func Source(w io.Writer, errW io.Writer, r Output) error {
 
 	for i := range r.Partial.Support {
 		fmt.Fprintf(w, "# Module %d\n", i+1)
-		bs, err := format.AstWithOpts(r.Partial.Support[i], format.Opts{IgnoreLocations: true, RegoVersion: r.Partial.Support[i].RegoVersion()})
+		bs, err := format.AstWithOpts(r.Partial.Support[i], format.Opts{IgnoreLocations: true, RegoVersionSpan: r.Partial.Support[i].RegoVersionSpan()})
 		if err != nil {
 			return err
 		}
@@ -489,7 +489,7 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 	)
 
 	for i := range pq.Queries {
-		f, err := prettyASTNode(pq.Queries[i], ast.DefaultRegoVersion)
+		f, err := prettyASTNode(pq.Queries[i], ast.RegoVersionSpanOf(ast.DefaultRegoVersion))
 		if err != nil {
 			return err
 		}
@@ -499,7 +499,7 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 	}
 
 	for i, s := range pq.Support {
-		f, err := prettyASTNode(s, s.RegoVersion())
+		f, err := prettyASTNode(s, s.RegoVersionSpan())
 		if err != nil {
 			return err
 		}
@@ -512,8 +512,8 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 }
 
 // prettyASTNode is used for pretty-printing the result of partial eval
-func prettyASTNode(x any, regoVersion ast.RegoVersion) (string, error) {
-	bs, err := format.AstWithOpts(x, format.Opts{IgnoreLocations: true, RegoVersion: regoVersion})
+func prettyASTNode(x any, regoVersion ast.RegoVersionSpan) (string, error) {
+	bs, err := format.AstWithOpts(x, format.Opts{IgnoreLocations: true, RegoVersionSpan: regoVersion})
 	if err != nil {
 		return "", fmt.Errorf("format error: %w", err)
 	}

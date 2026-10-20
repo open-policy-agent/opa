@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -18,6 +19,19 @@ func logicalParserOptsForVersion(v RegoVersion, extraFuture ...string) ParserOpt
 	opts := logicalParserOpts(extraFuture...)
 	opts.RegoVersion = v
 	return opts
+}
+
+type logicalParserOptsRoute struct {
+	note string
+	opts ParserOptions
+}
+
+// logicalParserOptsRoutes pairs opts with a v2 baseline, which needs no future keywords.
+func logicalParserOptsRoutes(opts ParserOptions) []logicalParserOptsRoute {
+	return []logicalParserOptsRoute{
+		{note: "future keywords", opts: opts},
+		{note: "v2", opts: ParserOptions{RegoVersion: RegoV2}},
+	}
 }
 
 func TestParseLogical_Parsing(t *testing.T) {
@@ -223,9 +237,13 @@ func TestParseLogical_Parsing(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+	for _, route := range logicalParserOptsRoutes(opts) {
+		t.Run(route.note, func(t *testing.T) {
+			for _, tc := range tests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseOneExpr(t, tc.note, tc.input, tc.exp, route.opts)
+				})
+			}
 		})
 	}
 }
@@ -352,9 +370,13 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"every as a rhs operand, or", "y or every x in xs { x }", "unexpected every keyword"},
 		{"some decl as a rhs operand", "y and some x", "unexpected some keyword"},
 	}
-	for _, tc := range exprTests {
-		t.Run(tc.note, func(t *testing.T) {
-			assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
+	for _, route := range logicalParserOptsRoutes(opts) {
+		t.Run("expr/"+route.note, func(t *testing.T) {
+			for _, tc := range exprTests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseErrorContains(t, tc.note, tc.input, tc.expected, route.opts)
+				})
+			}
 		})
 	}
 
@@ -372,9 +394,13 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"some-in as a negated operand", "y or not some x in xs", "unexpected some keyword"},
 		{"every as a negated operand", "y or not every x in xs { x }", "unexpected every keyword"},
 	}
-	for _, tc := range notExprTests {
-		t.Run(tc.note, func(t *testing.T) {
-			assertParseErrorContains(t, tc.note, tc.input, tc.expected, notOpts)
+	for _, route := range logicalParserOptsRoutes(notOpts) {
+		t.Run("not body/"+route.note, func(t *testing.T) {
+			for _, tc := range notExprTests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseErrorContains(t, tc.note, tc.input, tc.expected, route.opts)
+				})
+			}
 		})
 	}
 
@@ -427,9 +453,13 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 			expected: "var cannot be used for rule name",
 		},
 	}
-	for _, tc := range modTests {
-		t.Run(tc.note, func(t *testing.T) {
-			assertParseModuleErrorMessage(t, tc.note, tc.input, tc.expected, opts)
+	for _, route := range logicalParserOptsRoutes(opts) {
+		t.Run("module/"+route.note, func(t *testing.T) {
+			for _, tc := range modTests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseModuleErrorMessage(t, tc.note, tc.input, tc.expected, route.opts)
+				})
+			}
 		})
 	}
 }
@@ -2503,9 +2533,13 @@ func TestParseLogical_NotBodyLeadingOperand(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+	for _, route := range logicalParserOptsRoutes(opts) {
+		t.Run(route.note, func(t *testing.T) {
+			for _, tc := range tests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseOneExpr(t, tc.note, tc.input, tc.exp, route.opts)
+				})
+			}
 		})
 	}
 
@@ -2546,9 +2580,10 @@ func TestParseLogical_BuiltinCallForm(t *testing.T) {
 	}
 
 	exprTests := []struct {
-		note  string
-		input string
-		exp   *Expr
+		note         string
+		input        string
+		exp          *Expr
+		regoVersions []RegoVersion // what rego-versions the test can run on. nil == all
 	}{
 		{
 			note:  "or call, statement start",
@@ -2622,9 +2657,16 @@ func TestParseLogical_BuiltinCallForm(t *testing.T) {
 			exp:   NewExpr(SetComprehensionTerm(Or.Call(a, b), NewBody(NewExpr(BooleanTerm(true))))),
 		},
 		{
-			note:  "and call, negated",
-			input: "not and(a, b)",
-			exp:   negated(And.Expr(a, b)),
+			note:         "and call, negated",
+			input:        "not and(a, b)",
+			exp:          NotExpr(And.Expr(a, b)),
+			regoVersions: []RegoVersion{RegoV2},
+		},
+		{
+			note:         "and call, negated (legacy)",
+			input:        "not and(a, b)",
+			exp:          negated(And.Expr(a, b)),
+			regoVersions: []RegoVersion{RegoV0, RegoV1},
 		},
 		{
 			note:  "or call, rhs operand of and keyword",
@@ -2747,11 +2789,14 @@ func TestParseLogical_BuiltinCallForm(t *testing.T) {
 		},
 	}
 
-	for _, v := range []RegoVersion{RegoV0, RegoV1} {
+	for _, v := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		t.Run(v.String(), func(t *testing.T) {
 			// `every` is a future keyword in v0 (and implies `in`); a no-op in v1.
 			exprOpts := logicalParserOptsForVersion(v, "every")
 			for _, tc := range exprTests {
+				if tc.regoVersions != nil && !slices.Contains(tc.regoVersions, v) {
+					continue
+				}
 				t.Run(tc.note, func(t *testing.T) {
 					assertParseOneExpr(t, tc.note, tc.input, tc.exp, exprOpts)
 				})
@@ -2850,7 +2895,7 @@ func TestParseLogical_BuiltinCallFormBoundaries(t *testing.T) {
 		{"or call, operator position", "x or or y", "unexpected or keyword"},
 	}
 
-	for _, v := range []RegoVersion{RegoV0, RegoV1} {
+	for _, v := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
 		t.Run(v.String(), func(t *testing.T) {
 			opts := logicalParserOptsForVersion(v)
 			for _, tc := range keywordTests {

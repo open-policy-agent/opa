@@ -202,7 +202,7 @@ func (mod *Module) StringLength() (n int) {
 
 	if len(mod.Rules) > 0 {
 		for _, rule := range mod.Rules {
-			n += rule.stringLengthWithOpts(toStringOpts{regoVersion: mod.regoVersion}) + 1 // newline
+			n += rule.stringLengthWithOpts(toStringOpts{regoVersion: mod.regoVersion.Max()}) + 1 // newline
 		}
 	}
 
@@ -240,7 +240,7 @@ func (rule *Rule) stringLengthWithOpts(opts toStringOpts) int {
 	n += rule.Head.stringLengthWithOpts(opts)
 	if !rule.Default {
 		switch opts.RegoVersion() {
-		case RegoV1, RegoV0CompatV1:
+		case RegoV0CompatV1, RegoV1, RegoV2:
 			n += 6 // " if { "
 		default:
 			n += 3 // " { "

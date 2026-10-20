@@ -1,0 +1,21 @@
+package test
+
+import rego.v2
+
+p contains x if {
+	x := 1
+	x in input.xs
+	not ({x})
+}
+
+q := 1 if {
+	input.a
+}
+
+r if input.b
+
+default s := false
+
+f(x) := y if {
+	y := x
+}

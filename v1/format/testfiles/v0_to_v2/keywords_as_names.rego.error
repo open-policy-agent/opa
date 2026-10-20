@@ -1,0 +1,4 @@
+3 errors occurred:
+testfiles/v0_to_v2/keywords_as_names.rego:3: rego_parse_error: and keyword cannot be used for rule name
+testfiles/v0_to_v2/keywords_as_names.rego:6: rego_parse_error: or keyword cannot be used for variable name
+testfiles/v0_to_v2/keywords_as_names.rego:7: rego_parse_error: or keyword cannot be used for variable name

@@ -1,0 +1,11 @@
+package test
+
+import rego.v2
+
+# Already a not-body; unchanged.
+p if {
+	x := false
+	not { x }
+}
+
+q if not (input.a or input.b)

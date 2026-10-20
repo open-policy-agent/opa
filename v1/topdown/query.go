@@ -535,7 +535,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 
 	for i, m := range support {
 		if regoVersion := q.compiler.DefaultRegoVersion(); regoVersion != ast.RegoUndefined {
-			ast.SetModuleRegoVersion(m, q.compiler.DefaultRegoVersion())
+			m.SetRegoVersionSpan(ast.RegoVersionSpanOf(q.compiler.DefaultRegoVersion()))
 		}
 		slices.SortFunc(support[i].Rules, (*ast.Rule).Compare)
 	}
