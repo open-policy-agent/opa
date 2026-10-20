@@ -1027,7 +1027,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	if r.trace {
 		bufferTracer = topdown.NewBufferTracer()
 		tracers = append(tracers, bufferTracer)
-	} else {
+	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
 		t := NewTestQueryTracer()
 		tracers = append(tracers, t)
 		bufferTracer = &t.BufferTracer
