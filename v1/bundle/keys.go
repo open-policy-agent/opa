@@ -76,8 +76,9 @@ func (vc *VerificationConfig) UnsignedDeltaBundlesAllowed() bool {
 func (vc *VerificationConfig) ValidateAndInjectDefaults(keys map[string]*KeyConfig) error {
 	// This is only reachable from an explicit `signing` block. Such a block with
 	// no keys to verify against can never load a signed bundle, so reject it here
-	// rather than starting up with a config that cannot work.
-	if len(keys) == 0 {
+	// rather than starting up with a config that cannot work. A block naming a
+	// key id falls through to the lookup below, which reports the missing key.
+	if len(keys) == 0 && vc.KeyID == "" {
 		return errors.New("no verification keys configured")
 	}
 
