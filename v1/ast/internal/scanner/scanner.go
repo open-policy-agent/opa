@@ -15,6 +15,7 @@ import (
 )
 
 const bom = 0xFEFF
+const nbsp = 0xA0
 
 // Scanner is used to tokenize an input stream of
 // Rego source code.
@@ -295,6 +296,8 @@ func (s *Scanner) Scan(opts ...ScanOption) (tokens.Token, Position, string, []Er
 			} else {
 				s.error("illegal ! character")
 			}
+		case nbsp:
+			s.error("illegal non-breaking space character, use a regular space instead")
 		case ';':
 			tok = tokens.Semicolon
 		case '.':

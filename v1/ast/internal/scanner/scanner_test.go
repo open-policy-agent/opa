@@ -395,6 +395,7 @@ func TestIllegalTokens(t *testing.T) {
 	}{
 		{input: `墳`},
 		{input: `0e`, wantErr: true},
+		{input: "\u00a0", wantErr: true},
 	}
 
 	for _, tc := range tests {
