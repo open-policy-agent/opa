@@ -598,6 +598,39 @@ func (rr *RelatedResourceAnnotation) String() string {
 	return string(bs)
 }
 
+// UnmarshalJSON decodes a related resource whose ref is a URI string.
+func (rr *RelatedResourceAnnotation) UnmarshalJSON(bs []byte) error {
+	data := struct {
+		Ref         json.RawMessage `json:"ref"`
+		Description string          `json:"description,omitempty"`
+	}{Description: rr.Description}
+	if err := util.UnmarshalJSON(bs, &data); err != nil {
+		return err
+	}
+
+	ref := rr.Ref
+	if len(data.Ref) > 0 && data.Ref[0] == '"' {
+		var value string
+		if err := util.UnmarshalJSON(data.Ref, &value); err != nil {
+			return err
+		}
+		parsed, err := url.Parse(value)
+		if err != nil {
+			return err
+		}
+		ref = *parsed
+	} else if len(data.Ref) > 0 {
+		// Preserve support for the URL object accepted before URI decoding.
+		if err := util.UnmarshalJSON(data.Ref, &ref); err != nil {
+			return err
+		}
+	}
+
+	rr.Ref = ref
+	rr.Description = data.Description
+	return nil
+}
+
 func (rr *RelatedResourceAnnotation) toTerm() *Term {
 	items := make([][2]*Term, 0, 2)
 	if len(rr.Ref.String()) > 0 {
