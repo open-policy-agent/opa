@@ -682,7 +682,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		Package: pkg,
 		// The comments slice only holds comments that were not their own statements.
 		Comments: comments,
-		stmts:    stmts,
 	}
 
 	if regoCompatibilityMode == RegoUndefined {
@@ -722,11 +721,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 			}
 			rule.generatedBody = true
 			mod.Rules = append(mod.Rules, rule)
-
-			// NOTE(tsandall): the statement should now be interpreted as a
-			// rule so update the statement list. This is important for the
-			// logic below that associates annotations with statements.
-			stmts[i+1] = rule
 		case *Package:
 			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected package"))
 		case *Annotations:

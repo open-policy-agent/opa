@@ -458,7 +458,7 @@ func attachAnnotationsNodes(mod *Module) Errors {
 	var errs Errors
 	// Find first non-annotation statement following each annotation and attach
 	// the annotation to that statement.
-	next := statementBelow(mod.stmts)
+	next := statementBelow(mod)
 	for _, a := range mod.Annotations {
 		if stmt := next(a.Location.Row); stmt != nil {
 			a.node = stmt
@@ -494,14 +494,21 @@ func attachAnnotationsNodes(mod *Module) Errors {
 	return errs
 }
 
-// statementBelow returns a function finding the top-most statement below row
-// that isn't an annotation, leaving out statements without a location.
-func statementBelow(stmts []Statement) func(row int) Statement {
-	others := make([]Statement, 0, len(stmts))
-	for _, stmt := range stmts {
-		if _, ok := stmt.(*Annotations); !ok && stmt != nil && stmt.Loc() != nil {
+// statementBelow returns a function finding the module's top-most package,
+// import or rule below row, leaving out those without a location.
+func statementBelow(mod *Module) func(row int) Statement {
+	others := make([]Statement, 0, 1+len(mod.Imports)+len(mod.Rules))
+	add := func(stmt Statement) {
+		if stmt.Loc() != nil {
 			others = append(others, stmt)
 		}
+	}
+	add(mod.Package)
+	for _, imp := range mod.Imports {
+		add(imp)
+	}
+	for _, r := range mod.Rules {
+		add(r)
 	}
 	byRow := func(x, y Statement) int { return x.Loc().Row - y.Loc().Row }
 	if !slices.IsSortedFunc(others, byRow) { // the parser's are in source order

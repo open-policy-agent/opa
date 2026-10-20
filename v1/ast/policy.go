@@ -230,7 +230,6 @@ type (
 		Annotations []*Annotations `json:"annotations,omitempty"`
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
-		stmts       []Statement
 		regoVersion RegoVersionSpan
 	}
 
@@ -415,11 +414,6 @@ func (mod *Module) Copy() *Module {
 	cpy.Comments = make([]*Comment, len(mod.Comments))
 	for i := range mod.Comments {
 		cpy.Comments[i] = mod.Comments[i].Copy()
-	}
-
-	cpy.stmts = make([]Statement, len(mod.stmts))
-	for i := range mod.stmts {
-		cpy.stmts[i] = nodes[mod.stmts[i]]
 	}
 
 	return &cpy
