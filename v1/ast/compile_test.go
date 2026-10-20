@@ -7477,6 +7477,58 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
 		},
 		{
+			note: "some/in key used in domain",
+			module: `
+				package test
+				p if {
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var i assigned before"),
+		},
+		{
+			note: "some/in key used in domain after some",
+			module: `
+				package test
+				p if {
+					some i
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i assigned before"),
+		},
+		{
+			note: "some/in key used in domain after assignment",
+			module: `
+				package test
+				p if {
+					i := 0
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i assigned before"),
+		},
+		{
+			note: "some/in value used in domain",
+			module: `
+				package test
+				p if {
+					some x in [[0]][x]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var x assigned before"),
+		},
+		{
+			note: "some/in ref key rooted in domain var",
+			module: `
+				package test
+				p if {
+					some [input.xs[j], y] in input.ys[j]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var j assigned before"),
+		},
+		{
 			note: "declare unused err",
 			module: `
 				package test
@@ -7604,6 +7656,46 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				if exp.Compare(result) != 0 {
 					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 				}
+			}
+		})
+	}
+}
+
+func TestRewriteSomeInDomainOverlapAllowed(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+	}{
+		{
+			note: "global ref head in pattern",
+			module: `
+				package t
+				b contains y if { some [input.x, y] in input.arr }
+			`,
+		},
+		{
+			note: "object key in pattern",
+			module: `
+				package t
+				b contains v if { some {k: v} in input.objs[k] }
+			`,
+		},
+		{
+			note: "local ref head in pattern",
+			module: `
+				package t
+				f(xs) := y if { some [xs[0], y] in xs }
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test.rego": MustParseModule(tc.module)}
+			c.Compile(c.Modules)
+			if c.Failed() {
+				t.Fatalf("unexpected compile errors: %v", c.Errors)
 			}
 		})
 	}

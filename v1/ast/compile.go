@@ -7970,6 +7970,34 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 				container = v[2]
 			}
 
+			// Vars bound by this `some .. in` must not also appear in the domain.
+			boundVis := varVisitorPool.Get().WithParams(VarVisitorParams{
+				SkipRefHead:    true,
+				SkipObjectKeys: true,
+				SkipClosures:   true,
+			})
+			if key != nil {
+				boundVis.Walk(key)
+			}
+			if val != nil {
+				boundVis.Walk(val)
+			}
+			bound := boundVis.Vars().Copy()
+			varVisitorPool.Put(boundVis)
+			domainVis := varVisitorPool.Get().WithParams(VarVisitorParams{SkipClosures: true})
+			domainVis.Walk(container)
+			nerrs := len(errs)
+			for _, v0 := range bound.Intersect(domainVis.Vars()).Sorted() {
+				if v0.IsWildcard() {
+					continue
+				}
+				errs = append(errs, NewError(CompileErr, decl.Loc(), "var %v assigned before", v0))
+			}
+			varVisitorPool.Put(domainVis)
+			if len(errs) > nerrs {
+				return nil, errs
+			}
+
 			var rhs *Term
 			switch c := container.Value.(type) {
 			case Ref:
