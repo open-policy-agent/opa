@@ -23,6 +23,10 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 - Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
 - See the [Support](https://www.openpolicyagent.org/support) page for commercial support options.
 
+## Building a Rego parser or compiler?
+
+- Check your implementation against OPA with the [Rego conformance corpora](./build/conformance-corpora.md).
+
 ## Interested to learn what others are doing with OPA?
 
 - Browse community projects on the [OPA Ecosystem Directory](https://www.openpolicyagent.org/ecosystem) - don't forget to [list your own](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)!
