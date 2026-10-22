@@ -166,6 +166,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JSONMarshalWithOptions,
 	JSONUnmarshal,
 	JSONIsValid,
+	JSONSize,
 	Base64Encode,
 	Base64Decode,
 	Base64IsValid,
@@ -1934,6 +1935,19 @@ var JSONIsValid = &Builtin{
 			types.Named("x", types.S).Description("a JSON string"),
 		),
 		types.Named("result", types.B).Description("`true` if `x` is valid JSON, `false` otherwise"),
+	),
+	Categories:  catEncoding,
+	CanSkipBctx: true,
+}
+
+var JSONSize = &Builtin{
+	Name:        "json.size",
+	Description: "Returns the size in bytes of the JSON serialization of the input, i.e. the length of `json.marshal(x)`, without constructing the serialized string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.A).Description("the term to measure"),
+		),
+		types.Named("n", types.N).Description("the number of bytes in the JSON serialization of `x`"),
 	),
 	Categories:  catEncoding,
 	CanSkipBctx: true,

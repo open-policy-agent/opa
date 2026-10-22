@@ -1,0 +1,28 @@
+cases:
+  - note: jsonbuiltins/size
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [json.size(null), json.size(true), json.size(false), json.size(12.5), json.size("abc"), json.size([]), json.size({}), json.size([1, 2, 3]), json.size({"a": [1, {"b": null}]})]
+    want_result:
+      - x: [4, 4, 5, 4, 5, 2, 2, 7, 20]
+  - note: jsonbuiltins/size escapes
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [json.size("<a & b>"), json.size("tab\there"), json.size("héllo ✓"), json.size({"k<": ["日本語", 1e3, {"z": ""}]})]
+    want_result:
+      - x: [24, 11, 12, 38]
+  - note: jsonbuiltins/size of non-string keys
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.size({1: "a", "1": "b", [1]: "c"})
+    want_result:
+      - x: 19

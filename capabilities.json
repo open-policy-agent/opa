@@ -2519,6 +2519,20 @@
       }
     },
     {
+      "name": "json.size",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.unmarshal",
       "decl": {
         "args": [

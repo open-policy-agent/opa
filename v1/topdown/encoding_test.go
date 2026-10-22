@@ -4,7 +4,12 @@
 
 package topdown
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
 
 func TestYAMLUnmarshalKeywordKeys(t *testing.T) {
 	t.Parallel()
@@ -63,4 +68,30 @@ func quoteRego(s string) string {
 		}
 	}
 	return string(append(out, '"'))
+}
+
+func TestJSONSizeNonStringKeys(t *testing.T) {
+	t.Parallel()
+
+	// Keys that aren't strings collapse when converted, so the result must come
+	// from marshaling.
+	v := ast.MustParseTerm(`{1: "a", "1": "b", [1]: "c"}`).Value
+	asJSON, err := ast.JSON(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs, err := json.Marshal(asJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = builtinJSONSize(BuiltinContext{}, []*ast.Term{ast.NewTerm(v)}, func(r *ast.Term) error {
+		if exp := ast.IntNumberTerm(len(bs)); !r.Equal(exp) {
+			t.Fatalf("expected %v, got %v", exp, r)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }

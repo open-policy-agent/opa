@@ -62,6 +62,7 @@
       "json.is_valid",
       "json.marshal",
       "json.marshal_with_options",
+      "json.size",
       "json.unmarshal",
       "urlquery.decode",
       "urlquery.decode_object",
@@ -16971,6 +16972,27 @@
       "type": "object[any: any]"
     },
     "wasm": true
+  },
+  "json.size": {
+    "args": [
+      {
+        "description": "the term to measure",
+        "name": "x",
+        "type": "any"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns the size in bytes of the JSON serialization of the input, i.e. the length of `json.marshal(x)`, without constructing the serialized string.",
+    "implementations": {},
+    "introduced": "edge",
+    "result": {
+      "description": "the number of bytes in the JSON serialization of `x`",
+      "name": "n",
+      "type": "number"
+    },
+    "wasm": false
   },
   "json.unmarshal": {
     "args": [

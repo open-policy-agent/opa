@@ -143,6 +143,26 @@ func builtinJSONIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	return iter(ast.InternedTerm(json.Valid(bs)))
 }
 
+func builtinJSONSize(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	if n, ok := ast.JSONByteSize(operands[0].Value); ok {
+		return iter(ast.IntNumberTerm(n))
+	}
+
+	// Values the size walk doesn't cover (e.g. objects with non-string keys,
+	// which collapse when converted) take the marshal path to stay exact.
+	asJSON, err := ast.JSON(operands[0].Value)
+	if err != nil {
+		return err
+	}
+
+	bs, err := json.Marshal(asJSON)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.IntNumberTerm(len(bs)))
+}
+
 func builtinBase64Encode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	bs, err := builtins.StringOperandByteSlice(operands[0].Value, 1)
 	if err != nil {
@@ -375,6 +395,7 @@ func init() {
 	RegisterBuiltinFunc(ast.JSONMarshalWithOptions.Name, builtinJSONMarshalWithOpts)
 	RegisterBuiltinFunc(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
 	RegisterBuiltinFunc(ast.JSONIsValid.Name, builtinJSONIsValid)
+	RegisterBuiltinFunc(ast.JSONSize.Name, builtinJSONSize)
 	RegisterBuiltinFunc(ast.Base64Encode.Name, builtinBase64Encode)
 	RegisterBuiltinFunc(ast.Base64Decode.Name, builtinBase64Decode)
 	RegisterBuiltinFunc(ast.Base64IsValid.Name, builtinBase64IsValid)
