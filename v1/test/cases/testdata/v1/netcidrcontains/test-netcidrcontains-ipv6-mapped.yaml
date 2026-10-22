@@ -1,0 +1,254 @@
+---
+cases:
+  - note: netcidrcontains/network contains itself /80
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/80", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/network contains itself /81
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::8000:0:0/81", "::8000:0:0/81", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/network contains itself /95
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/95", "::/95", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/network contains itself /96
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/96", "::/96", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/network contains itself /128
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("2001:db8::1/128", "2001:db8::1/128", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/all of IPv6 contains /80
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/0", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/subnet /79 contains /80
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/79", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/subnet /80 contains /96
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/80", "::/96", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/subnet /32 contains /48
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("2001:db8::/32", "2001:db8:1::/48", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
+  - note: netcidrcontains/subnet /80 does not contain /79
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/80", "::/79", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/subnet /80 does not contain another /80
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("0:0:0:1::/80", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/subnet /96 does not contain /80
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/96", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/subnet /32 does not contain a network in another /32
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("2001:db8::/32", "2001:db9::/48", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/subnet /48 does not contain its /32
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("2001:db8:1::/48", "2001:db8::/32", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/all of IPv6 does not contain an IPv4 network
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/0", "1.2.3.0/24", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/all of IPv6 does not contain an IPv4 address
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/0", "1.2.3.4", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/all of IPv4 does not contain an IPv6 network
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("0.0.0.0/0", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true
+  - note: netcidrcontains/IPv4 contains IPv4
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("1.2.3.0/24", "1.2.3.128/25", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
