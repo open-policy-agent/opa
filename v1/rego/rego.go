@@ -82,6 +82,22 @@ func (pr PartialResult) Rego(options ...func(*Rego)) *Rego {
 	return r
 }
 
+// evalOptions copies the options that affect evaluation, as opposed to
+// compilation, to the Rego object built from a partial result. The compiler
+// carries everything that influences compilation.
+func (r *Rego) evalOptions(dst *Rego) {
+	dst.runtime = r.runtime
+	dst.resolvers = r.resolvers
+	dst.printHook = r.printHook
+	dst.strictBuiltinErrors = r.strictBuiltinErrors
+	dst.builtinErrorList = r.builtinErrorList
+	dst.stackTraces = r.stackTraces
+	dst.distributedTracingOpts = r.distributedTracingOpts
+	dst.evaluated = r.evaluated
+	dst.generateJSON = r.generateJSON
+	dst.enablePrintStatements = r.enablePrintStatements
+}
+
 // preparedQuery is a wrapper around a Rego object which has pre-processed
 // state stored on it. Once prepared there are a more limited number of actions
 // that can be taken with it. It will, however, be able to evaluate faster since
@@ -1837,7 +1853,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 		}
 
 		// Prepare the new query using the result of partial evaluation
-		pq, err := pr.Rego(Transaction(r.txn)).PrepareForEval(ctx)
+		pq, err := pr.Rego(Transaction(r.txn), r.evalOptions).PrepareForEval(ctx)
 		txnErr := txnClose(ctx, err)
 		if err != nil {
 			return pq, err
