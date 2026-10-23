@@ -5500,6 +5500,33 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			},
 		},
 		{
+			note:  "negation: every over unknown domain saved as support rule",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if { not blocked }
+
+				blocked if {
+					every x in input.xs {
+						x == 1
+					}
+				}`,
+			},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_0_2__ = true if {
+					every __local0__3, __local1__3 in input.xs {
+						__local1__3 = 1
+					}
+				}`,
+			},
+		},
+		{
 			note:  "negation: inline safety",
 			query: "data.test.p = true",
 			modules: []string{

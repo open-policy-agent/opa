@@ -670,7 +670,15 @@ func (r *Reader) Read() (Bundle, error) {
 		return empty, errors.New("delta bundles do not support signature verification")
 	}
 
-	var modules []ModuleFile
+	preAlloc := 0
+	for _, f := range descriptors {
+		if strings.HasSuffix(f.Path(), RegoExt) {
+			preAlloc++
+		}
+	}
+
+	modules := make([]ModuleFile, 0, preAlloc)
+
 	var manifestPath string
 	for _, f := range descriptors {
 		buf, err := readFile(f, r.sizeLimitBytes)
@@ -698,6 +706,7 @@ func (r *Reader) Read() (Bundle, error) {
 
 		// Normalize the paths to use `/` separators
 		path := filepath.ToSlash(f.Path())
+		base := filepath.Base(path)
 
 		if strings.HasSuffix(path, RegoExt) { //nolint: gocritic // ifElseChain
 			fullPath := r.fullPath(path)
@@ -720,19 +729,19 @@ func (r *Reader) Read() (Bundle, error) {
 
 				bundle.Raw = append(bundle.Raw, Raw{Path: p, Value: bs, module: &mf})
 			}
-		} else if filepath.Base(path) == WasmFile {
+		} else if base == WasmFile {
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
 				URL:  f.URL(),
 				Path: r.fullPath(path),
 				Raw:  buf.Bytes(),
 			})
-		} else if filepath.Base(path) == PlanFile || filepath.Base(path) == PlanProtoFile {
+		} else if base == PlanFile || base == PlanProtoFile {
 			bundle.PlanModules = append(bundle.PlanModules, PlanModuleFile{
 				URL:  f.URL(),
 				Path: r.fullPath(path),
 				Raw:  buf.Bytes(),
 			})
-		} else if filepath.Base(path) == dataFile {
+		} else if base == dataFile {
 			if r.lazyLoadingMode {
 				bundle.Raw = append(bundle.Raw, Raw{Path: path, Value: buf.Bytes()})
 				continue

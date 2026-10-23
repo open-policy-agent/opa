@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
+	"path"
+	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/loader/filter"
@@ -35,42 +36,42 @@ func NewFSLoader(filesystem fs.FS) (DirectoryLoader, error) {
 // NewFSLoaderWithRoot returns a basic DirectoryLoader implementation
 // that will load files from a fs.FS interface at the supplied root
 func NewFSLoaderWithRoot(filesystem fs.FS, root string) DirectoryLoader {
-	d := dirLoaderFS{
+	return &dirLoaderFS{
 		filesystem: filesystem,
 		root:       normalizeRootDirectory(root),
 		pathFormat: Chrooted,
 	}
-
-	return &d
 }
 
 func (d *dirLoaderFS) walkDir(path string, dirEntry fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
-
-	if dirEntry != nil {
-		info, err := dirEntry.Info()
-		if err != nil {
-			return err
-		}
-
-		if dirEntry.Type().IsRegular() || (dirEntry.Type()&fs.ModeSymlink != 0 && d.followSymlinks) {
-			if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
-				return nil
-			}
-
-			if d.maxSizeLimitBytes > 0 && info.Size() > d.maxSizeLimitBytes {
-				return fmt.Errorf("file %s size %d exceeds limit of %d", path, info.Size(), d.maxSizeLimitBytes)
-			}
-
-			d.files = append(d.files, path)
-		} else if dirEntry.Type().IsDir() {
-			if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, true)) {
-				return fs.SkipDir
-			}
-		}
+	if dirEntry == nil {
+		return nil
 	}
+
+	info, err := dirEntry.Info()
+	if err != nil {
+		return err
+	}
+
+	if dirEntry.IsDir() {
+		if d.filter != nil && d.filter(path, info, getdepthFS(path, true)) {
+			return fs.SkipDir
+		}
+	} else if dirEntry.Type().IsRegular() || (dirEntry.Type()&fs.ModeSymlink != 0 && d.followSymlinks) {
+		if d.filter != nil && d.filter(path, info, getdepthFS(path, false)) {
+			return nil
+		}
+
+		if d.maxSizeLimitBytes > 0 && info.Size() > d.maxSizeLimitBytes {
+			return fmt.Errorf("file %s size %d exceeds limit of %d", path, info.Size(), d.maxSizeLimitBytes)
+		}
+
+		d.files = append(d.files, path)
+	}
+
 	return nil
 }
 
@@ -104,8 +105,7 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 	defer d.Unlock()
 
 	if d.files == nil {
-		err := fs.WalkDir(d.filesystem, d.root, d.walkDir)
-		if err != nil {
+		if err := fs.WalkDir(d.filesystem, d.root, d.walkDir); err != nil {
 			return nil, fmt.Errorf("failed to list files: %w", err)
 		}
 	}
@@ -125,6 +125,14 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 	}
 
 	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
-	f := NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh)
-	return f, nil
+
+	return NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh), nil
+}
+
+func getdepthFS(fsPath string, isDir bool) int {
+	if !isDir {
+		fsPath = path.Dir(fsPath)
+	}
+
+	return strings.Count(strings.Trim(fsPath, "/"), "/") + 1
 }
