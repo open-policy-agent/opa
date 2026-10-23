@@ -55,6 +55,11 @@ Additionally, OPA will now correctly detect and sign all other files with the su
 
 Authored by @philipaconrad
 
+### Partial evaluation unrolls `every` over a known domain
+
+Partial evaluation now evaluates an `every` over a known collection of at most 32 elements once per element, instead of keeping it in the result when its body has unknowns. The result is the conjunction of the body for each element, which the data filtering targets of the Compile API can translate. See [`every`](https://www.openpolicyagent.org/docs/policy-reference/keywords/every#partial-evaluation).
+
+Authored by @srenatus
 
 ## 1.21.3
 

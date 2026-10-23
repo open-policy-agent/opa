@@ -3970,3 +3970,109 @@ q if input.a or input.b
 		})
 	}
 }
+
+// The residual of an `every` over a known domain has to select the same inputs as
+// evaluating the policy does, for undefined values too, with both kinds of `not`.
+func TestPartialEveryMatchesEval(t *testing.T) {
+	bodies := []string{
+		`every p in input.ps { not input.x[p] > 3 }`,
+		`every p in input.ps { input.x[p] > 3 }`,
+		`every p in input.ps { not input.x[p] == 1 }`,
+		`every p in input.ps { input.x[p] != 1 }`,
+		"every p in input.ps {\n\t\tinput.x[p] > 0\n\t\tnot input.x[p] > 3\n\t}",
+		`every p in input.ps { not input.x[p] }`,
+		"every k, v in input.ps {\n\t\tk != 7\n\t\tnot input.x[v] > 3\n\t}",
+		"every k, v in input.ps {\n\t\tv != 7\n\t\tinput.x[k] > 3\n\t}",
+		`every v in {y | some y in input.ps} { not input.x[v] > 3 }`,
+		"every k, v in {y | some y in input.ps} {\n\t\tv != 7\n\t\tinput.x[k] > 3\n\t}",
+		"x := input.x\n\tevery p in input.ps { not x[p] > 3 }",
+		"x := input.x\n\tevery p in input.ps { x[p] > 3 }",
+	}
+	headers := map[string]string{"not": "", "improved not": "import future.keywords.not\n"}
+
+	var docs []map[string]any
+	values := []any{nil, 1, 5, false}
+	for _, a := range values {
+		for _, b := range values {
+			x := map[string]any{}
+			if a != nil {
+				x["a"] = a
+			}
+			if b != nil {
+				x["b"] = b
+			}
+			docs = append(docs, map[string]any{"x": x}, map[string]any{}) // x without keys, and no x at all
+		}
+	}
+
+	ctx := t.Context()
+	for name, header := range headers {
+		for _, body := range bodies {
+			src := "package test\n" + header + "p if {\n\t" + body + "\n}\n"
+			// the domain: arrays, and objects, from which a set is made as well
+			for _, ps := range []any{
+				[]any{}, []any{"a"}, []any{"c"}, []any{"a", "b"}, []any{"a", "b", "c"},
+				map[string]any{}, map[string]any{"a": "b"}, map[string]any{"a": "b", "b": "a"}, map[string]any{"c": "a", "a": "c"},
+			} {
+				pq, err := New(
+					Module("test.rego", src),
+					Query("data.test.p"),
+					Input(map[string]any{"ps": ps}),
+					Unknowns([]string{"input.x"}),
+				).Partial(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				for _, q := range pq.Queries {
+					if slices.ContainsFunc(q, (*ast.Expr).IsEvery) {
+						t.Errorf("%s: %q with ps %v: not unrolled: %v", name, body, ps, q)
+					}
+				}
+
+				for _, doc := range docs {
+					// With the improved `not`, partial evaluation drops `x := input.x` when x is
+					// only used inside negations, and with it the need for input.x to exist; it does
+					// for a plain `not` too.
+					if _, ok := doc["x"]; !ok && name == "improved not" && strings.HasPrefix(body, "x := ") {
+						continue
+					}
+					input := map[string]any{"ps": ps}
+					maps.Copy(input, doc)
+
+					rs, err := New(Module("test.rego", src), Query("data.test.p"), Input(input)).Eval(ctx)
+					if err != nil {
+						t.Fatal(err)
+					}
+					want := len(rs) > 0 && rs[0].Expressions[0].Value == true
+
+					// A query is evaluated as the body of a rule, as a bare comparison is a
+					// result even when it is false.
+					got := false
+					for _, q := range pq.Queries {
+						if len(q) == 0 { // always true
+							got = true
+							continue
+						}
+						opts := []func(*Rego){
+							Module("residual.rego", "package residual\n"+header+"r if {\n"+q.String()+"\n}\n"),
+							Query("data.residual.r"),
+							Input(input),
+						}
+						for _, m := range pq.Support {
+							opts = append(opts, ParsedModule(m))
+						}
+						rs, err := New(opts...).Eval(ctx)
+						if err != nil {
+							t.Fatal(err)
+						}
+						got = got || (len(rs) > 0 && rs[0].Expressions[0].Value == true)
+					}
+					if got != want {
+						t.Errorf("%s: %q with ps %v and input %v: residual %v, eval %v\nresidual: %v", name, body, ps, doc, got, want, pq.Queries)
+					}
+				}
+			}
+		}
+	}
+}

@@ -4568,9 +4568,19 @@ type evalEvery struct {
 	expr  *ast.Expr
 }
 
+// everyUnrollLimit is the largest known domain that partial evaluation unrolls.
+const everyUnrollLimit = 32
+
 func (e evalEvery) eval(iter unifyIterator) error {
-	// unknowns in domain or body: save the expression, PE its body
-	if e.e.unknown(e.every.Domain, e.e.bindings) || e.e.unknownBody(e.every.Body, e.e.bindings) {
+	// unknowns in the body of a known, small domain: unroll it. Otherwise, with unknowns in
+	// domain or body: save the expression, PE its body.
+	domainUnknown := e.e.unknown(e.every.Domain, e.e.bindings)
+	if domainUnknown || e.e.unknownBody(e.every.Body, e.e.bindings) {
+		if !domainUnknown {
+			if pairs, ok := e.knownDomain(); ok {
+				return e.unroll(pairs, iter)
+			}
+		}
 		return e.save(iter)
 	}
 
@@ -4581,17 +4591,10 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		}
 	}
 
-	generator := ast.NewBody(
-		ast.Equality.Expr(
-			ast.RefTerm(e.every.Domain, e.every.Key).SetLocation(e.every.Domain.Location),
-			e.every.Value,
-		).SetLocation(e.every.Domain.Location),
-	)
-
 	domain := evalPool.Get()
 	defer evalPool.Put(domain)
 
-	e.e.closure(generator, domain)
+	e.e.closure(e.generator(), domain)
 
 	all := true // all generator evaluations yield one successful body evaluation
 
@@ -4645,6 +4648,87 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 	domain.traceFail(e.expr)
 	return nil
+}
+
+func (e evalEvery) generator() ast.Body {
+	return ast.NewBody(
+		ast.Equality.Expr(
+			ast.RefTerm(e.every.Domain, e.every.Key).SetLocation(e.every.Domain.Location),
+			e.every.Value,
+		).SetLocation(e.every.Domain.Location),
+	)
+}
+
+// knownDomain returns the (key, value) pairs of a known collection of at most
+// everyUnrollLimit elements.
+func (e evalEvery) knownDomain() ([][2]*ast.Term, bool) {
+	pd := e.e.bindings.Plug(e.every.Domain)
+	if pd == nil || !isIterableValue(pd.Value) || pd.Value.(interface{ Len() int }).Len() > everyUnrollLimit {
+		return nil, false
+	}
+
+	domain := evalPool.Get()
+	defer evalPool.Put(domain)
+	e.e.closure(e.generator(), domain)
+
+	var pairs [][2]*ast.Term
+	err := domain.eval(func(child *eval) error {
+		pairs = append(pairs, [2]*ast.Term{child.bindings.Plug(e.every.Key), child.bindings.Plug(e.every.Value)})
+		return nil
+	})
+	return pairs, err == nil
+}
+
+// unroll evaluates the bodies of all elements as one body: what is saved for each is
+// followed by what is saved for the next, a conjunction.
+func (e evalEvery) unroll(pairs [][2]*ast.Term, iter unifyIterator) error {
+	body := make(ast.Body, 0, len(pairs)*len(e.every.Body))
+	for _, pair := range pairs {
+		body = append(body, e.elementBody(pair)...)
+	}
+
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+	e.e.closure(body, child)
+	return child.eval(func(*eval) error { return iter() })
+}
+
+// elementBody is the body with the key and value replaced by the element's, and
+// its own variables renamed: the next element declares them while this one's
+// bindings are still live.
+func (e evalEvery) elementBody(pair [2]*ast.Term) ast.Body {
+	elem := map[ast.Var]ast.Value{}
+	if k, ok := e.every.Key.Value.(ast.Var); ok {
+		elem[k] = pair[0].Value
+	}
+	if v, ok := e.every.Value.Value.(ast.Var); ok {
+		elem[v] = pair[1].Value
+	}
+
+	// Reference heads are variables too, but never the body's own.
+	heads := ast.NewVarSet(ast.DefaultRootDocument.Value.(ast.Var), ast.InputRootDocument.Value.(ast.Var))
+	ast.WalkExprs(e.every.Body, func(x *ast.Expr) bool {
+		if x.IsCall() {
+			if v, ok := x.Operator()[0].Value.(ast.Var); ok {
+				heads.Add(v)
+			}
+		}
+		return false
+	})
+
+	e.e.genvarid++
+	suffix := "__e" + strconv.Itoa(e.e.genvarid)
+	body, _ := ast.TransformVars(e.every.Body.Copy(), func(v ast.Var) (ast.Value, error) {
+		if val, ok := elem[v]; ok {
+			return val, nil
+		}
+		// A variable with a value, or a saved unification, is the caller's.
+		if t := e.e.bindings.Plug(ast.NewTerm(v)); heads.Contains(v) || t == nil || ast.Compare(t.Value, v) != 0 || e.e.unknown(v, e.e.bindings) {
+			return v, nil
+		}
+		return ast.Var(string(v) + suffix), nil
+	})
+	return body.(ast.Body)
 }
 
 // isIterableValue returns true if the AST value is an iterable type.
