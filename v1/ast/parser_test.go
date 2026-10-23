@@ -352,19 +352,6 @@ func TestRefTermsContainingKeywords(t *testing.T) {
 	})
 }
 
-func dropCapabilityFeature(caps *Capabilities, feature string) *Capabilities {
-	feats := make([]string, 0, len(caps.Features))
-	for _, f := range caps.Features {
-		if f != feature {
-			feats = append(feats, f)
-		}
-	}
-	caps.Features = feats
-	return caps
-}
-
-// At RegoV2 the rego_v2 feature, which parsing requires, implies keywords_in_refs,
-// so the feature can't be turned off there. See TestRefTermsContainingKeywords_ImpliedByRegoV2.
 func TestRefTermsContainingKeywords_ImpliedByRegoV2(t *testing.T) {
 	tests := []struct {
 		note        string
@@ -380,18 +367,18 @@ func TestRefTermsContainingKeywords_ImpliedByRegoV2(t *testing.T) {
 		{
 			note:        "v2 module, v2 capabilities without keywords_in_refs",
 			regoVersion: RegoV2,
-			caps:        dropCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV2)), FeatureKeywordsInRefs),
+			caps:        removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV2)), FeatureKeywordsInRefs),
 		},
 		{
 			note:        "v1 module, v1 capabilities without keywords_in_refs",
 			regoVersion: RegoV1,
-			caps:        dropCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureKeywordsInRefs),
+			caps:        removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureKeywordsInRefs),
 			expErr:      true,
 		},
 		{
 			note:        "v0 module, v0 capabilities without keywords_in_refs",
 			regoVersion: RegoV0,
-			caps:        dropCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)), FeatureKeywordsInRefs),
+			caps:        removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)), FeatureKeywordsInRefs),
 			expErr:      true,
 		},
 	}
@@ -414,10 +401,12 @@ func TestRefTermsContainingKeywords_ImpliedByRegoV2(t *testing.T) {
 	}
 }
 
+// At RegoV2 the rego_v2 feature, which parsing requires, implies keywords_in_refs,
+// so the feature can't be turned off there. See TestRefTermsContainingKeywords_ImpliedByRegoV2.
 func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
 	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
 		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(regoVersion))
-		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
+		caps = removeCapabilityFeature(caps, FeatureKeywordsInRefs)
 		popts := ParserOptions{RegoVersion: regoVersion, Capabilities: caps}
 
 		t.Run(regoVersion.String(), func(t *testing.T) {
@@ -578,7 +567,7 @@ func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
 
 	t.Run("v0 with future keywords", func(t *testing.T) {
 		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
-		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
+		caps = removeCapabilityFeature(caps, FeatureKeywordsInRefs)
 		popts := ParserOptions{RegoVersion: RegoV0, Capabilities: caps}
 
 		for kw := range futureKeywordsV0 {
