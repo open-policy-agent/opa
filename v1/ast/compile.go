@@ -2853,7 +2853,7 @@ func rewriterFromCompiler(c *Compiler) *templateStringRewriter {
 }
 
 func (c *Compiler) supportsTemplateStrings(v RegoVersion) bool {
-	return c.capabilities.containsFeatureAt(FeatureTemplateStrings, v) &&
+	return c.capabilities.ContainsFeatureAt(FeatureTemplateStrings, v) &&
 		c.capabilities.ContainsBuiltin(InternalTemplateString.Name)
 }
 

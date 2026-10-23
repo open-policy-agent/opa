@@ -363,8 +363,59 @@ func dropCapabilityFeature(caps *Capabilities, feature string) *Capabilities {
 	return caps
 }
 
+// At RegoV2 the rego_v2 feature, which parsing requires, implies keywords_in_refs,
+// so the feature can't be turned off there. See TestRefTermsContainingKeywords_ImpliedByRegoV2.
+func TestRefTermsContainingKeywords_ImpliedByRegoV2(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		caps        *Capabilities
+		expErr      bool
+	}{
+		{
+			note:        "v2 module, v2 capabilities",
+			regoVersion: RegoV2,
+			caps:        CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV2)),
+		},
+		{
+			note:        "v2 module, v2 capabilities without keywords_in_refs",
+			regoVersion: RegoV2,
+			caps:        dropCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV2)), FeatureKeywordsInRefs),
+		},
+		{
+			note:        "v1 module, v1 capabilities without keywords_in_refs",
+			regoVersion: RegoV1,
+			caps:        dropCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureKeywordsInRefs),
+			expErr:      true,
+		},
+		{
+			note:        "v0 module, v0 capabilities without keywords_in_refs",
+			regoVersion: RegoV0,
+			caps:        dropCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)), FeatureKeywordsInRefs),
+			expErr:      true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := ParserOptions{RegoVersion: tc.regoVersion, Capabilities: tc.caps}
+			for _, kw := range KeywordsForRegoVersion(tc.regoVersion) {
+				t.Run(kw, func(t *testing.T) {
+					_, _, err := ParseStatementsWithOpts("", "foo."+kw, popts)
+					if tc.expErr && err == nil {
+						t.Fatal("expected error, got nil")
+					}
+					if !tc.expErr && err != nil {
+						t.Fatalf("unexpected error: %v", err)
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
 		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(regoVersion))
 		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
 		popts := ParserOptions{RegoVersion: regoVersion, Capabilities: caps}
@@ -10277,7 +10328,9 @@ func TestTemplateStringCapabilities(t *testing.T) {
 
 func TestTemplateStringCapabilitiesRegoV2Import(t *testing.T) {
 	// The rego.v2 import raises the module's max version only; it doesn't make the module a v2 module.
-	module := "package test\nimport rego.v2\np := $\"foo {input.x}\"\n"
+	module := `package test
+		import rego.v2
+		p := $"foo {input.x}"`
 	caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
 
 	_, err := ParseModuleWithOpts("", module, ParserOptions{RegoVersion: RegoV0, Capabilities: caps})

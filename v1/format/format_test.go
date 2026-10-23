@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1687,10 +1688,10 @@ f := 6
 }
 
 func TestFormatKeywordsInRefs(t *testing.T) {
+	// No v2 entry: the rego_v2 feature implies keywords_in_refs, so a v2 target can't disable it.
 	regoVersions := map[string]ast.RegoVersion{
 		"v0": ast.RegoV0,
 		"v1": ast.RegoV1,
-		"v2": ast.RegoV2,
 	}
 
 	for versionName, regoVersion := range regoVersions {
@@ -1757,6 +1758,88 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 					}
 
 				})
+			}
+		})
+	}
+}
+
+func TestFormatKeywordsInRefsImpliedByRegoV2(t *testing.T) {
+	v1v2, err := ast.NewRegoVersionSpan(ast.RegoV1, ast.RegoV2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v2v2 := ast.RegoVersionSpanOf(ast.RegoV2)
+
+	without := func(v ast.RegoVersion, feature string) *ast.Capabilities {
+		caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(v))
+		caps.Features = slices.DeleteFunc(caps.Features, func(f string) bool { return f == feature })
+		return caps
+	}
+
+	const src = `package test
+					p if input.and`
+
+	tests := []struct {
+		note string
+		span ast.RegoVersionSpan
+		caps *ast.Capabilities
+		exp  string
+	}{
+		{
+			note: "[v2, v2], keywords_in_refs",
+			span: v2v2,
+			caps: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV2)),
+			exp: `package test
+
+p if input.and
+`,
+		},
+		{
+			note: "[v2, v2], no keywords_in_refs",
+			span: v2v2,
+			caps: without(ast.RegoV2, ast.FeatureKeywordsInRefs),
+			exp: `package test
+
+p if input.and
+`,
+		},
+		{
+			note: "[v1, v2], keywords_in_refs",
+			span: v1v2,
+			caps: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1)),
+			exp: `package test
+
+import rego.v2
+
+p if input.and
+`,
+		},
+		{
+			// The output must stay readable at the v1 baseline, where rego_v2 doesn't imply the feature.
+			note: "[v1, v2], no keywords_in_refs",
+			span: v1v2,
+			caps: without(ast.RegoV1, ast.FeatureKeywordsInRefs),
+			exp: `package test
+
+import rego.v2
+
+p if input["and"]
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			formatted, err := SourceWithOpts("test.rego", []byte(src), Opts{
+				RegoVersionSpan: tc.span,
+				ParserOptions:   &ast.ParserOptions{RegoVersion: ast.RegoV2},
+				Capabilities:    tc.caps,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(formatted) != tc.exp {
+				t.Fatalf("expected:\n%s\ngot:\n%s", tc.exp, formatted)
 			}
 		})
 	}

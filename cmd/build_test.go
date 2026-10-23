@@ -2552,7 +2552,8 @@ p contains x if {
 
 func TestBuildTemplateStringCapabilities(t *testing.T) {
 	const (
-		module     = "package test\n\np := $\"foo {input.x}\"\n"
+		module = `package test
+					p := $"foo {input.x}"`
 		errMessage = "template strings are not supported by current capabilities"
 	)
 

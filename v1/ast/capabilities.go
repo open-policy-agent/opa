@@ -57,6 +57,7 @@ var (
 		FeatureKeywordsInRefs,
 	}
 	regoV2ImpliedFeatures = []string{
+		FeatureKeywordsInRefs,
 		FeatureTemplateStrings,
 	}
 	v2Features = []string{
@@ -284,9 +285,9 @@ func (c *Capabilities) ContainsFeature(feature string) bool {
 	return slices.Contains(c.Features, feature)
 }
 
-// containsFeatureAt reports whether c supports feature for modules with baseline v.
-// At RegoV2, the rego_v2 feature implies the features in regoV2ImpliedFeatures.
-func (c *Capabilities) containsFeatureAt(feature string, v RegoVersion) bool {
+// ContainsFeatureAt reports whether c supports feature for modules with baseline v.
+// At RegoV2, the rego_v2 feature implies keywords_in_refs and template_strings.
+func (c *Capabilities) ContainsFeatureAt(feature string, v RegoVersion) bool {
 	if c.ContainsFeature(feature) {
 		return true
 	}
