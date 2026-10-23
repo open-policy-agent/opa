@@ -816,6 +816,114 @@ func capabilitiesWithoutFutureKeywords(tb testing.TB, kws ...string) *ast.Capabi
 	return caps
 }
 
+type templateStringCapabilityCase struct {
+	note        string
+	module      string
+	regoVersion ast.RegoVersion
+	caps        *ast.Capabilities
+	expErr      string
+}
+
+// templateStringCapabilityCases are shared by the reader and activation tests.
+// The rego_v2 feature implies template_strings for v2 modules only.
+func templateStringCapabilityCases() []templateStringCapabilityCase {
+	const (
+		module = `package test
+						p := $"foo {input.x}"`
+		importMod = `package test
+						import rego.v2
+						p := $"foo {input.x}"`
+		errMessage = "template strings are not supported by current capabilities"
+	)
+
+	caps := func(v ast.RegoVersion, without ...string) *ast.Capabilities {
+		c := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(v))
+		c.Features = slices.DeleteFunc(c.Features, func(f string) bool {
+			return slices.Contains(without, f)
+		})
+		return c
+	}
+
+	return []templateStringCapabilityCase{
+		{
+			note:        "v1 module, v1 capabilities",
+			module:      module,
+			regoVersion: ast.RegoV1,
+			caps:        caps(ast.RegoV1),
+		},
+		{
+			note:        "v1 module, v1 capabilities without template_strings",
+			module:      module,
+			regoVersion: ast.RegoV1,
+			caps:        caps(ast.RegoV1, ast.FeatureTemplateStrings),
+			expErr:      errMessage,
+		},
+		{
+			note:        "v1 module, v0 capabilities",
+			module:      module,
+			regoVersion: ast.RegoV1,
+			caps:        caps(ast.RegoV0),
+			expErr:      errMessage,
+		},
+		{
+			note:        "v2 module, v2 capabilities",
+			module:      module,
+			regoVersion: ast.RegoV2,
+			caps:        caps(ast.RegoV2),
+		},
+		{
+			note:        "v2 module, v1 capabilities without template_strings",
+			module:      module,
+			regoVersion: ast.RegoV2,
+			caps:        caps(ast.RegoV1, ast.FeatureTemplateStrings),
+		},
+		{
+			note:        "v2 module, v0 capabilities",
+			module:      module,
+			regoVersion: ast.RegoV2,
+			caps:        caps(ast.RegoV0),
+		},
+		{
+			note:        "v2 module, v0 capabilities without rego_v2",
+			module:      module,
+			regoVersion: ast.RegoV2,
+			caps:        caps(ast.RegoV0, ast.FeatureRegoV2),
+			expErr:      "rego_v2 feature required",
+		},
+		{
+			note:        "v0 module, rego.v2 import, v0 capabilities",
+			module:      importMod,
+			regoVersion: ast.RegoV0,
+			caps:        caps(ast.RegoV0),
+			expErr:      errMessage,
+		},
+	}
+}
+
+// TestReaderTemplateStringCapabilities asserts that the reader parses template
+// strings only where the capabilities, or the rego_v2 feature for v2 modules, allow it.
+func TestReaderTemplateStringCapabilities(t *testing.T) {
+	for _, tc := range templateStringCapabilityCases() {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := archive.MustWriteTarGz([][2]string{{"test.rego", tc.module}})
+			_, err := NewCustomReader(NewTarballLoaderWithBaseURL(buf, "")).
+				WithRegoVersion(tc.regoVersion).
+				WithCapabilities(tc.caps).
+				Read()
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
 func TestReadWithSizeLimit(t *testing.T) {
 
 	buf := archive.MustWriteTarGz([][2]string{
