@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr does not contain larger overlapping range with ipv4-mapped last address
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/96", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true

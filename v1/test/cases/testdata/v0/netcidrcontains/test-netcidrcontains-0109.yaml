@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr contains itself single ipv4-mapped address
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p[x] {
+        	net.cidr_contains("::ffff:102:304/128", "::ffff:102:304/128", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
