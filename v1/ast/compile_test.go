@@ -14068,6 +14068,7 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 	cases := []struct {
 		note        string
 		module      string
+		regoVersion RegoVersion // zero value parses as the default version
 		features    []string
 		builtins    []*Builtin
 		expectedErr string
@@ -14387,6 +14388,29 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				InternalTemplateString,
 			},
 		},
+		{
+			note: "rego-v2 feature, v1 module, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			features:    []string{FeatureRegoV2},
+			expectedErr: "rego_compile_error: template-strings are not supported",
+		},
+		{
+			note: "rego-v2 feature, v2 module, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			regoVersion: RegoV2,
+			features:    []string{FeatureRegoV2},
+		},
+		{
+			note: "rego-v2 feature, no internal.template_string built-in, v2 module, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			regoVersion: RegoV2,
+			features:    []string{FeatureRegoV2},
+			builtins:    []*Builtin{},
+			expectedErr: "rego_compile_error: template-strings are not supported",
+		},
 	}
 
 	for _, tc := range cases {
@@ -14399,7 +14423,10 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			}
 
 			// Modules are parsed with full set of capabilities
-			mod := module(tc.module)
+			mod := module(tc.module, func(po ParserOptions) ParserOptions {
+				po.RegoVersion = tc.regoVersion
+				return po
+			})
 
 			compiler := NewCompiler().WithCapabilities(capabilities)
 			compiler.Compile(map[string]*Module{"test": mod})

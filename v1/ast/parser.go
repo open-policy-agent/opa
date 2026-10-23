@@ -2780,7 +2780,7 @@ func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, er
 func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	loc := p.s.Loc()
 
-	if !p.po.Capabilities.ContainsFeature(FeatureTemplateStrings) {
+	if !p.po.Capabilities.containsFeatureAt(FeatureTemplateStrings, p.po.EffectiveRegoVersion()) {
 		p.errorf(loc, "template strings are not supported by current capabilities")
 		return nil
 	}

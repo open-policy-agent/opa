@@ -56,6 +56,9 @@ var (
 		FeatureRegoV2,
 		FeatureKeywordsInRefs,
 	}
+	regoV2ImpliedFeatures = []string{
+		FeatureTemplateStrings,
+	}
 	v2Features = []string{
 		FeatureRegoV1Import,
 		FeatureRegoV2Import,
@@ -279,6 +282,15 @@ func (c *Capabilities) MinimumCompatibleVersion() (string, bool) {
 
 func (c *Capabilities) ContainsFeature(feature string) bool {
 	return slices.Contains(c.Features, feature)
+}
+
+// containsFeatureAt reports whether c supports feature for modules with baseline v.
+// At RegoV2, the rego_v2 feature implies the features in regoV2ImpliedFeatures.
+func (c *Capabilities) containsFeatureAt(feature string, v RegoVersion) bool {
+	if c.ContainsFeature(feature) {
+		return true
+	}
+	return v == RegoV2 && c.ContainsFeature(FeatureRegoV2) && slices.Contains(regoV2ImpliedFeatures, feature)
 }
 
 func (c *Capabilities) ContainsBuiltin(name string) bool {
