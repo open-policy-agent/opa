@@ -5826,6 +5826,21 @@ p contains 7 if {
 	input.x == 2
 }`,
 		},
+		// The reader isn't given capabilities, so parsing uses those of the module's version.
+		{
+			note:               "v0.x manager, v1.0 bundle, template string",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV1,
+			module: `package test
+p := $"foo {input.x}"`,
+		},
+		{
+			note:               "v0.x manager, v2 bundle, template string",
+			managerRegoVersion: ast.RegoV0,
+			bundleRegoVersion:  ast.RegoV2,
+			module: `package test
+p := $"foo {input.x}"`,
+		},
 		{
 			note:               "v0.x manager, v1.0 bundle, rego.ve imported",
 			managerRegoVersion: ast.RegoV0,
