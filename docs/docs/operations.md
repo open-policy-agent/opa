@@ -170,10 +170,12 @@ Features present in the list are enabled, while features not present are disable
 
 - `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](./policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
 - `rule_head_refs`: Enables general support for [references in rule heads](./policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](./policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`.
+- `keywords_in_refs`: enables the use of keywords, such as `if` and `in`, as terms in references, e.g. `input.in`.
+- `template_strings`: enables [string interpolation](./policy-language/#string-interpolation).
 - `rego_v1_import`: enables use of the `rego.v1` import.
 - `rego_v2_import`: enables use of the `rego.v2` import.
 - `rego_v1`: enables Rego v1 modules, the default Rego syntax in OPA v1.x.
-- `rego_v2`: enables Rego v2 modules, such as those in bundles with `rego_version` `2`, where `and`, `or`, and `not` are keywords without imports. Also enables the `rego.v1` and `rego.v2` imports.
+- `rego_v2`: enables Rego v2 modules, such as those in bundles with `rego_version` `2`, where `and`, `or`, and `not` are keywords without imports. Also enables the `rego.v1` and `rego.v2` imports. In Rego v2 modules, it also implies `keywords_in_refs` and `template_strings`.
 
 ### Future keywords
 

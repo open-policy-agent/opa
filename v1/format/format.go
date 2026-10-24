@@ -268,7 +268,7 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 	if capabilities == nil {
 		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(target.Min()))
 	}
-	o.allowKeywordsInRefs = capabilities.ContainsFeature(ast.FeatureKeywordsInRefs)
+	o.allowKeywordsInRefs = capabilities.ContainsFeatureAt(ast.FeatureKeywordsInRefs, target.Min())
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.

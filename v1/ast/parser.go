@@ -1368,7 +1368,7 @@ func (p *Parser) isAllowedRefKeyword(t tokens.Token) bool {
 }
 
 func (p *Parser) isAllowedRefKeywordStr(s string) bool {
-	if p.po.Capabilities.ContainsFeature(FeatureKeywordsInRefs) {
+	if p.po.Capabilities.ContainsFeatureAt(FeatureKeywordsInRefs, p.po.EffectiveRegoVersion()) {
 		return IsKeywordInRegoVersion(s, p.po.EffectiveRegoVersion()) || p.s.s.IsKeyword(s)
 	}
 
@@ -2780,7 +2780,7 @@ func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, er
 func (p *Parser) parseTemplateString(multiLine bool) *Term {
 	loc := p.s.Loc()
 
-	if !p.po.Capabilities.ContainsFeature(FeatureTemplateStrings) {
+	if !p.po.Capabilities.ContainsFeatureAt(FeatureTemplateStrings, p.po.EffectiveRegoVersion()) {
 		p.errorf(loc, "template strings are not supported by current capabilities")
 		return nil
 	}

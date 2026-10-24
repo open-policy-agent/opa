@@ -4192,6 +4192,81 @@ allow if {
 	}
 }
 
+func TestEvalBundleTemplateStrings(t *testing.T) {
+	const errMessage = "template strings are not supported by current capabilities"
+
+	tests := []struct {
+		note         string
+		regoVersion  int
+		v0Compatible bool
+		expectedErr  string
+	}{
+		{
+			note:        "v1 bundle",
+			regoVersion: 1,
+		},
+		{
+			note:         "v1 bundle, --v0-compatible",
+			regoVersion:  1,
+			v0Compatible: true,
+			expectedErr:  errMessage,
+		},
+		{
+			note:        "v2 bundle",
+			regoVersion: 2,
+		},
+		{
+			// Capabilities of a v0-compatible OPA lack template_strings, but list rego_v2.
+			note:         "v2 bundle, --v0-compatible",
+			regoVersion:  2,
+			v0Compatible: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				".manifest": fmt.Sprintf(`{"rego_version": %d}`, tc.regoVersion),
+				"policy.rego": `package test
+p := $"foo {1 + 1}"
+`,
+			}
+
+			test.WithTempFS(files, func(root string) {
+				params := newEvalCommandParams()
+				params.v0Compatible = tc.v0Compatible
+				params.stdin = false
+				if err := params.bundlePaths.Set(root); err != nil {
+					t.Fatal(err)
+				}
+
+				var buf bytes.Buffer
+
+				defined, err := eval([]string{"data.test.p"}, params, &buf, nil)
+
+				if tc.expectedErr != "" {
+					if err == nil {
+						t.Fatal("expected error, got none")
+					}
+					if !strings.Contains(buf.String(), tc.expectedErr) && !strings.Contains(err.Error(), tc.expectedErr) {
+						t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v\n%v", tc.expectedErr, buf.String(), err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("unexpected error: %v, buf: %s", err, buf.String())
+				}
+				if !defined {
+					t.Fatal("expected result to be defined")
+				}
+				if !strings.Contains(buf.String(), `"foo 2"`) {
+					t.Fatalf("unexpected output: %s", buf.String())
+				}
+			})
+		})
+	}
+}
+
 func TestWithQueryImports(t *testing.T) {
 	tests := []struct {
 		note         string
