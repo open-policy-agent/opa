@@ -10,7 +10,6 @@ code:
 - https://github.com/OrygnsCode/opa-mcp-server
 - https://www.npmjs.com/package/@orygn/opa-mcp
 - https://hub.docker.com/r/orygn/opa-mcp
-- https://smithery.ai/server/@orygn/opa-mcp
 videos:
 - https://youtu.be/ByHocQDkB8M
 blogs:
@@ -37,9 +36,9 @@ docs_features:
   editors:
     note: |
       OPA MCP is a stdio MCP server that plugs into any MCP-compatible
-      client. One-line Smithery install for Claude Desktop, drop-in
-      configs for Cursor, VS Code, Zed, and Windsurf. Multi-arch Docker
-      image and a signed .mcpb bundle are also published.
+      client. Claude Desktop installs it from a one-click .mcpb bundle.
+      Cursor, VS Code, Zed, and Windsurf have drop-in configs, and a
+      multi-arch Docker image is also published.
 ---
 
 OPA MCP is a Model Context Protocol server that gives MCP-compatible
@@ -55,5 +54,6 @@ the OPA built-in function catalog, the Rego style guide, and a pattern
 library covering RBAC, ABAC, Kubernetes admission, IaC gates, API
 authorization, and rate limiting.
 
-Distributed via npm (@orygn/opa-mcp), Docker Hub (orygn/opa-mcp), and a
-signed .mcpb bundle.
+Distributed via npm (@orygn/opa-mcp), Docker Hub (orygn/opa-mcp), the
+MCP Registry (io.github.OrygnsCode/opa-mcp), and an .mcpb bundle on each
+GitHub release.
