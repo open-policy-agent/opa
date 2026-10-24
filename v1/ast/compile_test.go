@@ -3009,6 +3009,24 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 			err: "rego_type_error: rule data.pkg.p[x].q conflicts with:\n  rule data.pkg.p.r.s.t at mod0.rego:3",
 		},
 		{
+			note: "single-value and multi-value rules with different ground keys after a var (regression test for #7182)",
+			modules: modules(
+				`package pkg
+				x := "node"
+				obj[x].y := "foo"
+				obj[x].z contains "bar"
+				`),
+		},
+		{
+			note: "single-value and multi-value rules with the same ground key after a var",
+			modules: modules(
+				`package pkg
+				obj[x].y := "foo" if x := "node"
+				obj[x].y contains "bar" if x := "node"
+				`),
+			err: "rego_type_error: conflicting rules data.pkg.obj[",
+		},
+		{
 			note: "non-function rule within dynamic extent (no conflict)",
 			modules: modules(
 				`package pkg
