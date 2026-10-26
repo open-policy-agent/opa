@@ -386,6 +386,23 @@ func TestMakeInputWithBody(t *testing.T) {
 			assertBodyExists: true,
 		},
 		{
+			method:           "POST",
+			path:             "/v1/compile",
+			body:             `{"query": "data.x.allow"}`,
+			assertBodyExists: true,
+		},
+		{
+			method:           "POST",
+			path:             "/v1/compile/x/allow",
+			body:             `{"input": {"foo": "bar"}}`,
+			assertBodyExists: true,
+		},
+		{
+			method:                 "GET",
+			path:                   "/v1/compile/x/allow",
+			assertBodyDoesNotExist: true,
+		},
+		{
 			method:                 "PUT",
 			path:                   "/v1/data",
 			body:                   `{"foo": "bar"}`,
@@ -415,7 +432,7 @@ func TestMakeInputWithBody(t *testing.T) {
 			extraPaths: []func(string, []any) bool{func(_ string, path []any) bool {
 				s1 := path[0].(string)
 				s2 := path[1].(string)
-				return dataAPIVersions[s1] && s2 == "example-plugin"
+				return s1 == "v1" && s2 == "example-plugin"
 			}},
 		},
 	}

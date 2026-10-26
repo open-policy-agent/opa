@@ -54,6 +54,23 @@ func knownJSONFields[T any]() map[string]bool {
 	return f
 }
 
+// Extras returns the top-level keys of m not declared on T, or nil if there are
+// none. T must have been registered with RegisterJSONFields.
+func Extras[T any](m map[string]any) map[string]any {
+	known := knownJSONFields[T]()
+	var extra map[string]any
+	for k, v := range m {
+		if known[k] {
+			continue
+		}
+		if extra == nil {
+			extra = make(map[string]any)
+		}
+		extra[k] = v
+	}
+	return extra
+}
+
 // UnmarshalExtras decodes data into into (typically a *alias of T to avoid
 // recursing through T's UnmarshalJSON), then returns any top-level JSON keys
 // not declared on T. T must have been registered with RegisterJSONFields.

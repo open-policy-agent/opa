@@ -226,23 +226,24 @@ func makeInput(r *http.Request, extraPaths []func(string, []any) bool) (*http.Re
 	return r, input, nil
 }
 
-var dataAPIVersions = map[string]bool{
-	"v0": true,
-	"v1": true,
+// bodyAPIs are the version and API name pairs whose POST requests carry a
+// body the authorizer exposes as input.body.
+var bodyAPIs = map[[2]string]bool{
+	{"v0", "data"}:    true,
+	{"v1", "data"}:    true,
+	{"v1", "compile"}: true,
 }
 
 func expectBody(method string, path []any) bool {
-	if method == http.MethodPost {
-		if len(path) == 1 {
-			s := path[0].(string)
-			return s == ""
-		} else if len(path) >= 2 {
-			s1 := path[0].(string)
-			s2 := path[1].(string)
-			return dataAPIVersions[s1] && s2 == "data"
-		}
+	if method != http.MethodPost || len(path) == 0 {
+		return false
 	}
-	return false
+	if len(path) == 1 {
+		return path[0] == "" // POST / queries the default decision
+	}
+	version, _ := path[0].(string)
+	api, _ := path[1].(string)
+	return bodyAPIs[[2]string{version, api}]
 }
 
 func checkExtraExpectedReqBodyPaths(validators []func(string, []any) bool, method string, path []any) bool {
