@@ -4,7 +4,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -147,10 +146,9 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
 	m.Timer(metrics.RegoQueryParse).Start()
-	// decompress the input if sent as zip
-	body, err := util.ReadMaybeCompressedBody(r)
-	if err != nil {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body: %v", err))
+	req, err := readRequest(r, compileFiltersRequestFromMap)
+	if err != nil && !isEmptyBody(err) {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 
@@ -159,7 +157,7 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	// NOTE(sr): We keep some fields twice: from the unparsed and from the transformed
 	// request (`orig` and `request` respectively), because otherwise, we'd need to re-
 	// transform the values back for including them in the decision logs.
-	orig, request, reqErr := readInputCompileFiltersV1(comp, body, urlPath, s.manager.ParserOptions())
+	orig, request, reqErr := readInputCompileFiltersV1(comp, req, urlPath, s.manager.ParserOptions())
 	if reqErr != nil {
 		writer.Error(w, http.StatusBadRequest, reqErr)
 		return
@@ -458,15 +456,7 @@ func (s *Server) compileFiltersMaskRule(m metrics.Metrics, comp *ast.Compiler, p
 	return mr, nil
 }
 
-func readInputCompileFiltersV1(comp *ast.Compiler, reqBytes []byte, urlPath string, queryParserOptions ast.ParserOptions) (*CompileFiltersRequestV1, *compileFiltersRequest, *types.ErrorV1) {
-	var request CompileFiltersRequestV1
-
-	if len(reqBytes) > 0 {
-		if err := util.NewJSONDecoder(bytes.NewBuffer(reqBytes)).Decode(&request); err != nil {
-			return nil, nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error())
-		}
-	}
-
+func readInputCompileFiltersV1(comp *ast.Compiler, request CompileFiltersRequestV1, urlPath string, queryParserOptions ast.ParserOptions) (*CompileFiltersRequestV1, *compileFiltersRequest, *types.ErrorV1) {
 	var query ast.Body
 	var err error
 	if urlPath != "" {

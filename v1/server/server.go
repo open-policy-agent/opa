@@ -1386,14 +1386,13 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.ServerHandler).Start()
 	m.Timer(metrics.RegoQueryParse).Start()
 
-	// decompress the input if sent as zip
-	body, err := util.ReadMaybeCompressedBody(r)
+	req, err := readRequest(r, compileRequestFromMap)
 	if err != nil {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body"))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 
-	request, reqErr := readInputCompilePostV1(body, s.manager.ParserOptions())
+	request, reqErr := readInputCompilePostV1(req, s.manager.ParserOptions())
 	if reqErr != nil {
 		writer.Error(w, http.StatusBadRequest, reqErr)
 		return
@@ -2995,14 +2994,7 @@ type compileRequestOptions struct {
 	NondeterminsiticBuiltins bool
 }
 
-func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOptions) (*compileRequest, *types.ErrorV1) {
-	var request types.CompileRequestV1
-
-	err := util.NewJSONDecoder(bytes.NewBuffer(reqBytes)).Decode(&request)
-	if err != nil {
-		return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error())
-	}
-
+func readInputCompilePostV1(request types.CompileRequestV1, queryParserOptions ast.ParserOptions) (*compileRequest, *types.ErrorV1) {
 	query, err := ast.ParseBodyWithOpts(request.Query, queryParserOptions)
 	if err != nil {
 		switch err := err.(type) {

@@ -256,10 +256,17 @@ policies — which see a different `input` document — are left out. The `--ski
     #
     #   * POST v1/data
     #   * POST v0/data
+    #   * POST v1/compile and v1/compile/<path>
     #   * POST /
     "body": ...,
 }
 ```
+
+The body is the request as the API receives it. For `POST /v1/compile/<path>`,
+that means policies can restrict the request's `options`, for example
+`input.body.options.maskRule`. The values are what the client sent: a relative
+`maskRule` is resolved against the package of `<path>` only after authorization,
+and an omitted one falls back to the policy's annotations.
 
 At a minimum, the authorization policy should grant access to a special root
 identity:
