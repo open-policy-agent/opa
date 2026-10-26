@@ -37,6 +37,18 @@ func TestRequestFromMapMatchesDecode(t *testing.T) {
 				t.Errorf("compile: got %+v, want %+v", gotC, wantC)
 			}
 
+			var wantQ types.QueryRequestV1
+			if err := util.UnmarshalJSON([]byte(body), &wantQ); err != nil {
+				t.Fatal(err)
+			}
+			gotQ, err := queryRequestFromMap(parsed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(gotQ, wantQ) {
+				t.Errorf("query: got %+v, want %+v", gotQ, wantQ)
+			}
+
 			var wantF CompileFiltersRequestV1
 			if err := util.UnmarshalJSON([]byte(body), &wantF); err != nil {
 				t.Fatal(err)

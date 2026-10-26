@@ -2364,10 +2364,9 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	ctx := logging.WithDecisionID(r.Context(), decisionID)
 	annotateSpan(ctx, decisionID)
 
-	var request types.QueryRequestV1
-	err := util.NewJSONDecoder(r.Body).Decode(&request)
+	request, err := readRequest(r, queryRequestFromMap)
 	if err != nil {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error()))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 	qStr := request.Query

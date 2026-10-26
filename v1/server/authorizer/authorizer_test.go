@@ -398,6 +398,12 @@ func TestMakeInputWithBody(t *testing.T) {
 			assertBodyExists: true,
 		},
 		{
+			method:           "POST",
+			path:             "/v1/query",
+			body:             `{"query": "data.foo"}`,
+			assertBodyExists: true,
+		},
+		{
 			method:                 "GET",
 			path:                   "/v1/compile/x/allow",
 			assertBodyDoesNotExist: true,

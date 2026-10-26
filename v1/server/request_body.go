@@ -94,6 +94,11 @@ func (f *fields) unknowns() *[]string {
 	return nil
 }
 
+func queryRequestFromMap(m map[string]any) (types.QueryRequestV1, error) {
+	f := fields{m: m}
+	return types.QueryRequestV1{Query: get[string](&f, "query"), Input: f.input()}, f.err
+}
+
 func compileRequestFromMap(m map[string]any) (types.CompileRequestV1, error) {
 	f := fields{m: m}
 	o := fields{m: get[map[string]any](&f, "options")}

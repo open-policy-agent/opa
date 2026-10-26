@@ -232,6 +232,7 @@ var bodyAPIs = map[[2]string]bool{
 	{"v0", "data"}:    true,
 	{"v1", "data"}:    true,
 	{"v1", "compile"}: true,
+	{"v1", "query"}:   true,
 }
 
 func expectBody(method string, path []any) bool {
