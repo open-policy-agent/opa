@@ -2364,6 +2364,102 @@ q = true`,
 	}
 }
 
+func TestCompilerWasmTargetAnnotationEntrypointEscapesSlash(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+package has["weird/package"].but
+
+# METADATA
+# entrypoint: true
+it_is := true`,
+	}
+
+	test.WithTestFS(files, true, func(root string, fsys fs.FS) {
+		compiler := New().
+			WithFS(fsys).
+			WithPaths(root).
+			WithTarget("wasm").
+			WithRegoAnnotationEntrypoints(true)
+
+		if err := compiler.Build(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+
+		resolvers := compiler.bundle.Manifest.WasmResolvers
+		if len(resolvers) != 1 {
+			t.Fatalf("expected 1 Wasm resolver, got: %d", len(resolvers))
+		}
+
+		exp := "has/weird%2Fpackage/but/it_is"
+		if resolvers[0].Entrypoint != exp {
+			t.Fatalf("expected entrypoint %q, got %q", exp, resolvers[0].Entrypoint)
+		}
+	})
+}
+
+func TestCompilerWasmTargetAnnotationEntrypointEscapedAndCLI(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+package a["b c"]
+
+# METADATA
+# entrypoint: true
+it_is := true
+
+# METADATA
+# entrypoint: true
+z := true`,
+	}
+
+	test.WithTestFS(files, true, func(root string, fsys fs.FS) {
+		compiler := New().
+			WithFS(fsys).
+			WithPaths(root).
+			WithTarget("wasm").
+			WithEntrypoints("a/b c/it_is").
+			WithRegoAnnotationEntrypoints(true)
+
+		if err := compiler.Build(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+
+		var got []string
+		for _, r := range compiler.bundle.Manifest.WasmResolvers {
+			got = append(got, r.Entrypoint)
+		}
+
+		exp := []string{"a/b c/it_is", "a/b%20c/z"}
+		if !slices.Equal(got, exp) {
+			t.Fatalf("expected entrypoints %v, got %v", exp, got)
+		}
+	})
+}
+
+func TestCompilerWasmTargetAnnotationEntrypointInvalidEscapedCLI(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+package a["b c"]
+
+# METADATA
+# entrypoint: true
+it_is := true`,
+	}
+
+	test.WithTestFS(files, true, func(root string, fsys fs.FS) {
+		compiler := New().
+			WithFS(fsys).
+			WithPaths(root).
+			WithTarget("wasm").
+			WithEntrypoints("a/b%20c/it_is").
+			WithRegoAnnotationEntrypoints(true)
+
+		err := compiler.Build(t.Context())
+		if err == nil || !strings.Contains(err.Error(), "does not refer to a rule") {
+			t.Fatalf("expected unmapped entrypoint error, got: %v", err)
+		}
+	})
+}
+
 // TestCompilerWasmTargetPackageAnnotationEntrypoint tests that a package-level
 // entrypoint annotation works correctly for wasm target builds without any
 // explicit -e flag. Regression test for https://github.com/open-policy-agent/opa/issues/8854
