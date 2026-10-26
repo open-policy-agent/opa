@@ -53,8 +53,66 @@ func isUnrecognizedFile(err error) bool {
 	return ok
 }
 
-type mergeError string
+type mergeError struct {
+	path     string
+	conflict string
+	keys     []string
+	other    string
+}
 
 func (e mergeError) Error() string {
-	return string(e) + ": merge error"
+	if e.conflict == "" {
+		return e.path + ": merge error"
+	}
+	msg := e.path + ": merge error: conflicting values at " + e.conflict
+	if e.other != "" {
+		return msg + ", also defined in " + e.other
+	}
+	return msg + ", data from multiple files must not overlap"
+}
+
+// loadedFile identifies a file that has been loaded successfully, and where
+// under data it was loaded.
+type loadedFile struct {
+	parent []string
+	path   string
+	depth  int
+}
+
+// withOtherFile attempts to find the first of the previously loaded files that
+// defines the conflicting value. Files are loaded again for this, as merging
+// modifies the previously loaded documents, which makes it impossible to tell
+// afterwards where a value originated. This only runs when loading has failed.
+func (e mergeError) withOtherFile(files []loadedFile, f func(*Result, string, int) error) mergeError {
+	if len(e.keys) == 0 {
+		return e
+	}
+	for _, file := range files {
+		scratch := newResult()
+		scratch.path = file.parent
+		if err := f(scratch, file.path, file.depth); err != nil {
+			continue
+		}
+		if hasPath(scratch.Documents, e.keys) {
+			e.other = file.path
+			break
+		}
+	}
+	return e
+}
+
+func hasPath(doc map[string]any, keys []string) bool {
+	for i, k := range keys {
+		v, ok := doc[k]
+		if !ok {
+			return false
+		}
+		if i == len(keys)-1 {
+			return true
+		}
+		if doc, ok = v.(map[string]any); !ok {
+			return false
+		}
+	}
+	return false
 }

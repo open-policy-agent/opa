@@ -6,10 +6,24 @@ package merge
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+func TestConflict(t *testing.T) {
+	a := map[string]any{"a": map[string]any{"b": 1, "c": map[string]any{"d": 2}}, "e": 3}
+
+	conflicting := map[string]any{"a": map[string]any{"c": map[string]any{"d": 4}}}
+	if path, ok := Conflict(a, conflicting); !ok || !slices.Equal(path, []string{"a", "c", "d"}) {
+		t.Fatalf("unexpected conflict: %v %v", path, ok)
+	}
+
+	if path, ok := Conflict(a, map[string]any{"a": map[string]any{"x": 1}, "f": 1}); ok {
+		t.Fatalf("unexpected conflict: %v", path)
+	}
+}
 
 func TestMergeDocs(t *testing.T) {
 

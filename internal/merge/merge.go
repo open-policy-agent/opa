@@ -6,6 +6,8 @@
 // frequently encountered in OPA.
 package merge
 
+import "github.com/open-policy-agent/opa/v1/util"
+
 // InterfaceMaps returns the result of merging a and b. If a and b cannot be
 // merged because of conflicting key-value pairs, ok is false.
 func InterfaceMaps(a map[string]any, b map[string]any) (map[string]any, bool) {
@@ -19,6 +21,28 @@ func InterfaceMaps(a map[string]any, b map[string]any) (map[string]any, bool) {
 	}
 
 	return merge(a, b), true
+}
+
+// Conflict returns the path to the first (in key order) conflicting key-value
+// pair found when merging b into a, if any.
+func Conflict(a, b map[string]any) ([]string, bool) {
+	for _, k := range util.KeysSorted(b) {
+		exist, ok := a[k]
+		if !ok {
+			continue
+		}
+
+		existObj, existOk := exist.(map[string]any)
+		addObj, addOk := b[k].(map[string]any)
+		if !existOk || !addOk {
+			return []string{k}, true
+		}
+
+		if path, ok := Conflict(existObj, addObj); ok {
+			return append([]string{k}, path...), true
+		}
+	}
+	return nil, false
 }
 
 func merge(a, b map[string]any) map[string]any {

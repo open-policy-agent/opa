@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -37,6 +38,8 @@ type Result struct {
 	Documents map[string]any
 	Modules   map[string]*RegoFile
 	path      []string
+	seen      map[string]struct{}
+	files     *[]loadedFile
 }
 
 // ParsedModules returns the parsed modules stored on the result.
@@ -639,7 +642,16 @@ func (l *Result) mergeDocument(path string, doc any) error {
 	}
 	merged, ok := merge.InterfaceMaps(l.Documents, obj)
 	if !ok {
-		return mergeError(path)
+		e := mergeError{path: path}
+		if conflict, ok := merge.Conflict(l.Documents, obj); ok {
+			ref := ast.Ref{ast.DefaultRootDocument}
+			for _, k := range conflict {
+				ref = append(ref, ast.StringTerm(k))
+			}
+			e.keys = conflict
+			e.conflict = ref.String()
+		}
+		return e
 	}
 	for k := range merged {
 		l.Documents[k] = merged[k]
@@ -652,6 +664,8 @@ func (l *Result) withParent(p string) *Result {
 		Documents: l.Documents,
 		Modules:   l.Modules,
 		path:      append(l.path, p),
+		seen:      l.seen,
+		files:     l.files,
 	}
 }
 
@@ -659,6 +673,8 @@ func newResult() *Result {
 	return &Result{
 		Documents: map[string]any{},
 		Modules:   map[string]*RegoFile{},
+		seen:      map[string]struct{}{},
+		files:     &[]loadedFile{},
 	}
 }
 
@@ -718,9 +734,23 @@ func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Resu
 	}
 
 	if !info.IsDir() {
-		if err := f(loaded, path, depth); err != nil {
-			errors.add(err)
+		// Providing the same file more than once (e.g. `opa test . data.json`) to
+		// the same location under data would otherwise be reported as a merge error.
+		key := strings.Join(loaded.path, "\x00") + "\x01" + filepath.Clean(path)
+		if _, ok := loaded.seen[key]; ok {
+			return
 		}
+		loaded.seen[key] = struct{}{}
+
+		err := f(loaded, path, depth)
+		if me, ok := err.(mergeError); ok {
+			err = me.withOtherFile(*loaded.files, f)
+		}
+		if err != nil {
+			errors.add(err)
+			return
+		}
+		*loaded.files = append(*loaded.files, loadedFile{parent: slices.Clone(loaded.path), path: path, depth: depth})
 		return
 	}
 
