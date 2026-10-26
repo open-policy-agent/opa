@@ -2054,3 +2054,47 @@ func TestBiunifyArrays(t *testing.T) {
 		})
 	}
 }
+
+func TestEvalTermSetLookupOnGroundValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note string
+		body string
+		exp  []string
+	}{
+		{"scalar member", `s = {1, 2, 3}; x = 2; x = s[_]`, []string{"2"}},
+		{"scalar bound before iteration", `s = {1, 2, 3}; v = 2; x = v; x = s[_]`, []string{"2"}},
+		{"key var is bound to value", `s = {1, 2, 3}; v = 2; v = s[x]`, []string{"2"}},
+		{"scalar not a member", `s = {1, 2, 3}; v = 4; v = s[x]`, nil},
+		{"compound member", `s = {[1, 2], [3, 4]}; v = [3, 4]; v = s[x]`, []string{"[3, 4]"}},
+		{"compound not a member", `s = {[1, 2], [3, 4]}; v = [3, 5]; v = s[x]`, nil},
+		{"equal numbers match", `s = {1, 2}; v = 2.0; v = s[x]`, []string{"2.0"}},
+		{"unbound value still enumerates", `s = {1, 2, 3}; s[x] = y; y > 1`, []string{"2", "3"}},
+		{"nested sets", `s = {"a": {1, 2}, "b": {2, 3}}; v = 2; v = s[_][x]`, []string{"2", "2"}},
+		{"nested sets via intermediate var", `s = {"a": {1, 2}, "b": {3}}; ops = s[_]; x = 3; x = ops[_]`, []string{"3"}},
+		{"non-ground set elements", `a = 1; s = {a, [a, 2]}; v = [1, 2]; v = s[x]`, []string{"[1, 2]"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			var got []string
+			err := NewQuery(ast.MustParseBody(tc.body)).WithCompiler(ast.NewCompiler()).
+				Iter(t.Context(), func(qr QueryResult) error {
+					if v, ok := qr[ast.Var("x")]; ok {
+						got = append(got, v.String())
+					}
+					return nil
+				})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if r, e := strings.Join(got, ","), strings.Join(tc.exp, ","); r != e {
+				t.Fatalf("expected [%s], got [%s]", e, r)
+			}
+		})
+	}
+}
