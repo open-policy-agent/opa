@@ -1056,6 +1056,18 @@ loading 10,000 rules that implement an ACL-style authorization policy consumes a
 130MB of RAM while 100,000 rules implementing the same policy (but with 10x more tuples to check)
 consumes approximately 1.1GB of RAM.
 
+These estimates describe the memory needed to keep policies and data loaded, rather than
+peak memory usage during bundle updates. When applying a snapshot bundle, OPA prepares
+the new data and compiles the new policies while the previous state is still active.
+This can temporarily increase memory usage above the steady-state level. Account for
+this peak when setting memory limits, and measure representative bundle updates while
+OPA is serving queries.
+
+The [in-memory store read optimization](#in-memory-store-read-optimization) also affects
+memory usage and update costs: precomputing AST values increases the store's memory
+footprint and write cost, while avoiding repeated conversions during policy evaluation.
+Measure updates with the store configuration you intend to use.
+
 By default, OPA stores policy and data in-memory. OPA's disk storage feature allows policy and data to be stored on disk. See [this](./storage/#disk) for more details.
 
 Memory usage depends on your specific policies, data, and request load. Benchmark
