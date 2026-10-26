@@ -146,27 +146,28 @@ func (s *Server) certLoopPolling(logger logging.Logger) Loop {
 	}
 }
 
-func (s *Server) certLoopNotify(logger logging.Logger) Loop {
+// certLoopNotify returns a Loop that reloads the TLS config whenever the watched files change. The watcher is
+// registered before returning, so changes made after that are not lost if the Loop starts late.
+func (s *Server) certLoopNotify(logger logging.Logger) (Loop, error) {
+	var paths []string
+
+	// if a cert file is set, then we want to watch the cert and key
+	if s.certFile != "" {
+		paths = append(paths, s.certFile, s.certKeyFile)
+	}
+
+	// if a cert pool file is set, then we want to watch the cert pool. This might be set without the cert and key
+	// being set too.
+	if s.certPoolFile != "" {
+		paths = append(paths, s.certPoolFile)
+	}
+
+	watcher, err := pathwatcher.CreatePathWatcher(paths)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tls path watcher: %w", err)
+	}
+
 	return func() error {
-
-		var paths []string
-
-		// if a cert file is set, then we want to watch the cert and key
-		if s.certFile != "" {
-			paths = append(paths, s.certFile, s.certKeyFile)
-		}
-
-		// if a cert pool file is set, then we want to watch the cert pool. This might be set without the cert and key
-		// being set too.
-		if s.certPoolFile != "" {
-			paths = append(paths, s.certPoolFile)
-		}
-
-		watcher, err := pathwatcher.CreatePathWatcher(paths)
-		if err != nil {
-			return fmt.Errorf("failed to create tls path watcher: %w", err)
-		}
-
 		for evt := range watcher.Events {
 			removalMask := fsnotify.Remove | fsnotify.Rename
 			mask := fsnotify.Create | fsnotify.Write | removalMask
@@ -177,7 +178,7 @@ func (s *Server) certLoopNotify(logger logging.Logger) Loop {
 			// retry logic here handles cases where the files are still being written to as events are triggered.
 			retries := 0
 			for {
-				err = s.reloadTLSConfig(s.manager.Logger())
+				err := s.reloadTLSConfig(s.manager.Logger())
 				if err == nil {
 					logger.Info("TLS config reloaded")
 					break
@@ -194,7 +195,7 @@ func (s *Server) certLoopNotify(logger logging.Logger) Loop {
 		}
 
 		return nil
-	}
+	}, nil
 }
 
 func hash(file string) ([]byte, error) {

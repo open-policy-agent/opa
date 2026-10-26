@@ -687,8 +687,11 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 		// otherwise use the fsnotify default behavior
 		if s.certRefresh > 0 {
 			loops = []Loop{loop, s.certLoopPolling(logger)}
-		} else if s.certFile != "" || s.certPoolFile != "" {
-			loops = []Loop{loop, s.certLoopNotify(logger)}
+		} else if err == nil && (s.certFile != "" || s.certPoolFile != "") {
+			var notify Loop
+			if notify, err = s.certLoopNotify(logger); err == nil {
+				loops = []Loop{loop, notify}
+			}
 		}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
