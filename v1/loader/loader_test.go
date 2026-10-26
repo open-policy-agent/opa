@@ -1110,6 +1110,41 @@ func TestLoadRooted(t *testing.T) {
 	})
 }
 
+func TestLoadDuplicatePaths(t *testing.T) {
+	files := map[string]string{
+		"/dir/data.json": `{"a": "b"}`,
+		"/other.json":    `{"c": "d"}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		dir := filepath.Join(rootDir, "dir")
+		file := filepath.Join(dir, "data.json")
+		other := filepath.Join(rootDir, "other.json")
+
+		tests := map[string]struct {
+			paths    []string
+			expected string
+		}{
+			"dir and file inside":   {[]string{dir, file, other}, `{"a": "b", "c": "d"}`},
+			"file twice":            {[]string{file, file, other}, `{"a": "b", "c": "d"}`},
+			"unclean path":          {[]string{file, filepath.Join(dir, ".", "data.json"), other}, `{"a": "b", "c": "d"}`},
+			"same file with prefix": {[]string{file, "x:" + file}, `{"a": "b", "x": {"a": "b"}}`},
+		}
+
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				loaded, err := NewFileLoader().All(tc.paths)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if expected := parseJSON(tc.expected); !reflect.DeepEqual(loaded.Documents, expected) {
+					t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+				}
+			})
+		}
+	})
+}
+
 //go:embed testdata/embedtest
 var embedTestFS embed.FS
 
@@ -1247,7 +1282,8 @@ func TestLoadErrors(t *testing.T) {
 			"a.json: EOF",
 			"b.yaml: error converting YAML to JSON",
 			"empty.rego:0: rego_parse_error: empty module",
-			"x2.json: merge error",
+			"x2.json: merge error: conflicting values at data.x, also defined in ",
+			"x1.json",
 			"rego_parse_error: empty module",
 		}
 
