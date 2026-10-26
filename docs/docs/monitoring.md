@@ -74,6 +74,51 @@ The Prometheus endpoint exports Go runtime metrics as well as HTTP request laten
 | go_threads                       | gauge       | Number of OS threads created.                                      | STABLE |
 | http_request_duration_seconds    | histogram   | A histogram of duration for requests.                              | STABLE |
 
+### HTTP Request Duration Buckets
+
+The `http_request_duration_seconds` histogram records request durations in seconds. By default, the bucket upper bounds
+range from 1 microsecond to 1 second:
+
+| Bucket (`le`) | Upper bound      |
+| ------------- | ---------------- |
+| `1e-06`       | 1 microsecond    |
+| `5e-06`       | 5 microseconds   |
+| `1e-05`       | 10 microseconds  |
+| `5e-05`       | 50 microseconds  |
+| `0.0001`      | 100 microseconds |
+| `0.0005`      | 500 microseconds |
+| `0.001`       | 1 millisecond    |
+| `0.01`        | 10 milliseconds  |
+| `0.1`         | 100 milliseconds |
+| `1`           | 1 second         |
+| `+Inf`        | no upper bound   |
+
+Buckets are cumulative: each `le` ("less than or equal") bucket counts all requests that took at most that long, including
+those counted in smaller buckets. Requests that take longer than 1 second are only counted in the `+Inf` bucket, which
+always equals the total request count (`http_request_duration_seconds_count`).
+
+For example, in the output below 13 requests were made to `v1/data`, 12 of them completed within 100 microseconds and
+all 13 within 500 microseconds:
+
+```
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="1e-06"} 0
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="5e-06"} 0
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="1e-05"} 0
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="5e-05"} 0
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="0.0001"} 12
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="0.0005"} 13
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="0.001"} 13
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="0.01"} 13
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="0.1"} 13
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="1"} 13
+http_request_duration_seconds_bucket{code="200",handler="v1/data",method="get",le="+Inf"} 13
+```
+
+Quantiles such as p99 are estimated from these buckets (e.g. with PromQL's `histogram_quantile`), so their precision is
+limited by the bucket boundaries. The buckets can be changed with the
+`server.metrics.prom.http_request_duration_seconds.buckets` configuration field, see
+[Configuration](./configuration/#server).
+
 ### Status Metrics
 
 When Prometheus is enabled in the status plugin (see [Configuration](./configuration/#status)), the OPA instance's Prometheus endpoint also exposes these metrics:
