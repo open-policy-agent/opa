@@ -4475,7 +4475,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 		en := evalTermNext{iter: iter, e: e}
 		call := en.call
 
-		// For `x = s[k]` with x ground and s a ground set (e.g. `some x in s`), the only
+		// For `x = s[k]` with x is bound to a ground value and s a ground set (e.g. `some x in s`), the only
 		// element that can match is x itself, so look it up rather than scanning the set.
 		if e.pos == len(e.ref)-1 && !e.e.partial() && v.IsGround() {
 			if want := e.rbindings.Plug(e.rterm); want.IsGround() {
