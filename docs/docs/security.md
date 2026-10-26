@@ -257,6 +257,7 @@ policies — which see a different `input` document — are left out. The `--ski
     #   * POST v1/data
     #   * POST v0/data
     #   * POST v1/compile and v1/compile/<path>
+    #   * POST v1/query
     #   * POST /
     "body": ...,
 }
@@ -267,6 +268,12 @@ that means policies can restrict the request's `options`, for example
 `input.body.options.maskRule`. The values are what the client sent: a relative
 `maskRule` is resolved against the package of `<path>` only after authorization,
 and an omitted one falls back to the policy's annotations.
+
+Restricting `/v1/data/<path>` does not restrict the Query and Compile APIs, which
+can evaluate any document. Authorization policies should allow those endpoints
+only where needed. For `GET /v1/query` the query text is in `input.params.q`,
+and for `POST` it is in `input.body.query`. Query text is Rego, so compare it
+for equality rather than matching parts of it.
 
 At a minimum, the authorization policy should grant access to a special root
 identity:
