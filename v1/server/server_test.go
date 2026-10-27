@@ -2349,7 +2349,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			payload:           []byte{},
 			forceContentLen:   2048, // Server should ignore this header entirely.
 			expRespHTTPStatus: 400,
-			expErrorMsg:       "request body too large",
+			expErrorMsg:       "request body too large: 2 KiB exceeds limit of 1024 bytes (server.decoding.max_length)",
 		},
 		{
 			note:              "empty message, gzip, malicious Content-Length",
@@ -2357,7 +2357,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			payload:           mustGZIPPayload([]byte{}),
 			forceContentLen:   2048, // Server should ignore this header entirely.
 			expRespHTTPStatus: 400,
-			expErrorMsg:       "request body too large",
+			expErrorMsg:       "request body too large: 2 KiB exceeds limit of 1024 bytes (server.decoding.max_length)",
 		},
 		{
 			note:                  "basic - malicious size field, expect reject on gzip payload length",
@@ -2389,7 +2389,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			payload:           util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
 			expRespHTTPStatus: 400,
 			maxLen:            512,
-			expErrorMsg:       "request body too large",
+			expErrorMsg:       "exceeds limit of 512 bytes (server.decoding.max_length)",
 		},
 		{
 			note:                "basic, large payload, expect reject on Content-Length, chunked encoding",
@@ -2397,6 +2397,14 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			payload:             util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
 			expRespHTTPStatus:   200,
 			maxLen:              134217728,
+		},
+		{
+			note:                "basic, large payload, expect reject on max_length, chunked encoding",
+			wantChunkedEncoding: true,
+			payload:             util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus:   400,
+			maxLen:              512,
+			expErrorMsg:         "request body too large: exceeds limit of 512 bytes (server.decoding.max_length)",
 		},
 		{
 			note:              "basic, gzip, large payload",
@@ -2413,7 +2421,7 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			expRespHTTPStatus: 400,
 			maxLen:            1024,
 			gzipMaxLen:        10,
-			expErrorMsg:       "gzip payload too large",
+			expErrorMsg:       "request body too large: decompressed size exceeds limit of 10 bytes (server.decoding.gzip.max_length)",
 		},
 	}
 
