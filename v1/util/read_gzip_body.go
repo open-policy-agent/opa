@@ -29,12 +29,12 @@ func (e *BodyTooLargeError) Error() string {
 	// The limit stays in bytes to match how it is configured.
 	size := ""
 	if e.Size > 0 {
-		size = formatBytes(e.Size) + " "
+		size = " " + formatBytes(e.Size)
 	}
 	if e.Decompressed {
-		return fmt.Sprintf("request body too large: decompressed size %sexceeds limit of %d bytes (server.decoding.gzip.max_length)", size, e.Limit)
+		return fmt.Sprintf("request body too large: decompressed size%s exceeds limit of %d bytes (server.decoding.gzip.max_length)", size, e.Limit)
 	}
-	return fmt.Sprintf("request body too large: %sexceeds limit of %d bytes (server.decoding.max_length)", size, e.Limit)
+	return fmt.Sprintf("request body too large:%s exceeds limit of %d bytes (server.decoding.max_length)", size, e.Limit)
 }
 
 // formatBytes renders n in the largest binary unit it reaches, such as "256 MiB"
