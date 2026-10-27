@@ -46,11 +46,22 @@ jobs:
         working-directory: regal
         run: go build -tags=regal_standalone
 
-      # Regal's build tasks are written in Rego and run by rq, which `go tool`
-      # builds from Regal's module graph, i.e. against the OPA under test.
+      # Regal's build tasks are written in Rego and run by rq. Regal no longer
+      # lists rq in its go.mod, so build it here against the OPA under test.
       # Running the tests through build/do.rq makes the nightly parse and
       # evaluate that script too, which is where the bug fixed in #9140
-      # surfaced.
+      # surfaced. The rq version is the one Regal's own build uses.
+      - name: Build rq against OPA under test
+        run: |
+          RQ_VERSION=$(sed -n 's/^ *RQ_VERSION: *\(v[0-9.]*\).*/\1/p' regal/.github/workflows/build.yaml | head -n 1)
+          test -n "$RQ_VERSION" || { echo "RQ_VERSION not found in Regal's build.yaml"; exit 1; }
+          git clone --depth 1 --branch "$RQ_VERSION" https://git.sr.ht/~charles/rq "$RUNNER_TEMP/rq"
+          cd "$RUNNER_TEMP/rq"
+          go mod edit -replace github.com/open-policy-agent/opa="$GITHUB_WORKSPACE/opa"
+          go mod tidy
+          go build -o "$RUNNER_TEMP/bin/rq" ./cmd/rq
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
       - name: Test
         working-directory: regal
         run: build/do.rq test
