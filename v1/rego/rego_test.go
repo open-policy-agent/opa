@@ -4266,3 +4266,70 @@ allow contains "listed" if data.groups.listed.members[input.subject]`
 		}
 	}
 }
+
+// TestPartialEvalIndexedLookups pins that partial evaluation only evaluates the
+// rules whose collection lookups hold: the index check is what keeps partial
+// evaluation of many rules gated by group membership cheap. Each case is n
+// rules, rule i gated by group gi, with the subject a member of g3 only.
+func TestPartialEvalIndexedLookups(t *testing.T) {
+	const n = 20
+
+	groups := make(map[string]any, n)
+	for i := range n {
+		groups[fmt.Sprintf("g%d", i)] = map[string]any{"members": map[string]any{fmt.Sprintf("u%d", i): true}}
+	}
+
+	for _, tc := range []struct {
+		note  string
+		cond  string // %[1]d is the rule's number
+		input string
+	}{
+		{
+			note:  "lookup",
+			cond:  "data.groups.g%[1]d.members[input.subject]",
+			input: `{"subject": "u3"}`,
+		},
+		{
+			note:  "lookups in an or",
+			cond:  "{data.groups.g%[1]d.members[input.subject]} or {data.groups.x%[1]d.members[input.subject]}",
+			input: `{"subject": "u3"}`,
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			var sb strings.Builder
+			sb.WriteString("package test\n\nimport rego.v1\nimport future.keywords.or\n\n")
+			for i := range n {
+				fmt.Fprintf(&sb, "allow if {\n\tinput.resource.id == \"r%d\"\n\t%s\n}\n\n", i, fmt.Sprintf(tc.cond, i))
+			}
+
+			tracer := topdown.NewBufferTracer()
+			pq, err := New(
+				Query("data.test.allow"),
+				Module("test.rego", sb.String()),
+				Store(inmem.NewFromObject(map[string]any{"groups": groups})),
+				ParsedInput(ast.MustParseTerm(tc.input).Value),
+				Unknowns([]string{"input.resource"}),
+			).PrepareForPartial(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			pqs, err := pq.Partial(t.Context(), EvalQueryTracer(tracer))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(pqs.Queries) != 1 {
+				t.Errorf("expected one residual query, got %v", pqs.Queries)
+			}
+			evaluated := 0
+			for _, e := range *tracer {
+				if _, ok := e.Node.(*ast.Rule); ok && e.Op == topdown.EnterOp {
+					evaluated++
+				}
+			}
+			if evaluated != 1 {
+				t.Errorf("expected one of %d rules evaluated, got %d", n, evaluated)
+			}
+		})
+	}
+}

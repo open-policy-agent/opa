@@ -445,13 +445,22 @@ func (i *baseDocEqIndex) inCollections(resolver ValueResolver, id int32, cache *
 			return false, nil
 		}
 
-		in, err := inCollection(resolver, cache, m.collection, key)
+		in, err := inAnyCollection(resolver, cache, m.collections, key)
 		if err != nil || !in {
 			return false, err
 		}
 	}
 
 	return true, nil
+}
+
+func inAnyCollection(resolver ValueResolver, cache *resolveCache, collections []Ref, key *Term) (bool, error) {
+	for _, ref := range collections {
+		if in, err := inCollection(resolver, cache, ref, key); err != nil || in {
+			return in, err
+		}
+	}
+	return false, nil
 }
 
 func inCollection(resolver ValueResolver, cache *resolveCache, ref Ref, key *Term) (bool, error) {
@@ -617,9 +626,13 @@ type IndexEveryCandidateEvaluated interface {
 	IndexEveryCandidateEvaluated() bool
 }
 
-// membership is "the value at key has to be a key of the collection at
-// collection", which a lookup asks the collection rather than the trie.
-type membership struct{ key, collection Ref }
+// membership is "the value at key has to be a key of one of the collections",
+// which a lookup asks the collections rather than the trie. There is more than
+// one where the lookup is in an `or`: `{data.g.a[k]} or {data.g.b[k]}`.
+type membership struct {
+	key         Ref
+	collections []Ref
+}
 
 // refID identifies one of the references an index is built on.
 type refID int32
@@ -997,11 +1010,12 @@ func plugRef(t *Term, constants map[Var]Value) *Term {
 // what its sibling contributes: operand bodies are separate scopes, so the same
 // var in each is a different var, and resolveVarToRef must not connect them.
 func (i *refindices) updateLogicalAnd(rule *Rule, and *LogicalAnd, values map[Var]Value) {
-	lhs := i.operandAlternatives(rule, and.Lhs, values)
-	rhs := i.operandAlternatives(rule, and.Rhs, values)
-
-	i.require(rule, lhs)
-	i.require(rule, rhs)
+	for _, op := range []operand{i.operand(rule, and.Lhs, values), i.operand(rule, and.Rhs, values)} {
+		i.require(rule, op.alts)
+		for _, m := range op.memberships {
+			i.recordMembership(rule, m)
+		}
+	}
 }
 
 // require records that the rule is only defined if one of the alternatives
@@ -1029,35 +1043,64 @@ func (i *refindices) require(rule *Rule, alts alternatives) {
 }
 
 // updateLogicalOr records the operands of a disjunction as alternative ways to
-// reach the rule, `lhs or rhs` holding if either operand does. An operand
-// nothing can be indexed on could be satisfied by any input at all, which
-// leaves the disjunction saying nothing about the rule.
+// reach the rule, `lhs or rhs` holding if either operand does.
 func (i *refindices) updateLogicalOr(rule *Rule, or *LogicalOr, values map[Var]Value) {
-	lhs := i.operandAlternatives(rule, or.Lhs, values)
-	if len(lhs) == 0 {
-		return
-	}
-
-	rhs := i.operandAlternatives(rule, or.Rhs, values)
-	if len(rhs) == 0 {
-		return
-	}
-
-	i.require(rule, slices.Concat(lhs, rhs))
+	i.disjoin(rule, []operand{i.operand(rule, or.Lhs, values), i.operand(rule, or.Rhs, values)})
 }
 
-// operandAlternatives returns the ways the body of an `and`/`or` operand can be
-// satisfied; an operand with an `or` of its own has one per branch, and none at
-// all means nothing about it could be indexed. It is indexed into a scratch, so
-// that what it requires reaches the rule only through require().
-func (i *refindices) operandAlternatives(rule *Rule, body Body, values map[Var]Value) alternatives {
+// disjoin records what the rule requires when one of ops has to hold: what all of
+// them require. Those are the alternatives of each -- unless one operand has none,
+// it then being satisfiable by any input at all -- and, for a key every operand
+// has a membership on, one membership asking all of their collections.
+func (i *refindices) disjoin(rule *Rule, ops []operand) {
+	if !slices.ContainsFunc(ops, func(op operand) bool { return len(op.alts) == 0 }) {
+		var alts alternatives
+		for _, op := range ops {
+			alts = append(alts, op.alts...)
+		}
+		i.require(rule, alts)
+	}
+
+	for _, m := range ops[0].memberships {
+		merged := membership{key: m.key, collections: slices.Clone(m.collections)}
+		for _, op := range ops[1:] {
+			j := slices.IndexFunc(op.memberships, func(o membership) bool { return RefEqual(o.key, m.key) })
+			if j < 0 {
+				merged.collections = nil
+				break
+			}
+			for _, c := range op.memberships[j].collections {
+				if !slices.ContainsFunc(merged.collections, func(x Ref) bool { return RefEqual(x, c) }) {
+					merged.collections = append(merged.collections, c)
+				}
+			}
+		}
+		if merged.collections != nil {
+			i.recordMembership(rule, merged)
+		}
+	}
+}
+
+// operand is what indexing the body of an `and`/`or` operand found: the ways it
+// can be satisfied, an operand with an `or` of its own having one per branch and
+// none meaning nothing about it could be indexed, and the memberships that hold
+// whichever way it is.
+type operand struct {
+	alts        alternatives
+	memberships []membership
+}
+
+// operand indexes body into a scratch, so that what it requires reaches the rule
+// only through require() and recordMembership().
+func (i *refindices) operand(rule *Rule, body Body, values map[Var]Value) operand {
 	scratch := newrefindices(i.isVirtual, i.table)
 	scratch.outer = append(slices.Clone(i.rules[rule]), i.outer...)
 	scratch.updateOperand(rule, body, values)
 
+	op := operand{memberships: scratch.memberships[rule]}
 	alts := scratch.paths(rule)
 	if len(alts) == 1 && len(alts[0]) == 0 {
-		return nil
+		return op
 	}
 
 	for _, alt := range alts {
@@ -1071,7 +1114,8 @@ func (i *refindices) operandAlternatives(rule *Rule, body Body, values map[Var]V
 		}
 	}
 
-	return alts
+	op.alts = alts
+	return op
 }
 
 // paths returns every set of indices that can lead to the rule: the ones that
@@ -1477,7 +1521,7 @@ func (i *refindices) updateCollectionKey(rule *Rule, ref Ref) bool {
 		return false
 	}
 
-	i.recordMembership(rule, keyRef, prefix)
+	i.recordMembership(rule, membership{key: keyRef, collections: []Ref{prefix}})
 	return true
 }
 
@@ -1495,16 +1539,16 @@ func (i *refindices) keyRefOf(rule *Rule, term *Term) Ref {
 	return nil
 }
 
-// recordMembership notes that rule only matches when the value at key is a key
-// of the collection at collection, and that both take part in indexing it.
-func (i *refindices) recordMembership(rule *Rule, key, collection Ref) {
-	for _, m := range i.memberships[rule] {
-		if RefEqual(m.key, key) && RefEqual(m.collection, collection) {
+// recordMembership notes that rule only matches when m holds, and that its key
+// takes part in indexing it.
+func (i *refindices) recordMembership(rule *Rule, m membership) {
+	for _, other := range i.memberships[rule] {
+		if RefEqual(other.key, m.key) && slices.EqualFunc(other.collections, m.collections, RefEqual) {
 			return
 		}
 	}
-	i.memberships[rule] = append(i.memberships[rule], membership{key: key, collection: collection})
-	i.count(i.table.intern(key))
+	i.memberships[rule] = append(i.memberships[rule], m)
+	i.count(i.table.intern(m.key))
 }
 
 func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term) Ref {

@@ -399,39 +399,112 @@ allow contains "b" if {
 	}
 }
 
-// TestBaseDocEqIndexCollectionInAlternative guards the soundness of recording a
-// collection: one that only an `or` operand reads does not have to hold for the
-// rule to match. Operands are indexed into a scratch of their own, whose
-// collections Build does not read, so nothing is recorded and no answer is lost --
-// at the price of the rule staying a candidate for a subject in neither group.
+// TestBaseDocEqIndexCollectionInAlternative guards the soundness of carrying a
+// lookup out of an `and`/`or` operand: one that only some `or` operands read does
+// not have to hold for the rule to match.
 func TestBaseDocEqIndexCollectionInAlternative(t *testing.T) {
-	const module = `package test
-
-import future.keywords.or
-
-allow contains "yes" if {
-	{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}
-}`
-
 	data := MustParseTerm(`{"groups": {"g0": {"members": {"u0": true}}, "g1": {"members": {"u1": true}}}}`)
 
-	for _, subject := range []string{"u0", "u1", "u2"} {
-		t.Run(subject, func(t *testing.T) {
+	for _, tc := range []struct {
+		note    string
+		cond    string
+		input   string
+		data    string // replaces the groups above
+		unknown string
+		expect  int
+	}{
+		{
+			note:   "or: in the first group",
+			cond:   "{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}",
+			input:  `{"subject": "u0"}`,
+			expect: 1,
+		},
+		{
+			note:   "or: in the second group",
+			cond:   "{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}",
+			input:  `{"subject": "u1"}`,
+			expect: 1,
+		},
+		{
+			note:   "or: one group missing, the other holds",
+			cond:   "{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}",
+			input:  `{"subject": "u1"}`,
+			data:   `{"groups": {"g1": {"members": {"u1": true}}}}`,
+			expect: 1,
+		},
+		{
+			note:    "or: an unknown collection keeps the rule",
+			cond:    "{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}",
+			input:   `{"subject": "u2"}`,
+			unknown: "data.groups",
+			expect:  1,
+		},
+		{
+			note:   "or: in neither group",
+			cond:   "{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}",
+			input:  `{"subject": "u2"}`,
+			expect: 0,
+		},
+		{
+			note:   "or: another key in the other operand",
+			cond:   "{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.other]}",
+			input:  `{"subject": "u2", "other": "u2"}`,
+			expect: 1,
+		},
+		{
+			// Neither operand holds, but the rule is not indexed on either.
+			note:   "or: no lookup in the other operand",
+			cond:   "{data.groups.g0.members[input.subject]} or {input.admin == true}",
+			input:  `{"subject": "u2", "admin": false}`,
+			expect: 1,
+		},
+		{
+			note:   "or: a lookup in every operand, and more in one",
+			cond:   "{data.groups.g0.members[input.subject]; data.groups.g1.members[input.other]} or {data.groups.g1.members[input.subject]}",
+			input:  `{"subject": "u2", "other": "u1"}`,
+			expect: 0,
+		},
+		{
+			note:   "and: in the group",
+			cond:   "{data.groups.g0.members[input.subject]} and {input.x == 1}",
+			input:  `{"subject": "u0", "x": 1}`,
+			expect: 1,
+		},
+		{
+			note:   "and: not in the group",
+			cond:   "{data.groups.g0.members[input.subject]} and {input.x == 1}",
+			input:  `{"subject": "u2", "x": 1}`,
+			expect: 0,
+		},
+		{
+			note:   "or nested in an or",
+			cond:   "{{data.groups.g0.members[input.subject]} or {data.groups.g1.members[input.subject]}} or {data.groups.g1.members[input.subject]}",
+			input:  `{"subject": "u2"}`,
+			expect: 0,
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			module := "package test\n\nimport future.keywords.and\nimport future.keywords.or\n\nallow contains \"yes\" if {\n\t" + tc.cond + "\n}"
+
 			c := NewCompiler()
 			c.Compile(map[string]*Module{"test.rego": MustParseModule(module)})
 			if c.Failed() {
 				t.Fatal(c.Errors)
 			}
 
-			res, err := c.RuleIndex(MustParseRef("data.test.allow")).Lookup(testResolver{
-				input: MustParseTerm(fmt.Sprintf(`{"subject": %q}`, subject)),
-				data:  data,
-			})
+			resolver := testResolver{input: MustParseTerm(tc.input), data: data}
+			if tc.data != "" {
+				resolver.data = MustParseTerm(tc.data)
+			}
+			if tc.unknown != "" {
+				resolver.unknownRefs = NewSet(NewTerm(MustParseRef(tc.unknown)))
+			}
+			res, err := c.RuleIndex(MustParseRef("data.test.allow")).Lookup(resolver)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(res.Rules) != 1 {
-				t.Errorf("expected the rule to stay a candidate, got %d", len(res.Rules))
+			if len(res.Rules) != tc.expect {
+				t.Errorf("expected %d candidates, got %d", tc.expect, len(res.Rules))
 			}
 		})
 	}
