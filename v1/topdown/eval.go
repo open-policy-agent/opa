@@ -4476,9 +4476,10 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 		call := en.call
 
 		// For `x = s[k]` with x is bound to a ground value and s a ground set (e.g. `some x in s`), the only
-		// element that can match is x itself, so look it up rather than scanning the set.
+		// element that can match is x itself, so look it up rather than scanning the set. Unresolved refs (e.g.
+		// `input.x`) report as ground, so they are excluded by requiring a constant.
 		if e.pos == len(e.ref)-1 && !e.e.partial() && v.IsGround() {
-			if want := e.rbindings.Plug(e.rterm); want.IsGround() {
+			if want := e.rbindings.Plug(e.rterm); want.IsGround() && ast.IsConstant(want.Value) {
 				if v.Contains(want) {
 					en.key = want
 					if err := e.e.biunify(want, e.ref[e.pos], e.termbindings, e.bindings, call); err != nil {

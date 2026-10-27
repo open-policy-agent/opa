@@ -2055,6 +2055,47 @@ func TestBiunifyArrays(t *testing.T) {
 	}
 }
 
+func TestEvalTermSetLookupOnUnresolvedRef(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note string
+		body string
+		exp  bool
+	}{
+		{"input ref member", `data.test.acts[_] = input.action`, true},
+		{"input ref not a member", `data.test.acts[_] = input.other`, false},
+		{"input ref compared with == in rule", `data.test.r`, true},
+		{"compound with input ref", `data.test.pairs[_] = [input.action, 1]`, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			compiler := ast.MustCompileModules(map[string]string{
+				"test.rego": `package test
+
+acts := {"a", "b"}
+pairs := {["a", 1], ["b", 2]}
+
+r if acts[_] == input.action`,
+			})
+
+			rs, err := NewQuery(ast.MustParseBody(tc.body)).WithCompiler(compiler).
+				WithInput(ast.MustParseTerm(`{"action": "a", "other": "z"}`)).
+				Run(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got := len(rs) > 0; got != tc.exp {
+				t.Fatalf("expected %v, got %v", tc.exp, got)
+			}
+		})
+	}
+}
+
 func TestEvalTermSetLookupOnGroundValue(t *testing.T) {
 	t.Parallel()
 
