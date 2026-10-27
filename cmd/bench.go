@@ -594,7 +594,7 @@ func readQuery(params benchmarkCommandParams, args []string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		query = string(bs)
+		query = util.ByteSliceToString(bs)
 	} else {
 		query = args[0]
 	}

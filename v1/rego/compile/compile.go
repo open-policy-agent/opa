@@ -11,8 +11,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
 
 	"github.com/open-policy-agent/opa/internal/compile"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -295,7 +293,7 @@ func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters
 			if err != nil {
 				return nil, fmt.Errorf("convert masks: %w", err)
 			}
-			if err := util.Unmarshal([]byte(maskResultValue.String()), &maskResult); err != nil {
+			if err := util.Unmarshal(util.StringToByteSlice(maskResultValue.String()), &maskResult); err != nil {
 				return nil, fmt.Errorf("convert masks: %w", err)
 			}
 		}
@@ -374,12 +372,12 @@ func lookupMappings(mappings map[string]any, target, dialect string) (map[string
 // nested map is allowed, but not for "$self" or "$table": it's a per-target or
 // per-dialect map that lookupMappings didn't select.
 func validateMappings(mappings map[string]any) error {
-	for _, table := range slices.Sorted(maps.Keys(mappings)) {
+	for _, table := range util.KeysSorted(mappings) {
 		tm, ok := mappings[table].(map[string]any)
 		if !ok {
 			continue // not a table mapping, the translation ignores it
 		}
-		for _, key := range slices.Sorted(maps.Keys(tm)) {
+		for _, key := range util.KeysSorted(tm) {
 			switch v := tm[key].(type) {
 			case string:
 			case map[string]any:

@@ -99,17 +99,15 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 		// Format test modules
 		for i := range testCases.Cases {
 			for j, module := range testCases.Cases[i].Modules {
-				bs, err := format.SourceWithOpts(fmt.Sprintf("mod%d.rego", j), []byte(module),
+				bs, err := format.SourceWithOpts(fmt.Sprintf("mod%d.rego", j), util.StringToByteSlice(module),
 					format.Opts{
-						ParserOptions: &ast.ParserOptions{
-							RegoVersion: sourceRegoVersion,
-						},
-						RegoVersion: targetRegoVersion,
+						ParserOptions: &ast.ParserOptions{RegoVersion: sourceRegoVersion},
+						RegoVersion:   targetRegoVersion,
 					})
 				if err != nil {
 					fmt.Printf("Error formatting module %s %s:%d: %v\n", path, testCases.Cases[i].Note, j, err)
 				} else {
-					testCases.Cases[i].Modules[j] = string(bs)
+					testCases.Cases[i].Modules[j] = util.ByteSliceToString(bs)
 				}
 			}
 		}
@@ -123,8 +121,8 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 			return err
 		}
 
-		text := "---\n" + buf.String()
-		if err := os.WriteFile(targetPath, []byte(text), i.Mode()); err != nil {
+		text := append([]byte("---\n"), buf.Bytes()...)
+		if err := os.WriteFile(targetPath, text, i.Mode()); err != nil {
 			return err
 		}
 	}

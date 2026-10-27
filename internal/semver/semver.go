@@ -154,7 +154,7 @@ func (v Version) String() string {
 	bs := make([]byte, 0, length(v))
 	bs, _ = v.AppendString(bs)
 
-	return string(bs)
+	return util.ByteSliceToString(bs)
 }
 
 // Compare tests if v is less than, equal to, or greater than other, returning -1, 0, or +1 respectively.

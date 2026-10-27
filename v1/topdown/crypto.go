@@ -279,7 +279,7 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.
 	}
 
 	// data to be passed to x509.ParseCertificateRequest
-	bytes := []byte(input)
+	bytes := util.StringToByteSlice(input)
 
 	// if the input is not a PEM string, attempt to decode b64
 	if str := string(input); !strings.HasPrefix(str, "-----BEGIN CERTIFICATE REQUEST-----") {
@@ -341,7 +341,7 @@ func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter
 		if err != nil {
 			return err
 		}
-		pemDataString = string(bs)
+		pemDataString = util.ByteSliceToString(bs)
 	}
 
 	rawKeys, err := getPrivateKeysFromPEMData(pemDataString)
@@ -604,9 +604,9 @@ func getPrivateKeysFromPEMData(pemData string) ([]crypto.PrivateKey, error) {
 	// if the input is base64, decode it
 	bs, err := base64.StdEncoding.DecodeString(pemBlockString)
 	if err == nil {
-		pemBlockString = string(bs)
+		pemBlockString = util.ByteSliceToString(bs)
 	}
-	bs = []byte(pemBlockString)
+	bs = util.StringToByteSlice(pemBlockString)
 
 	for len(bs) > 0 {
 		inputLen := len(bs)
@@ -696,9 +696,8 @@ func addCACertsFromEnv(pool *x509.CertPool, envName string) (*x509.CertPool, err
 var beginPrefix = []byte("-----BEGIN ")
 
 func getTLSx509KeyPairFromString(certPemBlock []byte, keyPemBlock []byte) (*tls.Certificate, error) {
-
 	if !bytes.HasPrefix(certPemBlock, beginPrefix) {
-		s, err := base64.StdEncoding.DecodeString(string(certPemBlock))
+		s, err := base64.StdEncoding.DecodeString(util.ByteSliceToString(certPemBlock))
 		if err != nil {
 			return nil, err
 		}
@@ -706,7 +705,7 @@ func getTLSx509KeyPairFromString(certPemBlock []byte, keyPemBlock []byte) (*tls.
 	}
 
 	if !bytes.HasPrefix(keyPemBlock, beginPrefix) {
-		s, err := base64.StdEncoding.DecodeString(string(keyPemBlock))
+		s, err := base64.StdEncoding.DecodeString(util.ByteSliceToString(keyPemBlock))
 		if err != nil {
 			return nil, err
 		}
@@ -715,11 +714,7 @@ func getTLSx509KeyPairFromString(certPemBlock []byte, keyPemBlock []byte) (*tls.
 
 	// we assume it a DER certificate and try to convert it to a PEM.
 	if !bytes.HasPrefix(certPemBlock, beginPrefix) {
-
-		pemBlock := &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: certPemBlock,
-		}
+		pemBlock := &pem.Block{Type: "CERTIFICATE", Bytes: certPemBlock}
 
 		var buf bytes.Buffer
 		if err := pem.Encode(&buf, pemBlock); err != nil {

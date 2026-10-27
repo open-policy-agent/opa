@@ -5,9 +5,9 @@ package levenshtein
 
 import (
 	"iter"
-	"slices"
 
 	"github.com/agnivade/levenshtein"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func ClosestStrings(minDistance int, a string, candidates iter.Seq[string]) []string {
@@ -26,6 +26,5 @@ func ClosestStrings(minDistance int, a string, candidates iter.Seq[string]) []st
 			continue
 		}
 	}
-	slices.Sort(closestStrings)
-	return closestStrings
+	return util.Sorted(closestStrings)
 }

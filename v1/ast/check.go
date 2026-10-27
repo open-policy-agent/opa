@@ -880,7 +880,7 @@ func unify1Array(env *TypeEnv, val *Array, tpe *types.Array, union bool) bool {
 }
 
 func unify1Object(env *TypeEnv, val Object, tpe *types.Object, union bool) bool {
-	if val.Len() != len(tpe.Keys()) && tpe.DynamicValue() == nil {
+	if val.Len() != tpe.Len() && tpe.DynamicValue() == nil {
 		return false
 	}
 	stop := val.Until(func(k, v *Term) bool {
@@ -1495,19 +1495,9 @@ func getOneOfForNode(node *typeTreeNode) []Value {
 func getOneOfForType(tpe types.Type) (result []Value) {
 	switch tpe := tpe.(type) {
 	case *types.Object:
-		keys := tpe.Keys()
-		result = slices.Grow(result, len(keys))
-		for _, k := range keys {
-			v, err := InterfaceToValue(k)
-			if err != nil {
-				panic(err)
-			}
-			result = append(result, v)
-		}
-
+		result = util.Map(tpe.Keys(), MustInterfaceToValue)
 	case *types.Recursive:
 		return getOneOfForType(tpe.Unwrap())
-
 	case types.Any:
 		result = slices.Grow(result, len(tpe))
 		for _, object := range tpe {

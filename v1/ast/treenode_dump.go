@@ -16,7 +16,7 @@ func (n *TreeNode) Dump() string {
 
 func (n *TreeNode) dumpRecursive(sb *strings.Builder, prefix, childPrefix string) {
 	sb.WriteString(prefix)
-	fmt.Fprintf(sb, "%v", n.Key)
+	fmt.Fprint(sb, n.Key)
 
 	if n.Hide {
 		sb.WriteString(" [hidden]")

@@ -15,6 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type loggingPrintHook struct {
@@ -137,7 +138,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 				} else {
-					fields["req_body"] = string(bs)
+					fields["req_body"] = util.ByteSliceToString(bs)
 				}
 			}
 

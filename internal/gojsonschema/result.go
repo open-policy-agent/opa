@@ -158,7 +158,7 @@ func (v *ResultErrorFields) Details() ErrorDetails {
 // String returns a string representation of the error
 func (v ResultErrorFields) String() string {
 	// as a fallback, the value is displayed go style
-	valueString := fmt.Sprintf("%v", v.value)
+	valueString := fmt.Sprint(v.value)
 
 	// marshal the go value value to json
 	if v.value == nil {

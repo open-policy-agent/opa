@@ -585,8 +585,9 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 		return nil, err
 	}
 
-	processedConf := cfg.SubEnvVars(string(bs))
-	return config.ParseConfig([]byte(processedConf), id)
+	processedConf := cfg.SubEnvVars(util.ByteSliceToString(bs))
+
+	return config.ParseConfig(util.StringToByteSlice(processedConf), id)
 }
 
 // mergeValuesAndListOverrides will merge source and destination map, preferring values from the source map.

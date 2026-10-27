@@ -605,7 +605,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		if err != nil {
 			return nil, err
 		}
-		query = string(bs)
+		query = util.ByteSliceToString(bs)
 	} else {
 		query = args[0]
 	}

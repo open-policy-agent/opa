@@ -220,13 +220,7 @@ func (d *levelDetail) format(sb *strings.Builder, depth int) {
 	}
 
 	if d.scalars.Len() > 0 {
-		scalars := make([]Value, 0, d.scalars.Len())
-		d.scalars.Iter(func(key Value, _ *trieNode) bool {
-			scalars = append(scalars, key)
-			return false
-		})
-		slices.SortFunc(scalars, Value.Compare)
-		for _, k := range scalars {
+		for _, k := range util.SortedFunc(d.scalars.Keys(), Value.Compare) {
 			child, _ := d.scalars.Get(k)
 			sb.WriteString(indent)
 			sb.WriteString("  ")
@@ -237,13 +231,7 @@ func (d *levelDetail) format(sb *strings.Builder, depth int) {
 	}
 
 	if d.members.Len() > 0 {
-		members := make([]Value, 0, d.members.Len())
-		d.members.Iter(func(key Value, _ *trieNode) bool {
-			members = append(members, key)
-			return false
-		})
-		slices.SortFunc(members, Value.Compare)
-		for _, k := range members {
+		for _, k := range util.SortedFunc(d.members.Keys(), Value.Compare) {
 			child, _ := d.members.Get(k)
 			sb.WriteString(indent)
 			sb.WriteString("  has ")

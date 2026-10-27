@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func GetLevel(level string) (logging.Level, error) {
@@ -74,9 +75,9 @@ func (*prettyFormatter) Format(e *logrus.Entry) ([]byte, error) {
 				sb.WriteByte('\n')
 				stringVal = sb.String()
 			}
-		} else if ok && json.Valid([]byte(stringVal)) {
+		} else if ok && json.Valid(util.StringToByteSlice(stringVal)) {
 			var tmp bytes.Buffer
-			err := json.Indent(&tmp, []byte(stringVal), spaces(multiLineIndent), spaces(2))
+			err := json.Indent(&tmp, util.StringToByteSlice(stringVal), spaces(multiLineIndent), spaces(2))
 			if err != nil {
 				return nil, err
 			}

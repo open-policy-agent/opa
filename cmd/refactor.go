@@ -188,10 +188,10 @@ func parseSrcDstMap(data []string) (map[string]string, error) {
 		if !ok {
 			return nil, newError("expected mapping of the form <from>:<to>")
 		}
-		keys := obj.Keys()
-		if len(keys) != 1 {
+		if obj.Len() != 1 {
 			return nil, newError("expected mapping of the form <from>:<to>")
 		}
+		keys := obj.Keys()
 		result[keys[0].String()] = obj.Get(keys[0]).String()
 	}
 	return result, nil

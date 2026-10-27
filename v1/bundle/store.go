@@ -810,7 +810,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		}
 		var module *ast.Module
 		if !erase {
-			if module, err = ast.ParseModuleWithOpts(id, string(bs), parserOptsFor(id)); err != nil {
+			if module, err = ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), parserOptsFor(id)); err != nil {
 				return nil, nil, err
 			}
 			if erase, err = underRoots(module.Package, roots); err != nil {
@@ -859,7 +859,7 @@ func packageOnly(bs []byte) *ast.Package {
 		if !bytes.HasPrefix(line, []byte("package ")) {
 			return nil
 		}
-		pkg, err := ast.ParsePackage(string(line))
+		pkg, err := ast.ParsePackage(util.ByteSliceToString(line))
 		if err != nil {
 			return nil
 		}

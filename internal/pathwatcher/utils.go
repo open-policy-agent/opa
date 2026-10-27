@@ -75,7 +75,7 @@ func ProcessWatcherUpdateForRegoVersion(ctx context.Context, popts ast.ParserOpt
 					if err != nil {
 						return err
 					}
-					module, err := ast.ParseModuleWithOpts(id, string(bs), popts)
+					module, err := ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), popts)
 					if err != nil {
 						return err
 					}

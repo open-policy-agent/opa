@@ -1567,9 +1567,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		evalArgs = append(evalArgs, EvalNDBuiltinCache(r.ndBuiltinCache))
 	}
 
-	for _, qt := range r.queryTracers {
-		evalArgs = append(evalArgs, EvalQueryTracer(qt))
-	}
+	evalArgs = util.MapAppend(evalArgs, r.queryTracers, EvalQueryTracer)
 
 	for i := range r.resolvers {
 		evalArgs = append(evalArgs, EvalResolver(r.resolvers[i].ref, r.resolvers[i].r))
@@ -1646,9 +1644,7 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		evalArgs = append(evalArgs, EvalNDBuiltinCache(r.ndBuiltinCache))
 	}
 
-	for _, t := range r.queryTracers {
-		evalArgs = append(evalArgs, EvalQueryTracer(t))
-	}
+	evalArgs = util.MapAppend(evalArgs, r.queryTracers, EvalQueryTracer)
 
 	for i := range r.resolvers {
 		evalArgs = append(evalArgs, EvalResolver(r.resolvers[i].ref, r.resolvers[i].r))
@@ -2058,7 +2054,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 			return err
 		}
 
-		parsed, err := ast.ParseModuleWithOpts(id, string(bs), popts)
+		parsed, err := ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), popts)
 		if err != nil {
 			errs = append(errs, err)
 		}

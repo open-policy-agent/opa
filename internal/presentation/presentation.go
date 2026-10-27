@@ -518,7 +518,7 @@ func prettyASTNode(x any, regoVersion ast.RegoVersionSpan) (string, error) {
 		return "", fmt.Errorf("format error: %w", err)
 	}
 
-	return strings.Trim(strings.ReplaceAll(string(bs), "\t", "  "), "\n"), nil
+	return strings.Trim(strings.ReplaceAll(util.ByteSliceToString(bs), "\t", "  "), "\n"), nil
 }
 
 func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
@@ -653,7 +653,7 @@ func printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Resu
 			buf = append(buf, err.Error())
 			continue
 		}
-		buf = append(buf, checkStrLimit(string(js), prettyLimit))
+		buf = append(buf, checkStrLimit(util.ByteSliceToString(js), prettyLimit))
 	}
 
 	_ = table.Append(util.ToSliceOf[any](buf)...)
@@ -700,17 +700,13 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 	for varName, varValueInterface := range m.All() {
 		val, ok := varValueInterface.(map[string]any)
 		if !ok {
-			line := make([]string, 0, 2)
-			varValue := checkStrLimit(fmt.Sprintf("%v", varValueInterface), prettyLimit)
-			line = append(line, varName, varValue)
-			lines = append(lines, line)
+			varValue := checkStrLimit(fmt.Sprint(varValueInterface), prettyLimit)
+			lines = append(lines, []string{varName, varValue})
 		} else {
 			for k, v := range val {
-				line := make([]string, 0, 2)
 				newVarName := fmt.Sprintf("%v_%v", varName, k)
-				value := checkStrLimit(fmt.Sprintf("%v", v), prettyLimit)
-				line = append(line, newVarName, value)
-				lines = append(lines, line)
+				value := checkStrLimit(fmt.Sprint(v), prettyLimit)
+				lines = append(lines, []string{newVarName, value})
 			}
 		}
 	}
@@ -729,7 +725,7 @@ func populateTableAggregatedMetrics(ms map[string]any, table *tablewriter.Table,
 		line = append(line, name)
 		vs := vals.(map[string]any)
 		for _, k := range statKeys {
-			line = append(line, checkStrLimit(fmt.Sprintf("%v", vs[k]), prettyLimit))
+			line = append(line, checkStrLimit(fmt.Sprint(vs[k]), prettyLimit))
 		}
 		lines = append(lines, line)
 	}
