@@ -2926,6 +2926,16 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 			err: "rule data.pkg.p.q conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:4",
 		},
 		{
+			note: "single-value rule inside extent of single-value rule, var-ref parent not reported (regression test for #5869)",
+			modules: modules(
+				`package pkg
+				p[k] := v if { k := input.key; v := input.value }
+				p.q := v if { v := input.value }
+				p.q.r := v if { v := input.value }
+				`),
+			err: "rule data.pkg.p.q conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:4",
+		},
+		{
 			note: "multi-value rule (dots and var in head) with other rule (ref) overlap",
 			modules: modules(
 				`package pkg
