@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/compile"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -145,9 +146,7 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 			Parsed: module,
 		})
 	}
-	slices.SortFunc(modules, func(a, b bundle.ModuleFile) int {
-		return strings.Compare(a.URL, b.URL)
-	})
+	slices.SortFunc(modules, urlCompare)
 
 	// Compile the bundle out into a buffer
 	buf := bytes.NewBuffer(nil)
@@ -450,26 +449,22 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	slices.SortFunc(modules, func(a, b bundle.ModuleFile) int {
-		return strings.Compare(a.URL, b.URL)
-	})
 
 	// Compile the bundle out into a buffer
 	buf := bytes.NewBuffer(nil)
 	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{
 		Data:     data,
-		Modules:  modules,
+		Modules:  util.SortedFunc(modules, urlCompare),
 		Manifest: manifest,
 	}).Build(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
-		return
+	} else {
+		// Write out the bundle
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, buf)
 	}
-
-	// Write out the bundle
-	w.WriteHeader(http.StatusOK)
-	_, _ = io.Copy(w, buf)
 }
 
 func (s *Server) handleRawBundles(w http.ResponseWriter, r *http.Request) {
@@ -489,4 +484,8 @@ func (s *Server) handleRawBundles(w http.ResponseWriter, r *http.Request) {
 	// Write out the bundle
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, buf)
+}
+
+func urlCompare(a, b bundle.ModuleFile) int {
+	return strings.Compare(a.URL, b.URL)
 }

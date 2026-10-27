@@ -253,8 +253,7 @@ func (c Config) PluginNames() (result []string) {
 	for name := range c.Plugins {
 		result = append(result, name)
 	}
-	slices.Sort(result)
-	return result
+	return util.Sorted(result)
 }
 
 // PluginsEnabled returns true if one or more plugin features are enabled.

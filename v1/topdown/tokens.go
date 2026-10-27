@@ -30,6 +30,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const headerJwt = "JWT"
@@ -911,8 +912,7 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 		return fmt.Errorf("missing or invalid 'alg' header: %w", err)
 	}
 	// Make sure the algorithm is supported.
-	_, ok = tokenAlgorithms[algStr]
-	if !ok {
+	if _, ok = tokenAlgorithms[algStr]; !ok {
 		return fmt.Errorf("unknown JWS algorithm: %s", algStr)
 	}
 
@@ -928,7 +928,7 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 		return err
 	}
 
-	jwsCompact := string(payload) + "." + base64.RawURLEncoding.EncodeToString(signature)
+	jwsCompact := util.ByteSliceToString(payload) + "." + base64.RawURLEncoding.EncodeToString(signature)
 
 	return iter(ast.StringTerm(jwsCompact))
 }

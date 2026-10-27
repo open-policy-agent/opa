@@ -89,7 +89,7 @@ func GenerateInput(profile DataSetProfile, mode InputMode) (any, any) {
 		allow = true
 	}
 
-	return util.MustUnmarshalJSON([]byte(input)), allow
+	return util.MustUnmarshalJSON(util.StringToByteSlice(input)), allow
 }
 
 // GenerateDataset will generate a dataset for the given DatasetProfile

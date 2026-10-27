@@ -109,9 +109,6 @@ type Store struct {
 }
 
 const (
-	// metadataKey is a special value in the store for tracking schema versions.
-	metadataKey = "metadata"
-
 	// supportedSchemaVersion represents the version of the store supported by
 	// this OPA.
 	supportedSchemaVersion int64 = 1
@@ -122,6 +119,11 @@ const (
 
 	// symlink to directory path where badger write its files to
 	symlinkKey = "active"
+)
+
+var (
+	// metadataKey is a special value in the store for tracking schema versions.
+	metadataKey = [...]byte{'m', 'e', 't', 'a', 'd', 'a', 't', 'a'}
 )
 
 type metadata struct {
@@ -691,7 +693,7 @@ func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 
 func (*Store) loadMetadata(txn *badger.Txn, m *metadata) (bool, error) {
 
-	item, err := txn.Get([]byte(metadataKey))
+	item, err := txn.Get(metadataKey[:])
 	if err != nil {
 		if err != badger.ErrKeyNotFound {
 			return false, wrapError(err)
@@ -713,13 +715,12 @@ func (*Store) loadMetadata(txn *badger.Txn, m *metadata) (bool, error) {
 }
 
 func (*Store) setMetadata(txn *badger.Txn, m metadata) error {
-
 	bs, err := json.Marshal(m)
 	if err != nil {
 		return wrapError(err)
 	}
 
-	return wrapError(txn.Set([]byte(metadataKey), bs))
+	return wrapError(txn.Set(metadataKey[:], bs))
 }
 
 func (db *Store) init(ctx context.Context, txn *badger.Txn, partitions []storage.Path) error {

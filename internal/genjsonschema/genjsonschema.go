@@ -17,6 +17,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // TypeResolver returns a JSON Schema for t and reports handled=true to short
@@ -66,13 +68,8 @@ func (b *Builder) AllowAdditionalProperties(t reflect.Type) {
 // DefsOrdered returns the accumulated $defs in name-sorted order so the
 // rendered schema is byte-stable across runs.
 func (b *Builder) DefsOrdered() OrderedMap {
-	names := make([]string, 0, len(b.defs))
-	for n := range b.defs {
-		names = append(names, n)
-	}
-	slices.Sort(names)
-	out := make(OrderedMap, 0, len(names))
-	for _, n := range names {
+	out := make(OrderedMap, 0, len(b.defs))
+	for _, n := range util.KeysSorted(b.defs) {
 		out = append(out, Entry{n, b.defs[n]})
 	}
 	return out

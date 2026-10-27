@@ -571,8 +571,8 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 	if tlsClientCertEnvVar != "" && tlsClientKeyEnvVar != "" {
 		cert, err := tls.X509KeyPair(
-			[]byte(os.Getenv(tlsClientCertEnvVar)),
-			[]byte(os.Getenv(tlsClientKeyEnvVar)))
+			util.StringToByteSlice(os.Getenv(tlsClientCertEnvVar)),
+			util.StringToByteSlice(os.Getenv(tlsClientKeyEnvVar)))
 		if err != nil {
 			return nil, nil, fmt.Errorf("cannot extract public/private key pair from envvars %q, %q: %w",
 				tlsClientCertEnvVar, tlsClientKeyEnvVar, err)

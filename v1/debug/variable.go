@@ -6,11 +6,11 @@ package debug
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type Variable interface {
@@ -102,11 +102,9 @@ func (vs *variableManager) vars(varRef VarRef) ([]Variable, error) {
 		}
 	}
 
-	slices.SortFunc(vars, func(a, b Variable) int {
+	return util.SortedFunc(vars, func(a, b Variable) int {
 		return strings.Compare(a.Name(), b.Name())
-	})
-
-	return vars, nil
+	}), nil
 }
 
 // truncatedString truncates s to at most max characters. When max <= 3 it returns

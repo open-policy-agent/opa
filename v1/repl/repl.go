@@ -38,6 +38,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
+	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/version"
 )
 
@@ -723,7 +724,8 @@ func (r *REPL) cmdShow(args []string) error {
 		if err != nil {
 			return fmt.Errorf("error: %v", err)
 		}
-		fmt.Fprintln(r.output, string(b))
+		r.output.Write(append(b, '\n'))
+
 		return nil
 	}
 	return fmt.Errorf("unknown option '%v'", args[0])
@@ -1682,7 +1684,7 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 			RegoVersion: r.regoVersion,
 		}
 
-		parsed, err := ast.ParseModuleWithOpts(id, string(bs), popts)
+		parsed, err := ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), popts)
 		if err != nil {
 			return nil, err
 		}

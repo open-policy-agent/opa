@@ -10,6 +10,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // astValueToJSONSchemaLoader converts a value to JSON Loader.
@@ -23,7 +24,7 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 	case ast.String:
 		// In case of string pass it as is as a raw JSON string.
 		// Make pre-check that it's a valid JSON at all because gojsonschema won't do that.
-		if !json.Valid([]byte(x)) {
+		if !json.Valid(util.StringToByteSlice(x)) {
 			return nil, errors.New("invalid JSON string")
 		}
 		loader = gojsonschema.NewStringLoader(string(x))

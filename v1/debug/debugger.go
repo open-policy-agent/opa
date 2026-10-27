@@ -283,7 +283,7 @@ func (lp LaunchProperties) String() string {
 	if err != nil {
 		return "{}"
 	}
-	return string(b)
+	return util.ByteSliceToString(b)
 }
 
 func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, opts ...LaunchOption) (Session, error) {

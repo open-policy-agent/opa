@@ -63,7 +63,7 @@ func NewKeyConfig(key, alg, scope string) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		pubKey = string(bs)
+		pubKey = util.ByteSliceToString(bs)
 	} else if os.IsNotExist(err) {
 		pubKey = key
 	} else {

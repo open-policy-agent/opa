@@ -199,3 +199,13 @@ func TestStringToByteSlice(t *testing.T) {
 		}
 	}
 }
+
+func TestByteSliceToString(t *testing.T) {
+	for _, bs := range [][]byte{{}, []byte("a"), []byte("foo/bar")} {
+		str := ByteSliceToString(bs)
+
+		if str != string(bs) {
+			t.Errorf("ByteSliceToString(%q) = %q; expected %q", bs, str, string(bs))
+		}
+	}
+}

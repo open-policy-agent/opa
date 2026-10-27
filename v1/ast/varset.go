@@ -121,5 +121,5 @@ func (s VarSet) Update(vs VarSet) {
 }
 
 func (s VarSet) String() string {
-	return fmt.Sprintf("%v", util.KeysSorted(s))
+	return fmt.Sprint(util.KeysSorted(s))
 }

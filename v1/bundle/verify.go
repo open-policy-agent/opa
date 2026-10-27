@@ -24,11 +24,11 @@ import (
 func parseVerificationKey(keyData string, alg jwa.SignatureAlgorithm) (any, error) {
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
-		return []byte(keyData), nil
+		return util.StringToByteSlice(keyData), nil
 	}
 
 	// For RSA/ECDSA algorithms, try to parse as PEM first
-	block, _ := pem.Decode([]byte(keyData))
+	block, _ := pem.Decode(util.StringToByteSlice(keyData))
 	if block != nil {
 		switch block.Type {
 		case "RSA PUBLIC KEY":
@@ -116,8 +116,7 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 }
 
 func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignature, error) {
-	tokbytes := []byte(token)
-	hdrb64, payloadb64, signatureb64, err := jwsbb.SplitCompact(tokbytes)
+	hdrb64, payloadb64, signatureb64, err := jwsbb.SplitCompact(util.StringToByteSlice(token))
 	if err != nil {
 		return nil, fmt.Errorf("failed to split compact JWT: %w", err)
 	}

@@ -6,10 +6,12 @@
 package strings
 
 import (
+	"bytes"
 	"path/filepath"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/lcss"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // TruncateFilePaths truncates the given file paths to conform to the given
@@ -19,7 +21,7 @@ func TruncateFilePaths(maxIdealWidth, maxWidth int, path ...string) (map[string]
 	canShorten := make([][]byte, 0, len(path))
 
 	for _, p := range path {
-		canShorten = append(canShorten, []byte(getPathFromFirstSeparator(p)))
+		canShorten = append(canShorten, getPathFromFirstSeparator(p))
 	}
 
 	// Find the longest common path segment
@@ -71,12 +73,14 @@ func Truncate(str string, maxWidth int) string {
 	return str[:maxWidth-3] + "..."
 }
 
-func getPathFromFirstSeparator(path string) string {
+func getPathFromFirstSeparator(path string) []byte {
 	s := filepath.Dir(path)
 	s = strings.TrimPrefix(s, string(filepath.Separator))
-	firstSlash := strings.IndexRune(s, filepath.Separator)
+	b := util.StringToByteSlice(s)
+
+	firstSlash := bytes.IndexRune(b, filepath.Separator)
 	if firstSlash > 0 {
-		return s[firstSlash+1:]
+		return b[firstSlash+1:]
 	}
-	return s
+	return b
 }

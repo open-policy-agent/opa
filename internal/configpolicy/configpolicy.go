@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 
@@ -104,8 +103,7 @@ func (p *Policy) Eval(ctx context.Context, input any) (map[string]any, []string,
 	}
 
 	if errs := StringSet(doc["errors"]); len(errs) > 0 {
-		slices.Sort(errs)
-		return nil, nil, errors.New(strings.Join(errs, "; "))
+		return nil, nil, errors.New(strings.Join(util.Sorted(errs), "; "))
 	}
 
 	processed, ok := doc["processed"].(map[string]any)
@@ -113,8 +111,7 @@ func (p *Policy) Eval(ctx context.Context, input any) (map[string]any, []string,
 		return nil, nil, fmt.Errorf("%s: policy did not produce a processed configuration", p.name)
 	}
 
-	warnings := StringSet(doc["warnings"])
-	slices.Sort(warnings)
+	warnings := util.Sorted(StringSet(doc["warnings"]))
 
 	return processed, warnings, nil
 }

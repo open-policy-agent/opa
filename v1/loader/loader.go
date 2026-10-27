@@ -843,7 +843,7 @@ func loadRego(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions)
 	m.Timer(metrics.RegoModuleParse).Start()
 	var module *ast.Module
 	var err error
-	module, err = ast.ParseModuleWithOpts(path, string(bs), opts)
+	module, err = ast.ParseModuleWithOpts(path, util.ByteSliceToString(bs), opts)
 	m.Timer(metrics.RegoModuleParse).Stop()
 	if err != nil {
 		return nil, err

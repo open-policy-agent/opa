@@ -93,7 +93,7 @@ type (
 
 func (a *Annotations) String() string {
 	bs, _ := a.MarshalJSON()
-	return string(bs)
+	return util.ByteSliceToString(bs)
 }
 
 func (a *Annotations) AppendText(buf []byte) ([]byte, error) {
@@ -602,7 +602,7 @@ func (rr *RelatedResourceAnnotation) Compare(other *RelatedResourceAnnotation) i
 
 func (rr *RelatedResourceAnnotation) String() string {
 	bs, _ := json.Marshal(rr)
-	return string(bs)
+	return util.ByteSliceToString(bs)
 }
 
 // UnmarshalJSON decodes a related resource whose ref is a URI string.
@@ -679,7 +679,7 @@ func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
 
 func (s *SchemaAnnotation) String() string {
 	bs, _ := json.Marshal(s)
-	return string(bs)
+	return util.ByteSliceToString(bs)
 }
 
 func (s *SchemaAnnotation) toTerm() (*Term, error) {
@@ -730,7 +730,7 @@ func (c *CompileAnnotation) Compare(other *CompileAnnotation) int {
 
 func (c *CompileAnnotation) String() string {
 	bs, _ := json.Marshal(c)
-	return string(bs)
+	return util.ByteSliceToString(bs)
 }
 
 func newAnnotationSet() *AnnotationSet {
@@ -921,7 +921,7 @@ func (as *AnnotationSet) MergedLabels(rule *Rule) (labels map[string]any, key st
 	labels = mergeChainLabels(as.Chain(rule))
 	if len(labels) > 0 {
 		b, _ := json.Marshal(labels)
-		key = string(b)
+		key = util.ByteSliceToString(b)
 	}
 	return labels, key
 }

@@ -356,6 +356,11 @@ func NewObject(static []*StaticProperty, dynamic *DynamicProperty) *Object {
 	}
 }
 
+// Len returns the number of static properties in the object.
+func (t *Object) Len() int {
+	return len(t.static)
+}
+
 func (t *Object) String() string {
 	prefix := "object"
 	buf := make([]string, 0, len(t.static))
@@ -826,10 +831,7 @@ type FuncArgs struct {
 }
 
 func (a FuncArgs) String() string {
-	buf := make([]string, 0, len(a.Args)+1)
-	for i := range a.Args {
-		buf = append(buf, Sprint(a.Args[i]))
-	}
+	buf := util.Map(a.Args, Sprint)
 	if a.Variadic != nil {
 		buf = append(buf, Sprint(a.Variadic)+"...")
 	}

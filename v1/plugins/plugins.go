@@ -1211,7 +1211,7 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 		if err != nil {
 			return nil, err
 		}
-		module, err := ast.ParseModuleWithOpts(policy, string(bs), popts)
+		module, err := ast.ParseModuleWithOpts(policy, util.ByteSliceToString(bs), popts)
 		if err != nil {
 			return nil, err
 		}

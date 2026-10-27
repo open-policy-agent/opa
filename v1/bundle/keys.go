@@ -152,7 +152,7 @@ func (s *SigningConfig) GetPrivateKey() (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			keyData = string(bs)
+			keyData = util.ByteSliceToString(bs)
 		} else if os.IsNotExist(err) {
 			// Not a file, treat as raw key data
 			keyData = s.Key
@@ -163,11 +163,11 @@ func (s *SigningConfig) GetPrivateKey() (any, error) {
 
 	// For HMAC algorithms, return the key as bytes
 	if alg == jwa.HS256() || alg == jwa.HS384() || alg == jwa.HS512() {
-		return []byte(keyData), nil
+		return util.StringToByteSlice(keyData), nil
 	}
 
 	// For RSA/ECDSA algorithms, parse the PEM-encoded key
-	block, _ := pem.Decode([]byte(keyData))
+	block, _ := pem.Decode(util.StringToByteSlice(keyData))
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}

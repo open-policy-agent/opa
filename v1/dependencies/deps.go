@@ -31,7 +31,7 @@ func All(x any) (resolved []ast.Ref, err error) {
 			// when the preceding ones are undefined, so their dependencies
 			// count as dependencies of the rule.
 			for rule := x; rule != nil; rule = rule.Else {
-				rawResolved = append(rawResolved, ruleDeps(rule)...)
+				rawResolved = appendRuleDeps(rawResolved, rule)
 			}
 			return true
 		case ast.Body:
@@ -40,11 +40,10 @@ func All(x any) (resolved []ast.Ref, err error) {
 			// The analysis will discard variables that are not used in
 			// direct comparisons or in the output. Since lone Bodies are
 			// often queries, we want all the variables to be in the output.
-			r := &ast.Rule{
+			rawResolved = appendRuleDeps(rawResolved, &ast.Rule{
 				Head: &ast.Head{Name: ast.Var("_"), Value: ast.ArrayTerm(util.MapKeys(vars.Vars(), ast.ToTerm)...)},
 				Body: x,
-			}
-			rawResolved = append(rawResolved, ruleDeps(r)...)
+			})
 			return true
 		case ast.Ref:
 			rawResolved = append(rawResolved, x)
@@ -231,7 +230,7 @@ func filter(rs []ast.Ref, pred func(ast.Ref, ast.Ref) bool) (filtered []ast.Ref)
 //  1. perform syntactic unification on vars
 //  2. gather all refs rooted at data after plugging the head with substitution
 //     from (1)
-func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
+func appendRuleDeps(resolved []ast.Ref, rule *ast.Rule) []ast.Ref {
 	vars, others := extractEq(rule.Body)
 	joined := joinVarRefs(vars)
 

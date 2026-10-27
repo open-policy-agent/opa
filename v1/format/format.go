@@ -2345,11 +2345,9 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) ([
 		}
 
 		// Sort imports within a newline grouping.
-		slices.SortFunc(group, (*ast.Import).Compare)
-		for _, i := range group {
+		for _, i := range util.SortedFunc(group, (*ast.Import).Compare) {
 			w.startLine()
-			err = w.writeImport(i)
-			if err != nil {
+			if err = w.writeImport(i); err != nil {
 				return nil, err
 			}
 			if c, ok := m[i]; ok {

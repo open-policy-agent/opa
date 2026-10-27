@@ -1058,7 +1058,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	switch p.s.tok {
 	case tokens.LBrace, tokens.If: // no value, but a body follows directly
 		rule.Head.generatedValue = true
-		rule.Head.Value = BooleanTerm(true)
+		rule.Head.Value = InternedBooleanTrue
 	case tokens.Assign, tokens.Unify:
 		rule.Head.Assign = tokens.Assign == p.s.tok
 		p.scan()
@@ -1098,7 +1098,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 			return nil
 		}
 		rule.Body.Append(expr)
-		setLocRecursive(rule.Body, rule.Location)
+		setLocRecursiveBody(rule.Body, rule.Location)
 	} else {
 		p.illegal("rule body expected")
 		return nil
@@ -2083,7 +2083,7 @@ func (p *Parser) errorAmbiguousUnionBody(loc *Location, braceOffset int, body Bo
 	braces := p.s.Text(braceOffset, p.s.lastEnd)
 
 	// Parenthesizing only the union keeps any trailing expressions of the body.
-	union := string(braces)
+	union := util.ByteSliceToString(braces)
 	if e := body[0].Location; e != nil {
 		if rel := e.Offset - braceOffset; rel > 0 && rel+len(e.Text) <= len(braces) {
 			union = fmt.Sprintf("%s(%s)%s", braces[:rel], e.Text, braces[rel+len(e.Text):])
@@ -3511,6 +3511,13 @@ func setLocRecursive(x any, loc *location.Location) {
 		n.SetLoc(loc)
 		return false
 	})
+}
+
+// avoid allocating body -> any boxing
+func setLocRecursiveBody(body Body, loc *location.Location) {
+	for _, expr := range body {
+		setLocRecursive(expr, loc)
+	}
 }
 
 func (p *Parser) setLoc(term *Term, loc *location.Location, offset, end int) *Term {

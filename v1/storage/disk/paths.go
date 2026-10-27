@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const pathWildcard = "*"
@@ -143,8 +144,5 @@ func (ps pathSet) Contains(x storage.Path) bool {
 }
 
 func (ps pathSet) Sorted() []storage.Path {
-	cpy := make(pathSet, len(ps))
-	copy(cpy, ps)
-	slices.SortFunc(cpy, storage.Path.Compare)
-	return cpy
+	return util.SortedFunc(slices.Clone(ps), storage.Path.Compare)
 }

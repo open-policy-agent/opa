@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"slices"
 	"strings"
 	"sync"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // maxActivationRetry represents the maximum number of attempts
@@ -343,8 +343,8 @@ func (p *Plugin) NotActivated() []string {
 			names = append(names, name)
 		}
 	}
-	slices.Sort(names)
-	return names
+
+	return util.Sorted(names)
 }
 
 func activated(status *Status) bool {

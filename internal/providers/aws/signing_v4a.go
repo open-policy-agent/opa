@@ -24,6 +24,7 @@ import (
 
 	signerCrypto "github.com/open-policy-agent/opa/internal/providers/aws/crypto"
 	v4Internal "github.com/open-policy-agent/opa/internal/providers/aws/v4"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (
@@ -305,9 +306,8 @@ func (*httpSigner) buildCanonicalHeaders(host string, rule v4Internal.Rule, head
 		headers = append(headers, lowerCaseKey)
 		signed[lowerCaseKey] = v
 	}
-	slices.Sort(headers)
 
-	signedHeaders = strings.Join(headers, ";")
+	signedHeaders = strings.Join(util.Sorted(headers), ";")
 
 	var canonicalHeaders strings.Builder
 	n := len(headers)

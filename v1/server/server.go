@@ -2136,7 +2136,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	resp := types.PolicyGetResponseV1{
 		Result: types.PolicyV1{
 			ID:  path,
-			Raw: string(bs),
+			Raw: util.ByteSliceToString(bs),
 			AST: s.getCompiler().Modules[path],
 		},
 	}
@@ -2173,7 +2173,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		}
 		policy := types.PolicyV1{
 			ID:  id,
-			Raw: string(bs),
+			Raw: util.ByteSliceToString(bs),
 			AST: c.Modules[id],
 		}
 		policies = append(policies, policy)
@@ -2459,7 +2459,7 @@ func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction
 		return err
 	}
 
-	module, err := ast.ParseModuleWithOpts(id, string(bs), s.manager.ParserOptions())
+	module, err := ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), s.manager.ParserOptions())
 	if err != nil {
 		return err
 	}
@@ -2595,7 +2595,7 @@ func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[
 			return nil, err
 		}
 
-		parsed, err := ast.ParseModuleWithOpts(id, string(bs), s.manager.ParserOptions())
+		parsed, err := ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), s.manager.ParserOptions())
 		if err != nil {
 			return nil, err
 		}
@@ -2924,7 +2924,7 @@ func readInputV0(r *http.Request) (ast.Value, *any, error) {
 
 func readInputGetV1(str string) (ast.Value, *any, error) {
 	var input any
-	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
+	if err := util.UnmarshalJSON(util.StringToByteSlice(str), &input); err != nil {
 		return nil, nil, fmt.Errorf("parameter contains malformed input document: %w", err)
 	}
 	v, err := ast.InterfaceToValue(input)

@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (
@@ -282,8 +283,8 @@ func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 
 	// Use sink writer for cancellation-aware replacement
 	sink := newSink(ast.RegexReplace.Name, len(base), bctx.Cancel)
-	src := []byte(base)
-	repl := []byte(value)
+	src := util.StringToByteSlice(base)
+	repl := util.StringToByteSlice(value)
 
 	// Find all matches at once to preserve anchor behavior: replace("foo", "^[a-z]", "F") => "Foo"
 	allMatches := re.FindAllSubmatchIndex(src, -1)
