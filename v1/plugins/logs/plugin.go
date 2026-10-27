@@ -828,6 +828,16 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		event.RequestContext = &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: headers}}
 	}
 
+	// Metrics and Error must be attached before the policy input is built, otherwise
+	// the mask and drop policies cannot observe them. EventV1.AST() serializes both.
+	if decision.Metrics != nil {
+		event.Metrics = decision.Metrics.All()
+	}
+
+	if decision.Error != nil {
+		event.Error = decision.Error
+	}
+
 	input, err := event.AST()
 	if err != nil {
 		return err
@@ -842,14 +852,6 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	if drop {
 		p.logger.Debug("Decision log event to path %v dropped", event.Path)
 		return nil
-	}
-
-	if decision.Metrics != nil {
-		event.Metrics = decision.Metrics.All()
-	}
-
-	if decision.Error != nil {
-		event.Error = decision.Error
 	}
 
 	if err := p.maskEvent(ctx, decision.Txn, input, &event); err != nil {
