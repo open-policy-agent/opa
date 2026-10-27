@@ -13875,6 +13875,82 @@ func TestQueryCompilerRewriteTemplateStringsErrors(t *testing.T) {
 	}
 }
 
+// The query compiler has no module, so the compiler's default Rego version decides
+// whether the rego_v2 feature implies template_strings.
+func TestQueryCompilerTemplateStringsCapabilities(t *testing.T) {
+	caps := func(v RegoVersion, without ...string) *Capabilities {
+		c := CapabilitiesForThisVersion(CapabilitiesRegoVersion(v))
+		c.Features = slices.DeleteFunc(c.Features, func(f string) bool {
+			return slices.Contains(without, f)
+		})
+		return c
+	}
+
+	const expErr = "rego_compile_error: template-strings are not supported"
+
+	cases := []struct {
+		note   string
+		regoV  RegoVersion
+		caps   *Capabilities
+		expErr string
+	}{
+		{
+			note:  "v1 default, v1 capabilities",
+			regoV: RegoV1,
+			caps:  caps(RegoV1),
+		},
+		{
+			note:   "v1 default, v0 capabilities",
+			regoV:  RegoV1,
+			caps:   caps(RegoV0),
+			expErr: expErr,
+		},
+		{
+			note:   "v1 default, v1 capabilities without template_strings",
+			regoV:  RegoV1,
+			caps:   caps(RegoV1, FeatureTemplateStrings),
+			expErr: expErr,
+		},
+		{
+			note:  "v2 default, v0 capabilities",
+			regoV: RegoV2,
+			caps:  caps(RegoV0),
+		},
+		{
+			note:  "v2 default, v1 capabilities without template_strings",
+			regoV: RegoV2,
+			caps:  caps(RegoV1, FeatureTemplateStrings),
+		},
+		{
+			note:   "v2 default, v1 capabilities without template_strings and rego_v2",
+			regoV:  RegoV2,
+			caps:   caps(RegoV1, FeatureTemplateStrings, FeatureRegoV2),
+			expErr: expErr,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithCapabilities(tc.caps).WithDefaultRegoVersion(tc.regoV)
+
+			// The query is parsed with the default capabilities; only compilation is under test.
+			query := MustParseBodyWithOpts(`$"foo {input.x}"`, ParserOptions{RegoVersion: tc.regoV})
+
+			_, err := c.QueryCompiler().Compile(query)
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
 	t.Helper()
 	result := compilerErrsToStringSlice(compiler.Errors)
@@ -14068,6 +14144,7 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 	cases := []struct {
 		note        string
 		module      string
+		regoVersion RegoVersion // zero value parses as the default version
 		features    []string
 		builtins    []*Builtin
 		expectedErr string
@@ -14387,6 +14464,29 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				InternalTemplateString,
 			},
 		},
+		{
+			note: "rego-v2 feature, v1 module, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			features:    []string{FeatureRegoV2},
+			expectedErr: "rego_compile_error: template-strings are not supported",
+		},
+		{
+			note: "rego-v2 feature, v2 module, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			regoVersion: RegoV2,
+			features:    []string{FeatureRegoV2},
+		},
+		{
+			note: "rego-v2 feature, no internal.template_string built-in, v2 module, template-string",
+			module: `package test
+				p := $"foo {42}"`,
+			regoVersion: RegoV2,
+			features:    []string{FeatureRegoV2},
+			builtins:    []*Builtin{},
+			expectedErr: "rego_compile_error: template-strings are not supported",
+		},
 	}
 
 	for _, tc := range cases {
@@ -14399,7 +14499,10 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			}
 
 			// Modules are parsed with full set of capabilities
-			mod := module(tc.module)
+			mod := module(tc.module, func(po ParserOptions) ParserOptions {
+				po.RegoVersion = tc.regoVersion
+				return po
+			})
 
 			compiler := NewCompiler().WithCapabilities(capabilities)
 			compiler.Compile(map[string]*Module{"test": mod})

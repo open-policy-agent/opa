@@ -2848,9 +2848,13 @@ func rewriterFromCompiler(c *Compiler) *templateStringRewriter {
 		arity:       c.GetArity,
 		safeRuleRef: c.isRefToKnownDefinedRule,
 		rewritten:   c.RewrittenVars,
-		capsSupport: c.capabilities.ContainsFeature(FeatureTemplateStrings) &&
-			c.capabilities.ContainsBuiltin(InternalTemplateString.Name),
+		capsSupport: c.supportsTemplateStrings(c.defaultRegoVersion),
 	}
+}
+
+func (c *Compiler) supportsTemplateStrings(v RegoVersion) bool {
+	return c.capabilities.ContainsFeatureAt(FeatureTemplateStrings, v) &&
+		c.capabilities.ContainsBuiltin(InternalTemplateString.Name)
 }
 
 func rewriterFromQueryCompiler(qc *queryCompiler, gen *localVarGenerator) *templateStringRewriter {
@@ -2871,6 +2875,7 @@ func (c *Compiler) rewriteTemplateStrings() {
 	modified := false
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
+		tsr.capsSupport = c.supportsTemplateStrings(c.moduleRegoVersion(mod).Min())
 		WalkRules(mod, func(r *Rule) bool {
 			// The output vars computed below are read only to resolve a template
 			// string, and most rules have none to resolve.

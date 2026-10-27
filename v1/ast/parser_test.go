@@ -352,21 +352,61 @@ func TestRefTermsContainingKeywords(t *testing.T) {
 	})
 }
 
-func dropCapabilityFeature(caps *Capabilities, feature string) *Capabilities {
-	feats := make([]string, 0, len(caps.Features))
-	for _, f := range caps.Features {
-		if f != feature {
-			feats = append(feats, f)
-		}
+func TestRefTermsContainingKeywords_ImpliedByRegoV2(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		caps        *Capabilities
+		expErr      bool
+	}{
+		{
+			note:        "v2 module, v2 capabilities",
+			regoVersion: RegoV2,
+			caps:        CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV2)),
+		},
+		{
+			note:        "v2 module, v2 capabilities without keywords_in_refs",
+			regoVersion: RegoV2,
+			caps:        removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV2)), FeatureKeywordsInRefs),
+		},
+		{
+			note:        "v1 module, v1 capabilities without keywords_in_refs",
+			regoVersion: RegoV1,
+			caps:        removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureKeywordsInRefs),
+			expErr:      true,
+		},
+		{
+			note:        "v0 module, v0 capabilities without keywords_in_refs",
+			regoVersion: RegoV0,
+			caps:        removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)), FeatureKeywordsInRefs),
+			expErr:      true,
+		},
 	}
-	caps.Features = feats
-	return caps
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := ParserOptions{RegoVersion: tc.regoVersion, Capabilities: tc.caps}
+			for _, kw := range KeywordsForRegoVersion(tc.regoVersion) {
+				t.Run(kw, func(t *testing.T) {
+					_, _, err := ParseStatementsWithOpts("", "foo."+kw, popts)
+					if tc.expErr && err == nil {
+						t.Fatal("expected error, got nil")
+					}
+					if !tc.expErr && err != nil {
+						t.Fatalf("unexpected error: %v", err)
+					}
+				})
+			}
+		})
+	}
 }
 
+// At RegoV2 the rego_v2 feature, which parsing requires, implies keywords_in_refs,
+// so the feature can't be turned off there. See TestRefTermsContainingKeywords_ImpliedByRegoV2.
 func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
-	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1, RegoV2} {
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
 		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(regoVersion))
-		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
+		caps = removeCapabilityFeature(caps, FeatureKeywordsInRefs)
 		popts := ParserOptions{RegoVersion: regoVersion, Capabilities: caps}
 
 		t.Run(regoVersion.String(), func(t *testing.T) {
@@ -527,7 +567,7 @@ func TestRefTermsContainingKeywords_NoCapability(t *testing.T) {
 
 	t.Run("v0 with future keywords", func(t *testing.T) {
 		caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
-		caps = dropCapabilityFeature(caps, FeatureKeywordsInRefs)
+		caps = removeCapabilityFeature(caps, FeatureKeywordsInRefs)
 		popts := ParserOptions{RegoVersion: RegoV0, Capabilities: caps}
 
 		for kw := range futureKeywordsV0 {
@@ -10183,27 +10223,74 @@ func TestTemplateStringError(t *testing.T) {
 }
 
 func TestTemplateStringCapabilities(t *testing.T) {
+	const errMsg = `rego_parse_error: template strings are not supported by current capabilities`
+
+	caps := func(v RegoVersion, drop ...string) *Capabilities {
+		c := CapabilitiesForThisVersion(CapabilitiesRegoVersion(v))
+		for _, f := range drop {
+			c = removeCapabilityFeature(c, f)
+		}
+		return c
+	}
+
 	tests := []struct {
-		note   string
-		caps   *Capabilities
-		expErr string
+		note        string
+		regoVersion RegoVersion
+		caps        *Capabilities
+		expErr      string
 	}{
 		{
 			note: "default capabilities",
 		},
 		{
-			note:   "v0 capabilities",
-			caps:   CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0)),
-			expErr: `rego_parse_error: template strings are not supported by current capabilities`,
+			note:        "v0 module, v0 capabilities",
+			regoVersion: RegoV0,
+			caps:        caps(RegoV0),
+			expErr:      errMsg,
 		},
 		{
-			note: "v1 capabilities",
-			caps: CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)),
+			note:        "v1 module, v0 capabilities",
+			regoVersion: RegoV1,
+			caps:        caps(RegoV0),
+			expErr:      errMsg,
 		},
 		{
-			note:   "v1 capabilities, missing feature",
-			caps:   removeCapabilityFeature(CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV1)), FeatureTemplateStrings),
-			expErr: `rego_parse_error: template strings are not supported by current capabilities`,
+			note:        "v2 module, v0 capabilities",
+			regoVersion: RegoV2,
+			caps:        caps(RegoV0),
+		},
+		{
+			note:        "v1 module, v1 capabilities",
+			regoVersion: RegoV1,
+			caps:        caps(RegoV1),
+		},
+		{
+			note:        "v1 module, v1 capabilities, missing template_strings",
+			regoVersion: RegoV1,
+			caps:        caps(RegoV1, FeatureTemplateStrings),
+			expErr:      errMsg,
+		},
+		{
+			note:        "v1 module, v1 capabilities, missing template_strings and rego_v2",
+			regoVersion: RegoV1,
+			caps:        caps(RegoV1, FeatureTemplateStrings, FeatureRegoV2),
+			expErr:      errMsg,
+		},
+		{
+			note:        "v2 module, v2 capabilities",
+			regoVersion: RegoV2,
+			caps:        caps(RegoV2),
+		},
+		{
+			note:        "v2 module, v2 capabilities, missing template_strings",
+			regoVersion: RegoV2,
+			caps:        caps(RegoV2, FeatureTemplateStrings),
+		},
+		{
+			note:        "v2 module, v2 capabilities, missing template_strings and rego_v2",
+			regoVersion: RegoV2,
+			caps:        caps(RegoV2, FeatureTemplateStrings, FeatureRegoV2),
+			expErr:      "illegal capabilities: rego_v2 feature required",
 		},
 	}
 
@@ -10211,7 +10298,7 @@ func TestTemplateStringCapabilities(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			_, _, err := ParseStatementsWithOpts("", expr, ParserOptions{Capabilities: tc.caps})
+			_, _, err := ParseStatementsWithOpts("", expr, ParserOptions{RegoVersion: tc.regoVersion, Capabilities: tc.caps})
 
 			if tc.expErr != "" {
 				if err == nil {
@@ -10225,6 +10312,19 @@ func TestTemplateStringCapabilities(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestTemplateStringCapabilitiesRegoV2Import(t *testing.T) {
+	// The rego.v2 import raises the module's max version only; it doesn't make the module a v2 module.
+	module := `package test
+		import rego.v2
+		p := $"foo {input.x}"`
+	caps := CapabilitiesForThisVersion(CapabilitiesRegoVersion(RegoV0))
+
+	_, err := ParseModuleWithOpts("", module, ParserOptions{RegoVersion: RegoV0, Capabilities: caps})
+	if err == nil || !strings.Contains(err.Error(), "template strings are not supported by current capabilities") {
+		t.Fatalf("expected template strings error, got: %v", err)
 	}
 }
 

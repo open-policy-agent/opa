@@ -2550,6 +2550,99 @@ p contains x if {
 	}
 }
 
+func TestBuildTemplateStringCapabilities(t *testing.T) {
+	const (
+		module = `package test
+					p := $"foo {input.x}"`
+		errMessage = "template strings are not supported by current capabilities"
+	)
+
+	tests := []struct {
+		note         string
+		regoVersion  int
+		capabilities *ast.Capabilities
+		expErr       string
+	}{
+		{
+			note:         "v1 module, v1 capabilities",
+			regoVersion:  1,
+			capabilities: capsWithoutFeat(ast.RegoV1),
+		},
+		{
+			note:         "v1 module, v1 capabilities without template_strings",
+			regoVersion:  1,
+			capabilities: capsWithoutFeat(ast.RegoV1, ast.FeatureTemplateStrings),
+			expErr:       errMessage,
+		},
+		{
+			note:         "v1 module, v0 capabilities",
+			regoVersion:  1,
+			capabilities: capsWithoutFeat(ast.RegoV0),
+			expErr:       errMessage,
+		},
+		{
+			note:         "v2 module, v2 capabilities",
+			regoVersion:  2,
+			capabilities: capsWithoutFeat(ast.RegoV2),
+		},
+		{
+			note:         "v2 module, v1 capabilities without template_strings",
+			regoVersion:  2,
+			capabilities: capsWithoutFeat(ast.RegoV1, ast.FeatureTemplateStrings),
+		},
+		{
+			note:         "v2 module, v0 capabilities",
+			regoVersion:  2,
+			capabilities: capsWithoutFeat(ast.RegoV0),
+		},
+		{
+			note:         "v2 module, v0 capabilities without rego_v2",
+			regoVersion:  2,
+			capabilities: capsWithoutFeat(ast.RegoV0, ast.FeatureRegoV2),
+			expErr:       "rego_v2 feature required",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				".manifest": fmt.Sprintf(`{"rego_version": %d}`, tc.regoVersion),
+				"test.rego": module,
+			}
+
+			test.WithTempFS(files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.capabilities.C = tc.capabilities
+				params.bundleMode = true // reads the input .manifest
+
+				err := dobuild(params, []string{root})
+
+				if tc.expErr != "" {
+					if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+						t.Fatalf("expected error containing %q, got: %v", tc.expErr, err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				b, err := loader.NewFileLoader().AsBundle(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if b.Manifest.RegoVersion == nil {
+					t.Fatalf("expected manifest rego_version %d, got none", tc.regoVersion)
+				}
+				if got := *b.Manifest.RegoVersion; got != tc.regoVersion {
+					t.Fatalf("expected manifest rego_version %d, got %d", tc.regoVersion, got)
+				}
+			})
+		})
+	}
+}
+
 func TestBuildWithCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note          string

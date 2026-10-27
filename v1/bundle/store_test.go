@@ -4803,6 +4803,47 @@ func TestActivate_LogicalKeywords(t *testing.T) {
 	}
 }
 
+// TestActivateTemplateStringCapabilities asserts that activation re-parses stored
+// modules with the activation capabilities.
+func TestActivateTemplateStringCapabilities(t *testing.T) {
+	for _, tc := range templateStringCapabilityCases() {
+		t.Run(tc.note, func(t *testing.T) {
+			store := mock.New()
+			txn := storage.NewTransactionOrDie(t.Context(), store, storage.WriteParams)
+
+			// Activation re-parses the module in the store outside the bundle's roots.
+			if err := store.UpsertPolicy(t.Context(), txn, "test/policy.rego", []byte(tc.module)); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			opts := ActivateOpts{
+				Ctx:      t.Context(),
+				Txn:      txn,
+				Store:    store,
+				Compiler: ast.NewCompiler(),
+				Metrics:  metrics.NoOp(),
+				Bundles: map[string]*Bundle{"bundle1": {
+					Manifest: Manifest{Roots: &[]string{"other"}},
+					Modules:  []ModuleFile{moduleFile("other/policy.rego", "package other")},
+				}},
+				ParserOptions: ast.ParserOptions{RegoVersion: tc.regoVersion, Capabilities: tc.caps},
+			}
+
+			err := Activate(&opts)
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
 // TestDeltaBundleActivate_LogicalKeywords asserts that activating a delta
 // bundle leaves the `and`/`or` modules of the snapshot bundle it patches
 // intact.
