@@ -22,7 +22,7 @@
     "eslint": "^10.11.0",
     "glob": "^13.0.6",
     "js-yaml": "^5.4.2",
-    "markdownlint-cli2": "^0.23.3",
+    "markdownlint-cli2": "^0.24.0",
     "md-front-matter": "^1.0.4",
     "raw-loader": "^4.0.2",
     "react-markdown": "^10.1.0",
