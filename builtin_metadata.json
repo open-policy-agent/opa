@@ -1691,7 +1691,7 @@
     "result": {
       "type": "boolean"
     },
-    "wasm": false
+    "wasm": true
   },
   "base64.decode": {
     "args": [
@@ -8067,7 +8067,7 @@
     "result": {
       "type": "boolean"
     },
-    "wasm": false
+    "wasm": true
   },
   "equal": {
     "args": [

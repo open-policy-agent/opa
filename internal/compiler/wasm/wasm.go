@@ -188,6 +188,11 @@ var builtinsUsingRE2 = [...]string{
 }
 
 func IsWasmEnabled(bi string) bool {
+	// Unification is compiled out by the planner, so it has no builtin function.
+	// Assignment is rewritten to unification before planning.
+	if bi == ast.Equality.Name || bi == ast.Assign.Name {
+		return true
+	}
 	_, ok := builtinsFunctions[bi]
 	return ok
 }

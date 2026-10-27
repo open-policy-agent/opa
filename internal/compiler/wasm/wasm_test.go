@@ -93,3 +93,14 @@ func TestCompilerBadDataSegment(t *testing.T) {
 		t.Fatal("expected 106 but got:", result, "err:", err)
 	}
 }
+
+func TestIsWasmEnabled(t *testing.T) {
+	for _, bi := range []*ast.Builtin{ast.Equality, ast.Assign} {
+		if !IsWasmEnabled(bi.Name) {
+			t.Errorf("expected %q to be wasm enabled", bi.Name)
+		}
+	}
+	if IsWasmEnabled(ast.HTTPSend.Name) {
+		t.Errorf("expected %q not to be wasm enabled", ast.HTTPSend.Name)
+	}
+}
