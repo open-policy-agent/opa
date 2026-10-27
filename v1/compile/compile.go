@@ -325,15 +325,19 @@ func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) err
 				continue // Wrong scope type. Bail out early.
 			}
 
-			// Get a slash-based path, as with a CLI-provided entrypoint.
+			// Get a slash-based path, as with a CLI-provided entrypoint. Segments
+			// are percent-encoded so a "/" within a segment can be told apart from
+			// a path separator.
 			escapedPath, err := storage.NewPathForRef(entrypoint)
 			if err != nil {
 				return err
 			}
-			slashPath := strings.Join(escapedPath, "/")
+			slashPath := escapedPath.String()[1:]
 
-			// Add new entrypoints to the appropriate places.
-			c.entrypoints = c.entrypoints.Append(slashPath)
+			// Add new entrypoints to the appropriate places. Names are not
+			// deduplicated here: CLI names are unescaped while these are escaped,
+			// so dedupEntrypointRefs drops duplicates by ref to keep both slices aligned.
+			c.entrypoints = append(c.entrypoints, slashPath)
 			c.entrypointrefs = append(c.entrypointrefs, ast.NewTerm(entrypoint))
 		}
 	}
@@ -524,9 +528,9 @@ func (c *Compiler) checkNumEntrypoints() error {
 // entrypoint annotation, it can lead to duplicates in the slice of
 // entrypoint refs. This can cause panics down the line due to c.entrypoints
 // being a different length than c.entrypointrefs. As a result, we have to
-// trim out the duplicates.
+// trim out the duplicates, from the names and refs together so they stay aligned.
 func (c *Compiler) dedupEntrypointRefs() error {
-	// Build list of entrypoint refs, without duplicates.
+	newEntrypoints := make(orderedStringSet, 0, len(c.entrypoints))
 	newEntrypointRefs := make([]*ast.Term, 0, len(c.entrypointrefs))
 	entrypointRefSet := make(map[string]struct{}, len(c.entrypointrefs))
 	for i, r := range c.entrypointrefs {
@@ -534,9 +538,11 @@ func (c *Compiler) dedupEntrypointRefs() error {
 		// Store only the first index in the list that matches.
 		if _, ok := entrypointRefSet[refString]; !ok {
 			entrypointRefSet[refString] = struct{}{}
+			newEntrypoints = append(newEntrypoints, c.entrypoints[i])
 			newEntrypointRefs = append(newEntrypointRefs, c.entrypointrefs[i])
 		}
 	}
+	c.entrypoints = newEntrypoints
 	c.entrypointrefs = newEntrypointRefs
 	return nil
 }
