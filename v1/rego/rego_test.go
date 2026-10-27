@@ -4204,3 +4204,65 @@ func TestPartialEveryMatchesEval(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectionLookupStores pins that a store handing out ast.Values answers
+// collection lookups as one handing out native data, which the index probes
+// without converting.
+func TestCollectionLookupStores(t *testing.T) {
+	const module = `package test
+
+allow contains "devs" if data.groups.devs.members[input.subject]
+
+allow contains "ops" if data.groups.ops.members[input.subject]
+
+allow contains "listed" if data.groups.listed.members[input.subject]`
+
+	data := func() map[string]any {
+		return map[string]any{"groups": map[string]any{
+			"devs":   map[string]any{"members": map[string]any{"alice": true}},
+			"ops":    map[string]any{"members": map[string]any{"alice": true, "bob": true}},
+			"listed": map[string]any{"members": []any{"carol"}},
+		}}
+	}
+
+	for _, store := range []struct {
+		name  string
+		store func() storage.Store
+	}{
+		{"native", func() storage.Store { return inmem.NewFromObject(data()) }},
+		{"ast", func() storage.Store {
+			return inmem.NewFromObjectWithOpts(data(), inmem.OptReturnASTValuesOnRead(true))
+		}},
+	} {
+		for subject, want := range map[string]string{
+			"alice": `["devs", "ops"]`,
+			"bob":   `["ops"]`,
+			"dave":  `[]`,
+			// An array is asked for a position, and it has one at 0.
+			"0": `["listed"]`,
+		} {
+			t.Run(fmt.Sprintf("%s/%s", store.name, subject), func(t *testing.T) {
+				key := fmt.Sprintf("%q", subject)
+				if subject == "0" {
+					key = subject
+				}
+				rs, err := New(
+					Query("data.test.allow"),
+					Module("test.rego", module),
+					Store(store.store()),
+					ParsedInput(ast.MustParseTerm(`{"subject": `+key+`}`).Value),
+				).Eval(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := ast.InterfaceToValue(rs[0].Expressions[0].Value)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if exp := ast.MustParseTerm(want).Value; got.Compare(exp) != 0 {
+					t.Errorf("expected %v, got %v", exp, got)
+				}
+			})
+		}
+	}
+}

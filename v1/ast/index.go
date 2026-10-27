@@ -374,45 +374,44 @@ func agreeOnValue(rules []*Rule, value *Value) bool {
 	return true
 }
 
-// resolve answers for a reference, asking the resolver the first time only.
-func (c *resolveCache) resolve(resolver ValueResolver, ref Ref) (Value, error) {
+// key answers for the reference a collection is keyed by, asking the resolver the
+// first time only. It is a term, which is what a collection is asked with.
+func (c *resolveCache) key(resolver ValueResolver, ref Ref) (*Term, error) {
 	if c.keyOK && RefEqual(c.keyRef, ref) {
-		return c.keyVal, nil
+		return c.keyTerm, nil
 	}
 	v, err := resolver.Resolve(ref)
 	if err != nil {
 		return nil, err
 	}
-	c.keyRef, c.keyVal, c.keyOK = ref, v, true
-	return v, nil
+	var t *Term
+	if v != nil {
+		t = NewTerm(v)
+	}
+	c.keyRef, c.keyTerm, c.keyOK = ref, t, true
+	return t, nil
 }
 
-// container resolves the collection at ref, resolving the container holding it
-// once: `data.groups.g1.members` and `data.groups.g2.members` share one resolve.
-func (c *resolveCache) container(resolver ValueResolver, ref Ref) (Value, error) {
+// container resolves what holds the collection at ref, returning it and the path
+// to the collection from there. It resolves the container once:
+// `data.groups.g1.members` and `data.groups.g2.members` share one resolve.
+func (c *resolveCache) container(resolver ValueResolver, ref Ref) (Value, Ref, error) {
 	const shared = 2 // data.<container>
 
 	if len(ref) <= shared {
-		return resolver.Resolve(ref)
+		v, err := resolver.Resolve(ref)
+		return v, nil, err
 	}
 
 	prefix := ref[:shared]
 	if !c.prefixOK || !RefEqual(c.prefix, prefix) {
 		v, err := resolver.Resolve(prefix)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		c.prefix, c.prefixVal, c.prefixOK = prefix, v, true
 	}
-	if c.prefixVal == nil {
-		return nil, nil
-	}
-
-	v, err := c.prefixVal.Find(ref[shared:])
-	if err != nil {
-		return nil, nil // undefined, not an error
-	}
-	return v, nil
+	return c.prefixVal, ref[shared:], nil
 }
 
 // consultsCollections reports whether excluding a candidate is worth consulting
@@ -435,7 +434,7 @@ func (i *baseDocEqIndex) consultsCollections(resolver ValueResolver) bool {
 // only where their lengths differ.
 func (i *baseDocEqIndex) inCollections(resolver ValueResolver, id int32, cache *resolveCache) (bool, error) {
 	for _, m := range i.memberships[id] {
-		key, err := cache.resolve(resolver, m.key)
+		key, err := cache.key(resolver, m.key)
 		if err != nil {
 			if IsUnknownValueErr(err) {
 				continue
@@ -446,32 +445,63 @@ func (i *baseDocEqIndex) inCollections(resolver ValueResolver, id int32, cache *
 			return false, nil
 		}
 
-		coll, err := cache.container(resolver, m.collection)
-		if err != nil {
-			if IsUnknownValueErr(err) {
-				continue
-			}
+		in, err := inCollection(resolver, cache, m.collection, key)
+		if err != nil || !in {
 			return false, err
 		}
-		if coll == nil {
-			return false, nil
-		}
+	}
 
-		probe := Term{Value: key}
-		switch c := coll.(type) {
-		case Object:
-			if c.Get(&probe) == nil {
+	return true, nil
+}
+
+func inCollection(resolver ValueResolver, cache *resolveCache, ref Ref, key *Term) (bool, error) {
+	base, path, err := cache.container(resolver, ref)
+	if err != nil {
+		if IsUnknownValueErr(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	if base == nil {
+		return false, nil
+	}
+
+	// Asking the store's data as it is converts nothing, where Find and Get
+	// would convert every object on the path, and again on every query.
+	if lazy, ok := base.(*lazyObj); ok {
+		if native, found, ok := lazy.nativeAt(path); ok {
+			if !found {
 				return false, nil
 			}
-		// Base data read from JSON holds no set, but a store keeping ast.Value can,
-		// and so can a `with` statement replacing the collection.
-		case Set:
-			if !c.Contains(&probe) {
-				return false, nil
+			switch n := native.(type) {
+			case map[string]any:
+				s, ok := key.Value.(String)
+				if !ok {
+					return false, nil
+				}
+				_, ok = n[string(s)]
+				return ok, nil
+			case []any:
+				return true, nil // as Find's array would below; see inCollections
 			}
 		}
 	}
 
+	coll, err := base.Find(path)
+	if err != nil {
+		return false, nil // undefined, not an error
+	}
+
+	switch c := coll.(type) {
+	case nil:
+		return false, nil
+	case Object:
+		return c.Get(key) != nil, nil
+	// Base data read from JSON holds no set, but a store keeping ast.Value can,
+	// and so can a `with` statement replacing the collection.
+	case Set:
+		return c.Contains(key), nil
+	}
 	return true, nil
 }
 
@@ -1638,7 +1668,7 @@ type resolveCache struct {
 	// for: a ruleset's rules test the same field, and their collections sit side
 	// by side under one prefix.
 	keyRef    Ref
-	keyVal    Value
+	keyTerm   *Term
 	keyOK     bool
 	prefix    Ref
 	prefixVal Value

@@ -2298,6 +2298,57 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 	return nil, errFindNotFound
 }
 
+// nativeAt returns what lob holds at path without converting any of it, for a
+// caller that only asks what is there. ok is false where the path runs through
+// something already converted, or other than an object, which Find answers for.
+func (lob *lazyObj) nativeAt(path Ref) (v any, found, ok bool) {
+	cur := lob
+	for j, t := range path {
+		if cur.strict != nil {
+			return nil, false, false
+		}
+		s, isStr := t.Value.(String)
+		if !isStr {
+			return nil, false, true
+		}
+		if conv, cached := cur.cache[string(s)]; cached {
+			sub, isLazy := conv.(*lazyObj)
+			if !isLazy {
+				return nil, false, false
+			}
+			cur = sub
+			continue
+		}
+		nv, exists := cur.native[string(s)]
+		if !exists {
+			return nil, false, true
+		}
+		return nativeAt(nv, path[j+1:])
+	}
+	if cur.strict != nil {
+		return nil, false, false
+	}
+	return cur.native, true, true
+}
+
+func nativeAt(v any, path Ref) (any, bool, bool) {
+	for _, t := range path {
+		m, isMap := v.(map[string]any)
+		if !isMap {
+			return nil, false, false
+		}
+		s, isStr := t.Value.(String)
+		if !isStr {
+			return nil, false, true
+		}
+		var exists bool
+		if v, exists = m[string(s)]; !exists {
+			return nil, false, true
+		}
+	}
+	return v, true, true
+}
+
 type object struct {
 	elems     map[int]*objectElem
 	keys      []*objectElem
