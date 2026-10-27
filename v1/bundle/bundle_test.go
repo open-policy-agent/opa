@@ -397,6 +397,30 @@ func TestReadWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestReadWithBaseDirUnqualifiedWasmResolver(t *testing.T) {
+	files := [][2]string{
+		{"/authz/allow/policy.wasm", "wasm-module"},
+		{"/.manifest", `{"wasm":[{"entrypoint": "authz/allow", "module": "/authz/allow/policy.wasm"}]}`},
+	}
+
+	loader := NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "/foo/bar")
+	b, err := NewCustomReader(loader).WithBaseDir("/foo/bar").Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := "/foo/bar/authz/allow/policy.wasm"
+	if len(b.WasmModules) != 1 || b.WasmModules[0].Path != exp {
+		t.Fatalf("expected wasm module at %q, got %+v", exp, b.WasmModules)
+	}
+	if got := b.Manifest.WasmResolvers[0].Module; got != exp {
+		t.Fatalf("expected resolver module %q, got %q", exp, got)
+	}
+	if len(b.WasmModules[0].Entrypoints) != 1 {
+		t.Fatalf("expected entrypoint injected, got %v", b.WasmModules[0].Entrypoints)
+	}
+}
+
 func TestFormatModulesWithOptions(t *testing.T) {
 	tests := []struct {
 		note        string

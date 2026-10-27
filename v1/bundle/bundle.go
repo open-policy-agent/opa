@@ -865,6 +865,8 @@ func (r *Reader) Read() (Bundle, error) {
 			"file(s) %v specified in bundle signatures but not found in the target bundle", util.Keys(r.files))
 	}
 
+	r.qualifyWasmResolverPaths(bundle)
+
 	if err := bundle.Manifest.validateAndInjectDefaults(bundle); err != nil {
 		return empty, err
 	}
@@ -946,6 +948,31 @@ func (r *Reader) verifyBundleSignature(sc SignaturesConfig) error {
 
 func (r *Reader) verifyBundleFile(path string, data bytes.Buffer) error {
 	return VerifyBundleFile(path, data, r.files)
+}
+
+// qualifyWasmResolverPaths prefixes the module paths in the manifest's wasm
+// resolvers with the base dir, so they match the paths of the loaded wasm
+// modules. Manifests that already include the base dir are left untouched.
+func (r *Reader) qualifyWasmResolverPaths(bundle *Bundle) {
+	if r.baseDir == "" {
+		return
+	}
+
+	loaded := make(map[string]struct{}, len(bundle.WasmModules))
+	for _, wm := range bundle.WasmModules {
+		loaded[wm.Path] = struct{}{}
+	}
+
+	for i, wr := range bundle.Manifest.WasmResolvers {
+		if _, ok := loaded[wr.Module]; ok {
+			continue
+		}
+		if full := r.fullPath(wr.Module); full != wr.Module {
+			if _, ok := loaded[full]; ok {
+				bundle.Manifest.WasmResolvers[i].Module = full
+			}
+		}
+	}
 }
 
 func (r *Reader) fullPath(path string) string {
