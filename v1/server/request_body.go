@@ -30,12 +30,21 @@ func readRequest[T any](r *http.Request, fromMap func(map[string]any) (T, error)
 
 	body, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
-		return req, fmt.Errorf("could not decompress the body: %w", err)
+		return req, readBodyError(err)
 	}
 	if err := util.NewJSONDecoder(bytes.NewReader(body)).Decode(&req); err != nil {
 		return req, fmt.Errorf("error(s) occurred while decoding request: %w", err)
 	}
 	return req, nil
+}
+
+// readBodyError wraps an error from util.ReadMaybeCompressedBody. Size limit
+// errors already say what was exceeded, so they are returned as is.
+func readBodyError(err error) error {
+	if _, ok := errors.AsType[*util.BodyTooLargeError](err); ok {
+		return err
+	}
+	return fmt.Errorf("could not decompress the body: %w", err)
 }
 
 func isEmptyBody(err error) bool {

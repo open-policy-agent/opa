@@ -6,6 +6,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/server/types"
 	"github.com/open-policy-agent/opa/v1/server/writer"
+	"github.com/open-policy-agent/opa/v1/util"
 	util_decoding "github.com/open-policy-agent/opa/v1/util/decoding"
 )
 
@@ -23,7 +24,8 @@ func DecodingLimitsHandler(handler http.Handler, maxLength, gzipMaxLength int64)
 		// Note(philipc): This does nothing in the case of "chunked"
 		// requests, since those should report a ContentLength of -1.
 		if r.ContentLength > maxLength {
-			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgDecodingLimitError))
+			err := &util.BodyTooLargeError{Limit: maxLength, Size: r.ContentLength}
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 			return
 		}
 		// For requests where full size is not known in advance (such as chunked

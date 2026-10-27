@@ -2900,7 +2900,7 @@ func readInputV0(r *http.Request) (ast.Value, *any, error) {
 	// decompress the input if sent as zip
 	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
+		return nil, nil, readBodyError(err)
 	}
 
 	var x any
@@ -2954,7 +2954,7 @@ func readInputPostV1(r *http.Request) (*parsedInput, error) {
 	// decompress the input if sent as zip
 	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
-		return nil, fmt.Errorf("could not decompress the body: %w", err)
+		return nil, readBodyError(err)
 	}
 
 	ct := r.Header.Get("Content-Type")
