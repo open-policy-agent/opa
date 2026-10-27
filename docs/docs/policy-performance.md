@@ -228,14 +228,23 @@ The collection is only asked about where every candidate is going to be evaluate
 
 Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/logical) are indexed on the indexable statements found inside their operands, following the rules above. An `and` requires both of its operands, so each is indexed on its own and an operand with nothing indexable in it still leaves the other to narrow the rule. An `or` requires only one of its operands, so it is indexed only when every operand has something indexable: an operand that doesn't could be satisfied by any input, leaving nothing the rule can be excluded on. Combining the two multiplies the ways a rule can be reached, as in `{input.a == 1 or input.a == 2} and {input.b == 1 or input.b == 2}`, which has four; past 32 for a single rule only the conditions common to every combination are indexed.
 
-| Expression                             | Indexed | Notes                                 |
-| -------------------------------------- | ------- | ------------------------------------- |
-| `input.x == 1 and input.y == 2`        | yes     | both operands narrow the rule         |
-| `input.x == 1 and count(input.y) == 3` | yes     | indexed on `input.x` only             |
-| `input.x == 1 or input.x == 2`         | yes     | either value of `input.x` matches     |
-| `input.x == 1 or input.y == 2`         | yes     | both operands are indexed             |
-| `input.x == 1 or count(input.y) == 3`  | no      | `count(...)` is not indexable         |
-| `not (input.x == 1 and input.y == 2)`  | no      | negated expressions are never indexed |
+A [collection lookup](#bare-reference-statements) works differently from the other statements. An indexed statement, such as `input.x == 1`, is a way to reach a rule, because its value is known when the index is built. A lookup, such as `data.g.a[input.u]`, is not, because the keys of the collection are not known then. The index checks a lookup at query time, on each rule that it has already reached.
+
+Inside an `and`, the index checks the lookups of both operands. In `{input.x == 1} and {data.g.a[input.u]}`, the index finds the rule when `input.x` is 1. It then checks that `input.u` is a key of `data.g.a`. If it is not, the index skips the rule. Inside an `or`, the index checks a lookup only if every operand looks up the same key. It then makes one lookup that holds if the key is in the collection of any operand. Lookups do not count towards the limit of 32.
+
+An `or` that mixes a lookup with an indexed statement gets neither, because the lookup gives no way to reach the rule and the indexed statement gives no lookup to check. So the index does not use `{data.g.a[input.u]} or {input.u == "a"}`, even though both operands use `input.u`.
+
+| Expression                                   | Indexed | Notes                                   |
+| -------------------------------------------- | ------- | --------------------------------------- |
+| `input.x == 1 and input.y == 2`              | yes     | both operands narrow the rule           |
+| `input.x == 1 and count(input.y) == 3`       | yes     | indexed on `input.x` only               |
+| `input.x == 1 or input.x == 2`               | yes     | either value of `input.x` matches       |
+| `input.x == 1 or input.y == 2`               | yes     | both operands are indexed               |
+| `{data.g.a[input.u]} or {data.g.b[input.u]}` | yes     | `input.u` is a key of either collection |
+| `input.x == 1 or count(input.y) == 3`        | no      | `count(...)` is not indexable           |
+| `not (input.x == 1 and input.y == 2)`        | no      | negated expressions are never indexed   |
+| `{data.g.a[input.u]} or {data.g.b[input.v]}` | no      | the operands look up different keys     |
+| `{data.g.a[input.u]} or {input.u == "a"}`    | no      | mixes a lookup with a value check       |
 
 #### Several values for one reference
 
