@@ -832,6 +832,8 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		return
 	}
 
+	expr = plugRefs(expr, values)
+
 	switch terms := expr.Terms.(type) {
 	case *LogicalAnd:
 		i.updateLogicalAnd(rule, terms, values)
@@ -896,6 +898,65 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 	case op.Equal(Interned.Refs.AnySuffixMatch) && len(expr.Operands()) == 2:
 		i.updateAnyAffixMatch(rule, expr, values, affixSuffix)
 	}
+}
+
+// plugRefs returns expr with each local in its references that is bound to a
+// scalar plugged: `x := "foo"; data.policy[x].yz == "v"` then indexes as
+// `data.policy.foo.yz == "v"` does. The rule is not modified.
+func plugRefs(expr *Expr, constants map[Var]Value) *Expr {
+	if len(constants) == 0 {
+		return expr
+	}
+
+	switch ts := expr.Terms.(type) {
+	case *Term: // a bare reference
+		if g := plugRef(ts, constants); g != ts {
+			cpy := *expr
+			cpy.Terms = g
+			return &cpy
+		}
+	case []*Term: // a call: ts[0] is its operator, which the clone keeps as it is
+		var out []*Term
+		for j := 1; j < len(ts); j++ {
+			if g := plugRef(ts[j], constants); g != ts[j] {
+				if out == nil {
+					out = slices.Clone(ts)
+				}
+				out[j] = g
+			}
+		}
+		if out != nil {
+			cpy := *expr
+			cpy.Terms = out
+			return &cpy
+		}
+	}
+	return expr
+}
+
+func plugRef(t *Term, constants map[Var]Value) *Term {
+	ref, ok := t.Value.(Ref)
+	if !ok {
+		return t
+	}
+
+	var out Ref
+	for j := 1; j < len(ref); j++ {
+		v, ok := ref[j].Value.(Var)
+		if !ok {
+			continue
+		}
+		if c, ok := constants[v]; ok && IsScalar(c) {
+			if out == nil {
+				out = slices.Clone(ref)
+			}
+			out[j] = NewTerm(c)
+		}
+	}
+	if out == nil {
+		return t
+	}
+	return NewTerm(out)
 }
 
 // updateLogicalAnd folds both operands of a conjunction into the rule's
@@ -2388,6 +2449,11 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 		// a is a var, but we have not been able to resolve it to a ref, save for later
 		if IsConstant(b) {
 			constants[v] = b
+		} else if bv, ok := b.(Var); ok {
+			// `y := x` with x bound to a constant binds y to it, too.
+			if c, ok := constants[bv]; ok {
+				constants[v] = c
+			}
 		}
 
 		bval, ok := indexValue(b)

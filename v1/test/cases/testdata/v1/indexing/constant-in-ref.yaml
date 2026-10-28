@@ -1,0 +1,26 @@
+---
+cases:
+  - note: a local bound to a string in a data reference
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p contains "a" if {
+        	k := "a"
+        	data.flags[k].on == true
+        }
+
+        p contains "b" if {
+        	k := "b"
+        	data.flags[k].on == true
+        }
+    data:
+      flags:
+        a:
+          on: false
+        b:
+          on: true
+    want_result:
+      - x:
+          - b
