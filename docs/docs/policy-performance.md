@@ -246,6 +246,36 @@ An `or` that mixes a lookup with an indexed statement gets neither, because the 
 | `{data.g.a[input.u]} or {data.g.b[input.v]}` | no      | the operands look up different keys     |
 | `{data.g.a[input.u]} or {input.u == "a"}`    | no      | mixes a lookup with a value check       |
 
+#### Statements over a local iterating a literal
+
+A statement that uses a local iterating a literal set, array or object of scalars is indexed as the `or` of the statement with each element in place of the local, following the rules above:
+
+```rego
+allow if {
+    some r in {"viewer", "editor"}
+    input.role == r
+    # indexed as: {input.role == "viewer"} or {input.role == "editor"}
+}
+```
+
+A local assigned such a local, as in `y := x`, ranges over the same literal. A key and a value iterated together, as in `some k, v in {"a": 1, "b": 2}` or `some i, x in ["a", "b"]`, are substituted in pairs. A statement using several such locals is indexed over every combination of their elements, up to 4096 of them.
+
+As with `or`, each element of a value or reference is a way to reach the rule, so past 32 the rule is not indexed on the statement. Collection lookups are not ways to reach the rule, so there is no such limit on them. Where only a value varies, `input.role in {"viewer", "editor"}` says the same and has no such limit either: its values share one level of the index.
+
+Each statement is indexed on its own: in `some k in {"a", "b"}; input.k == k; data.p[k].on`, the index requires `input.k` to be one of the elements and `data.p[e].on` to hold for one of them, not necessarily the same one; evaluation checks that they agree.
+
+| Expression                                                                             | Indexed | Notes                                                                                          |
+| -------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `some r in {"viewer", "editor"}`<br/>`input.role == r`                                 | yes     | either value of `input.role` matches                                                           |
+| `some k in ["a", "b"]`<br/>`input.x[k] == 1`                                           | yes     | arrays work the same as sets                                                                   |
+| `some g in {"devs", "ops"}`<br/>`data.groups[g].members[input.subject]`                | yes     | `input.subject` is a key of either                                                             |
+| `some g in {"devs", "ops"}`<br/>`h := g`<br/>`data.groups[h].members[input.subject]`   | yes     | `h` ranges over the literal too                                                                |
+| `gs := {"devs", "ops"}`<br/>`some g in gs`<br/>`data.groups[g].members[input.subject]` | yes     | the literal can be assigned to a local first                                                   |
+| `some g, p in {"users": "read"}`<br/>`data.groups[g].perms[p][input.subject]`          | yes     | `g` and `p` are substituted in pairs                                                           |
+| `some r in input.roles`<br/>`input.role == r`                                          | no      | not a literal                                                                                  |
+| `some r in data.policy.roles`<br/>`input.role == r`                                    | no      | not a literal, even if a rule produces one                                                     |
+| `some r in {"a", ["b"]}`<br/>`input.role == r`                                         | no      | the literal holds a <GlossaryTooltip term="composite-values">composite value</GlossaryTooltip> |
+
 #### Several values for one reference
 
 Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a collection. The rule is indexed under each of those values.
