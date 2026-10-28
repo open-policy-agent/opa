@@ -184,6 +184,9 @@ func (c *baseCache) Put(ref ast.Ref, value ast.Value) {
 			node = child
 		} else {
 			child := newBaseCacheElem()
+			if node.children == nil {
+				node.children = map[ast.Value]*baseCacheElem{}
+			}
 			node.children[ref[i].Value] = child
 			node = child
 		}
@@ -197,14 +200,12 @@ type baseCacheElem struct {
 }
 
 func newBaseCacheElem() *baseCacheElem {
-	return &baseCacheElem{
-		children: map[ast.Value]*baseCacheElem{},
-	}
+	return &baseCacheElem{}
 }
 
 func (e *baseCacheElem) set(value ast.Value) {
 	e.value = value
-	e.children = map[ast.Value]*baseCacheElem{}
+	e.children = nil
 }
 
 type refStack struct {
