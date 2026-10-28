@@ -267,22 +267,27 @@ The head must resolve to a reference rooted at `input` or `data`, and the resolv
 
 The resolution also applies where a local stands in for a whole value rather than the head of a reference, chained assignments included, and inside the operands of an `and` or `or`, where a local assigned in the enclosing rule body still resolves.
 
-| Expression                                    | Indexed | Notes                                    |
-| --------------------------------------------- | ------- | ---------------------------------------- |
-| `x := input; x.foo == "a"`                    | yes     | indexed as `input.foo == "a"`            |
-| `x := input.a.b; x.c == "a"`                  | yes     | indexed as `input.a.b.c == "a"`          |
-| `x := input.a; y := x; y.b == "a"`            | yes     | chains of assignments resolve            |
-| `x := input.role; y := x; y == "a"`           | yes     | indexed as `input.role == "a"`           |
-| `x := input; "a" in x.foo`                    | yes     |                                          |
-| `x := input; glob.match("a/*", ["/"], x.foo)` | yes     |                                          |
-| `x := input; startswith(x.foo, "a/")`         | yes     |                                          |
-| `x := input; endswith(x.foo, ".gz")`          | yes     |                                          |
-| `x := input; x.foo`                           | yes     | bare reference                           |
-| `x := input; x.foo[i] == "a"`                 | yes     | ground prefix `input.foo` is indexed     |
-| `x := input; x.foo[i].bar == "a"`             | no      | variable is not the last element         |
-| `x := {"a": 1}; x.a == 1`                     | no      | head does not resolve to a reference     |
-| `x := some_rule; x.foo == "a"`                | no      | resolved reference is a virtual document |
-| `f(x) if x.foo == "a"`                        | no      | head is a function argument              |
+A local assigned a scalar can also stand anywhere inside a reference: `x := "foo"; data.policy[x].yz == "v"` is indexed as `data.policy.foo.yz == "v"` is, and so is a reference holding a local assigned such a local.
+
+| Expression                                           | Indexed | Notes                                             |
+| ---------------------------------------------------- | ------- | ------------------------------------------------- |
+| `x := input; x.foo == "a"`                           | yes     | indexed as `input.foo == "a"`                     |
+| `x := input.a.b; x.c == "a"`                         | yes     | indexed as `input.a.b.c == "a"`                   |
+| `x := input.a; y := x; y.b == "a"`                   | yes     | chains of assignments resolve                     |
+| `x := input.role; y := x; y == "a"`                  | yes     | indexed as `input.role == "a"`                    |
+| `x := input; "a" in x.foo`                           | yes     |                                                   |
+| `x := input; glob.match("a/*", ["/"], x.foo)`        | yes     |                                                   |
+| `x := input; startswith(x.foo, "a/")`                | yes     |                                                   |
+| `x := input; endswith(x.foo, ".gz")`                 | yes     |                                                   |
+| `x := input; x.foo`                                  | yes     | bare reference                                    |
+| `x := input; x.foo[i] == "a"`                        | yes     | ground prefix `input.foo` is indexed              |
+| `x := "foo"; data.policy[x].yz == "v"`               | yes     | indexed as `data.policy.foo.yz == "v"`            |
+| `x := "foo"; y := x; input.a[y] == 1`                | yes     | chains of assignments resolve                     |
+| `x := "devs"; data.groups[x].members[input.subject]` | yes     | a [collection lookup](#bare-reference-statements) |
+| `x := input; x.foo[i].bar == "a"`                    | no      | variable is not the last element                  |
+| `x := {"a": 1}; x.a == 1`                            | no      | head does not resolve to a reference              |
+| `x := some_rule; x.foo == "a"`                       | no      | resolved reference is a virtual document          |
+| `f(x) if x.foo == "a"`                               | no      | head is a function argument                       |
 
 ### Early Exit in Rule Evaluation
 

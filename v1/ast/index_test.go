@@ -6,9 +6,11 @@ package ast
 
 import (
 	"errors"
+	"fmt"
 	"math/bits"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -2803,4 +2805,48 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestBaseDocEqIndexConstantInRef covers a reference with a local bound to a
+// scalar in it: it indexes as the reference with the scalar in place would.
+func TestBaseDocEqIndexConstantInRef(t *testing.T) {
+	data := MustParseTerm(`{
+		"policy": {"p0": {"yz": "on"}, "p1": {"yz": "off"}, "p2": {"yz": "off"}},
+		"groups": {"p0": {"members": {"alice": true}}, "p1": {"members": {}}, "p2": {"members": {}}}
+	}`)
+	input := MustParseTerm(`{"subject": "alice", "name": "p0", "x": {"p0": 1, "p1": 2, "p2": 3}}`)
+
+	for _, tc := range []struct {
+		note string
+		cond string
+	}{
+		{note: "base data", cond: "x := \"p%d\"\n\tdata.policy[x].yz == \"on\""},
+		{note: "through an alias", cond: "x := \"p%d\"\n\ty := data.policy[x]\n\ty.yz == \"on\""},
+		{note: "through a chain of locals", cond: "x := \"p%d\"\n\ty := x\n\tz := y\n\tdata.policy[z].yz == \"on\""},
+		{note: "input", cond: "k := \"p%d\"\n\tinput.x[k] == 1"},
+		{note: "a value through a chain of locals", cond: "k := \"p%d\"\n\tj := k\n\tinput.name == j"},
+		{note: "collection key", cond: "g := \"p%d\"\n\tdata.groups[g].members[input.subject]"},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			var sb strings.Builder
+			sb.WriteString("package test\n\n")
+			for i := range 3 {
+				fmt.Fprintf(&sb, "allow contains %d if {\n\t"+tc.cond+"\n}\n\n", i, i)
+			}
+
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"test.rego": MustParseModule(sb.String())})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			res, err := c.RuleIndex(MustParseRef("data.test.allow")).Lookup(testResolver{input: input, data: data})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(res.Rules) != 1 {
+				t.Errorf("expected 1 candidate, got %d: %v", len(res.Rules), res.Rules)
+			}
+		})
+	}
 }
