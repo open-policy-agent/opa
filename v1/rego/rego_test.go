@@ -4294,6 +4294,11 @@ func TestPartialEvalIndexedLookups(t *testing.T) {
 			cond:  "{data.groups.g%[1]d.members[input.subject]} or {data.groups.x%[1]d.members[input.subject]}",
 			input: `{"subject": "u3"}`,
 		},
+		{
+			note:  "collections picked from a literal",
+			cond:  "some g in {\"g%[1]d\", \"x%[1]d\"}\n\tdata.groups[g].members[input.subject]",
+			input: `{"subject": "u3"}`,
+		},
 	} {
 		t.Run(tc.note, func(t *testing.T) {
 			var sb strings.Builder

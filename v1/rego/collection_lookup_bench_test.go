@@ -163,6 +163,9 @@ func BenchmarkCollectionLookupAnyOf(b *testing.B) {
 			}
 			return strings.Join(lookups, " or ")
 		}},
+		{"some-in", func(groups []string) string {
+			return fmt.Sprintf("some g in {%s}\n\tdata.groups[g].members[input.subject]", strings.Join(groups, ", "))
+		}},
 	}
 
 	groups := make(map[string]any, n*k)
