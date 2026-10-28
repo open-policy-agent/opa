@@ -1,3 +1,4 @@
+import Head from "@docusaurus/Head";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React, { useEffect, useState } from "react";
@@ -47,6 +48,11 @@ const EventPage = (props) => {
 
   return (
     <Layout title={event.title}>
+      {event.callout && (
+        <Head>
+          <body className="hide-announcement-bar" />
+        </Head>
+      )}
       {eventStatus === "after"
         ? (
           <div className={styles.eventWarningBanner}>
@@ -91,6 +97,12 @@ const EventPage = (props) => {
         </div>
 
         <div className={styles.mainContent}>
+          {event.callout && (
+            <div className={styles.eventCallout}>
+              {event.callout.text} <a href={event.callout.url}>{event.callout.linkText}</a>
+            </div>
+          )}
+
           <div className={styles.section}>
             <Heading as="h2" className={styles.sectionTitle}>
               Agenda

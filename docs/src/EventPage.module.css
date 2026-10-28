@@ -7,6 +7,23 @@
     border-bottom: 1px solid var(--ifm-color-emphasis-300);
 }
 
+.eventCallout {
+    background-color: rgba(255, 140, 0, 0.12);
+    border: 1px solid rgba(255, 140, 0, 0.4);
+    color: var(--ifm-font-color-base);
+    font-weight: bold;
+    text-align: center;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+}
+
+.eventCallout a {
+    color: inherit;
+    text-decoration: underline;
+}
+
 .pageLayout {
     display: flex;
     gap: 2rem;

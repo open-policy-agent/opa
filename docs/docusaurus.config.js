@@ -81,6 +81,14 @@ const baseUrl = "/";
     themes: ["@docusaurus/theme-mermaid"],
 
     themeConfig: {
+      announcementBar: {
+        id: "survey-2026",
+        content:
+          "<strong>The 2026 OPA Community Survey is open - <a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://opa-survey.cncf.io/\">We need your input</a></strong>",
+        isCloseable: true,
+        backgroundColor: "#ff8c00",
+        textColor: "#ffffff",
+      },
       colorMode: {
         defaultMode: "light",
         disableSwitch: false,

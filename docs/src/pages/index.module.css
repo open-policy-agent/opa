@@ -50,6 +50,24 @@
     padding: 0rem 1rem;
 }
 
+.eventCallout {
+    background-color: rgba(255, 140, 0, 0.12);
+    border: 1px solid rgba(255, 140, 0, 0.4);
+    color: var(--ifm-font-color-base);
+    font-weight: bold;
+    text-align: center;
+    padding: 1rem 1.5rem;
+    margin: 0 auto 2rem;
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 55rem;
+}
+
+.eventCallout a {
+    color: inherit;
+    text-decoration: underline;
+}
+
 .logoContainer {
     margin: 0 auto 1rem;
     display: flex;
