@@ -130,3 +130,19 @@ func getTestServer(update any, statusCode int) (baseURL string, teardownFn func(
 	})
 	return ts.URL, ts.Close
 }
+
+func TestIsStaticBinary(t *testing.T) {
+	for arg0, exp := range map[string]bool{
+		"opa_linux_amd64_static":        true,
+		"./opa_darwin_arm64_static":     true,
+		"/usr/local/bin/opa_static":     true,
+		"opa_linux_amd64":               false,
+		"opa":                           false,
+		"/opt/opa_static/bin/opa":       false,
+		"opa_linux_amd64_static.sha256": false,
+	} {
+		if got := isStaticBinary(arg0); got != exp {
+			t.Errorf("%s: expected %v, got %v", arg0, exp, got)
+		}
+	}
+}
