@@ -3520,6 +3520,8 @@ func TestImport(t *testing.T) {
 	assertParseErrorContains(t, "non-string", "import input.foo[0]", "rego_parse_error: unexpected number token: expecting string")
 	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input, rego}, got: foo")
 	assertParseErrorContains(t, "bad variable term", "import input as A(", "rego_parse_error: unexpected eof token: expected var")
+	assertParseErrorContains(t, "reserved alias input", "import data.foo as input", "rego_parse_error: unexpected import alias, must not be a reserved name, got: input")
+	assertParseErrorContains(t, "reserved alias data", "import input.foo as data", "rego_parse_error: unexpected import alias, must not be a reserved name, got: data")
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
 	if err == nil {
