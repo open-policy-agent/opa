@@ -74,6 +74,10 @@ const Index = (props) => {
       </div>
 
       <div className={styles.container}>
+        <div className={styles.eventCallout}>
+          OPA at KubeCon + CloudNativeCon North America 2026 -{" "}
+          <Link to="/events/2026-kubecon-na">See the schedule</Link>
+        </div>
         <div className={styles.logoContainer}>
           {(() => {
             const logoContext = require.context("./assets/logos", false);

@@ -53,3 +53,7 @@ pre {
 	--docusaurus-highlighted-code-line-bg: rgb(88, 102, 18);
 	--ifm-link-color: var(--ifm-color-primary-light);
 }
+
+body.hide-announcement-bar .theme-announcement-bar {
+  display: none;
+}
