@@ -2128,7 +2128,7 @@ func ObjectTerm(o ...[2]*Term) *Term {
 }
 
 func LazyObject(blob map[string]any) Object {
-	return &lazyObj{native: blob, cache: map[string]Value{}}
+	return &lazyObj{native: blob}
 }
 
 type lazyObj struct {
@@ -2143,7 +2143,7 @@ func (lob *lazyObj) force() Object {
 		// NOTE(jf): a possible performance improvement here would be to check how many
 		// entries have been realized to AST in the cache, and if some threshold compared to the
 		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
-		lob.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
+		lob.cache = nil // We don't need the cache anymore; drop it to free up memory.
 	}
 	return lob.strict
 }
@@ -2228,6 +2228,9 @@ func (lob *lazyObj) Get(k *Term) *Term {
 			default:
 				converted = MustInterfaceToValue(val)
 			}
+			if lob.cache == nil {
+				lob.cache = map[string]Value{}
+			}
 			lob.cache[string(s)] = converted
 			return NewTerm(converted)
 		}
@@ -2278,6 +2281,12 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return lob, nil
 	}
+	// Asking for something that is not there converts nothing.
+	if len(path) > 1 {
+		if _, found, ok := lob.nativeAt(path); ok && !found {
+			return nil, errFindNotFound
+		}
+	}
 	if p0, ok := path[0].Value.(String); ok {
 		if v, ok := lob.cache[string(p0)]; ok {
 			return v.Find(path[1:])
@@ -2290,6 +2299,9 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 				converted = LazyObject(v)
 			default:
 				converted = MustInterfaceToValue(v)
+			}
+			if lob.cache == nil {
+				lob.cache = map[string]Value{}
 			}
 			lob.cache[string(p0)] = converted
 			return converted.Find(path[1:])
