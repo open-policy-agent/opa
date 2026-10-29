@@ -197,10 +197,13 @@ This is also useful in CI/CD pipelines to ensure that tests are actually being e
 ## Test Results
 
 If the test rule is undefined or generates a non-`true` value the test result
-is reported as `FAIL`. If the test encounters a runtime error (e.g., a divide
-by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
-`todo_` will be reported as `SKIPPED`. Otherwise, the test result is marked as
-`PASS`.
+is reported as `FAIL`. If the test encounters a runtime error (e.g., conflicting
+values for a rule) the test result is marked as an `ERROR`. An error raised by a
+built-in function (e.g., a divide by zero condition) makes the expression
+undefined, so the test is reported as `FAIL`, unless `opa test` is run with
+`--strict-builtin-errors`, which reports the first such error as an `ERROR`.
+Tests prefixed with `todo_` will be reported as `SKIPPED`. Otherwise, the test
+result is marked as `PASS`.
 
 ```rego title="pass_fail_error_test.rego"
 package example_test
@@ -226,7 +229,7 @@ By default, `opa test` reports the number of tests executed and displays all
 of the tests that failed or errored.
 
 ```console
-$ opa test pass_fail_error_test.rego
+$ opa test --strict-builtin-errors pass_fail_error_test.rego
 data.example_test.test_failure: FAIL (253ns)
 data.example_test.test_error: ERROR (289ns)
   pass_fail_error_test.rego:15: eval_builtin_error: div: divide by zero
@@ -240,7 +243,7 @@ By default, OPA prints the test results in a human-readable format. If you
 need to consume the test results programmatically, use the JSON output format.
 
 ```bash
-opa test --format=json pass_fail_error_test.rego
+opa test --strict-builtin-errors --format=json pass_fail_error_test.rego
 ```
 
 ```json
@@ -275,7 +278,7 @@ opa test --format=json pass_fail_error_test.rego
     "package": "data.example_test",
     "name": "test_error",
     "error": {
-      "code": "eval_internal_error",
+      "code": "eval_builtin_error",
       "message": "div: divide by zero",
       "location": {
         "file": "pass_fail_error_test.rego",

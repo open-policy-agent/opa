@@ -1032,10 +1032,11 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 	}`
 
 	testCases := []struct {
-		desc          string
-		json          string
-		builtinErrors bool
-		wantErr       bool
+		desc                string
+		json                string
+		builtinErrors       bool
+		strictBuiltinErrors bool
+		wantErr             bool
 	}{
 		{
 			desc:          "Valid JSON with flag enabled does not raise an error",
@@ -1051,6 +1052,17 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 		{
 			desc: "Invalid JSON with flag disabled does not raise an error",
 			json: `test: 123`,
+		},
+		{
+			desc:                "Valid JSON with strict flag enabled does not raise an error",
+			json:                `{\"test\": 123}`,
+			strictBuiltinErrors: true,
+		},
+		{
+			desc:                "Invalid JSON with strict flag enabled raises an error",
+			json:                `test: 123`,
+			strictBuiltinErrors: true,
+			wantErr:             true,
 		},
 	}
 
@@ -1069,7 +1081,8 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 				NewRunner().
 				SetStore(store).
 				SetModules(modules).
-				RaiseBuiltinErrors(tc.builtinErrors)
+				RaiseBuiltinErrors(tc.builtinErrors).
+				StrictBuiltinErrors(tc.strictBuiltinErrors)
 
 			ch, err := runner.RunTests(ctx, txn)
 			if err != nil {
@@ -1081,6 +1094,61 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRunnerStrictBuiltinErrorsTakesPrecedence(t *testing.T) {
+	files := map[string]string{
+		"/test.rego": `package test
+
+a if to_number("not a number")
+
+b if to_number("not a number either")
+
+test_both if {
+	not a
+	not b
+}`,
+	}
+
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	ch, err := tester.NewRunner().
+		SetStore(store).
+		SetModules(modules).
+		RaiseBuiltinErrors(true).
+		StrictBuiltinErrors(true).
+		RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var results []*tester.Result
+	for r := range ch {
+		results = append(results, r)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	// RaiseBuiltinErrors alone reports both errors as one list. Strict mode stops
+	// at the first one and reports it as a single topdown.Error.
+	tdErr, ok := errors.AsType[*topdown.Error](results[0].Error)
+	if !ok {
+		t.Fatalf("expected *topdown.Error, got %v (%[1]T)", results[0].Error)
+	}
+	if tdErr.Code != topdown.BuiltinErr {
+		t.Fatalf("expected code %q, got %q", topdown.BuiltinErr, tdErr.Code)
+	}
+	if results[0].Fail {
+		t.Fatal("expected the test to be reported as an error, not a failure")
 	}
 }
 
