@@ -5,7 +5,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/semver"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -508,16 +507,6 @@ func TestCapabilitiesAddBuiltinSorted(t *testing.T) {
 }
 
 func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
-	// rego_v2 enters version_index.json with the v1.22.0 release artefacts; until then, inject it.
-	if v, ok := minVersionIndex().Features[FeatureRegoV2]; ok {
-		t.Fatalf("version_index.json lists %s since %s; remove the index override from this test", FeatureRegoV2, v)
-	}
-	vi := minVersionIndex()
-	vi.Features[FeatureRegoV2] = semver.MustParse("1.22.0")
-	orig := minVersionIndexOnce
-	minVersionIndexOnce = func() VersionIndex { return vi }
-	t.Cleanup(func() { minVersionIndexOnce = orig })
-
 	tests := []struct {
 		note        string
 		module      string
