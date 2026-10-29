@@ -562,3 +562,89 @@ func BenchmarkLookupCollectionMembership(b *testing.B) {
 		})
 	}
 }
+
+// TestBaseDocEqIndexCollectionLazy covers base data as a store hands it out,
+// unconverted: it has to answer as the converted data does.
+func TestBaseDocEqIndexCollectionLazy(t *testing.T) {
+	const module = `package test
+
+allow contains "devs" if data.groups.devs.members[input.subject]
+
+allow contains "ops" if data.groups.ops.members[input.subject]
+
+allow contains "listed" if data.groups.listed.members[input.subject]`
+
+	native := func() map[string]any {
+		return map[string]any{"groups": map[string]any{
+			"devs":   map[string]any{"members": map[string]any{"alice": true}},
+			"ops":    map[string]any{"members": map[string]any{"bob": true}},
+			"listed": map[string]any{"members": []any{"carol"}},
+		}}
+	}
+
+	for _, tc := range []struct {
+		note    string
+		subject string
+		prepare func(Object)
+		expect  int
+	}{
+		{note: "in an object", subject: `"alice"`, expect: 2}, // devs, and listed is an array
+		{note: "in none", subject: `"dave"`, expect: 1},
+		{note: "a key that is not a string", subject: `1`, expect: 1},
+		{
+			note:    "part of the path converted already",
+			subject: `"bob"`,
+			prepare: func(data Object) {
+				groups, _ := data.Find(Ref{StringTerm("groups")})
+				groups.(Object).Foreach(func(*Term, *Term) {})
+			},
+			expect: 2,
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"test.rego": MustParseModule(module)})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			data := LazyObject(native())
+			if tc.prepare != nil {
+				tc.prepare(data)
+			}
+
+			res, err := c.RuleIndex(MustParseRef("data.test.allow")).Lookup(testResolver{
+				input: MustParseTerm(`{"subject": ` + tc.subject + `}`),
+				data:  NewTerm(data),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(res.Rules) != tc.expect {
+				t.Errorf("expected %d candidates, got %d: %v", tc.expect, len(res.Rules), res.Rules)
+			}
+		})
+	}
+}
+
+func TestInCollectionLazyDoesNotAllocate(t *testing.T) {
+	var resolver ValueResolver = testResolver{data: NewTerm(LazyObject(map[string]any{"groups": map[string]any{
+		"devs": map[string]any{"members": map[string]any{"alice": true}},
+		"ops":  map[string]any{"members": map[string]any{"bob": true}},
+	}}))}
+	devs, ops := MustParseRef("data.groups.devs.members"), MustParseRef("data.groups.ops.members")
+	bob := StringTerm("bob")
+
+	var cache resolveCache
+	allocs := testing.AllocsPerRun(100, func() {
+		if in, err := inCollection(resolver, &cache, devs, bob); err != nil || in {
+			t.Fatalf("expected bob not in devs, got %v, %v", in, err)
+		}
+		if in, err := inCollection(resolver, &cache, ops, bob); err != nil || !in {
+			t.Fatalf("expected bob in ops, got %v, %v", in, err)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("expected no allocations, got %v", allocs)
+	}
+}

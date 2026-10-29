@@ -2128,7 +2128,7 @@ func ObjectTerm(o ...[2]*Term) *Term {
 }
 
 func LazyObject(blob map[string]any) Object {
-	return &lazyObj{native: blob, cache: map[string]Value{}}
+	return &lazyObj{native: blob}
 }
 
 type lazyObj struct {
@@ -2143,7 +2143,7 @@ func (lob *lazyObj) force() Object {
 		// NOTE(jf): a possible performance improvement here would be to check how many
 		// entries have been realized to AST in the cache, and if some threshold compared to the
 		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
-		lob.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
+		lob.cache = nil // We don't need the cache anymore; drop it to free up memory.
 	}
 	return lob.strict
 }
@@ -2228,6 +2228,9 @@ func (lob *lazyObj) Get(k *Term) *Term {
 			default:
 				converted = MustInterfaceToValue(val)
 			}
+			if lob.cache == nil {
+				lob.cache = map[string]Value{}
+			}
 			lob.cache[string(s)] = converted
 			return NewTerm(converted)
 		}
@@ -2278,6 +2281,12 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return lob, nil
 	}
+	// Asking for something that is not there converts nothing.
+	if len(path) > 1 {
+		if _, found, ok := lob.nativeAt(path); ok && !found {
+			return nil, errFindNotFound
+		}
+	}
 	if p0, ok := path[0].Value.(String); ok {
 		if v, ok := lob.cache[string(p0)]; ok {
 			return v.Find(path[1:])
@@ -2291,11 +2300,65 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 			default:
 				converted = MustInterfaceToValue(v)
 			}
+			if lob.cache == nil {
+				lob.cache = map[string]Value{}
+			}
 			lob.cache[string(p0)] = converted
 			return converted.Find(path[1:])
 		}
 	}
 	return nil, errFindNotFound
+}
+
+// nativeAt returns what lob holds at path without converting any of it, for a
+// caller that only asks what is there. ok is false where the path runs through
+// something already converted, or other than an object, which Find answers for.
+func (lob *lazyObj) nativeAt(path Ref) (v any, found, ok bool) {
+	cur := lob
+	for j, t := range path {
+		if cur.strict != nil {
+			return nil, false, false
+		}
+		s, isStr := t.Value.(String)
+		if !isStr {
+			return nil, false, true
+		}
+		if conv, cached := cur.cache[string(s)]; cached {
+			sub, isLazy := conv.(*lazyObj)
+			if !isLazy {
+				return nil, false, false
+			}
+			cur = sub
+			continue
+		}
+		nv, exists := cur.native[string(s)]
+		if !exists {
+			return nil, false, true
+		}
+		return nativeAt(nv, path[j+1:])
+	}
+	if cur.strict != nil {
+		return nil, false, false
+	}
+	return cur.native, true, true
+}
+
+func nativeAt(v any, path Ref) (any, bool, bool) {
+	for _, t := range path {
+		m, isMap := v.(map[string]any)
+		if !isMap {
+			return nil, false, false
+		}
+		s, isStr := t.Value.(String)
+		if !isStr {
+			return nil, false, true
+		}
+		var exists bool
+		if v, exists = m[string(s)]; !exists {
+			return nil, false, true
+		}
+	}
+	return v, true, true
 }
 
 type object struct {
