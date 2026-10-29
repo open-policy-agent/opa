@@ -189,9 +189,10 @@ Both directions of membership are supported:
 | `input.role in {"admin", "user"}`         | yes     |                                         |
 | `"admin" in input.roles`                  | yes     |                                         |
 | `input.roles[_] == "admin"`               | yes     | treated as `"admin" in input.roles`     |
+| `some r in input.roles; r == "admin"`     | yes     | treated as `"admin" in input.roles`     |
 | `x := input.role; x in {"admin", "user"}` | yes     | variable resolved to ref via assignment |
+| `some k, v in input.obj; v == "admin"`    | yes     | the values, as `"admin" in input.obj`   |
 | `{"nested": "obj"} in input.items`        | no      | non-scalar membership value             |
-| `some k, v in input.obj; v == "admin"`    | no      | three-operand `in` not indexed          |
 
 A lookup for `"admin" in input.roles` walks `input.roles`, so its cost grows with the collection. For large collections, prefer an object and `input.roles["admin"]`; see [Use objects over arrays](#use-objects-over-arrays).
 
@@ -215,14 +216,17 @@ The collection's keys are not known when the index is built, so the index asks t
 
 Only an object is indexed this way. A set would answer the same question, but base data comes from JSON and holds none; the only thing an array can be asked for is a position, which tells a ruleset's rules apart only where their lengths differ. Nor is `input.subject in data.groups.admins.members` indexed — `in` asks after the collection's _values_, which is a walk for either.
 
+The key can also be an element of a collection in the input or base data, as in `data.groups.admins.members[input.subjects[_]]`: the index then asks the collection about each element, and keeps the rule if any of them is a key.
+
 The collection is only asked about where every candidate is going to be evaluated anyway. A ruleset whose definitions all produce the same value lets evaluation stop at the first that holds, and asking about all of them to exclude any would be the work evaluation was about to do. Partial evaluation always asks, since its residual is built from every candidate, and so does a ruleset that cannot stop early — a partial set or object, or definitions that disagree on the value.
 
-| Expression                                    | Indexed | Notes                          |
-| --------------------------------------------- | ------- | ------------------------------ |
-| `data.groups.devs.members[input.subject]`     | yes     | asks the collection for a key  |
-| `data.groups[input.g].members[input.subject]` | no      | prefix contains a variable     |
-| `data.groups.devs.members[input.subject[i]]`  | no      | key contains a variable        |
-| `input.groups.devs.members[input.subject]`    | no      | collection is not in base data |
+| Expression                                    | Indexed | Notes                                 |
+| --------------------------------------------- | ------- | ------------------------------------- |
+| `data.groups.devs.members[input.subject]`     | yes     | asks the collection for a key         |
+| `data.groups.devs.members[input.subjects[_]]` | yes     | asks the collection for each element  |
+| `data.groups[input.g].members[input.subject]` | no      | prefix contains a variable            |
+| `data.groups.devs.members[input.s[i].ids[j]]` | no      | key is in a collection of collections |
+| `input.groups.devs.members[input.subject]`    | no      | collection is not in base data        |
 
 #### Logical (`and`/`or`) statements
 

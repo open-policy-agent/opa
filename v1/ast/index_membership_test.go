@@ -148,8 +148,13 @@ func TestBaseDocEqIndexCollectionKeyShapes(t *testing.T) {
 			indexed: true,
 		},
 		{
-			note:    "key contains a variable",
+			note:    "key is an element of a collection",
 			cond:    "data.groups.devs.members[input.subject[i]]",
+			indexed: true,
+		},
+		{
+			note:    "key is an element of a collection in a collection",
+			cond:    "data.groups.devs.members[input.subject[i].ids[j]]",
 			indexed: false,
 		},
 		{
@@ -719,5 +724,34 @@ func TestInCollectionLazyDoesNotAllocate(t *testing.T) {
 	})
 	if allocs != 0 {
 		t.Errorf("expected no allocations, got %v", allocs)
+	}
+
+	// A whole lookup through such checks allocates the key's term, once, and
+	// nothing per candidate: in particular, the cache gather keeps has to stay
+	// on its stack. The lookup's scratch comes from pools, which the race
+	// detector drops from.
+	if raceEnabled {
+		t.Skip("allocation count of a lookup does not hold under -race")
+	}
+	c := NewCompiler()
+	c.Compile(map[string]*Module{"test.rego": MustParseModule(`package test
+
+allow contains "devs" if data.groups.devs.members[input.subject]
+
+allow contains "ops" if data.groups.ops.members[input.subject]`)})
+	if c.Failed() {
+		t.Fatal(c.Errors)
+	}
+	index := c.RuleIndex(MustParseRef("data.test.allow"))
+	resolver = testResolver{input: MustParseTerm(`{"subject": "bob"}`), data: resolver.(testResolver).data}
+	allocs = testing.AllocsPerRun(100, func() {
+		res, err := index.Lookup(resolver)
+		if err != nil || len(res.Rules) != 1 {
+			t.Fatalf("expected one candidate, got %v, %v", res, err)
+		}
+		IndexResultPool.Put(res)
+	})
+	if allocs > 2 {
+		t.Errorf("expected a lookup to allocate at most twice, got %v", allocs)
 	}
 }

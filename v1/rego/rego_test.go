@@ -4299,6 +4299,11 @@ func TestPartialEvalIndexedLookups(t *testing.T) {
 			cond:  "some g in {\"g%[1]d\", \"x%[1]d\"}\n\tdata.groups[g].members[input.subject]",
 			input: `{"subject": "u3"}`,
 		},
+		{
+			note:  "keyed by an element of a collection",
+			cond:  "some g in {\"g%[1]d\", \"x%[1]d\"}\n\tdata.groups[g].members[input.subjects[_]]",
+			input: `{"subjects": ["nobody", "u3"]}`,
+		},
 	} {
 		t.Run(tc.note, func(t *testing.T) {
 			var sb strings.Builder

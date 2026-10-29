@@ -118,6 +118,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			if !bodySkipsIndexing(rule.Body) {
 				clear(values)
 				clear(indices.domains)
+				clear(indices.elements)
 				for i := range rule.Body {
 					indices.Update(rule, rule.Body[i], values)
 				}
@@ -446,13 +447,51 @@ func (i *baseDocEqIndex) inCollections(resolver ValueResolver, id int32, cache *
 			return false, nil
 		}
 
-		in, err := inAnyCollection(resolver, cache, m.collections, key)
+		var in bool
+		if m.each {
+			in, err = anyElementInCollection(resolver, cache, m.collections, key)
+		} else {
+			in, err = inAnyCollection(resolver, cache, m.collections, key)
+		}
 		if err != nil || !in {
 			return false, err
 		}
 	}
 
 	return true, nil
+}
+
+// anyElementInCollection reports whether an element of coll, the values of an
+// object, is in one of collections. Anything other than a collection has no
+// elements, and the iteration the rule makes over it yields nothing.
+func anyElementInCollection(resolver ValueResolver, cache *resolveCache, collections []Ref, coll *Term) (bool, error) {
+	if arr, ok := coll.Value.(*Array); ok {
+		for j := range arr.Len() {
+			if in, err := inAnyCollection(resolver, cache, collections, arr.Elem(j)); err != nil || in {
+				return in, err
+			}
+		}
+		return false, nil
+	}
+
+	// Sets and objects are iterated by callback, which escapes: it works on a copy
+	// of the cache, so that the caller's, kept on its stack, does not escape too.
+	local := *cache
+	var in bool
+	var err error
+	until := func(elem *Term) bool {
+		in, err = inAnyCollection(resolver, &local, collections, elem)
+		return err != nil || in
+	}
+
+	switch c := coll.Value.(type) {
+	case Set:
+		c.Until(until)
+	case Object:
+		c.Until(func(_, v *Term) bool { return until(v) })
+	}
+	*cache = local
+	return in, err
 }
 
 func inAnyCollection(resolver ValueResolver, cache *resolveCache, collections []Ref, key *Term) (bool, error) {
@@ -633,6 +672,9 @@ type IndexEveryCandidateEvaluated interface {
 type membership struct {
 	key         Ref
 	collections []Ref
+	// each says the value at key is a collection, any element of which will do:
+	// `x := input.subjects[_]; data.groups.g1.members[x]`.
+	each bool
 }
 
 // refID identifies one of the references an index is built on.
@@ -801,6 +843,9 @@ type refindices struct {
 	// domains holds, for the rule being indexed, the locals bound by iterating a
 	// literal, `x = {"a", "b"}[_]`; see iteration.
 	domains map[Var]binding
+	// elements holds, for the rule being indexed, the locals bound to an element
+	// of a collection in the input or base data: `x = input.subjects[_]`.
+	elements map[Var]Ref
 	// stats holds what Sorted ranks the references by, indexed by ref id.
 	stats  []refStats
 	sorted []refID
@@ -1072,9 +1117,9 @@ func (i *refindices) disjoin(rule *Rule, ops []operand) {
 	}
 
 	for _, m := range ops[0].memberships {
-		merged := membership{key: m.key, collections: slices.Clone(m.collections)}
+		merged := membership{key: m.key, collections: slices.Clone(m.collections), each: m.each}
 		for _, op := range ops[1:] {
-			j := slices.IndexFunc(op.memberships, func(o membership) bool { return RefEqual(o.key, m.key) })
+			j := slices.IndexFunc(op.memberships, func(o membership) bool { return RefEqual(o.key, m.key) && o.each == m.each })
 			if j < 0 {
 				merged.collections = nil
 				break
@@ -1127,6 +1172,7 @@ func (i *refindices) indexApart(rule *Rule, domains map[Var]binding, update func
 	s := newrefindices(i.isVirtual, i.table)
 	s.scratch = &scratch{outer: append(slices.Clone(i.rules[rule]), i.outer()...), sharedDomains: true}
 	s.domains = domains
+	s.elements = maps.Clone(i.elements)
 	update(s)
 
 	op := operand{memberships: s.memberships[rule]}
@@ -1548,12 +1594,12 @@ func (i *refindices) updateCollectionKey(rule *Rule, ref Ref) bool {
 		return false
 	}
 
-	keyRef := i.keyRefOf(rule, ref[len(ref)-1])
+	keyRef, each := i.keyRefOf(rule, ref[len(ref)-1])
 	if keyRef == nil || i.isVirtual(keyRef) {
 		return false
 	}
 
-	i.recordMembership(rule, membership{key: keyRef, collections: []Ref{prefix}})
+	i.recordMembership(rule, membership{key: keyRef, collections: []Ref{prefix}, each: each})
 	return true
 }
 
@@ -1698,23 +1744,44 @@ func (i *refindices) updateIteration(rule *Rule, expr *Expr, it *iteration, valu
 
 // keyRefOf resolves the term a collection is keyed by to the reference it stands
 // for: `input.subject` directly, or the local a rule bound it to.
-func (i *refindices) keyRefOf(rule *Rule, term *Term) Ref {
+func (i *refindices) keyRefOf(rule *Rule, term *Term) (Ref, bool) {
 	switch v := term.Value.(type) {
 	case Ref:
 		if v.IsGround() && !i.isVirtual(v) {
-			return v
+			return v, false
 		}
 	case Var:
-		return i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, v)
+		if coll, ok := i.elements[v]; ok {
+			return coll, true
+		}
+		return i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, v), false
 	}
-	return nil
+	return nil, false
+}
+
+// recordElement notes that v is bound to an element of the collection at a
+// reference, if src is an iteration over one: `v = input.subjects[_]`.
+func (i *refindices) recordElement(rule *Rule, v Var, src Value) {
+	ref, ok := src.(Ref)
+	if !ok || len(ref) < 2 || !valueIsVar(ref[len(ref)-1].Value) {
+		return
+	}
+	coll := i.resolveRefHead(rule, rule.Head.Args, ref[:len(ref)-1])
+	if coll == nil || !i.isValidIndexRef(coll) {
+		return
+	}
+	if i.elements == nil {
+		i.elements = map[Var]Ref{}
+	}
+	i.elements[v] = coll
 }
 
 // recordMembership notes that rule only matches when m holds, and that its key
 // takes part in indexing it.
 func (i *refindices) recordMembership(rule *Rule, m membership) {
 	for _, other := range i.memberships[rule] {
-		if RefEqual(other.key, m.key) && slices.EqualFunc(other.collections, m.collections, RefEqual) {
+		if RefEqual(other.key, m.key) && other.each == m.each &&
+			slices.EqualFunc(other.collections, m.collections, RefEqual) {
 			return
 		}
 	}
@@ -2706,16 +2773,23 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 			constants[v] = b
 		} else {
 			if bv, ok := b.(Var); ok {
-				// `y := x` binds y to x's constant, or to x's place in an
-				// iteration, too.
+				// `y := x` binds y to x's constant, x's place in an
+				// iteration, or the collection x is an element of, too.
 				if c, ok := constants[bv]; ok {
 					constants[v] = c
 				}
 				if d, ok := i.domains[bv]; ok {
 					i.bind(v, d)
 				}
+				if coll, ok := i.elements[bv]; ok {
+					if i.elements == nil {
+						i.elements = map[Var]Ref{}
+					}
+					i.elements[v] = coll
+				}
 			}
 			i.recordIteration(v, b, constants)
+			i.recordElement(rule, v, b)
 		}
 
 		bval, ok := indexValue(b)
@@ -2724,6 +2798,11 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 		}
 		if ref := i.resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
 			i.insert(rule, &refindex{ref: i.table.intern(ref), Value: bval})
+			return true
+		}
+		// `s := input.subjects[_]; s == "admin"` is `input.subjects[_] == "admin"`.
+		if coll, ok := i.elements[v]; ok && IsScalar(bval) {
+			i.insert(rule, &refindex{ref: i.table.intern(coll), Value: bval, Member: true})
 			return true
 		}
 
