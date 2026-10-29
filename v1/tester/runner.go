@@ -329,6 +329,7 @@ type Runner struct {
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
+	strictBuiltinErrors   bool
 	stackTraces           bool
 	runtime               *ast.Term
 	timeout               time.Duration
@@ -381,9 +382,17 @@ func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 }
 
 // RaiseBuiltinErrors sets the runner to raise errors encountered by builtins
-// such as parsing input.
+// such as parsing input. StrictBuiltinErrors takes precedence when both are set.
 func (r *Runner) RaiseBuiltinErrors(enabled bool) *Runner {
 	r.raiseBuiltinErrors = enabled
+	return r
+}
+
+// StrictBuiltinErrors sets the runner to stop a test at the first error
+// encountered by a builtin and report it as the test's error, the same as
+// rego.StrictBuiltinErrors. It takes precedence over RaiseBuiltinErrors.
+func (r *Runner) StrictBuiltinErrors(enabled bool) *Runner {
+	r.strictBuiltinErrors = enabled
 	return r
 }
 
@@ -1051,7 +1060,9 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	// Only collect built-in errors when they will be reported below. Supplying
 	// the list unconditionally makes the evaluator hold on to every error a test
 	// raises, and annotate each with a stack trace nothing reads.
-	if r.raiseBuiltinErrors {
+	if r.strictBuiltinErrors {
+		opts = append(opts, rego.StrictBuiltinErrors(true))
+	} else if r.raiseBuiltinErrors {
 		opts = append(opts, rego.BuiltinErrorList(&builtinErrors))
 	}
 

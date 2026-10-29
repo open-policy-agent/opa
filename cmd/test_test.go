@@ -2358,6 +2358,26 @@ func testExitCodeWithFailOnEmpty(rego string, failOnEmpty bool) int {
 	return exitCode
 }
 
+func testExitCodeWithStrictBuiltinErrors(rego string, strictBuiltinErrors bool) int {
+	files := map[string]string{
+		"test.rego": rego,
+	}
+
+	var exitCode int
+	test.WithTempFS(files, func(path string) {
+		regoFilePath := filepath.Join(path, "test.rego")
+
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.strictBuiltinErrors = strictBuiltinErrors
+		testParams.errOutput = io.Discard
+		testParams.output = io.Discard
+
+		exitCode = opaTest([]string{regoFilePath}, testParams)
+	})
+	return exitCode
+}
+
 func TestExitCode(t *testing.T) {
 	testCases := map[string]struct {
 		Test              string
@@ -4031,6 +4051,45 @@ func TestFailOnEmpty(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			exitCode := testExitCodeWithFailOnEmpty(tc.Test, tc.FailOnEmpty)
+
+			if exitCode != tc.ExpectedExitCode {
+				t.Errorf("Expected exit code to be %d but got %d", tc.ExpectedExitCode, exitCode)
+			}
+		})
+	}
+}
+
+func TestStrictBuiltinErrors(t *testing.T) {
+	testCases := map[string]struct {
+		Test                string
+		StrictBuiltinErrors bool
+		ExpectedExitCode    int
+	}{
+		"pass when builtin error is swallowed and strict-builtin-errors disabled": {
+			Test: `package foo
+
+			test_swallowed if {
+				to_number("not a number")
+			} else := true
+			`,
+			StrictBuiltinErrors: false,
+			ExpectedExitCode:    0,
+		},
+		"error when builtin error is swallowed and strict-builtin-errors enabled": {
+			Test: `package foo
+
+			test_swallowed if {
+				to_number("not a number")
+			} else := true
+			`,
+			StrictBuiltinErrors: true,
+			ExpectedExitCode:    2,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			exitCode := testExitCodeWithStrictBuiltinErrors(tc.Test, tc.StrictBuiltinErrors)
 
 			if exitCode != tc.ExpectedExitCode {
 				t.Errorf("Expected exit code to be %d but got %d", tc.ExpectedExitCode, exitCode)
