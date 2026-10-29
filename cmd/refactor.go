@@ -28,12 +28,16 @@ type moveCommandParams struct {
 	overwrite    bool
 	v0Compatible bool
 	v1Compatible bool
+	v2Compatible bool
 }
 
 func (m *moveCommandParams) regoVersion() ast.RegoVersion {
 	// v0 takes precedence over v1
 	if m.v0Compatible {
 		return ast.RegoV0
+	}
+	if m.v2Compatible {
+		return ast.RegoV2
 	}
 	if m.v1Compatible {
 		return ast.RegoV1
@@ -109,6 +113,7 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 	refactorCommand.AddCommand(moveCommand)
 	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible)
 	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible)
+	addV2CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v2Compatible)
 	root.AddCommand(refactorCommand)
 }
 

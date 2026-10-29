@@ -33,6 +33,7 @@ type checkParams struct {
 	regoV1       bool
 	v0Compatible bool
 	v1Compatible bool
+	v2Compatible bool
 }
 
 func newCheckParams() checkParams {
@@ -51,6 +52,9 @@ func (p *checkParams) regoVersion() ast.RegoVersion {
 	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
 	if p.v0Compatible {
 		return ast.RegoV0
+	}
+	if p.v2Compatible {
+		return ast.RegoV2
 	}
 	if p.v1Compatible {
 		return ast.RegoV1
@@ -215,6 +219,7 @@ and exit with a non-zero exit code.`,
 		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
 	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible)
 	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible)
+	addV2CompatibleFlag(checkCommand.Flags(), &checkParams.v2Compatible)
 
 	root.AddCommand(checkCommand)
 }

@@ -83,6 +83,10 @@ type Options struct {
 	// If V0Compatible is set to true, this field is ignored.
 	V1Compatible bool
 
+	// V2Compatible enables v2 compatibility mode when set to true.
+	// Takes precedence over V1Compatible and is ignored if V0Compatible is set.
+	V2Compatible bool
+
 	// RegoVersion sets the version of the Rego language to use.
 	// If V0Compatible or V1Compatible is set to true, this field is ignored.
 	RegoVersion ast.RegoVersion
@@ -100,6 +104,9 @@ func (o *Options) regoVersion() ast.RegoVersion {
 	// v0 takes precedence over v1
 	if o.V0Compatible {
 		return ast.RegoV0
+	}
+	if o.V2Compatible {
+		return ast.RegoV2
 	}
 	if o.V1Compatible {
 		return ast.RegoV1
