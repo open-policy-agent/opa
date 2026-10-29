@@ -1587,6 +1587,42 @@ func TestLazyObjectFindCache(t *testing.T) {
 	}
 }
 
+// TestLazyObjectFindMissing covers asking for a path that is not there: nothing
+// on the way is converted or cached, whether the way is still native or cached.
+func TestLazyObjectFindMissing(t *testing.T) {
+	x := LazyObject(map[string]any{"a": map[string]any{"b": map[string]any{"c": true}}})
+	missing := []Ref{
+		{StringTerm("a"), StringTerm("x")},
+		{StringTerm("a"), StringTerm("b"), StringTerm("x")},
+		{StringTerm("x"), StringTerm("b")},
+		{StringTerm("a"), IntNumberTerm(1)},
+	}
+
+	findNone := func() {
+		for _, path := range missing {
+			if _, err := x.Find(path); err == nil {
+				t.Fatalf("expected %v not to be found", path)
+			}
+		}
+	}
+
+	if allocs := testing.AllocsPerRun(10, findNone); allocs != 0 {
+		t.Errorf("expected no allocations, got %v", allocs)
+	}
+	if c := x.(*lazyObj).cache; len(c) != 0 {
+		t.Errorf("expected nothing cached, got %v", c)
+	}
+
+	v, err := x.Find(Ref{StringTerm("a"), StringTerm("b"), StringTerm("c")})
+	if err != nil || v.Compare(Boolean(true)) != 0 {
+		t.Fatalf("expected true, got %v, %v", v, err)
+	}
+	// a and b are cached now, so the way is through cached lazy objects.
+	if allocs := testing.AllocsPerRun(10, findNone); allocs != 0 {
+		t.Errorf("expected no allocations through the cache, got %v", allocs)
+	}
+}
+
 func TestLazyObjectCopy(t *testing.T) {
 	x := LazyObject(map[string]any{
 		"a": map[string]any{

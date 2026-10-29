@@ -1053,6 +1053,16 @@
       "Minor": 59,
       "Patch": 0
     },
+    "rego_v2": {
+      "Major": 1,
+      "Minor": 22,
+      "Patch": 0
+    },
+    "rego_v2_import": {
+      "Major": 1,
+      "Minor": 22,
+      "Patch": 0
+    },
     "rule_head_ref_string_prefixes": {
       "Major": 0,
       "Minor": 46,

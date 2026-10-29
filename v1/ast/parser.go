@@ -675,11 +675,17 @@ func (p *Parser) parseImport() *Import {
 		}
 
 		if alias := p.parseTerm(); alias != nil {
-			v, ok := alias.Value.(Var)
-			if ok {
+			switch v := alias.Value.(type) {
+			case Var:
 				imp.Alias = v
 				imp.AliasLocation = alias.Location
 				return &imp
+			case Ref:
+				// input and data are parsed as single-term refs.
+				if len(v) == 1 && RootDocumentNames.Contains(v[0]) {
+					p.errorf(alias.Location, "unexpected import alias, must not be a reserved name, got: %v", v[0])
+					return nil
+				}
 			}
 		}
 		p.illegal("expected var")
