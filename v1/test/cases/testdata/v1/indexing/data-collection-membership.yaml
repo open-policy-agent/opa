@@ -188,3 +188,25 @@ cases:
       - x:
           - admins
           - dev-or-ops
+  - note: a lookup keyed by an element of a collection in the input
+    query: data.indexing.e = x
+    modules:
+      - |
+        package indexing
+
+        e contains g if {
+        	some g in {"devs", "ops"}
+        	data.groups[g].members[input.subjects[_]]
+        }
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+        ops:
+          members:
+            bob: true
+    input_term: '{"subjects": ["carol", "bob"]}'
+    want_result:
+      - x:
+          - ops
