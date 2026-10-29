@@ -6,7 +6,6 @@ package ast
 
 import (
 	"cmp"
-	"maps"
 	"math/bits"
 	"slices"
 	"strings"
@@ -105,7 +104,6 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	indices := newrefindices(i.isVirtual, newRefTable())
 	// Only Build needs it; a reused index mustn't keep its compiler alive.
 	i.isVirtual = nil
-	values := make(map[Var]Value)
 
 	// build indices for each rule.
 	for idx := range rules {
@@ -117,14 +115,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			if i.onlyGroundRefs {
 				i.onlyGroundRefs = rule.Head.Reference.IsGround()
 			}
-			if !bodySkipsIndexing(rule.Body) {
-				clear(values)
-				clear(indices.domains)
-				clear(indices.elements)
-				for i := range rule.Body {
-					indices.Update(rule, rule.Body[i], values)
-				}
-			}
+			indices.recordRule(rule)
 			return false
 		})
 	}
@@ -151,6 +142,12 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			if ms := indices.memberships[rule]; len(ms) > 0 {
 				if i.memberships == nil {
 					i.memberships = make(map[int32][]membership, len(rules))
+				}
+				for j := range ms {
+					ms[j].key = indices.table.shared(ms[j].key)
+					for k, coll := range ms[j].collections {
+						ms[j].collections[k] = indices.table.shared(coll)
+					}
 				}
 				i.memberships[id] = ms
 			}
@@ -680,10 +677,7 @@ type membership struct {
 // refID identifies one of the references an index is built on.
 type refID int32
 
-// refTable numbers the references an index is built on. One table is shared by
-// every refindices of a build, the scratch ones an `and`/`or` operand is
-// indexed into included, so that an id means the same thing wherever it turns
-// up.
+// refTable numbers the references an index is built on.
 type refTable struct {
 	// refs are the references in id order; ids answers the other direction, and
 	// is only built past refTableScan entries.
@@ -724,6 +718,12 @@ func (t *refTable) intern(ref Ref) refID {
 	t.refs = append(t.refs, ref)
 	t.ids.Put(ref, id)
 	return id
+}
+
+// shared returns the ref the table holds for ref, so that rules naming the same
+// ref keep one copy of it between them, not one each.
+func (t *refTable) shared(ref Ref) Ref {
+	return t.ref(t.intern(ref))
 }
 
 func (t *refTable) ref(id refID) Ref {
@@ -833,30 +833,20 @@ type refindices struct {
 	// disjunctions holds the alternatives contributed by each `or` in the rule;
 	// every combination of them is a way to reach it.
 	disjunctions map[*Rule][]alternatives
-	// scratch is set when these are the indices of one operand of `a and b` or
-	// `a or b`, or of one element of `some x in {"a", "b"}`, rather than a
-	// rule's own; see scratch.
-	scratch *scratch
-	table   *refTable
+	table        *refTable
 	// memberships holds the collection memberships of each rule; see membership.
 	memberships map[*Rule][]membership
-	// domains holds, for the rule being indexed, the locals bound by iterating a
-	// literal, `x = {"a", "b"}[_]`; see iteration.
-	domains map[Var]binding
-	// elements holds, for the rule being indexed, the locals bound to an element
-	// of a collection in the input or base data: `x = input.subjects[_]`.
-	elements map[Var]Ref
 	// stats holds what Sorted ranks the references by, indexed by ref id.
-	stats  []refStats
-	sorted []refID
+	stats      []refStats
+	sorted     []refID
+	translator translator
 }
 
 // refStats is what one reference accumulated over a build, which is what decides
 // the order of the trie's levels. Dropped once the trie is built.
 type refStats struct {
 	// count is how often the ref took part in indexing a rule. Sorted passes
-	// over the ids that never counted: a scratch interns the refs of an operand
-	// that may turn out unindexable, and then nothing records them.
+	// over the ids that never counted.
 	count int32
 	// alternated is whether some rule reaches the ref by more than one value,
 	// and what that costs insertPath. An `or` is not recorded: its alternatives
@@ -876,6 +866,7 @@ func newrefindices(isVirtual func(Ref) bool, table *refTable) *refindices {
 		table:       table,
 		rules:       map[*Rule][]*refindex{},
 		memberships: map[*Rule][]membership{},
+		translator:  translator{isVirtual: isVirtual},
 	}
 }
 
@@ -907,95 +898,6 @@ func (i *refindex) isAffix() bool {
 // trie, which is where a lookup goes looking for them instead.
 func (i *refindex) isComposite() bool {
 	return !IsScalar(i.Value)
-}
-
-// Update attempts to update the refindices for the given expression in the
-// given rule. If the expression cannot be indexed the update does not affect
-// the indices.
-func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
-	if len(expr.With) > 0 {
-		// NOTE(tsandall): In the future, we may need to consider expressions
-		// that have with statements applied to them.
-		return
-	}
-
-	if expr.Negated {
-		// NOTE(sr): We could try to cover simple expressions, like
-		// not input.funky => input.funky == false or undefined (two refindex?)
-		return
-	}
-
-	expr = plugRefs(expr, values)
-
-	if it, ok := i.iterationOf(expr); ok {
-		i.updateIteration(rule, expr, it, values)
-		return
-	}
-
-	switch terms := expr.Terms.(type) {
-	case *LogicalAnd:
-		i.updateLogicalAnd(rule, terms, values)
-		return
-	case *LogicalOr:
-		i.updateLogicalOr(rule, terms, values)
-		return
-	}
-
-	op := expr.Operator()
-	if op == nil {
-		if ts, ok := expr.Terms.(*Term); ok {
-			// NOTE(sr): If we wanted to cover function args, we'd need to also
-			// check for type "Var" here. But since it's impossible to call a
-			// function with a undefined argument, there's no point to recording
-			// "needs to be anything" for function args
-			if ref, ok := ts.Value.(Ref); ok { // "naked ref"
-				// `data.groups.g1.members[input.subject]` constrains its last
-				// element to the keys of the collection at the ground prefix,
-				// which is more than the "is defined" updateEq can record.
-				if !i.updateCollectionKey(rule, ref) {
-					i.updateEq(rule, ts.Value, anyValue, nil)
-				}
-			}
-		}
-	}
-
-	equalish := op.Equal(Interned.Refs.Equality) || // unification, no 3-operands version exists
-		// NOTE(tsandall): if equal() is called with more than two arguments the
-		// output value is being captured in which case the indexer cannot
-		// exclude the rule if the equal() call would return false (because the
-		// false value must still be produced.)
-		(op.Equal(Interned.Refs.Equal) && len(expr.Operands()) == 2)
-
-	a, b := expr.Operand(0), expr.Operand(1)
-	switch {
-	case equalish:
-		if !i.updateEqWildcardRef(rule, a.Value, b.Value, values) {
-			i.updateEq(rule, a.Value, b.Value, values)
-		}
-
-	case op.Equal(Interned.Refs.GlobMatch) && len(expr.Operands()) == 3:
-		// NOTE(sr): Same as with equal() above -- 4 operands means the output
-		// of `glob.match` is captured and the rule can thus not be excluded.
-		i.updateGlobMatch(rule, expr)
-
-	case op.Equal(Interned.Refs.Member) && len(expr.Operands()) == 2:
-		// NOTE(sr): Again, 3 operands means captured output (like above).
-		i.updateMember(rule, expr, values)
-
-	case op.Equal(Interned.Refs.StartsWith) && len(expr.Operands()) == 2:
-		// As with equal() above: a third operand captures the result, and a
-		// rule producing `false` still has to be evaluated.
-		i.updateAffix(rule, expr, values, affixPrefix)
-
-	case op.Equal(Interned.Refs.AnyPrefixMatch) && len(expr.Operands()) == 2:
-		i.updateAnyAffixMatch(rule, expr, values, affixPrefix)
-
-	case op.Equal(Interned.Refs.EndsWith) && len(expr.Operands()) == 2:
-		i.updateAffix(rule, expr, values, affixSuffix)
-
-	case op.Equal(Interned.Refs.AnySuffixMatch) && len(expr.Operands()) == 2:
-		i.updateAnyAffixMatch(rule, expr, values, affixSuffix)
-	}
 }
 
 // plugRefs returns expr with each local in its references that is bound to a
@@ -1057,22 +959,6 @@ func plugRef(t *Term, constants map[Var]Value) *Term {
 	return NewTerm(out)
 }
 
-// updateLogicalAnd folds both operands of a conjunction into the rule's
-// indices: `lhs and rhs` only succeeds if both operands do, so whatever either
-// operand requires of the input, the rule requires.
-//
-// Each operand is indexed against the indices the rule has so far, not against
-// what its sibling contributes: operand bodies are separate scopes, so the same
-// var in each is a different var, and resolveVarToRef must not connect them.
-func (i *refindices) updateLogicalAnd(rule *Rule, and *LogicalAnd, values map[Var]Value) {
-	for _, op := range []operand{i.operand(rule, and.Lhs, values), i.operand(rule, and.Rhs, values)} {
-		i.require(rule, op.alts)
-		for _, m := range op.memberships {
-			i.recordMembership(rule, m)
-		}
-	}
-}
-
 // require records that the rule is only defined if one of the alternatives
 // holds. A lone alternative is unconditional, so its indices join the rule's
 // own; several are kept apart for Build to turn into separate paths.
@@ -1095,12 +981,6 @@ func (i *refindices) require(rule *Rule, alts alternatives) {
 		}
 		i.disjunctions[rule] = append(i.disjunctions[rule], alts)
 	}
-}
-
-// updateLogicalOr records the operands of a disjunction as alternative ways to
-// reach the rule, `lhs or rhs` holding if either operand does.
-func (i *refindices) updateLogicalOr(rule *Rule, or *LogicalOr, values map[Var]Value) {
-	i.disjoin(rule, []operand{i.operand(rule, or.Lhs, values), i.operand(rule, or.Rhs, values)})
 }
 
 // disjoin records what the rule requires when one of ops has to hold: what all of
@@ -1141,61 +1021,6 @@ type operand struct {
 	memberships []membership
 }
 
-// scratch sets apart the indices that one operand of `a and b` or `a or b`, or
-// one element of `some x in {"a", "b"}`, is indexed into. Indexed into the
-// rule's own, `input.x == 1 or input.y == 2` would require both; kept apart,
-// each operand becomes one alternative way to reach the rule (see disjoin).
-// What a scratch finds reaches the rule's own indices only through require()
-// and recordMembership(), which count it there, so a scratch keeps no
-// statistics: they would never be read, and would size a slice to the build's
-// whole ref table every time.
-type scratch struct {
-	// outer holds the enclosing scope's indices: resolvable from inside, but not
-	// the scratch's own.
-	outer []*refindex
-	// sharedDomains is whether domains belongs to the enclosing indices, and has
-	// to be copied before recording one.
-	sharedDomains bool
-	// sink takes the statistics a scratch does not keep.
-	sink refStats
-}
-
-// operand indexes body apart, so that what it requires reaches the rule only
-// through require() and recordMembership().
-func (i *refindices) operand(rule *Rule, body Body, values map[Var]Value) operand {
-	return i.indexApart(rule, i.domains, func(s *refindices) {
-		s.updateOperand(rule, body, values)
-	})
-}
-
-func (i *refindices) indexApart(rule *Rule, domains map[Var]binding, update func(*refindices)) operand {
-	s := newrefindices(i.isVirtual, i.table)
-	s.scratch = &scratch{outer: append(slices.Clone(i.rules[rule]), i.outer()...), sharedDomains: true}
-	s.domains = domains
-	s.elements = maps.Clone(i.elements)
-	update(s)
-
-	op := operand{memberships: s.memberships[rule]}
-	alts := s.paths(rule)
-	if len(alts) == 1 && len(alts[0]) == 0 {
-		return op
-	}
-
-	for _, alt := range alts {
-		for pos, ri := range alt {
-			// The var is scoped to the operand body and must not become
-			// resolvable from the outside (see resolveVarToRef); that the ref
-			// has to be defined still holds.
-			if ri.isVar() {
-				alt[pos] = &refindex{ref: ri.ref, Value: anyValue, Mapper: ri.Mapper}
-			}
-		}
-	}
-
-	op.alts = alts
-	return op
-}
-
 // paths returns every set of indices that can lead to the rule: the ones that
 // always hold, combined with one branch from each disjunction. Past
 // maxIndexPaths the disjunctions are dropped -- fewer constraints only widen
@@ -1219,28 +1044,6 @@ func (i *refindices) paths(rule *Rule) alternatives {
 	}
 
 	return paths
-}
-
-// updateOperand folds the expressions of an `and`/`or` operand body into the
-// rule's indices. An operand body is a closed scope -- bindings made inside it
-// reach neither the enclosing body nor the sibling operand (see
-// evalLogicalOperand in topdown) -- so its constants are copied in and dropped
-// on return.
-func (i *refindices) updateOperand(rule *Rule, body Body, values map[Var]Value) {
-	scoped := make(map[Var]Value, len(values))
-	maps.Copy(scoped, values)
-
-	for _, expr := range body {
-		i.Update(rule, expr, scoped)
-	}
-}
-
-func (i *refindices) isValidIndexRef(ref Ref) bool {
-	// NB(sr): the ordering is intentional, cheapest-first
-	return RootDocumentNames.Contains(ref[0]) &&
-		!ref.IsNested() &&
-		ref.IsGround() &&
-		!i.isVirtual(ref)
 }
 
 // Sorted returns the references the indices were built from, ordered so that
@@ -1337,178 +1140,6 @@ func (i *refindices) partition(sorted []refID) (levels, unvalued []refID) {
 	return levels, unvalued
 }
 
-func (i *refindices) updateEq(rule *Rule, a, b Value, constants map[Var]Value) {
-	args := rule.Head.Args
-	if !i.eqOperandsToRefAndValue(rule, args, a, b, constants) {
-		i.eqOperandsToRefAndValue(rule, args, b, a, constants)
-	}
-}
-
-func (i *refindices) updateEqWildcardRef(rule *Rule, a, b Value, constants map[Var]Value) bool {
-	return i.tryIndexWildcardRef(rule, a, b, constants) ||
-		i.tryIndexWildcardRef(rule, b, a, constants)
-}
-
-func (i *refindices) tryIndexWildcardRef(rule *Rule, a, b Value, constants map[Var]Value) bool {
-	ref, ok := a.(Ref)
-	if !ok {
-		return false
-	}
-
-	ref = i.resolveRefHead(rule, rule.Head.Args, ref)
-	if ref == nil {
-		return false
-	}
-
-	groundPrefix := ref.GroundPrefix()
-	if len(groundPrefix) != len(ref)-1 || !i.isValidIndexRef(groundPrefix) {
-		return false
-	}
-
-	resolvedValue := b
-	if bvar, ok := b.(Var); ok {
-		if resolved, ok := constants[bvar]; ok {
-			resolvedValue = resolved
-		}
-	} else if val, ok := indexValue(b); ok {
-		resolvedValue = val
-	} else {
-		return false
-	}
-
-	if !IsScalar(resolvedValue) {
-		return false
-	}
-
-	i.insert(rule, &refindex{ref: i.table.intern(groundPrefix), Value: resolvedValue, Member: true})
-	return true
-}
-
-func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
-	args := rule.Head.Args
-
-	delim, ok := globDelimiterToString(expr.Operand(1))
-	if !ok {
-		return
-	}
-
-	if arr := globPatternToArray(expr.Operand(0), delim); arr != nil {
-		// The 3rd operand of glob.match is the value to match. We assume the
-		// 3rd operand was a reference that has been rewritten and bound to a
-		// variable earlier in the query OR a function argument variable.
-		match := expr.Operand(2)
-		if v, ok := match.Value.(Var); ok {
-			if ref := i.resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
-				i.insert(rule, &refindex{
-					ref:   i.table.intern(ref),
-					Value: arr.Value,
-					Mapper: &valueMapper{
-						Key: delim,
-						MapValue: func(v Value) Value {
-							if s, ok := v.(String); ok {
-								return stringSliceToArray(splitStringEscaped(string(s), delim))
-							}
-							return v
-						},
-					},
-				})
-			}
-		}
-	}
-}
-
-func (i *refindices) updateMember(rule *Rule, expr *Expr, constants map[Var]Value) {
-	lhs, rhs := expr.Operand(0), expr.Operand(1)
-	lvar, ok := lhs.Value.(Var)
-	if ok {
-		lref := i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, lvar)
-		if lref != nil {
-			i.updateMemberRefInValue(rule, lref, rhs, constants) // `ref in value`
-			return
-		}
-	}
-
-	// `var0 in var1` case (var0 may be constant, var1 ref)
-	i.updateMemberValueInRef(rule, rule.Head.Args, lhs.Value, rhs, constants)
-}
-
-func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lval Value, rhs *Term, constants map[Var]Value) {
-	if lvar, ok := lval.(Var); ok {
-		val, ok := constants[lvar]
-		if ok {
-			lval = val
-		}
-	}
-	// A collection would land in the array trie, which tests the value at rref
-	// for equality, not for holding it as an element.
-	if _, ok := lval.(Var); !ok && !IsScalar(lval) {
-		return
-	}
-
-	rref := i.resolveAndValidateRef(rule, args, rhs)
-	if rref == nil {
-		return
-	}
-
-	i.insert(rule, &refindex{ref: i.table.intern(rref), Value: lval, Member: !valueIsVar(lval)})
-}
-
-func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, constants map[Var]Value) {
-	rval := rhs.Value
-	if rvar, ok := rval.(Var); ok { // rhs is var, try to resolve
-		if resolved, ok := constants[rvar]; ok {
-			rval = resolved
-		} else if cref := i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, rvar); cref != nil {
-			// The collection is behind a reference the compiler hoisted into a
-			// local: `__local0__ = data.groups.g1.members` ahead of the call.
-			rval = cref
-		}
-	}
-
-	var (
-		forEach func(func(*Term))
-		n       int
-	)
-
-	// `input.subject in data.groups.g1.members` asks for the collection's
-	// *values*, which base data -- an object or an array, never a set -- answers
-	// only by being walked. updateCollectionKey has the question it does answer.
-	if _, ok := rval.(Ref); ok {
-		return
-	}
-
-	switch rcol := rval.(type) {
-	case *Array:
-		forEach, n = rcol.Foreach, rcol.Len()
-	case Set:
-		forEach, n = rcol.Foreach, rcol.Len()
-	case Object:
-		o := objectFromObject(rcol)
-
-		n = o.Len()
-		forEach = func(f func(*Term)) {
-			for _, node := range o.sortedKeys() {
-				f(node.value)
-			}
-		}
-	default:
-		return
-	}
-
-	members := make([]Value, 0, n)
-	forEach(func(t *Term) {
-		members = append(members, t.Value)
-	})
-
-	// A var member lets the ref be anything, but insertPath would drop it in
-	// favour of the constant members, taking the path's values to all hold.
-	if slices.ContainsFunc(members, valueIsVar) {
-		return
-	}
-
-	i.insertMembers(rule, ref, members)
-}
-
 // insertMembers records the members of an `in` collection, each a value the
 // rule may reach ref by, hoisting insert's scan out of the loop. insertAffixes
 // is the same for base strings; the two dedup on different key types.
@@ -1568,28 +1199,6 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	}
 }
 
-// updateCollectionKey records `<collection>[<key>]` -- a reference whose ground
-// prefix names a collection in base data and whose last element is the value
-// being looked up in it. Reports whether it did.
-func (i *refindices) updateCollectionKey(rule *Rule, ref Ref) bool {
-	if len(ref) < 2 || !ref[0].Equal(DefaultRootDocument) {
-		return false
-	}
-
-	prefix := ref[:len(ref)-1]
-	if !prefix.IsGround() || i.isVirtual(prefix) {
-		return false
-	}
-
-	keyRef, each := i.keyRefOf(rule, ref[len(ref)-1])
-	if keyRef == nil || i.isVirtual(keyRef) {
-		return false
-	}
-
-	i.recordMembership(rule, membership{key: keyRef, collections: []Ref{prefix}, each: each})
-	return true
-}
-
 // maxDomainExpansion caps how many times one expression is indexed over the
 // literals its locals iterate: once per combination of their positions. Each
 // costs about 0.45 us to build, so the cap bounds that at about 2 ms.
@@ -1615,86 +1224,6 @@ func (b binding) at(pos int) Value {
 	return b.it.values[pos]
 }
 
-// recordIteration notes that v and the key next to it iterate a literal, if src
-// is an iteration over one: `v = c[k]`, c being bound to the literal. A local is
-// only bound to scalars: values that are not leave v unbound, and keys that are
-// not leave both unbound.
-func (i *refindices) recordIteration(v Var, src Value, constants map[Var]Value) {
-	ref, ok := src.(Ref)
-	if !ok || len(ref) != 2 {
-		return
-	}
-	k, ok := ref[1].Value.(Var)
-	if !ok {
-		return
-	}
-
-	coll := ref[0].Value
-	if head, ok := coll.(Var); ok {
-		coll = constants[head]
-	}
-
-	it := &iteration{}
-	switch c := coll.(type) {
-	case Set:
-		c.Foreach(func(t *Term) { it.keys, it.values = append(it.keys, t.Value), append(it.values, t.Value) })
-	case *Array:
-		c.Foreach(func(t *Term) {
-			it.keys, it.values = append(it.keys, IntNumberTerm(len(it.keys)).Value), append(it.values, t.Value)
-		})
-	case Object:
-		c.Foreach(func(key, val *Term) { it.keys, it.values = append(it.keys, key.Value), append(it.values, val.Value) })
-	default:
-		return
-	}
-
-	scalars := func(vs []Value) bool { return !slices.ContainsFunc(vs, func(e Value) bool { return !IsScalar(e) }) }
-	if len(it.keys) == 0 || !scalars(it.keys) {
-		return
-	}
-	i.bind(k, binding{it: it, key: true})
-	if scalars(it.values) {
-		i.bind(v, binding{it: it})
-	}
-}
-
-func (i *refindices) bind(v Var, b binding) {
-	if (i.scratch != nil && i.scratch.sharedDomains) || i.domains == nil {
-		i.domains = maps.Clone(i.domains)
-		if i.scratch != nil {
-			i.scratch.sharedDomains = false
-		}
-		if i.domains == nil {
-			i.domains = map[Var]binding{}
-		}
-	}
-	i.domains[v] = b
-}
-
-// iterationOf returns an iteration a local of expr takes part in, provided the
-// combinations of positions of all iterations expr uses are few enough to index
-// one by one. `y = x` is not expanded but recorded: see eqOperandsToRefAndValue.
-func (i *refindices) iterationOf(expr *Expr) (*iteration, bool) {
-	if len(i.domains) == 0 || isLocalAlias(expr) {
-		return nil, false
-	}
-
-	var its []*iteration
-	product := 1
-	WalkVars(expr, func(v Var) bool {
-		if b, ok := i.domains[v]; ok && !slices.Contains(its, b.it) {
-			its = append(its, b.it)
-			product = min(product*len(b.it.keys), maxDomainExpansion+1)
-		}
-		return false
-	})
-
-	if len(its) == 0 || product > maxDomainExpansion {
-		return nil, false
-	}
-	return its[0], true
-}
-
 func isLocalAlias(expr *Expr) bool {
 	if !expr.IsEquality() {
 		return false
@@ -1702,65 +1231,6 @@ func isLocalAlias(expr *Expr) bool {
 	_, a := expr.Operand(0).Value.(Var)
 	_, b := expr.Operand(1).Value.(Var)
 	return a && b
-}
-
-// updateIteration indexes expr as the `or` of it at each position of it, every
-// local taking part in it replaced by its key or value there: `some x in {"a",
-// "b"}; input.y == x` as `{input.y == "a"} or {input.y == "b"}`.
-func (i *refindices) updateIteration(rule *Rule, expr *Expr, it *iteration, values map[Var]Value) {
-	rest := maps.Clone(i.domains)
-	maps.DeleteFunc(rest, func(_ Var, b binding) bool { return b.it == it })
-
-	// What indexing expr records in it does not depend on the position: a local
-	// is recorded as a constant only when bound to one.
-	scoped := maps.Clone(values)
-
-	ops := make([]operand, 0, len(it.keys))
-	for pos := range it.keys {
-		for v, b := range i.domains {
-			if b.it == it {
-				scoped[v] = b.at(pos)
-			}
-		}
-		ops = append(ops, i.indexApart(rule, rest, func(s *refindices) {
-			s.Update(rule, expr, scoped)
-		}))
-	}
-	i.disjoin(rule, ops)
-}
-
-// keyRefOf resolves the term a collection is keyed by to the reference it stands
-// for: `input.subject` directly, or the local a rule bound it to.
-func (i *refindices) keyRefOf(rule *Rule, term *Term) (Ref, bool) {
-	switch v := term.Value.(type) {
-	case Ref:
-		if v.IsGround() && !i.isVirtual(v) {
-			return v, false
-		}
-	case Var:
-		if coll, ok := i.elements[v]; ok {
-			return coll, true
-		}
-		return i.resolveVarToRef(i.resolvable(rule), rule.Head.Args, v), false
-	}
-	return nil, false
-}
-
-// recordElement notes that v is bound to an element of the collection at a
-// reference, if src is an iteration over one: `v = input.subjects[_]`.
-func (i *refindices) recordElement(rule *Rule, v Var, src Value) {
-	ref, ok := src.(Ref)
-	if !ok || len(ref) < 2 || !valueIsVar(ref[len(ref)-1].Value) {
-		return
-	}
-	coll := i.resolveRefHead(rule, rule.Head.Args, ref[:len(ref)-1])
-	if coll == nil || !i.isValidIndexRef(coll) {
-		return
-	}
-	if i.elements == nil {
-		i.elements = map[Var]Ref{}
-	}
-	i.elements[v] = coll
 }
 
 // recordMembership notes that rule only matches when m holds, and that its key
@@ -1776,98 +1246,6 @@ func (i *refindices) recordMembership(rule *Rule, m membership) {
 	i.count(i.table.intern(m.key))
 }
 
-func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term) Ref {
-	var ref Ref
-	switch v := term.Value.(type) {
-	case Ref:
-		ref = v
-	case Var:
-		ref = i.resolveVarToRef(i.resolvable(rule), args, v)
-	default:
-		return nil
-	}
-
-	if ref == nil || !i.isValidIndexRef(ref) {
-		return nil
-	}
-
-	return ref
-}
-
-// resolveRefHead resolves a ref rooted at a local variable -- what
-//
-//	x := input
-//	x.foo == "bar"
-//
-// gets compiled to -- into the ref that local aliases, splicing the remainder of
-// the ref onto it: `input.foo`. Refs that are already rooted at a root document
-// are returned unchanged; a head that does not resolve yields nil.
-func (i *refindices) resolveRefHead(rule *Rule, args []*Term, ref Ref) Ref {
-	head, isVar := ref[0].Value.(Var)
-	if !isVar || RootDocumentNames.Contains(ref[0]) {
-		return ref
-	}
-
-	resolved := i.resolveVarToRef(i.resolvable(rule), args, head)
-	if resolved == nil {
-		return nil
-	}
-
-	return resolved.Concat(ref[1:])
-}
-
-// resolveVarToRef checks the previously prepared `*refindex` slice for
-// occurrences of the var `v`. Since we store `ref = var` expressions for
-// "any" lookups (i.e. "return the rule if ref is anything"), we can
-// resolve vars to refs in these simple cases:
-//
-//	__local2__ = input.foo
-//	__local2__ = <something>
-//
-// This what builtin calls involving refs are rewritten to, so it is used
-// for var -> ref lookup when buiding the RI for glob.match or `v in col`.
-//
-// For convenience, we also resolve function arg vars here.
-//
-// NB: This also covers explicit var assignments, like `role := input.rule`,
-// but it is no help with chains of assignments, like
-//
-//	x := input.role
-//	y := x
-//	<something with x>
-//
-// as we're not capturing `var = var` expressions in the index.
-func (i *refindices) resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
-	for _, other := range ri {
-		if v.Equal(other.Value) {
-			return i.table.ref(other.ref)
-		}
-	}
-	for j, arg := range args {
-		if v.Equal(arg.Value) {
-			return Ref{FunctionArgRootDocument, InternedTerm(j)}
-		}
-	}
-
-	return nil
-}
-
-// resolvable returns the indices a var here can be resolved against: the rule's
-// own, plus those of any scope enclosing an operand body.
-func (i *refindices) resolvable(rule *Rule) []*refindex {
-	if len(i.outer()) == 0 {
-		return i.rules[rule]
-	}
-	return append(slices.Clone(i.rules[rule]), i.outer()...)
-}
-
-func (i *refindices) outer() []*refindex {
-	if i.scratch == nil {
-		return nil
-	}
-	return i.scratch.outer
-}
-
 // count records that ref took part in indexing a rule, which is what orders the
 // trie levels (see Sorted).
 func (i *refindices) count(ref refID) {
@@ -1881,9 +1259,6 @@ func (i *refindices) countN(ref refID, n int) {
 // stat returns the reference's statistics, making room for them if this is the
 // first thing recorded about it.
 func (i *refindices) stat(ref refID) *refStats {
-	if i.scratch != nil {
-		return &i.scratch.sink
-	}
 	i.stats = growTo(i.stats, int(ref)+1)
 	return &i.stats[ref]
 }
@@ -2741,75 +2116,6 @@ func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	})
 
 	return iterErr
-}
-
-// If term `a` is one of the function's operands, we store a Ref: `args[0]`
-// for the argument number. So for `f(x, y) { x = 10; y = 12 }`, we'll
-// bind `args[0]` and `args[1]` to this rule when called for (x=10) and
-// (y=12) respectively.
-func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Value, constants map[Var]Value) bool {
-	switch v := a.(type) {
-	case Var:
-		// a is a var, but we have not been able to resolve it to a ref, save for later
-		if IsConstant(b) {
-			constants[v] = b
-		} else {
-			if bv, ok := b.(Var); ok {
-				// `y := x` binds y to x's constant, x's place in an
-				// iteration, or the collection x is an element of, too.
-				if c, ok := constants[bv]; ok {
-					constants[v] = c
-				}
-				if d, ok := i.domains[bv]; ok {
-					i.bind(v, d)
-				}
-				if coll, ok := i.elements[bv]; ok {
-					if i.elements == nil {
-						i.elements = map[Var]Ref{}
-					}
-					i.elements[v] = coll
-				}
-			}
-			i.recordIteration(v, b, constants)
-			i.recordElement(rule, v, b)
-		}
-
-		bval, ok := indexValue(b)
-		if !ok {
-			return false
-		}
-		if ref := i.resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
-			i.insert(rule, &refindex{ref: i.table.intern(ref), Value: bval})
-			return true
-		}
-		// `s := input.subjects[_]; s == "admin"` is `input.subjects[_] == "admin"`.
-		if coll, ok := i.elements[v]; ok && IsScalar(bval) {
-			i.insert(rule, &refindex{ref: i.table.intern(coll), Value: bval, Member: true})
-			return true
-		}
-
-	case Ref:
-		// A ref rooted at a local -- `x := input; x.foo == "bar"` -- indexes the
-		// same as the ref that local aliases, so long as the local resolves.
-		v = i.resolveRefHead(rule, args, v)
-		if v == nil || !i.isValidIndexRef(v) {
-			return false
-		}
-
-		if bvar, ok := b.(Var); ok { // cheaper lookup first: constants
-			if resolved, ok := constants[bvar]; ok {
-				b = resolved
-			}
-		} else if bval, ok := indexValue(b); ok {
-			b = bval
-		} else {
-			return false
-		}
-
-		i.insert(rule, &refindex{ref: i.table.intern(v), Value: b})
-		return true
-	}
-	return false
 }
 
 func indexValue(b Value) (Value, bool) {

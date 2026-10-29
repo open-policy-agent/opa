@@ -44,7 +44,6 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []refID) *base
 	idx.kind = rules[0].Head.RuleKind()
 
 	indices := newrefindices(idx.isVirtual, newRefTable())
-	values := make(map[Var]Value)
 
 	for ridx := range rules {
 		WalkRules(rules[ridx], func(rule *Rule) bool {
@@ -56,10 +55,7 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []refID) *base
 				idx.onlyGroundRefs = rule.Head.Reference.IsGround()
 			}
 			if !slices.ContainsFunc(rule.Body, skipIndexingOperator) {
-				clear(values)
-				for i := range rule.Body {
-					indices.Update(rule, rule.Body[i], values)
-				}
+				indices.recordRule(rule)
 			}
 			return false
 		})

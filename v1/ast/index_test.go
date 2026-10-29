@@ -2322,10 +2322,7 @@ func TestRefIndicesCountVarAssignedRefOnce(t *testing.T) {
 			rule := c.GetRulesExact(MustParseRef("data.test.p"))[0]
 
 			ri := newrefindices(func(Ref) bool { return false }, newRefTable())
-			values := map[Var]Value{}
-			for _, expr := range rule.Body {
-				ri.Update(rule, expr, values)
-			}
+			ri.recordRule(rule)
 
 			id := ri.table.intern(MustParseRef(tc.ref))
 			if act := ri.stat(id).count; act != tc.exp {

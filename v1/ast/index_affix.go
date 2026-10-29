@@ -153,62 +153,6 @@ func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversal
 	return nil
 }
 
-// updateStartsWith indexes `startswith(x, "base")`: x has to be a string
-// starting with base for the rule to hold.
-func (i *refindices) updateAffix(rule *Rule, expr *Expr, constants map[Var]Value, a affix) {
-	ref := i.resolveAndValidateRef(rule, rule.Head.Args, expr.Operand(0))
-	if ref == nil {
-		return
-	}
-
-	base, ok := constantString(expr.Operand(1), constants)
-	if !ok {
-		return
-	}
-
-	i.insert(rule, &refindex{ref: i.table.intern(ref), Value: base, Affix: a})
-}
-
-// updateAnyPrefixMatch indexes `strings.any_prefix_match(x, base)`, which is
-// a disjunction of startswith calls: each base string is recorded as an
-// alternative prefix for x, the same way each element of `x in [...]` is
-// recorded as an alternative value (see updateMemberRefInValue).
-//
-// The search operand has to be a single ref: a collection of search strings
-// would need every element of one collection tested against the other, which
-// is not a constraint on the value at any one ref.
-func (i *refindices) updateAnyAffixMatch(rule *Rule, expr *Expr, constants map[Var]Value, a affix) {
-	ref := i.resolveAndValidateRef(rule, rule.Head.Args, expr.Operand(0))
-	if ref == nil {
-		return
-	}
-
-	base := expr.Operand(1).Value
-	if v, ok := base.(Var); ok {
-		resolved, ok := constants[v]
-		if !ok {
-			return
-		}
-		base = resolved
-	}
-
-	if s, ok := base.(String); ok {
-		i.insert(rule, &refindex{ref: i.table.intern(ref), Value: s, Affix: a})
-		return
-	}
-
-	// Every base string has to be recorded, or the index would exclude rules
-	// the dropped ones would have matched -- so a base that isn't a collection
-	// of ground strings throughout leaves the rule unindexed rather than
-	// partly indexed.
-	bases, ok := groundStrings(base)
-	if !ok || len(bases) == 0 {
-		return
-	}
-
-	i.insertAffixes(rule, ref, bases, a)
-}
-
 // insertAffixes records a whole base collection at once, for either end of the
 // value. insert() rescans the rule's indices on every call, which is quadratic
 // over the thousands strings.any_prefix_match carries, so the scan happens once
