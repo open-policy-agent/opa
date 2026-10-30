@@ -39,11 +39,15 @@ type inspectCommandParams struct {
 	listAnnotations bool
 	v0Compatible    bool
 	v1Compatible    bool
+	v2Compatible    bool
 }
 
 func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
 	if p.v0Compatible {
 		return ast.RegoV0
+	}
+	if p.v2Compatible {
+		return ast.RegoV2
 	}
 	if p.v1Compatible {
 		return ast.RegoV1
@@ -112,6 +116,7 @@ will load that file and summarize its structure and contents.
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
 	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible)
 	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible)
+	addV2CompatibleFlag(inspectCommand.Flags(), &params.v2Compatible)
 	root.AddCommand(inspectCommand)
 }
 

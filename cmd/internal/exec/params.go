@@ -29,6 +29,7 @@ type Params struct {
 	Timeout             time.Duration  // timeout to prevent infinite hangs. If set to 0, the command will never time out
 	V0Compatible        bool           // use OPA 0.x compatibility mode
 	V1Compatible        bool           // use OPA 1.0 compatibility mode
+	V2Compatible        bool           // use OPA 2.0 compatibility mode
 	Logger              logging.Logger // Logger override. If set to nil, the default logger is used.
 }
 

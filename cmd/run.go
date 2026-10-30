@@ -248,6 +248,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().BoolVar(&cmdParams.rt.WatchConfig, "watch-config", false, "watch the configuration file for changes and restart to apply them")
 	addV0CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible)
 	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible)
+	addV2CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V2Compatible)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
 	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
 	runCommand.Flags().StringVar(&cmdParams.tlsCertFile, "tls-cert-file", "", "set path of TLS certificate file")

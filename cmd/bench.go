@@ -134,6 +134,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addTargetFlag(benchCommand.Flags(), params.target)
 	addV0CompatibleFlag(benchCommand.Flags(), &params.v0Compatible)
 	addV1CompatibleFlag(benchCommand.Flags(), &params.v1Compatible)
+	addV2CompatibleFlag(benchCommand.Flags(), &params.v2Compatible)
 	addReadAstValuesFromStoreFlag(benchCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
 	// Shared benchmark flags
@@ -326,6 +327,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		ConfigFile:             params.configFile,
 		V0Compatible:           params.v0Compatible,
 		V1Compatible:           params.v1Compatible,
+		V2Compatible:           params.v2Compatible,
 	}
 
 	rt, err := runtime.NewRuntime(ctx, rtParams)
