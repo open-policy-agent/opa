@@ -334,6 +334,100 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	}
 	`)
 
+	// What `some x in <literal>` compiles to: the literal bound to a local, and
+	// another local bound to its elements. Each ruleset's first rule ranges over
+	// a and b, its second over c.
+	many := make([]string, 40)
+	for j := range many {
+		many[j] = strconv.Quote(fmt.Sprintf("a%d", j))
+	}
+	literalMod := MustParseModuleWithOpts(fmt.Sprintf(`package test
+
+	value contains 1 if { c = {"a", "b"}; r = c[k]; input.role = r }
+	value contains 2 if { c = {"c"}; r = c[k]; input.role = r }
+
+	array contains 1 if { c = ["a", "b"]; r = c[k]; input.role = r }
+	array contains 2 if { c = ["c"]; r = c[k]; input.role = r }
+
+	input_ref contains 1 if { c = {"a", "b"}; r = c[k]; input.x[r] = 1 }
+	input_ref contains 2 if { c = {"c"}; r = c[k]; input.x[r] = 1 }
+
+	data_ref contains 1 if { c = {"a", "b"}; r = c[k]; data.policy[r].on = true }
+	data_ref contains 2 if { c = {"c"}; r = c[k]; data.policy[r].on = true }
+
+	lookup contains 1 if { c = {"a", "b"}; g = c[k]; data.groups[g].members[input.subject] }
+	lookup contains 2 if { c = {"c"}; g = c[k]; data.groups[g].members[input.subject] }
+
+	alias contains 1 if { c = {"a", "b"}; g = c[k]; h = g; data.groups[h].members[input.subject] }
+	alias contains 2 if { c = {"c"}; g = c[k]; h = g; data.groups[h].members[input.subject] }
+
+	named contains 1 if { gs = {"a", "b"}; hs = gs; g = hs[k]; data.groups[g].members[input.subject] }
+	named contains 2 if { gs = {"c"}; hs = gs; g = hs[k]; data.groups[g].members[input.subject] }
+
+	two_locals contains 1 if { c = {"a", "b"}; g = c[k]; d = {"members", "admins"}; m = d[j]; data.groups[g][m][input.subject] }
+	two_locals contains 2 if { c = {"c"}; g = c[k]; d = {"members", "admins"}; m = d[j]; data.groups[g][m][input.subject] }
+
+	# Past maxIndexPaths the rule's alternatives are dropped, as for an or.
+	many_paths contains 1 if { c = {%[1]s}; r = c[k]; input.role = r }
+	many_paths contains 2 if { c = {"c"}; r = c[k]; input.role = r }
+
+	# Lookups are not paths, so there is no such limit on them.
+	many_lookups contains 1 if { c = {%[1]s}; g = c[k]; data.groups[g].members[input.subject] }
+	many_lookups contains 2 if { c = {"c"}; g = c[k]; data.groups[g].members[input.subject] }
+
+	non_scalar contains 1 if { c = {"a", ["b"]}; r = c[k]; input.role = r }
+	non_scalar contains 2 if { c = {"c"}; r = c[k]; input.role = r }
+
+	from_input contains 1 if { r = input.set[k]; input.role = r }
+	from_input contains 2 if { r = input.set[k]; input.subject = r }
+
+	# Keys and values iterated together are substituted in pairs: crossed,
+	# rule 1 would reach users/read.
+	pairs contains 1 if { c = {"users": "write", "admins": "read"}; perm = c[group]; data.groups[group].perms[perm][input.subject] }
+	pairs contains 2 if { c = {"users": "read"}; perm = c[group]; data.groups[group].perms[perm][input.subject] }
+	pairs contains 3 if { c = ["ops"]; g = c[i]; data.groups[g].perms.write[input.subject] }
+	`, strings.Join(many, ", ")), opts)
+	// What `some s in input.subjects` and `input.subjects[_]` compile to: a local
+	// bound to an element of a collection.
+	elementMod := MustParseModuleWithOpts(`package test
+
+	element_eq contains 1 if { s = input.subjects[i]; s = "admin" }
+	element_eq contains 2 if { s = input.subjects[i]; s = "root" }
+
+	element_alias contains 1 if { s = input.subjects[i]; t = s; t = "admin" }
+	element_alias contains 2 if { s = input.subjects[i]; t = s; t = "root" }
+
+	element_data contains 1 if { r = data.roles.bob[i]; r = "admin" }
+	element_data contains 2 if { r = data.roles.bob[i]; r = "root" }
+
+	element_or contains 1 if { s = input.subjects[i]; {s = "admin"} or {s = "x"} }
+	element_or contains 2 if { s = input.subjects[i]; {s = "root"} or {s = "y"} }
+
+	element_values contains 1 if { v = input.obj[k]; v = "admin" }
+	element_values contains 2 if { v = input.obj[k]; v = "root" }
+
+	element_non_scalar contains 1 if { s = input.subjects[i]; s = ["admin"] }
+	element_non_scalar contains 2 if { s = input.subjects[i]; s = ["root"] }
+
+	element_lookup contains 1 if { s = input.subjects[i]; data.groups.g1.members[s] }
+	element_lookup contains 2 if { s = input.subjects[i]; data.groups.g2.members[s] }
+
+	element_lookup_or contains 1 if { s = input.subjects[i]; {data.groups.g1.members[s]} or {data.groups.g2.members[s]} }
+	element_lookup_or contains 2 if { s = input.subjects[i]; data.groups.g3.members[s] }
+
+	element_lookup_literal contains 1 if { c = {"g1", "g2"}; g = c[k]; s = input.subjects[i]; data.groups[g].members[s] }
+	element_lookup_literal contains 2 if { c = {"g3"}; g = c[k]; s = input.subjects[i]; data.groups[g].members[s] }
+	`, opts)
+	elementData := `{
+		"roles": {"bob": ["admin", "dev"]},
+		"groups": {"g1": {"members": {"alice": true}}, "g2": {"members": {"bob": true}}, "g3": {"members": {"carol": true}}}
+	}`
+	literalInput := `{"role": "c", "subject": "alice", "x": {"c": 1}, "set": ["a", "b", "c"]}`
+	literalData := `{
+		"policy": {"a": {"on": false}, "b": {"on": false}, "c": {"on": true}},
+		"groups": {"a": {"members": {}}, "b": {"members": {}}, "c": {"members": {"alice": true}}}
+	}`
+
 	tests := []struct {
 		note        string
 		module      *Module
@@ -1588,6 +1682,243 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{
 				`allow if { __local2__ = input.parsed_path; count(__local2__, __local0__); minus(__local0__, 1, __local1__); input.parsed_path[__local1__] = "access-approvers" }`,
 			},
+		},
+		{
+			note:       "iterated literal: value",
+			module:     literalMod,
+			ruleset:    "value",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[1]},
+		},
+		{
+			note:       "iterated literal: array",
+			module:     literalMod,
+			ruleset:    "array",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[3]},
+		},
+		{
+			note:       "iterated literal: input ref",
+			module:     literalMod,
+			ruleset:    "input_ref",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[5]},
+		},
+		{
+			note:       "iterated literal: data ref",
+			module:     literalMod,
+			ruleset:    "data_ref",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[7]},
+		},
+		{
+			note:       "iterated literal: collection lookup",
+			module:     literalMod,
+			ruleset:    "lookup",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[9]},
+		},
+		{
+			note:       "iterated literal: through a chain of locals",
+			module:     literalMod,
+			ruleset:    "alias",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[11]},
+		},
+		{
+			note:       "iterated literal: bound to a local first",
+			module:     literalMod,
+			ruleset:    "named",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[13]},
+		},
+		{
+			note:       "iterated literal: two locals",
+			module:     literalMod,
+			ruleset:    "two_locals",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[15]},
+		},
+		{
+			note:       "iterated literal: more elements than a rule may have paths",
+			module:     literalMod,
+			ruleset:    "many_paths",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[16], literalMod.Rules[17]},
+		},
+		{
+			note:       "iterated literal: more collections than a rule may have paths",
+			module:     literalMod,
+			ruleset:    "many_lookups",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[19]},
+		},
+		{
+			note:       "iterated literal: a non-scalar element",
+			module:     literalMod,
+			ruleset:    "non_scalar",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[20], literalMod.Rules[21]},
+		},
+		{
+			note:       "iterated input: not a literal",
+			module:     literalMod,
+			ruleset:    "from_input",
+			input:      literalInput,
+			data:       literalData,
+			expectedRS: RuleSet{literalMod.Rules[22], literalMod.Rules[23]},
+		},
+		{
+			note:    "iterated literal: keys and values in pairs",
+			module:  literalMod,
+			ruleset: "pairs",
+			input:   `{"subject": "alice"}`,
+			data: `{"groups": {
+				"users": {"perms": {"read": {"alice": true}, "write": {}}},
+				"admins": {"perms": {"read": {}, "write": {"alice": true}}},
+				"ops": {"perms": {"write": {"bob": true}}}
+			}}`,
+			expectedRS: RuleSet{literalMod.Rules[25]},
+		},
+		{
+			note:       "element: compared to a scalar",
+			module:     elementMod,
+			ruleset:    "element_eq",
+			input:      `{"subjects": ["bob", "admin"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[0]},
+		},
+		{
+			note:       "element: of a set, compared to a scalar",
+			module:     elementMod,
+			ruleset:    "element_eq",
+			input:      `{"subjects": {"bob", "admin"}}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[0]},
+		},
+		{
+			note:       "element: through a chain of locals",
+			module:     elementMod,
+			ruleset:    "element_alias",
+			input:      `{"subjects": ["bob", "admin"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[2]},
+		},
+		{
+			note:       "element: of a collection in base data",
+			module:     elementMod,
+			ruleset:    "element_data",
+			input:      `{}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[4]},
+		},
+		{
+			note:       "element: compared in an or",
+			module:     elementMod,
+			ruleset:    "element_or",
+			input:      `{"subjects": ["bob", "admin"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[6]},
+		},
+		{
+			note:       "element: values of an object",
+			module:     elementMod,
+			ruleset:    "element_values",
+			input:      `{"obj": {"a": "admin"}}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[8]},
+		},
+		{
+			note:       "element: keys of an object are not values",
+			module:     elementMod,
+			ruleset:    "element_values",
+			input:      `{"obj": {"admin": "x"}}`,
+			data:       elementData,
+			expectedRS: RuleSet{},
+		},
+		{
+			note:       "element: compared to a non-scalar",
+			module:     elementMod,
+			ruleset:    "element_non_scalar",
+			input:      `{"subjects": [["admin"]]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[10], elementMod.Rules[11]},
+		},
+		{
+			note:       "element: keys a lookup",
+			module:     elementMod,
+			ruleset:    "element_lookup",
+			input:      `{"subjects": ["dave", "alice"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[12]},
+		},
+		{
+			note:       "element: keys a lookup, none in it",
+			module:     elementMod,
+			ruleset:    "element_lookup",
+			input:      `{"subjects": ["dave"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{},
+		},
+		{
+			note:       "element: keys a lookup, of an object's values",
+			module:     elementMod,
+			ruleset:    "element_lookup",
+			input:      `{"subjects": {"a": "dave", "b": "alice"}}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[12]},
+		},
+		{
+			note:       "element: keys a lookup, no collection",
+			module:     elementMod,
+			ruleset:    "element_lookup",
+			input:      `{"subjects": "alice"}`,
+			data:       elementData,
+			expectedRS: RuleSet{},
+		},
+		{
+			note:       "element: keys a lookup, nothing there",
+			module:     elementMod,
+			ruleset:    "element_lookup",
+			input:      `{}`,
+			data:       elementData,
+			expectedRS: RuleSet{},
+		},
+		{
+			note:       "element: keys a lookup, unknown",
+			module:     elementMod,
+			ruleset:    "element_lookup",
+			input:      `{}`,
+			data:       elementData,
+			unknowns:   []string{"input.subjects"},
+			expectedRS: RuleSet{elementMod.Rules[12], elementMod.Rules[13]},
+		},
+		{
+			note:       "element: keys lookups in an or",
+			module:     elementMod,
+			ruleset:    "element_lookup_or",
+			input:      `{"subjects": ["dave", "bob"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[14]},
+		},
+		{
+			note:       "element: keys lookups picked from a literal",
+			module:     elementMod,
+			ruleset:    "element_lookup_literal",
+			input:      `{"subjects": ["dave", "bob"]}`,
+			data:       elementData,
+			expectedRS: RuleSet{elementMod.Rules[16]},
 		},
 	}
 

@@ -1,0 +1,96 @@
+---
+cases:
+  - note: a collection picked from a literal reaches the rule from any of them
+    query: data.indexing.a = x
+    modules:
+      - |
+        package indexing
+
+        a contains g if {
+        	some g in {"devs", "ops"}
+        	data.groups[g].members[input.subject]
+        }
+
+        a contains "admins" if data.groups.admins.members[input.subject]
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+        ops:
+          members:
+            bob: true
+        admins:
+          members:
+            bob: true
+    input_term: '{"subject": "bob"}'
+    want_result:
+      - x:
+          - admins
+          - ops
+  - note: a value picked from a literal
+    query: data.indexing.b = x
+    modules:
+      - |
+        package indexing
+
+        b contains "reader" if {
+        	some r in {"viewer", "editor"}
+        	input.role == r
+        }
+
+        b contains "writer" if {
+        	some r in ["editor", "owner"]
+        	input.role == r
+        }
+    input_term: '{"role": "owner"}'
+    want_result:
+      - x:
+          - writer
+  - note: a local picked from a literal and read by two expressions
+    query: data.indexing.c = x
+    modules:
+      - |
+        package indexing
+
+        c contains k if {
+        	some k in {"a", "b"}
+        	input.role == k
+        	data.policy[k].on == true
+        }
+    data:
+      policy:
+        a:
+          on: false
+        b:
+          on: true
+    input_term: '{"role": "a"}'
+    want_result:
+      - x: []
+  - note: keys and values picked from a literal stay paired
+    query: data.indexing.d = x
+    modules:
+      - |
+        package indexing
+
+        d contains group if {
+        	some group, perm in {"users": "write", "admins": "read"}
+        	data.groups[group].perms[perm][input.subject]
+        }
+    data:
+      groups:
+        users:
+          perms:
+            read:
+              alice: true
+            write: {}
+        admins:
+          perms:
+            read:
+              bob: true
+            write:
+              alice: true
+    input_term: '{"subject": "bob"}'
+    want_result:
+      - x:
+          - admins

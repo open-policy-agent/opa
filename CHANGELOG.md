@@ -5,6 +5,24 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Rule indexing covers more ways of saying "any of these"
+
+The rule index now narrows down rules written with:
+
+- a local iterating a literal set, array or object, in any indexable statement:
+  `some g in {"devs", "ops"}; data.groups[g].members[input.subject]`;
+- collection lookups in the operands of `and` and `or`:
+  `{data.groups.devs.members[input.subject]} or {data.groups.ops.members[input.subject]}`;
+- a collection lookup keyed by any element of a collection: `data.groups.devs.members[input.subjects[_]]`.
+
+Looking up a key in a collection in base data also no longer converts the store's data on every query:
+in benchmarks of 500 rules gated by group membership, that takes 40-55% off evaluation and partial
+evaluation where every candidate is evaluated.
+
+See [Use indexed statements](https://www.openpolicyagent.org/docs/policy-performance#use-indexed-statements).
+
+Authored by @srenatus
+
 ## 1.22.0
 
 This release contains a mix of new features, performance improvements and bug fixes. Notably:

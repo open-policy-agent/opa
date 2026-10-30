@@ -159,3 +159,54 @@ cases:
     input_term: '{"subject": "carol"}'
     want_result:
       - x: 0
+  - note: lookups in an or reach the rule from any of the collections
+    query: data.indexing.a = x
+    modules:
+      - |
+        package indexing
+
+        import future.keywords.or
+
+        a contains "dev-or-ops" if {
+        	{data.groups.devs.members[input.subject]} or {data.groups.ops.members[input.subject]}
+        }
+
+        a contains "admins" if data.groups.admins.members[input.subject]
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+        ops:
+          members:
+            bob: true
+        admins:
+          members:
+            bob: true
+    input_term: '{"subject": "bob"}'
+    want_result:
+      - x:
+          - admins
+          - dev-or-ops
+  - note: a lookup keyed by an element of a collection in the input
+    query: data.indexing.e = x
+    modules:
+      - |
+        package indexing
+
+        e contains g if {
+        	some g in {"devs", "ops"}
+        	data.groups[g].members[input.subjects[_]]
+        }
+    data:
+      groups:
+        devs:
+          members:
+            alice: true
+        ops:
+          members:
+            bob: true
+    input_term: '{"subjects": ["carol", "bob"]}'
+    want_result:
+      - x:
+          - ops

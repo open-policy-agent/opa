@@ -137,3 +137,120 @@ func BenchmarkCollectionLookupPartial(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkCollectionLookupAnyOf is the same with each rule granting any of k
+// groups.
+//
+//	500 rules, 3 groups each, 200 members per group
+//
+//	                           before         after
+//	or/early-exit/match=0       18.2 us/op     18.0 us/op
+//	or/early-exit/match=499     1071 us/op     1075 us/op
+//	or/no-early-exit/match=0    1122 us/op      152 us/op
+//	or/no-early-exit/match=499  1069 us/op      152 us/op
+//	or/partial                  2575 us/op      176 us/op
+func BenchmarkCollectionLookupAnyOf(b *testing.B) {
+	const n, k, members = 500, 3, 200
+
+	forms := []struct {
+		name string
+		cond func(groups []string) string
+	}{
+		{"or", func(groups []string) string {
+			lookups := make([]string, len(groups))
+			for j, g := range groups {
+				lookups[j] = fmt.Sprintf("{data.groups[%s].members[input.subject]}", g)
+			}
+			return strings.Join(lookups, " or ")
+		}},
+		{"some-in", func(groups []string) string {
+			return fmt.Sprintf("some g in {%s}\n\tdata.groups[g].members[input.subject]", strings.Join(groups, ", "))
+		}},
+	}
+
+	groups := make(map[string]any, n*k)
+	for g := range n * k {
+		ms := make(map[string]any, members)
+		for j := range members {
+			ms[fmt.Sprintf("u%d_%d", g, j)] = true
+		}
+		groups[fmt.Sprintf("g%d", g)] = map[string]any{"members": ms}
+	}
+	store := inmem.NewFromObject(map[string]any{"groups": groups})
+
+	module := func(cond func([]string) string, head, extra func(int) string) string {
+		var sb strings.Builder
+		sb.WriteString("package test\n\nimport future.keywords.or\n\n")
+		for i := range n {
+			ids := make([]string, k)
+			for j := range k {
+				ids[j] = strconv.Quote(fmt.Sprintf("g%d", i*k+j))
+			}
+			fmt.Fprintf(&sb, "%s if {\n%s\t%s\n}\n\n", head(i), extra(i), cond(ids))
+		}
+		return sb.String()
+	}
+	none := func(int) string { return "" }
+
+	// The subject is in the last group of its rule.
+	subject := func(rule int) ast.Value {
+		return ast.MustParseTerm(fmt.Sprintf(`{"subject": "u%d_0"}`, rule*k+k-1)).Value
+	}
+
+	for _, form := range forms {
+		for _, head := range []string{"allow", `allow contains "yes"`} {
+			kind := "early-exit"
+			if strings.Contains(head, "contains") {
+				kind = "no-early-exit"
+			}
+
+			pq, err := New(
+				ParsedQuery(ast.MustParseBody("data.test.allow")),
+				ParsedModule(ast.MustParseModule(module(form.cond, func(int) string { return head }, none))),
+				Store(store),
+				GenerateJSON(noOpGenerateJSON),
+			).PrepareForEval(b.Context())
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			for _, match := range []int{0, n / 2, n - 1} {
+				input := subject(match)
+				if rs, err := pq.Eval(b.Context(), EvalParsedInput(input)); err != nil {
+					b.Fatal(err)
+				} else if len(rs) != 1 {
+					b.Fatalf("expected one result, got %d", len(rs))
+				}
+
+				b.Run(fmt.Sprintf("%s/%s/match=%d", form.name, kind, match), func(b *testing.B) {
+					b.ReportAllocs()
+					for b.Loop() {
+						if _, err := pq.Eval(b.Context(), EvalParsedInput(input)); err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
+			}
+		}
+
+		resource := func(i int) string { return fmt.Sprintf("\tinput.resource.id == \"r%d\"\n", i) }
+		pq, err := New(
+			ParsedQuery(ast.MustParseBody("data.test.allow")),
+			ParsedModule(ast.MustParseModule(module(form.cond, func(int) string { return "allow" }, resource))),
+			Store(store),
+			ParsedInput(subject(n/2)),
+			Unknowns([]string{"input.resource"}),
+		).PrepareForPartial(b.Context())
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.Run(form.name+"/partial", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := pq.Partial(b.Context()); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
