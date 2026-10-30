@@ -11,8 +11,8 @@ import (
 
 // The rule index in three stages: translate a rule body into a condition, plan
 // what of it the index tests, and execute that plan on a lookup. This file holds
-// the first stage, and records conditions into the refindices the trie is built
-// from (recordRule).
+// the first stage, and the projection of conditions into the paths the counting
+// index is built from.
 //
 // The one property all of it rests on: for every rule and input, if the rule
 // holds, the index returns it. Translation keeps it by only producing conditions
@@ -718,11 +718,7 @@ func (p *projection) expr(c cond) {
 	case *oneCond:
 		p.insert(projected{ref: c.ref, condValue: c.value})
 	case *someCond:
-		for _, v := range c.values {
-			cv := c.shared
-			cv.value = v
-			p.insert(projected{ref: c.ref, condValue: cv})
-		}
+		p.insertSome(c.ref, c.shared, c.values)
 	case *lookupCond:
 		p.recordMembership(c.membership)
 	case *andCond:
@@ -768,8 +764,8 @@ func projectOperand(body condAll) projectedOperand {
 	return op
 }
 
-// insert adds v to the unconditional values, as refindices.insert does: once,
-// and in place of a "defined" entry for its ref if it is a value to equal.
+// insert adds v to the unconditional values: once, and in place of a "defined"
+// entry for its ref if it is a value to equal.
 func (p *projection) insert(v projected) {
 	for j, other := range p.unconditional {
 		if !RefEqual(other.ref, v.ref) {
@@ -784,6 +780,42 @@ func (p *projection) insert(v projected) {
 		}
 	}
 	p.unconditional = append(p.unconditional, v)
+}
+
+// insertSome is insert for each of values, sharing the rest of shared, which
+// compares them only with what was there before: an `in` over a large collection
+// would otherwise compare each of its values with all the others.
+func (p *projection) insertSome(ref Ref, shared condValue, values []Value) {
+	var beforeArr [4]int
+	before := beforeArr[:0]
+	for j, other := range p.unconditional {
+		if RefEqual(other.ref, ref) {
+			before = append(before, j)
+		}
+	}
+	p.unconditional = slices.Grow(p.unconditional, len(values))
+	for _, v := range values {
+		cv := shared
+		cv.value = v
+		next := projected{ref: ref, condValue: cv}
+		replaced := false
+		for k, j := range before {
+			other := p.unconditional[j]
+			if other.affix == cv.affix && other.member == cv.member && ValueEqual(other.value, cv.value) {
+				replaced = true
+				break
+			}
+			if !next.isVar() && cv.affix == affixNone && other.isVar() {
+				p.unconditional[j] = next
+				before = slices.Delete(before, k, k+1)
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			p.unconditional = append(p.unconditional, next)
+		}
+	}
 }
 
 func (p *projection) require(alts [][]projected) {
@@ -847,77 +879,4 @@ func (p *projection) paths() [][]projected {
 		paths = combined
 	}
 	return paths
-}
-
-// recordRule records what rule requires of the input into the indices the trie
-// is built from.
-func (i *refindices) recordRule(rule *Rule) {
-	i.recordBody(rule, i.translator.translate(rule))
-}
-
-func (i *refindices) recordBody(rule *Rule, body condAll) {
-	for _, c := range body {
-		i.recordCond(rule, c)
-	}
-}
-
-func (i *refindices) recordCond(rule *Rule, c cond) {
-	switch c := c.(type) {
-	case *oneCond:
-		i.insert(rule, i.refindexOf(c.ref, c.value))
-	case *someCond:
-		i.recordValues(rule, c)
-	case *lookupCond:
-		i.recordMembership(rule, c.membership)
-	case *andCond:
-		for _, operand := range c.operands {
-			op := projectOperand(operand)
-			i.require(rule, i.refindicesOf(op.alts))
-			for _, m := range op.memberships {
-				i.recordMembership(rule, m)
-			}
-		}
-	case *anyCond:
-		ops := make([]operand, len(c.operands))
-		for j, body := range c.operands {
-			op := projectOperand(body)
-			ops[j] = operand{alts: i.refindicesOf(op.alts), memberships: op.memberships}
-		}
-		i.disjoin(rule, ops)
-	}
-}
-
-// recordValues records the values one ref is tested against. Several of them,
-// as an `in` or a base collection has, go in at once, which is also what weighs
-// them as alternatives in the statistics the trie is ordered by.
-func (i *refindices) recordValues(rule *Rule, c *someCond) {
-	if len(c.values) == 1 {
-		v := c.shared
-		v.value = c.values[0]
-		i.insert(rule, i.refindexOf(c.ref, v))
-		return
-	}
-	if a := c.shared.affix; a != affixNone {
-		i.insertAffixes(rule, c.ref, c.values, a)
-		return
-	}
-	i.insertMembers(rule, c.ref, c.values)
-}
-
-func (i *refindices) refindexOf(ref Ref, v condValue) *refindex {
-	return &refindex{ref: i.table.intern(ref), Value: v.value, Member: v.member, Affix: v.affix, Mapper: v.mapper}
-}
-
-func (i *refindices) refindicesOf(alts [][]projected) alternatives {
-	if alts == nil {
-		return nil
-	}
-	out := make(alternatives, len(alts))
-	for j, alt := range alts {
-		out[j] = make([]*refindex, len(alt))
-		for k, v := range alt {
-			out[j][k] = i.refindexOf(v.ref, v.condValue)
-		}
-	}
-	return out
 }

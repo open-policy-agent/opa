@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"cmp"
 	"math/bits"
 	"slices"
 	"strings"
@@ -18,8 +17,7 @@ var (
 	globwildcard = VarTerm("$globwildcard")
 	skipIndexing = NewSet(NewTerm(Interned.Refs.InternalPrint), NewTerm(Interned.Refs.InternalTestCase))
 
-	// anyValue is a fake variable we used to put "naked ref" expressions
-	// into the rule index
+	// anyValue is the value of a ref a rule only requires to be defined.
 	anyValue Value = Var("__any__")
 )
 
@@ -55,25 +53,25 @@ type (
 		defaultRule    *Rule
 		kind           RuleKind
 		onlyGroundRefs bool
-		// rules holds one entry per rule and else branch the trie carries, groups
+		// rules holds one entry per rule and else branch the index holds, groups
 		// the position of its ruleset among the rules Build was given. Reading the
 		// ids a lookup reached in increasing order groups them and orders each
 		// group by priority; see trieTraversalResult and gather.
 		rules  []*Rule
 		groups []int32
 		// required holds, per rule id, the refs it needs defined that are not
-		// trie levels, as positions in requiredRefs. See refindices.partition.
+		// levels of the counting index, as positions in requiredRefs. See
+		// countingIndex.require.
 		required map[int32][]int32
-		// requiredRefs names those refs, indexed by the positions required holds.
-		// Numbering them keeps a lookup's memo a lookup by position rather than a
-		// search: a rule reading a ref of its own is the shape that made the memo
-		// a linear scan over one entry per rule.
+		// requiredRefs names those refs, indexed by the positions required holds,
+		// so a lookup's memo is read at a position rather than searched.
 		requiredRefs []Ref
-		// memberships holds, per rule id, the collections gather consults; recorded
-		// by refindices.recordMembership.
+		// memberships holds, per rule id, the collections gather consults; see
+		// membership.
 		memberships map[int32][]membership
 		// mayEarlyExit decides whether consulting a collection pays; see gather.
 		mayEarlyExit bool
+		counting     *countingIndex
 	}
 )
 
@@ -90,7 +88,6 @@ func (ir *IndexResult) Empty() bool {
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 	return &baseDocEqIndex{
 		isVirtual:      isVirtual,
-		root:           newTrieNodeImpl(),
 		onlyGroundRefs: true,
 	}
 }
@@ -101,76 +98,8 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	i.kind = rules[0].Head.RuleKind()
-	indices := newrefindices(i.isVirtual, newRefTable())
-	// Only Build needs it; a reused index mustn't keep its compiler alive.
-	i.isVirtual = nil
 
-	// build indices for each rule.
-	for idx := range rules {
-		WalkRules(rules[idx], func(rule *Rule) bool {
-			if rule.Default {
-				i.defaultRule = rule
-				return false
-			}
-			if i.onlyGroundRefs {
-				i.onlyGroundRefs = rule.Head.Reference.IsGround()
-			}
-			indices.recordRule(rule)
-			return false
-		})
-	}
-
-	// build trie out of indices.
-	levels, unvalued := indices.partition(indices.Sorted())
-
-	for idx := range rules {
-		WalkRules(rules[idx], func(rule *Rule) bool {
-			if rule.Default {
-				return false
-			}
-
-			// Ids are minted in WalkRules' order, so they ascend with priority
-			// within a ruleset:
-			//
-			//	f(x) := 1 if x == "a"  # group 0, id 0
-			//	else := 2 if x == "b"  #          id 1
-			//	f(x) := 3 if x == "c"  # group 1, id 2
-			id := int32(len(i.rules))
-			i.rules = append(i.rules, rule)
-			i.groups = append(i.groups, int32(idx))
-
-			if ms := indices.memberships[rule]; len(ms) > 0 {
-				if i.memberships == nil {
-					i.memberships = make(map[int32][]membership, len(rules))
-				}
-				for j := range ms {
-					ms[j].key = indices.table.shared(ms[j].key)
-					for k, coll := range ms[j].collections {
-						ms[j].collections[k] = indices.table.shared(coll)
-					}
-				}
-				i.memberships[id] = ms
-			}
-
-			// Each set of indices the rule can be reached through gets its own
-			// path. They share an id, so a lookup arriving at the rule down
-			// several of them still reports it once (see trieTraversalResult.Add).
-			paths := indices.disjunctions[rule]
-			if len(paths) == 0 {
-				i.insertPath(indices.table, levels, indices.rules[rule], id, rule)
-				i.require(indices.table, id, unvalued, alternatives{indices.rules[rule]})
-			} else {
-				alts := indices.paths(rule)
-				for _, path := range alts {
-					i.insertPath(indices.table, levels, path, id, rule)
-				}
-				i.require(indices.table, id, unvalued, alts)
-			}
-			return false
-		})
-	}
-
-	i.root.compact()
+	i.buildCounting(rules)
 	i.mayEarlyExit = mayEarlyExit(i.rules)
 
 	return true
@@ -184,118 +113,6 @@ func mayEarlyExit(rules []*Rule) bool {
 	return agreeOnValue(rules, &value)
 }
 
-// require records the refs rule needs defined, of those partition kept out of the
-// trie. Only a ref every path to the rule reads is recorded: one an `or` reads on
-// a single alternative does not have to hold for the rule to match, and a lookup
-// that dropped the rule over it would lose an answer rather than a shortcut.
-func (i *baseDocEqIndex) require(table *refTable, id int32, unvalued []refID, paths alternatives) {
-	if len(unvalued) == 0 || len(paths) == 0 {
-		return
-	}
-
-	var required []int32
-	for pos, ref := range unvalued {
-		reads := func(path []*refindex) bool {
-			return slices.ContainsFunc(path, func(ri *refindex) bool { return ri.ref == ref })
-		}
-		if !slices.ContainsFunc(paths, func(path []*refindex) bool { return !reads(path) }) {
-			required = append(required, int32(pos))
-		}
-	}
-
-	if len(required) > 0 {
-		if i.required == nil {
-			i.required = make(map[int32][]int32, len(unvalued))
-			i.requiredRefs = make([]Ref, len(unvalued))
-			for pos, ref := range unvalued {
-				i.requiredRefs[pos] = table.ref(ref)
-			}
-		}
-		i.required[id] = required
-	}
-}
-
-func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*refindex, id int32, rule *Rule) {
-	node := i.root
-
-	// The path stops at the last level it constrains. A rule that constrains
-	// nothing below has nothing to test there, so walking on would only pad the
-	// path with an "absent" node per remaining level -- a copy of the whole tail
-	// that no other rule shares, which is what made a trie of n levels cost n^2
-	// nodes to build and to walk. The multiple-scalar case below has always
-	// attached mid-trie for the same reason.
-	remaining := len(path)
-
-	// One scratch slice for every level, not one per level: a rule's path crosses
-	// every level above the last it constrains, most of them constraining nothing.
-	var values []*refindex
-
-	for _, level := range levels {
-		if remaining == 0 {
-			break
-		}
-
-		values = values[:0]
-		for _, ri := range path {
-			if ri.ref == level {
-				values = append(values, ri)
-			}
-		}
-		remaining -= len(values)
-
-		ref := table.ref(level)
-
-		// A var value records "this ref can be anything", which a concrete value
-		// for the same ref supersedes: everything on one path has to hold, so the
-		// concrete value is the stronger of the two constraints. A chain of
-		// assignments, `x := input.a; y := x`, leaves one var entry per local
-		// behind, and only the first of them is replaced when the concrete value
-		// is inserted. Keeping the rest would index the rule under anyValue below
-		// and give up all the discrimination the concrete value buys us.
-		if len(values) > 1 {
-			if concrete := slices.DeleteFunc(slices.Clone(values), (*refindex).isVar); len(concrete) > 0 {
-				values = concrete
-			}
-		}
-
-		if len(values) == 0 {
-			node = node.Insert(ref, nil, nil)
-		} else if len(values) == 1 {
-			node = values[0].insertInto(node, ref)
-		} else {
-			if slices.ContainsFunc(values, (*refindex).isVar) {
-				child := node.Insert(ref, anyValue, values[0].Mapper)
-				for i := range values {
-					if values[i].Mapper != nil {
-						node.next.addMapper(values[i].Mapper)
-					}
-				}
-				node = child
-			} else if remaining == 0 || slices.ContainsFunc(values, (*refindex).isAffix) ||
-				slices.ContainsFunc(values, (*refindex).isComposite) {
-				// Nothing below to continue a path with, so the rule hangs off
-				// every alternative -- which rules reaching the same values
-				// share. Affixes always take this route; see alternation, and
-				// so does anything a converging level could not be keyed on:
-				// insertValue sends an object or a set to the "anything" node
-				// and an array into the array trie, which is where a lookup
-				// goes looking for them.
-				for _, val := range oneAffixEnd(values) {
-					child := val.insertInto(node, ref)
-					child.append(id, rule)
-				}
-				return
-			} else {
-				// The alternatives meet again on one node, and the rest of the
-				// path is built from there rather than under each of them.
-				node = node.insertAlternatives(ref, values)
-			}
-		}
-	}
-
-	node.append(id, rule)
-}
-
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	tr := ttrPool.Get().(*trieTraversalResult)
 
@@ -305,8 +122,8 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	}()
 
 	tr.grow(len(i.rules))
-	err := i.root.Traverse(resolver, tr)
-	if err != nil {
+	tr.counting = util.Or(tr.counting, func() *countingLookup { return &countingLookup{} })
+	if err := i.counting.traverse(resolver, tr, tr.counting); err != nil {
 		return nil, err
 	}
 	result := IndexResultPool.Get()
@@ -324,11 +141,9 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 		return nil, err
 	}
 
-	// Decided over the candidates rather than over what traversal saw, which is
-	// finer -- and has to be, now that the refs partition keeps out of the trie no
-	// longer separate the definitions into nodes of their own: of `p := 1 if
-	// input.foo`, `p := 2 if input.bar` and `p := 1 if input.baz`, the two agreeing
-	// on 1 are all a lookup returns when input has no bar.
+	// Decided over the candidates: of `p := 1 if input.foo`, `p := 2 if
+	// input.bar` and `p := 1 if input.baz`, the two agreeing on 1 are all a
+	// lookup returns when input has no bar.
 	tr.multiple = !resultMayEarlyExit(result)
 
 	result.EarlyExit = !tr.multiple
@@ -418,9 +233,7 @@ func (c *resolveCache) container(resolver ValueResolver, ref Ref) (Value, Ref, e
 // consultsCollections reports whether excluding a candidate is worth consulting
 // its collections for. It is not where the caller stops at the first candidate that
 // holds: gather would have to consult all of them to exclude any, which is the work
-// evaluation was about to do -- the lookup being what the rule tests. Whether a
-// caller stops is the caller's own business, not IndexResult.EarlyExit's, which
-// says what the ruleset permits, so the resolver is asked rather than assumed.
+// evaluation was about to do -- the lookup being what the rule tests.
 func (i *baseDocEqIndex) consultsCollections(resolver ValueResolver) bool {
 	if !i.mayEarlyExit {
 		return true
@@ -557,11 +370,10 @@ func inCollection(resolver ValueResolver, cache *resolveCache, ref Ref, key *Ter
 // priority, so a run of them sharing a group is that ruleset's definitions in
 // order, the first being the one to evaluate.
 //
-// The refs partition kept out of the trie are checked here rather than as
-// traversal reaches a rule: a bit set for a rule that turns out undefined costs
-// nothing to leave set, and asking here means the resolver's error is the return
-// value of something rather than a field to be picked up afterwards. A nil
-// resolver asks nothing, which is what AllRules wants.
+// The refs that are not levels of the counting index are checked on the
+// candidates here: a bit set for a rule that turns out undefined costs nothing
+// to leave set, and asking here means the resolver's error is a return value.
+// A nil resolver asks nothing, which is what AllRules wants.
 func (i *baseDocEqIndex) gather(tr *trieTraversalResult, resolver ValueResolver, result *IndexResult) error {
 	var cache resolveCache
 	var root *Rule
@@ -623,31 +435,19 @@ func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	tr := newTrieTraversalResult()
 	tr.grow(len(i.rules))
 
-	// Walk over the rule trie and accumulate _all_ rules
-	rw := &ruleWalker{result: tr}
-	i.root.Do(rw)
+	i.countingAll(tr)
 
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
 
-	// Every rule the trie holds, so nothing is asked of the resolver and
-	// nothing can fail; see gather.
+	// Every rule, so nothing is asked of the resolver and nothing can fail; see
+	// gather.
 	_ = i.gather(tr, nil, result)
 
 	result.EarlyExit = !tr.multiple
 
 	return result, nil
-}
-
-type ruleWalker struct {
-	result *trieTraversalResult
-}
-
-func (r *ruleWalker) Do(x any) trieWalker {
-	tn := x.(*trieNode)
-	r.result.Add(tn)
-	return r
 }
 
 type valueMapper struct {
@@ -664,7 +464,7 @@ type IndexEveryCandidateEvaluated interface {
 }
 
 // membership is "the value at key has to be a key of one of the collections",
-// which a lookup asks the collections rather than the trie. There is more than
+// which a lookup asks the collections rather than a level. There is more than
 // one where the lookup is in an `or`: `{data.g.a[k]} or {data.g.b[k]}`.
 type membership struct {
 	key         Ref
@@ -730,22 +530,7 @@ func (t *refTable) ref(id refID) Ref {
 	return t.refs[id]
 }
 
-type refindex struct {
-	Value  Value
-	Mapper *valueMapper
-	// ref is the reference this constrains, as numbered by the build's table.
-	ref refID
-	// Affix says whether Value is a string the value at ref has to start or end
-	// with, rather than one it has to equal -- what startswith, endswith and
-	// their strings.any_*_match forms contribute. Several of them for one ref
-	// are alternatives, as for `in`.
-	Affix affix
-	// Member says the value at ref has to be a collection holding Value, as
-	// `"v" in input.x` and `input.x[_] == "v"` require, rather than equal it.
-	Member bool
-}
-
-// affix is which end of the value at a reference a refindex constrains, if it
+// affix is which end of the value at a reference a condition constrains, if it
 // constrains an end rather than the whole of it.
 type affix uint8
 
@@ -755,50 +540,30 @@ const (
 	affixSuffix
 )
 
-// insertInto adds the level this index constrains to the path being built,
-// returning the node the rest of the path continues from.
-func (i *refindex) insertInto(node *trieNode, ref Ref) *trieNode {
-	switch i.Affix {
+// insertLeaf adds a level testing v to the path being built, returning the node
+// the rest of the path continues from.
+func insertLeaf(node *trieNode, ref Ref, v condValue) *trieNode {
+	switch v.affix {
 	case affixPrefix:
-		return node.InsertPrefix(ref, i.Value)
+		return node.InsertPrefix(ref, v.value)
 	case affixSuffix:
-		return node.InsertSuffix(ref, i.Value)
+		return node.InsertSuffix(ref, v.value)
 	}
-	if i.Member {
-		return node.InsertMember(ref, i.Value)
+	if v.member {
+		return node.InsertMember(ref, v.value)
 	}
-	return node.Insert(ref, i.Value, i.Mapper)
+	return node.Insert(ref, v.value, v.mapper)
 }
 
-// oneAffixEnd keeps the affixes of one end of the value where values constrain
-// both, and everything that is not an affix.
-//
-// A rule hung off the leaves of both the prefix and the suffix trie is admitted
-// by either, which is the disjunction of what it wrote where it wrote a
-// conjunction:
-//
-//	p if {
-//		strings.any_prefix_match(input.path, ["/a", "/b"])
-//		strings.any_suffix_match(input.path, [".go", ".rego"])
-//	}
-//
-// admits "/c/x.go" on the suffix alone. Testing one end and leaving the other to
-// evaluation admits a subset of that -- what one end admits, both admit -- so
-// one end is kept. A level cannot test both: the tries hold leaves, and a leaf
-// cannot be made to depend on another trie's answer.
-//
-// Which end is kept is decided by the shortest base string of each, since a set
-// admits a value that matches any one of its bases and the shortest of them
-// admits the most. Counting them instead would keep ["/"] over [".go",
-// ".rego"], and every absolute path matches "/".
-func oneAffixEnd(values []*refindex) []*refindex {
+func oneEnd[T any](values []T, of func(T) (Value, affix)) []T {
 	prefix, suffix := -1, -1
 	for _, val := range values {
-		s, ok := val.Value.(String)
+		v, a := of(val)
+		s, ok := v.(String)
 		if !ok {
 			continue
 		}
-		switch val.Affix {
+		switch a {
 		case affixPrefix:
 			if prefix < 0 || len(s) < prefix {
 				prefix = len(s)
@@ -819,56 +584,16 @@ func oneAffixEnd(values []*refindex) []*refindex {
 		drop = affixPrefix
 	}
 
-	return slices.DeleteFunc(slices.Clone(values), func(val *refindex) bool {
-		return val.Affix == drop
+	return slices.DeleteFunc(slices.Clone(values), func(val T) bool {
+		_, a := of(val)
+		return a == drop
 	})
 }
 
-// alternatives are sets of indices, any one of which is enough to reach a rule.
-type alternatives = [][]*refindex
-
-type refindices struct {
-	isVirtual func(Ref) bool
-	rules     map[*Rule][]*refindex
-	// disjunctions holds the alternatives contributed by each `or` in the rule;
-	// every combination of them is a way to reach it.
-	disjunctions map[*Rule][]alternatives
-	table        *refTable
-	// memberships holds the collection memberships of each rule; see membership.
-	memberships map[*Rule][]membership
-	// stats holds what Sorted ranks the references by, indexed by ref id.
-	stats      []refStats
-	sorted     []refID
-	translator translator
-}
-
-// refStats is what one reference accumulated over a build, which is what decides
-// the order of the trie's levels. Dropped once the trie is built.
-type refStats struct {
-	// count is how often the ref took part in indexing a rule. Sorted passes
-	// over the ids that never counted.
-	count int32
-	// alternated is whether some rule reaches the ref by more than one value,
-	// and what that costs insertPath. An `or` is not recorded: its alternatives
-	// are separate paths, and only meet a second value for one ref once paths()
-	// combines them, after Sorted has run.
-	alternated alternation
-}
-
 // maxIndexPaths caps the ways a single rule may be reached: `or` expressions
-// multiply out (`{a or b} and {c or d}` is four), and at some point the trie
-// nodes cost more than evaluating the rule.
+// multiply out (`{a or b} and {c or d}` is four), and at some point the paths
+// cost more than evaluating the rule.
 const maxIndexPaths = 32
-
-func newrefindices(isVirtual func(Ref) bool, table *refTable) *refindices {
-	return &refindices{
-		isVirtual:   isVirtual,
-		table:       table,
-		rules:       map[*Rule][]*refindex{},
-		memberships: map[*Rule][]membership{},
-		translator:  translator{isVirtual: isVirtual},
-	}
-}
 
 // growTo extends s so that it can be indexed by every id below n, leaving what
 // it already holds in place.
@@ -882,22 +607,6 @@ func growTo[T any](s []T, n int) []T {
 func valueIsVar(v Value) bool {
 	_, ok := v.(Var)
 	return ok
-}
-
-func (i *refindex) isVar() bool {
-	return valueIsVar(i.Value)
-}
-
-func (i *refindex) isAffix() bool {
-	return i.Affix != affixNone
-}
-
-// isComposite reports whether a lookup could not find this value among a
-// level's alternatives, which are keyed on the value as it stands. insertValue
-// sends an object or a set to the "anything" node and an array into the array
-// trie, which is where a lookup goes looking for them instead.
-func (i *refindex) isComposite() bool {
-	return !IsScalar(i.Value)
 }
 
 // plugRefs returns expr with each local in its references that is bound to a
@@ -959,246 +668,6 @@ func plugRef(t *Term, constants map[Var]Value) *Term {
 	return NewTerm(out)
 }
 
-// require records that the rule is only defined if one of the alternatives
-// holds. A lone alternative is unconditional, so its indices join the rule's
-// own; several are kept apart for Build to turn into separate paths.
-func (i *refindices) require(rule *Rule, alts alternatives) {
-	switch len(alts) {
-	case 0:
-		return
-	case 1:
-		for _, ri := range alts[0] {
-			i.insert(rule, ri)
-		}
-	default:
-		for _, alt := range alts {
-			for _, ri := range alt {
-				i.count(ri.ref)
-			}
-		}
-		if i.disjunctions == nil {
-			i.disjunctions = map[*Rule][]alternatives{}
-		}
-		i.disjunctions[rule] = append(i.disjunctions[rule], alts)
-	}
-}
-
-// disjoin records what the rule requires when one of ops has to hold: what all of
-// them require. Those are the alternatives of each -- unless one operand has none,
-// it then being satisfiable by any input at all -- and, for a key every operand
-// has a membership on, one membership asking all of their collections.
-func (i *refindices) disjoin(rule *Rule, ops []operand) {
-	if !slices.ContainsFunc(ops, func(op operand) bool { return len(op.alts) == 0 }) {
-		var alts alternatives
-		for _, op := range ops {
-			alts = append(alts, op.alts...)
-		}
-		i.require(rule, alts)
-	}
-
-	for _, m := range ops[0].memberships {
-		merged := membership{key: m.key, collections: slices.Clone(m.collections), each: m.each}
-		for _, op := range ops[1:] {
-			j := slices.IndexFunc(op.memberships, func(o membership) bool { return RefEqual(o.key, m.key) && o.each == m.each })
-			if j < 0 {
-				merged.collections = nil
-				break
-			}
-			merged.collections = append(merged.collections, op.memberships[j].collections...)
-		}
-		if merged.collections != nil {
-			i.recordMembership(rule, merged)
-		}
-	}
-}
-
-// operand is what indexing the body of an `and`/`or` operand found: the ways it
-// can be satisfied, an operand with an `or` of its own having one per branch and
-// none meaning nothing about it could be indexed, and the memberships that hold
-// whichever way it is.
-type operand struct {
-	alts        alternatives
-	memberships []membership
-}
-
-// paths returns every set of indices that can lead to the rule: the ones that
-// always hold, combined with one branch from each disjunction. Past
-// maxIndexPaths the disjunctions are dropped -- fewer constraints only widen
-// what the index admits, so the result stays correct.
-func (i *refindices) paths(rule *Rule) alternatives {
-	unconditional := i.rules[rule]
-	paths := alternatives{unconditional}
-
-	for _, alts := range i.disjunctions[rule] {
-		if len(paths)*len(alts) > maxIndexPaths {
-			return alternatives{unconditional}
-		}
-
-		combined := make(alternatives, 0, len(paths)*len(alts))
-		for _, path := range paths {
-			for _, alt := range alts {
-				combined = append(combined, append(slices.Clone(path), alt...))
-			}
-		}
-		paths = combined
-	}
-
-	return paths
-}
-
-// Sorted returns the references the indices were built from, ordered so that
-// the ones appearing in more of the indexed rules come first.
-func (i *refindices) Sorted() []refID {
-	if i.sorted != nil {
-		return i.sorted
-	}
-
-	for id, stats := range i.stats {
-		if stats.count > 0 {
-			i.sorted = append(i.sorted, refID(id))
-		}
-	}
-
-	slices.SortFunc(i.sorted, func(a, b refID) int {
-		// A ref reached by several values is worth less as an early level,
-		// and one that ends the rule's path less again, however often
-		// either was recorded -- so both outrank frequency.
-		if c := cmp.Compare(i.stats[a].alternated, i.stats[b].alternated); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(i.stats[b].count, i.stats[a].count); c != 0 { // descending
-			return c
-		}
-		if c := i.table.ref(a)[0].Loc().Compare(i.table.ref(b)[0].Loc()); c != 0 {
-			return c
-		}
-		// Refs built rather than parsed -- a function's args[n] -- share a
-		// location, so fall back on the order they were first seen in.
-		return cmp.Compare(a, b)
-	})
-
-	return i.sorted
-}
-
-// partition splits sorted into the refs that become trie levels and the refs that
-// do not, which is those no rule constrains to a value.
-//
-// A ref every rule records only as "holds something" -- which is what
-// RewriteDynamicTerms leaves behind when it hoists a term into a local,
-// `__local1__ = data.groups.g0.members` -- gives the trie a level whose only
-// children are "anything" and "absent". It cannot narrow a lookup by value. What
-// it can do is exclude the rules that read the ref when the ref is absent, since
-// traversal stops at a level that resolves to nothing, and for a naked reference
-// -- `allow if input.x` -- that is the whole of the indexing.
-//
-// Keeping it as a level is an expensive way to ask that question. Both children
-// carry their own copy of the levels below, so the levels multiply out, and each
-// lookup resolves a ref per copy. One such level per rule makes traversal
-// quadratic:
-//
-//	allow if { input.subject in data.groups.g0.members; input.resource.foo == "A" }
-//	allow if { input.subject in data.groups.g1.members; input.resource.foo == "A" }
-//	...
-//
-// 500 of those resolve 125k refs on every lookup -- N(N+1)/2 -- to exclude nothing,
-// because input.resource.foo is what discriminates. The index costs more than it
-// saves there: the same policy evaluates 6.5x faster with indexing disabled, and
-// 8.8x at a thousand rules.
-//
-// So the question moves out of the trie: Lookup checks these refs against the
-// candidates traversal produced, which asks it once per surviving rule instead of
-// once per copy of the level. The candidates are the same either way.
-func (i *refindices) partition(sorted []refID) (levels, unvalued []refID) {
-	// An `or` records its operands' indices on disjunctions rather than through
-	// insert, so collect from both rather than counting as they arrive.
-	valued := make([]bool, len(i.stats))
-	note := func(path []*refindex) {
-		for _, ri := range path {
-			if !ri.isVar() {
-				valued[ri.ref] = true
-			}
-		}
-	}
-	for _, path := range i.rules {
-		note(path)
-	}
-	for _, alts := range i.disjunctions {
-		for _, alt := range alts {
-			for _, path := range alt {
-				note(path)
-			}
-		}
-	}
-
-	for _, ref := range sorted {
-		if valued[ref] {
-			levels = append(levels, ref)
-		} else {
-			unvalued = append(unvalued, ref)
-		}
-	}
-	return levels, unvalued
-}
-
-// insertMembers records the members of an `in` collection, each a value the
-// rule may reach ref by, hoisting insert's scan out of the loop. insertAffixes
-// is the same for base strings; the two dedup on different key types.
-func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
-	id := i.table.intern(ref)
-
-	if len(members) < 2 {
-		for _, member := range members {
-			i.insert(rule, &refindex{ref: id, Value: member})
-		}
-		return
-	}
-
-	// Unlike a prefix, a concrete member takes the place of a "reference is
-	// anything" entry (see insert), so the first one goes the ordinary way --
-	// the rule's list is short at that point, so the scan it costs is cheap.
-	i.insert(rule, &refindex{ref: id, Value: members[0]})
-
-	rest := members[1:]
-	concrete := 0
-	seen := util.NewHasherMap[Value, struct{}](ValueEqual)
-
-	for _, other := range i.rules[rule] {
-		if other.ref != id {
-			continue
-		}
-		if !other.isVar() {
-			concrete++
-		}
-		if other.Affix == affixNone && !other.Member {
-			seen.Put(other.Value, struct{}{})
-		}
-	}
-
-	// One refindex per member, laid down in a single block rather than
-	// allocated one at a time, as in insertAffixes. Duplicates leave slack at
-	// the end of the block, which the reslice drops.
-	pos := len(i.rules[rule])
-	indices := util.GrowPtrSlice(i.rules[rule], len(rest))
-
-	for _, member := range rest {
-		if _, ok := seen.Get(member); ok {
-			continue
-		}
-		seen.Put(member, struct{}{})
-		concrete++
-
-		*indices[pos] = refindex{ref: id, Value: member}
-		pos++
-	}
-	i.rules[rule] = indices[:pos]
-
-	i.countN(id, len(rest))
-
-	if concrete > 1 {
-		i.alternate(id, alternationConverging)
-	}
-}
-
 // maxDomainExpansion caps how many times one expression is indexed over the
 // literals its locals iterate: once per combination of their positions. Each
 // costs about 0.45 us to build, so the cap bounds that at about 2 ms.
@@ -1233,123 +702,29 @@ func isLocalAlias(expr *Expr) bool {
 	return a && b
 }
 
-// recordMembership notes that rule only matches when m holds, and that its key
-// takes part in indexing it.
-func (i *refindices) recordMembership(rule *Rule, m membership) {
-	for _, other := range i.memberships[rule] {
-		if RefEqual(other.key, m.key) && other.each == m.each &&
-			slices.EqualFunc(other.collections, m.collections, RefEqual) {
-			return
-		}
-	}
-	i.memberships[rule] = append(i.memberships[rule], m)
-	i.count(i.table.intern(m.key))
-}
-
-// count records that ref took part in indexing a rule, which is what orders the
-// trie levels (see Sorted).
-func (i *refindices) count(ref refID) {
-	i.countN(ref, 1)
-}
-
-func (i *refindices) countN(ref refID, n int) {
-	i.stat(ref).count += int32(n)
-}
-
-// stat returns the reference's statistics, making room for them if this is the
-// first thing recorded about it.
-func (i *refindices) stat(ref refID) *refStats {
-	i.stats = growTo(i.stats, int(ref)+1)
-	return &i.stats[ref]
-}
-
-// alternation is what a ref reached by several values costs the rest of the
-// rule's path, and what Sorted ranks such refs by.
-type alternation uint8
-
-const (
-	// alternationNone: no rule reaches the ref by more than one value.
-	alternationNone alternation = iota
-
-	// alternationConverging: the alternatives meet again on one node, so the
-	// path continues from there. Still ranked after the plain refs, since the
-	// rule gets a node of its own and stops sharing what is below.
-	alternationConverging
-
-	// alternationTerminal: the alternatives cannot meet again, so the rule
-	// hangs off each and whatever it constrains below goes unindexed. Affixes
-	// are these -- a prefix trie cannot point several leaves at one node.
-	alternationTerminal
-)
-
-// alternate records that a rule reaches ref by more than one value, and what
-// that costs. The worse kind recorded for a ref wins. Only the values
-// surviving insertPath's var-stripping count.
-func (i *refindices) alternate(ref refID, kind alternation) {
-	if kind == alternationNone {
-		return
-	}
-
-	stats := i.stat(ref)
-	stats.alternated = max(stats.alternated, kind)
-}
-
-func (i *refindices) insert(rule *Rule, index *refindex) {
-	indexValueIsVar := index.isVar()
-	seen := false
-
-	for pos, other := range i.rules[rule] {
-		if other.ref == index.ref {
-			seen = true
-			if other.Affix == index.Affix && other.Member == index.Member && ValueEqual(other.Value, index.Value) {
-				return
-			}
-			otherValueIsVar := other.isVar()
-			// An affix constraint does not take the place of the "ref is
-			// anything" entry the way a concrete value does: that entry is what
-			// lets a later expression resolve the same local back to this ref
-			// (see resolveVarToRef), and insertPath drops it anyway once the
-			// ref has a concrete value on the path.
-			if !indexValueIsVar && index.Affix == affixNone && otherValueIsVar {
-				i.rules[rule][pos] = index
-				return
-			}
-			if !indexValueIsVar && !otherValueIsVar {
-				// insertPath cannot converge a level that any affix reaches,
-				// so one on either side makes this pair a terminal one.
-				kind := alternationConverging
-				if index.Affix != affixNone || other.Affix != affixNone {
-					kind = alternationTerminal
-				}
-				i.alternate(index.ref, kind)
-			}
-		}
-	}
-
-	if !seen {
-		i.count(index.ref)
-	}
-	i.rules[rule] = append(i.rules[rule], index)
-}
-
 type trieWalker interface {
 	Do(any) trieWalker
 }
 
-// trieTraversalResult is what a walk of the trie -- a lookup, or the whole of it
-// for AllRules -- collects.
+// trieSink is what a walk of a level's matcher reports the leaves it arrives at
+// to.
+type trieSink interface {
+	Add(*trieNode)
+}
+
+// trieTraversalResult is the rules a lookup, or AllRules, reaches.
 //
-// The rules reached are a bitset over the index's rule ids, so reaching one down
-// several paths costs nothing to notice: the second arrival writes a bit that is
-// already set. Reading it back in id order is reading it grouped and in priority
+// They are a bitset over the index's rule ids, so reaching one by several paths
+// costs nothing to notice: the second arrival writes a bit that is already
+// set. Reading it back in id order is reading it grouped and in priority
 // order, ids having been handed out that way, so there is nothing left to sort.
 type trieTraversalResult struct {
 	hits []uint64
 	// touched holds the words of hits that were written to, so that clearing
 	// costs what a lookup found rather than what the index holds.
 	touched  []int32
-	exist    *Term
 	multiple bool
+	counting *countingLookup
 }
 
 // defined reports whether every ref the rule needs resolves to something. A ref
@@ -1370,7 +745,7 @@ func (i *baseDocEqIndex) defined(resolver ValueResolver, id int32, cache *resolv
 }
 
 // resolveCache memoizes, for the length of one lookup, what the resolver answered.
-// The refs kept out of the trie are asked for once each however many rules read
+// The refs that are not levels are asked for once each however many rules read
 // them, and the collections of a ruleset sit under a shared prefix.
 //
 // Where topdown's baseCache holds what the store gave, making a resolve cheap, this
@@ -1449,110 +824,51 @@ func (tr *trieTraversalResult) reset() {
 	}
 	tr.touched = tr.touched[:0]
 	tr.multiple = false
-	tr.exist = nil
 }
 
-func (tr *trieTraversalResult) Add(t *trieNode) {
-	for _, id := range t.rules {
-		word, bit := id>>6, uint64(1)<<(uint(id)&63)
-		if tr.hits[word]&bit != 0 {
-			continue
-		}
-		if tr.hits[word] == 0 {
-			tr.touched = append(tr.touched, word)
-		}
-		tr.hits[word] |= bit
-	}
-	if t.multiple {
-		tr.multiple = true
-	}
-	if tr.multiple || t.value == nil {
+func (tr *trieTraversalResult) set(id int32) {
+	word, bit := id>>6, uint64(1)<<(uint(id)&63)
+	if tr.hits[word]&bit != 0 {
 		return
 	}
-	if t.value.IsGround() && tr.exist == nil || tr.exist.Equal(t.value) {
-		tr.exist = t.value
-		return
+	if tr.hits[word] == 0 {
+		tr.touched = append(tr.touched, word)
 	}
-	tr.multiple = true
+	tr.hits[word] |= bit
 }
 
 type trieNode struct {
-	// next is the level below this node, nil where the paths under it end.
+	// next is the level below this node, set on a matcher's root.
 	next *levelDetail
-	// rules are the ids of the rules whose path ends here, see
-	// baseDocEqIndex.rules.
-	rules    []int32
-	value    *Term
-	multiple bool
+	// rules are, on a leaf, the ids of the counting index's paths whose
+	// condition the leaf's value satisfies, in increasing order.
+	rules []int32
+	// posting is one more than the index of the posting holding the leaf's
+	// paths, where that takes less room than listing them in rules; zero
+	// otherwise.
+	posting int32
 }
 
-func (node *trieNode) append(id int32, rule *Rule) {
-	node.rules = append(node.rules, id)
-
-	if node.value != nil && rule.Head.Value != nil && !node.value.Equal(rule.Head.Value) {
-		node.multiple = true
-	}
-
-	if node.value == nil && rule.Head.DocKind() == CompleteDoc {
-		node.value = rule.Head.Value
-	}
-}
-
-// levelDetail is everything a trieNode has by virtue of being a *level* -- the
-// reference it resolves, the children it dispatches the resolved value to, and
-// the constraints that are not exact values. The suffix trie holds its base
+// levelDetail is the matcher of a level of the counting index: the reference it
+// resolves, and the leaves it dispatches the resolved value to, by exact value,
+// member, prefix, suffix, glob pattern, or array. The suffix trie holds its base
 // strings reversed, so that requiring one at the end of a value is requiring it
 // at the start of the value reversed and the same trie answers both (see
 // traverseSuffix).
-//
-// It is held behind one pointer because a trieNode is allocated per indexed
-// value and almost none of them are levels: half a million prefixes make one
-// level and half a million nodes that only carry rules. Measured over such an
-// index, every field here is set on 0 or 1 of the 500002 nodes.
-//
-// Where the boundaries fall decides how much that is worth. Inline, these
-// fields put trieNode in Go's 160-byte size class; out of line it is 56 bytes,
-// which rounds to 64. Moving them out a few at a time buys nothing -- 136 and
-// 112 bytes both round up to a class the struct already occupied.
-//
-// The same reasoning applies once more within levelDetail: alternatives is set
-// on the few levels some rule reaches by more than one value, so it costs 8
-// bytes here rather than the 32 its two fields would inline.
 type levelDetail struct {
-	ref          Ref
-	any          *trieNode
-	undefined    *trieNode
-	array        *arrayTrie
-	scalars      *util.HasherMap[Value, *trieNode]
-	members      *util.HasherMap[Value, *trieNode]
-	mappers      []*valueMapper
-	prefixes     *prefixTrie
-	suffixes     *prefixTrie
-	alternatives *alternativeChildren
-}
-
-// alternativeChildren are the nodes that rules reaching a level by several
-// values continue from. The two fields hold the same nodes for two different
-// jobs, and neither does the other's:
-//
-// values answers "which nodes does this value reach", which is what a lookup
-// asks. A node is in it under every one of the values that reaches it, so a
-// rule with a thousand-member collection puts its one node under a thousand
-// keys, and several rules sharing a value put several nodes under that one.
-//
-// converged answers "which nodes are below this level", which is what the
-// walks over the whole trie ask -- traverseUnknown, Do and compact. Reading
-// that off values would visit a node once per value that reaches it: correct,
-// since trieTraversalResult.Add folds a rule reached twice into one, but a
-// thousand times the work for the collection above. So the nodes are listed
-// once each here as they are created.
-//
-// members does the job of values for the rules requiring a member of the
-// collection at the level's ref; see refindex.Member.
-type alternativeChildren struct {
-	values    *util.HasherMap[Value, []*trieNode]
-	members   *util.HasherMap[Value, []*trieNode]
-	converged []*trieNode
+	ref       Ref
+	any       *trieNode
+	undefined *trieNode
+	array     *arrayTrie
+	scalars   *util.HasherMap[Value, *trieNode]
+	// strings holds the string-valued scalars, which most are, keyed by the
+	// string itself: hashing and comparing an ast.Value costs more than a
+	// map[string] does.
+	strings  map[string]*trieNode
+	members  *util.HasherMap[Value, *trieNode]
+	mappers  []*valueMapper
+	prefixes *prefixTrie
+	suffixes *prefixTrie
 }
 
 func newTrieNodeImpl() *trieNode {
@@ -1564,13 +880,6 @@ func newTrieNodeImpl() *trieNode {
 func (node *trieNode) level() *levelDetail {
 	node.next = util.Or(node.next, newLevelDetail)
 	return node.next
-}
-
-func (d *levelDetail) converged() []*trieNode {
-	if d != nil && d.alternatives != nil {
-		return d.alternatives.converged
-	}
-	return nil
 }
 
 // affixTrie returns the trie for one end of the value, creating it and the
@@ -1624,21 +933,20 @@ func (d *levelDetail) do(walker trieWalker) {
 		child.Do(walker)
 		return false
 	})
+	for _, child := range d.strings {
+		child.Do(walker)
+	}
 	d.members.Iter(func(_ Value, child *trieNode) bool {
 		child.Do(walker)
 		return false
 	})
-
-	for _, child := range d.converged() {
-		child.Do(walker)
-	}
 
 	prefixTrieDo(d.prefixes, walker)
 	prefixTrieDo(d.suffixes, walker)
 	d.array.do(walker)
 }
 
-// compact walks the trie once the index is built and releases what its slices
+// compact walks a matcher once the index is built and releases what its slices
 // grew but do not use.
 func (node *trieNode) compact() {
 	if node == nil {
@@ -1660,63 +968,18 @@ func (d *levelDetail) compact() {
 	d.undefined.compact()
 	d.array.compact()
 
-	for _, child := range d.converged() {
-		child.compact()
-	}
-
 	d.scalars.Iter(func(_ Value, child *trieNode) bool {
 		child.compact()
 		return false
 	})
+	for _, child := range d.strings {
+		child.compact()
+	}
 	d.members.Iter(func(_ Value, child *trieNode) bool {
 		child.compact()
 		return false
 	})
 
-	if d.alternatives != nil {
-		d.alternatives.converged = slices.Clip(d.alternatives.converged)
-	}
-}
-
-// insertAlternatives adds a level a rule reaches by any one of several values,
-// and returns the one node the rest of its path continues from. Every value
-// keys to that node, so what the rule constrains below is built once instead of
-// repeated under each alternative.
-func (node *trieNode) insertAlternatives(ref Ref, values []*refindex) *trieNode {
-	level := node.level()
-	level.ref = ref
-	level.alternatives = util.Or(level.alternatives, newAlternativeChildren)
-	alt := level.alternatives
-
-	converge := newTrieNodeImpl()
-	alt.converged = append(alt.converged, converge)
-
-	for _, val := range values {
-		if val.Mapper != nil {
-			level.addMapper(val.Mapper)
-		}
-		keys := alt.values
-		if val.Member {
-			alt.members = util.Or(alt.members, newNodesByValue)
-			keys = alt.members
-			// Set so that a lookup asks traverseMembers by testing one field.
-			level.members = util.Or(level.members, newScalarChildren)
-		}
-		nodes, _ := keys.Get(val.Value)
-		keys.Put(val.Value, append(nodes, converge))
-	}
-
-	return converge
-}
-
-func newAlternativeChildren() *alternativeChildren {
-	return &alternativeChildren{
-		values: newNodesByValue(),
-	}
-}
-
-func newNodesByValue() *util.HasherMap[Value, []*trieNode] {
-	return util.NewHasherMap[Value, []*trieNode](ValueEqual)
 }
 
 // InsertMember returns the node that the rules requiring value as a member of
@@ -1745,7 +1008,7 @@ func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNod
 	return level.insertValue(value)
 }
 
-func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) error {
+func (node *trieNode) Traverse(resolver ValueResolver, tr trieSink) error {
 	if node == nil {
 		return nil
 	}
@@ -1775,7 +1038,17 @@ func (d *levelDetail) insertValue(value Value) *trieNode {
 	case Var:
 		detail.any = util.Or(detail.any, newTrieNodeImpl)
 		return detail.any
-	case Null, Boolean, Number, String:
+	case String:
+		child, ok := detail.strings[string(value)]
+		if !ok {
+			child = newTrieNodeImpl()
+			if detail.strings == nil {
+				detail.strings = map[string]*trieNode{}
+			}
+			detail.strings[string(value)] = child
+		}
+		return child
+	case Null, Boolean, Number:
 		child, ok := detail.scalars.Get(value)
 		if !ok {
 			child = newTrieNodeImpl()
@@ -1787,14 +1060,11 @@ func (d *levelDetail) insertValue(value Value) *trieNode {
 		detail.array = util.Or(detail.array, newArrayTrie)
 		return detail.array.insert(value)
 
-	// `x in <collection>` (see updateMemberRefInValue) inserts each element of
-	// the literal collection as-is, without restricting it to scalars/arrays
-	// like the equality-based indexing does (see indexValue). A ground
+	// `x in <collection>` inserts the literal's elements as-is; a ground
 	// Object or Set element can't be indexed precisely, so - like Var - it
 	// falls back to the "any" node: the rule stays a candidate for every
-	// input value. (The other composite Value types - Ref, comprehensions,
-	// Call - can't actually reach here: the compiler rewrites them into
-	// separate statements, bound to a Var, before the index is built.)
+	// input value. (Ref, comprehensions and Call can't reach here: the
+	// compiler binds them to a Var before the index is built.)
 	case Object, Set:
 		detail.any = util.Or(detail.any, newTrieNodeImpl)
 		return detail.any
@@ -1849,7 +1119,7 @@ func (a *arrayTrie) insert(arr *Array) *trieNode {
 	panic("illegal value")
 }
 
-func (a *arrayTrie) traverse(resolver ValueResolver, tr *trieTraversalResult, arr *Array) error {
+func (a *arrayTrie) traverse(resolver ValueResolver, tr trieSink, arr *Array) error {
 	if a == nil {
 		return nil
 	}
@@ -1871,7 +1141,7 @@ func (a *arrayTrie) traverse(resolver ValueResolver, tr *trieTraversalResult, ar
 	return nil
 }
 
-func (a *arrayTrie) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
+func (a *arrayTrie) traverseUnknown(resolver ValueResolver, tr trieSink) error {
 	if a == nil {
 		return nil
 	}
@@ -1919,7 +1189,7 @@ func (a *arrayTrie) compact() {
 	})
 }
 
-func (d *levelDetail) traverse(resolver ValueResolver, tr *trieTraversalResult) error {
+func (d *levelDetail) traverse(resolver ValueResolver, tr trieSink) error {
 	if d == nil {
 		return nil
 	}
@@ -1984,7 +1254,7 @@ func (d *levelDetail) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	return nil
 }
 
-func (d *levelDetail) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+func (d *levelDetail) traverseValue(resolver ValueResolver, tr trieSink, value Value) error {
 	switch value := value.(type) {
 	case *Array, Set, Object:
 		if d.array != nil {
@@ -1995,32 +1265,17 @@ func (d *levelDetail) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 			}
 		}
 	case Null, Boolean, Number, String:
-		if child, ok := d.scalars.Get(value); ok {
+		var child *trieNode
+		var ok bool
+		if s, isString := value.(String); isString {
+			child, ok = d.strings[string(s)]
+		} else {
+			child, ok = d.scalars.Get(value)
+		}
+		if ok {
 			if err := child.Traverse(resolver, tr); err != nil {
 				return err
 			}
-		}
-		// A level with no alternatives -- almost all of them -- pays a branch
-		// and nothing more.
-		if d.alternatives != nil {
-			return d.alternatives.traverse(resolver, tr, value)
-		}
-	}
-
-	return nil
-}
-
-// traverse visits the nodes that the rules reaching this level by value
-// continue from.
-func (alt *alternativeChildren) traverse(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
-	nodes, ok := alt.values.Get(value)
-	if !ok {
-		return nil
-	}
-
-	for _, child := range nodes {
-		if err := child.Traverse(resolver, tr); err != nil {
-			return err
 		}
 	}
 
@@ -2029,27 +1284,13 @@ func (alt *alternativeChildren) traverse(resolver ValueResolver, tr *trieTravers
 
 // traverseMembers visits the nodes of the rules requiring a member of the
 // collection at the level's ref, which only a collection can satisfy.
-func (d *levelDetail) traverseMembers(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
-	var alt *util.HasherMap[Value, []*trieNode]
-	if d.alternatives != nil {
-		alt = d.alternatives.members
-	}
-
+func (d *levelDetail) traverseMembers(resolver ValueResolver, tr trieSink, collection Value) error {
 	checkMember := func(t *Term) error {
 		if !IsScalar(t.Value) {
 			return nil
 		}
 		child, _ := d.members.Get(t.Value)
-		if err := child.Traverse(resolver, tr); err != nil {
-			return err
-		}
-		nodes, _ := alt.Get(t.Value)
-		for _, child := range nodes {
-			if err := child.Traverse(resolver, tr); err != nil {
-				return err
-			}
-		}
-		return nil
+		return child.Traverse(resolver, tr)
 	}
 
 	switch col := collection.(type) {
@@ -2071,7 +1312,7 @@ func (d *levelDetail) traverseMembers(resolver ValueResolver, tr *trieTraversalR
 // traverseUnknown visits every child of a level whose reference the resolver
 // cannot answer for. What each child constrains below resolves as usual: an
 // unknown at one level says nothing about the levels under it.
-func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
+func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr trieSink) error {
 	if d == nil {
 		return nil
 	}
@@ -2096,7 +1337,7 @@ func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 		return err
 	}
 
-	for _, child := range d.converged() {
+	for _, child := range d.strings {
 		if err := child.Traverse(resolver, tr); err != nil {
 			return err
 		}

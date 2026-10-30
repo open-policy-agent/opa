@@ -120,6 +120,16 @@ roles := {
 
 <RunSnippet id="input.json"/>
 
+#### How a lookup works
+
+The index records, for each rule, the conditions its body puts on references like `input.method`: equal to a value, holding a value, starting with a string, and the others described below. One condition per reference: several values for one reference, like `input.x in {1, 2}`, make one condition that holds if any of them matches. A rule whose body has an `or`, or iterates over a literal, has one set of conditions for each way it can hold, each of which is enough for the rule.
+
+A lookup goes through the indexed references, the ones most rules test first. It asks the input for each value once, finds the conditions that value satisfies, and drops every set with a condition on that reference that the value does not satisfy. A rule is handed to evaluation when one of its sets is left once every reference it tests has been asked for. A reference is only asked for while some set with a condition on it can still hold, so the references only a few rules test are not looked at once those rules are out.
+
+For the policy above and its input, `input.method` is `"GET"`, which the first two rules require and the third does not, so the third rule is out. Of the two left, only the first matches `input.path`, so the first rule is evaluated, and the second and third are not.
+
+A value the index cannot know, as in partial evaluation, satisfies every condition on its reference. References a rule only needs to be defined, and lookups into a collection such as `data.groups[g].members[input.user]`, are checked for each rule the count leaves.
+
 #### Equality statements
 
 For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables).
@@ -155,7 +165,7 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 
 For `startswith(search, base)` and `strings.any_prefix_match(search, base)` statements to be indexed the search operand must be a non-nested reference that does not contain any variables, and every base string must be known at compile time — a literal, or a variable previously assigned one. `strings.any_prefix_match` holds if any base string matches, so each of its base strings is indexed as an alternative; a base collection holding anything other than strings is not indexed at all, since indexing only part of it would exclude rules the rest would have matched. `endswith` and `strings.any_suffix_match` are indexed under the same conditions.
 
-The prefixes recorded for one reference are held in a radix trie, so a lookup walks the input value once no matter how many prefixes are indexed. A rule set with ten prefixes and one with ten thousand cost the same to look up. Several base strings do make the search operand a reference the rule reaches by more than one value, which affects what else the rule is indexed on — see [Several values for one reference](#several-values-for-one-reference).
+The prefixes recorded for one reference are held in a radix trie, so a lookup walks the input value once no matter how many prefixes are indexed. A rule set with ten prefixes and one with ten thousand cost the same to look up.
 
 Capturing the result (`allowed := startswith(input.path, "/api")`) is not indexed: a rule producing `false` still has to be evaluated.
 
@@ -284,9 +294,7 @@ Each statement is indexed on its own: in `some k in {"a", "b"}; input.k == k; da
 
 Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a collection. The rule is indexed under each of those values.
 
-Where the rule is indexed below that reference depends on the statement. The values of an `in` collection converge on one continuation, so the rule goes on being indexed on everything else it constrains, however many such references it has — as long as they are scalars. A collection holding arrays, objects or sets cannot converge, so that reference ends the rule's path the way base strings do. The base strings of a `strings.any_prefix_match` or `strings.any_suffix_match` are leaves of the radix trie described above, which cannot converge, so that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
-
-The indexer orders references carrying alternatives after every other one, so a rule's single-valued constraints are indexed first either way.
+Every reference a rule constrains is indexed, whichever statements its values come from: a rule is a candidate for an input when, for each reference, one of its values matches.
 
 | Rule body                                                                                              | Indexed on           |
 | ------------------------------------------------------------------------------------------------------ | -------------------- |
@@ -294,13 +302,11 @@ The indexer orders references carrying alternatives after every other one, so a 
 | `input.x in {1, 2}; input.y == 3`                                                                      | both references      |
 | `input.x in {1, 2}; input.y in {3, 4}`                                                                 | both references      |
 | `strings.any_prefix_match(input.path, ["/a", "/b"]); input.x in {1, 2}`                                | both references      |
-| `input.x in [[1], [2]]; input.y == 3`                                                                  | one reference        |
-| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.n, [".go", ".rego"])` | one of the two       |
+| `input.x in [[1], [2]]; input.y == 3`                                                                  | both references      |
+| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.n, [".go", ".rego"])` | both references      |
 | `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.p, [".go", ".rego"])` | one end of `input.p` |
 
-A reference reached by base strings is ordered after one reached by an `in` collection, so only a rule that reaches _two_ references by base strings loses one of them — and which of the two the author wrote first does not decide which is lost.
-
-Requiring base strings at both ends of the _same_ reference runs into the same limit from the other direction. The two sets are leaves of two tries, and a leaf cannot be made to depend on the other trie's answer, so the index tests one end and leaves the other to evaluation. Indexing both would admit a value matching either one, where the rule requires both, so it would hand more rules to evaluation than testing one end does. The end kept is the one whose shortest base string is longest: a set admits a value matching any one of its bases, so its shortest base is what decides how much it admits — `["/"]` admits every absolute path however many longer prefixes sit beside it.
+Requiring base strings at both ends of the _same_ reference is the one case indexed only in part. The two sets are leaves of two tries, and a leaf cannot be made to depend on the other trie's answer, so the index tests one end and leaves the other to evaluation. Indexing both would admit a value matching either one, where the rule requires both, so it would hand more rules to evaluation than testing one end does. The end kept is the one whose shortest base string is longest: a set admits a value matching any one of its bases, so its shortest base is what decides how much it admits — `["/"]` admits every absolute path however many longer prefixes sit beside it.
 
 #### References rooted at a local variable
 

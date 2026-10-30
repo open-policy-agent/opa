@@ -6,7 +6,6 @@ package ast
 
 import (
 	"github.com/open-policy-agent/opa/internal/prefixtrie"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // This file holds the indexing of both ends of a string: `startswith` and
@@ -32,7 +31,7 @@ func prefixTrieCompact(p *prefixTrie) {
 	})
 }
 
-func prefixTrieTraverseUnknown(p *prefixTrie, resolver ValueResolver, tr *trieTraversalResult) error {
+func prefixTrieTraverseUnknown(p *prefixTrie, resolver ValueResolver, tr trieSink) error {
 	return p.Values(func(node *trieNode) error {
 		return node.Traverse(resolver, tr)
 	})
@@ -70,10 +69,8 @@ func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
 //
 // strings.any_prefix_match takes a collection of search strings as readily as a
 // single one, and holds if any of them starts with any of the base strings, so
-// a collection is tested element by element -- the same way a scalar constraint
-// is matched against the members of a collection (see
-// traverseCollectionMembership).
-func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+// a collection is tested element by element, as traverseMembers does.
+func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr trieSink, value Value) error {
 	prefixes := d.prefixes
 	if prefixes == nil {
 		return nil
@@ -114,7 +111,7 @@ func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 
 // traverseSuffixes visits the rules whose suffix constraints value satisfies.
 // A collection is tested element by element, as for prefixes.
-func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr trieSink, value Value) error {
 	suffixes := d.suffixes
 	if suffixes == nil {
 		return nil
@@ -153,66 +150,6 @@ func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversal
 	return nil
 }
 
-// insertAffixes records a whole base collection at once, for either end of the
-// value. insert() rescans the rule's indices on every call, which is quadratic
-// over the thousands strings.any_prefix_match carries, so the scan happens once
-// here instead. insertMembers is the same for `in`; the two dedup on different
-// key types.
-func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) {
-	id := i.table.intern(ref)
-
-	// concrete counts the values this rule already reaches ref by that survive
-	// insertPath's var-stripping, so that the alternatives the base adds can be
-	// weighed against them without a second scan (see refindices.alternate).
-	concrete := 0
-	known := false
-	seen := make(map[String]struct{}, len(bases))
-	for _, other := range i.rules[rule] {
-		if other.ref != id {
-			continue
-		}
-		known = true
-		if !other.isVar() {
-			concrete++
-		}
-		if other.Affix == a {
-			if s, ok := other.Value.(String); ok {
-				seen[s] = struct{}{}
-			}
-		}
-	}
-	n := len(bases)
-	if known && n > 0 {
-		n--
-	}
-	i.countN(id, n)
-
-	// One refindex per base, laid down in a single block rather than allocated
-	// one at a time: a base collection runs to thousands of them. Duplicates
-	// leave slack at the end of the block, which the reslice below drops.
-	pos := len(i.rules[rule])
-	indices := util.GrowPtrSlice(i.rules[rule], len(bases))
-
-	for _, base := range bases {
-		// groundStrings has established that every base is a String, and hands
-		// the Term's own Value over so that refindex.Value costs no second box.
-		key := base.(String)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		concrete++
-
-		*indices[pos] = refindex{ref: id, Value: base, Affix: a}
-		pos++
-	}
-	i.rules[rule] = indices[:pos]
-
-	if concrete > 1 {
-		i.alternate(id, alternationTerminal)
-	}
-}
-
 // constantString resolves term to a string literal, following one level of
 // var binding recorded earlier in the rule body.
 func constantString(term *Term, constants map[Var]Value) (String, bool) {
@@ -232,7 +169,7 @@ func constantString(term *Term, constants map[Var]Value) (String, bool) {
 // groundStrings returns the members of an array or set literal, and reports
 // false unless every one of them is a string. The member's own Value is what
 // comes back, not the String inside it: every caller puts it straight into a
-// refindex, and a Term is already holding it boxed.
+// condition, and a Term is already holding it boxed.
 func groundStrings(v Value) ([]Value, bool) {
 	var (
 		until func(func(*Term) bool) bool

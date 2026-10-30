@@ -403,7 +403,7 @@ func TestIndexPrefixTrieStaysCompressed(t *testing.T) {
 		t.Fatalf("expected a baseDocEqIndex, got %T", index)
 	}
 
-	prefixes := root.root.next.prefixes
+	prefixes := firstLevel(root).prefixes
 	if prefixes == nil {
 		t.Fatal("expected the prefixes to be indexed")
 	}
@@ -501,22 +501,19 @@ func prefixTrieMatches(t *testing.T, trie *prefixTrie, nodes map[string]*trieNod
 	// the prefixes it reached.
 	byID := make([]string, 0, len(nodes))
 	for prefix, node := range nodes {
-		node.rules = node.rules[:0]
-		node.append(int32(len(byID)), &Rule{Head: NewHead(Var("p"), nil, InternedTerm(len(byID)))})
+		node.rules = append(node.rules[:0], int32(len(byID)))
 		byID = append(byID, prefix)
 	}
 
-	tr := newTrieTraversalResult()
-	tr.grow(len(byID))
+	var reached idSet
+	reached.grow(len(byID))
 	level := &levelDetail{prefixes: trie}
-	if err := level.traversePrefixes(testResolver{input: MustParseTerm(`{}`)}, tr, String(s)); err != nil {
+	if err := level.traversePrefixes(testResolver{input: MustParseTerm(`{}`)}, &levelSink{held: &reached}, String(s)); err != nil {
 		t.Fatal(err)
 	}
 
 	var matched []string
-	for _, id := range collected(tr) {
-		matched = append(matched, byID[id])
-	}
+	reached.each(func(id int32) { matched = append(matched, byID[id]) })
 	slices.Sort(matched)
 
 	return matched
@@ -581,4 +578,13 @@ func TestIndexPrefixSelectsSameRulesAsEvaluation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// firstLevel is the level the index tests first, the trie's or the counting
+// index's.
+func firstLevel(index *baseDocEqIndex) *levelDetail {
+	if index.counting != nil {
+		return &index.counting.levels[0].matcher
+	}
+	return index.root.next
 }
