@@ -2281,15 +2281,14 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return lob, nil
 	}
-	// Asking for something that is not there converts nothing.
-	if len(path) > 1 {
-		if _, found, ok := lob.nativeAt(path); ok && !found {
-			return nil, errFindNotFound
-		}
-	}
 	if p0, ok := path[0].Value.(String); ok {
 		if v, ok := lob.cache[string(p0)]; ok {
 			return v.Find(path[1:])
+		}
+
+		// don't convert what doesn't exist
+		if _, found, ok := lob.nativeAt(path); ok && !found {
+			return nil, errFindNotFound
 		}
 
 		if v, ok := lob.native[string(p0)]; ok {
