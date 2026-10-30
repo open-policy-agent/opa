@@ -232,13 +232,13 @@ allow if {
 				Module("p.rego", tc.policy),
 				Target(tc.target),
 				StrictBuiltinErrors(true), // ignored for wasm target (always non-strict)
-			).PrepareForEval(context.Background())
+			).PrepareForEval(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			before := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
 			defer cancel()
 
 			_, err = pq.Eval(ctx)
