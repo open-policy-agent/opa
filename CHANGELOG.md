@@ -5,6 +5,35 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Lucene (Solr) target for the Compile API
+
+The Compile API can now translate a policy into a Lucene query for Solr's `fq` or `q`, with
+`Accept: application/vnd.opa.lucene.solr+json`. The one unknown is the document searched:
+
+```rego
+# METADATA
+# scope: package
+# compile:
+#   unknowns: [input.doc]
+package filters
+
+include if {
+    input.doc.owner == input.user
+    input.doc.level >= 3
+    not input.doc.status == "draft"
+}
+```
+
+For the user `alice`, this compiles to `(owner:"alice" AND level:[3 TO *] AND NOT status:"draft")`.
+Multi-valued fields are compared by their elements, as in `"a" in input.doc.tags`; `schemas`
+annotations declare which fields are, and
+[`solr_schema.rego`](https://www.openpolicyagent.org/filtering/solr_schema.rego) generates them from
+Solr's Schema API. The target can't be combined with others in a multitarget request.
+
+See [Lucene filters](https://www.openpolicyagent.org/docs/filtering/lucene).
+
+Authored by @srenatus
+
 ## 1.22.0
 
 This release contains a mix of new features, performance improvements and bug fixes. Notably:
