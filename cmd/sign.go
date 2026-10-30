@@ -12,12 +12,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
+	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -122,10 +124,12 @@ And the decoded JWT payload has the following form:
 	  ]
 	}
 
-The "files" field is generated from the files under the directory path(s)
-provided to the 'sign' command. During bundle signature verification, ` + brand + ` will check
-each file name (ex. "foo/bar/data.json") in the "files" field
-exists in the actual bundle. The file content is hashed using SHA256.
+The "files" field is generated from the files under the bundle root, which is the
+directory containing the ".manifest" file (or the directory provided to the 'sign'
+command if there is no manifest). File names are relative to the bundle root.
+During bundle signature verification, ` + brand + ` will check each file name
+(ex. "bar/data.json") in the "files" field exists in the actual bundle. The file
+content is hashed using SHA256.
 
 To include additional claims in the payload use the --claims-file flag to provide
 a JSON file containing optional claims.
@@ -166,6 +170,10 @@ https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format
 }
 
 func doSign(args []string, params signCmdParams) error {
+	if params.bundleMode {
+		bundleUtils.WarnSourcesAboveManifest(os.Stderr, args, nil)
+	}
+
 	load, err := initload.WalkPaths(args, nil, params.bundleMode)
 	if err != nil {
 		return err
@@ -176,7 +184,7 @@ func doSign(args []string, params signCmdParams) error {
 		return err
 	}
 
-	files, err := readBundleFiles(load.BundlesLoader, hash)
+	files, err := readBundleFiles(args, load.BundlesLoader, hash)
 	if err != nil {
 		return err
 	}
@@ -194,10 +202,25 @@ func doSign(args []string, params signCmdParams) error {
 	return writeTokenToFile(token, params.outputFilePath)
 }
 
-func readBundleFiles(loaders []initload.BundleLoader, h bundle.SignatureHasher) ([]bundle.FileInfo, error) {
+// readBundleFiles hashes the files of the bundles loaded from paths. With
+// several bundles, names are placed under each path, as opa build does.
+func readBundleFiles(paths []string, loaders []initload.BundleLoader, h bundle.SignatureHasher) ([]bundle.FileInfo, error) {
 	files := []bundle.FileInfo{}
+	prefixes := make(map[string]string, len(loaders))
 
-	for _, bl := range loaders {
+	for i, bl := range loaders {
+		var prefix string
+		if len(loaders) > 1 {
+			var err error
+			if prefix, err = bundleUtils.MergedBundlePrefix(paths[i]); err != nil {
+				return files, err
+			}
+			if other, ok := prefixes[prefix]; ok {
+				return files, fmt.Errorf("bundles %q and %q would both be placed under %q", other, paths[i], prefix)
+			}
+			prefixes[prefix] = paths[i]
+		}
+
 		for {
 			f, err := bl.DirectoryLoader.NextFile()
 			if err == io.EOF {
@@ -223,13 +246,8 @@ func readBundleFiles(loaders []initload.BundleLoader, h bundle.SignatureHasher) 
 				return files, fmt.Errorf("bundle file exceeded max size (%v bytes)", bundle.DefaultSizeLimitBytes)
 			}
 
-			path := f.Path()
-			if bl.IsDir {
-				path = f.URL()
-			}
-
 			// hash the file content
-			fi, err := hashFileContent(h, buf.Bytes(), path)
+			fi, err := hashFileContent(h, buf.Bytes(), path.Join(prefix, filepath.ToSlash(f.Path())))
 			if err != nil {
 				return files, err
 			}

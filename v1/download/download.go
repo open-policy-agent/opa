@@ -390,7 +390,8 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				WithBundleEtag(etag).
 				WithLazyLoadingMode(d.lazyLoadingMode).
 				WithBundleName(d.bundleName).
-				WithBundlePersistence(d.persist)
+				WithBundlePersistence(d.persist).
+				WithLegacyManifestPlacement(d.logger.Warn)
 
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)

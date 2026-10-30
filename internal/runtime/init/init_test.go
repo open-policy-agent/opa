@@ -82,10 +82,10 @@ p = true { 1 = 2 }`
 			fs: map[string]string{
 				"/bundle1/a/data.json":   `{"foo": "bar1", "x": {"y": {"z": [1]}}}`, // Should be ignored
 				"/bundle1/a/policy.rego": mod1,
-				"/bundle1/a/.manifest":   `{"roots": ["a"]}`,
+				"/bundle1/.manifest":     `{"roots": ["a"]}`,
 				"/bundle2/b/data.json":   `{"foo": "bar2"}`,
 				"/bundle2/b/policy.rego": mod2,
-				"/bundle2/b/.manifest":   `{"roots": ["b"]}`,
+				"/bundle2/.manifest":     `{"roots": ["b"]}`,
 			},
 			loadParams: []string{"bundle1", "bundle2"},
 			expectedData: map[string]string{
@@ -199,7 +199,7 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 		fileName: "bundle1.tar.gz",
 		files: [][2]string{
 			{"/a/data.json", `{"foo": "bar1", "x": {"y": {"z": [1]}}}`},
-			{"/a/.manifest", `{"roots": ["a"]}`},
+			{"/.manifest", `{"roots": ["a"]}`},
 		},
 		expBundle: bundle.Bundle{
 			Manifest: bundle.Manifest{
@@ -222,7 +222,7 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 		fileName: "bundle2.tar.gz",
 		files: [][2]string{
 			{"/b/data.json", `{"foo": "bar2", "x": {"y": {"z": [1]}}}`},
-			{"/b/.manifest", `{"roots": ["b"]}`},
+			{"/.manifest", `{"roots": ["b"]}`},
 		},
 		expBundle: bundle.Bundle{
 			Manifest: bundle.Manifest{
@@ -243,7 +243,7 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 
 	bundle1Folder := map[string]string{
 		"/bundle1/a/data.json": `{"foo1": "bar2", "x": {"y": {"z": [2]}}}`,
-		"/bundle1/a/.manifest": `{"roots": ["a"]}`,
+		"/bundle1/.manifest":   `{"roots": ["a"]}`,
 		"/bundle1/a/foo.rego":  `package a.b.y`,
 	}
 
@@ -495,7 +495,7 @@ func TestLoadPathsBundleModeWithFilter(t *testing.T) {
 		"a/data.json":      `{"foo": "not-bar"}`,
 		"policy.rego":      "package foo\n p = 1",
 		"policy_test.rego": "package foo\n test_p { p }",
-		"a/.manifest":      `{"roots": ["a", "foo"]}`,
+		".manifest":        `{"roots": ["a", "foo"]}`,
 	}
 
 	test.WithTempFS(files, func(rootDir string) {

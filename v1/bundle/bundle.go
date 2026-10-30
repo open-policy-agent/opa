@@ -514,6 +514,7 @@ type Reader struct {
 	baseDir               string
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
+	legacyWarn            func(string, ...any)
 	processAnnotations    bool
 	capabilities          *ast.Capabilities
 	files                 map[string]FileInfo // files in the bundle signature payload
@@ -558,6 +559,10 @@ func (r *Reader) WithMetrics(m metrics.Metrics) *Reader {
 
 // WithBaseDir sets a base directory for file paths of loaded Rego
 // modules. This will *NOT* affect the loaded path of data files.
+// Directory loaders root the bundle at the directory containing its
+// manifest, and report that directory through a RootOffset() string
+// method, which is joined after dir. Loaders wrapping a directory loader
+// should forward RootOffset, or module paths will omit that directory.
 func (r *Reader) WithBaseDir(dir string) *Reader {
 	r.baseDir = dir
 	return r
@@ -634,6 +639,17 @@ func (r *Reader) WithBundlePersistence(persist bool) *Reader {
 	return r
 }
 
+// WithLegacyManifestPlacement accepts bundles with a manifest, signatures
+// file, or patch file outside the bundle root, as OPA did before bundles were
+// rooted at their manifest. Each such file is reported through warn.
+//
+// NOTE: This only exists for remote bundles fetched by the bundle plugin.
+// Remove it in OPA v2.
+func (r *Reader) WithLegacyManifestPlacement(warn func(string, ...any)) *Reader {
+	r.legacyWarn = warn
+	return r
+}
+
 func (r *Reader) WithRegoVersion(version ast.RegoVersion) *Reader {
 	r.regoVersion = version
 	return r
@@ -649,7 +665,7 @@ func (r *Reader) ParserOptions() ast.ParserOptions {
 
 // Read returns a new Bundle loaded from the reader.
 func (r *Reader) Read() (Bundle, error) {
-	bundle, descriptors, err := preProcessBundle(r.loader, r.skipVerify, r.sizeLimitBytes)
+	bundle, descriptors, err := preProcessBundle(r.loader, r.skipVerify, r.sizeLimitBytes, r.checkRootFile)
 	if err != nil {
 		return empty, err
 	}
@@ -688,11 +704,7 @@ func (r *Reader) Read() (Bundle, error) {
 
 		// verify the file content
 		if bundle.Type() == SnapshotBundleType && !bundle.Signatures.isEmpty() {
-			path := f.Path()
-			if r.baseDir != "" {
-				path = f.URL()
-			}
-			path = strings.TrimPrefix(path, "/")
+			path := strings.TrimPrefix(filepath.ToSlash(f.Path()), "/")
 
 			// check if the file is to be excluded from bundle verification
 			if r.isFileExcluded(path) {
@@ -732,13 +744,13 @@ func (r *Reader) Read() (Bundle, error) {
 		} else if base == WasmFile {
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
 				URL:  f.URL(),
-				Path: r.fullPath(path),
+				Path: path,
 				Raw:  buf.Bytes(),
 			})
 		} else if base == PlanFile || base == PlanProtoFile {
 			bundle.PlanModules = append(bundle.PlanModules, PlanModuleFile{
 				URL:  f.URL(),
-				Path: r.fullPath(path),
+				Path: path,
 				Raw:  buf.Bytes(),
 			})
 		} else if base == dataFile {
@@ -781,7 +793,10 @@ func (r *Reader) Read() (Bundle, error) {
 				return empty, err
 			}
 
-		} else if strings.HasSuffix(path, ManifestProtoExt) {
+		} else if r.isManifest(path, ManifestProtoExt) {
+			if err := r.checkRootFile(f, ManifestProtoExt); err != nil {
+				return empty, err
+			}
 			if manifestPath != "" {
 				return empty, fmt.Errorf("bundle contains multiple manifest files: %q and %q", manifestPath, path)
 			}
@@ -796,7 +811,10 @@ func (r *Reader) Read() (Bundle, error) {
 			}
 			bundle.Manifest = *m
 			bundle.manifestProto = true
-		} else if strings.HasSuffix(path, ManifestExt) {
+		} else if r.isManifest(path, ManifestExt) {
+			if err := r.checkRootFile(f, ManifestExt); err != nil {
+				return empty, err
+			}
 			if manifestPath != "" {
 				return empty, fmt.Errorf("bundle contains multiple manifest files: %q and %q", manifestPath, path)
 			}
@@ -864,8 +882,6 @@ func (r *Reader) Read() (Bundle, error) {
 		return empty, fmt.Errorf(
 			"file(s) %v specified in bundle signatures but not found in the target bundle", util.Keys(r.files))
 	}
-
-	r.qualifyWasmResolverPaths(bundle)
 
 	if err := bundle.Manifest.validateAndInjectDefaults(bundle); err != nil {
 		return empty, err
@@ -950,34 +966,13 @@ func (r *Reader) verifyBundleFile(path string, data bytes.Buffer) error {
 	return VerifyBundleFile(path, data, r.files)
 }
 
-// qualifyWasmResolverPaths prefixes the module paths in the manifest's wasm
-// resolvers with the base dir, so they match the paths of the loaded wasm
-// modules. Manifests that already include the base dir are left untouched.
-func (r *Reader) qualifyWasmResolverPaths(bundle *Bundle) {
-	if r.baseDir == "" {
-		return
-	}
-
-	loaded := make(map[string]struct{}, len(bundle.WasmModules))
-	for _, wm := range bundle.WasmModules {
-		loaded[wm.Path] = struct{}{}
-	}
-
-	for i, wr := range bundle.Manifest.WasmResolvers {
-		if _, ok := loaded[wr.Module]; ok {
-			continue
-		}
-		if full := r.fullPath(wr.Module); full != wr.Module {
-			if _, ok := loaded[full]; ok {
-				bundle.Manifest.WasmResolvers[i].Module = full
-			}
-		}
-	}
-}
-
 func (r *Reader) fullPath(path string) string {
 	if r.baseDir != "" {
-		path = filepath.Join(r.baseDir, path)
+		var offset string
+		if l, ok := r.loader.(rootOffsetter); ok {
+			offset = filepath.FromSlash(l.RootOffset())
+		}
+		path = filepath.Join(r.baseDir, offset, path)
 	}
 	return path
 }
@@ -1124,7 +1119,9 @@ func writeSignatures(tw *archive.TarGzWriter, bundle Bundle) error {
 	return tw.WriteFile(util.WithPrefix(signaturesFilename, "/"), bs)
 }
 
-func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
+// hashBundleFiles names wasm and plan entries as the Writer does (URL, or Path
+// with useModulePath).
+func hashBundleFiles(hash SignatureHasher, b *Bundle, useModulePath bool) ([]FileInfo, error) {
 
 	files := []FileInfo{}
 
@@ -1147,7 +1144,11 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 		if err != nil {
 			return files, err
 		}
-		files = append(files, NewFile(strings.TrimPrefix(wasmModule.Path, "/"), hex.EncodeToString(bs), defaultHashingAlg))
+		name := wasmModule.URL
+		if useModulePath {
+			name = wasmModule.Path
+		}
+		files = append(files, NewFile(strings.TrimPrefix(filepath.ToSlash(name), "/"), hex.EncodeToString(bs), defaultHashingAlg))
 	}
 
 	for _, planmodule := range b.PlanModules {
@@ -1155,7 +1156,11 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 		if err != nil {
 			return files, err
 		}
-		files = append(files, NewFile(strings.TrimPrefix(planmodule.Path, "/"), hex.EncodeToString(bs), defaultHashingAlg))
+		name := planmodule.URL
+		if useModulePath {
+			name = planmodule.Path
+		}
+		files = append(files, NewFile(strings.TrimPrefix(filepath.ToSlash(name), "/"), hex.EncodeToString(bs), defaultHashingAlg))
 	}
 
 	// Skip empty manifest — Writer.Write skips it too, so no entry to hash.
@@ -1317,10 +1322,10 @@ func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, u
 		if useModulePath {
 			path = module.Path
 		}
-		files = append(files, NewFile(strings.TrimPrefix(path, "/"), hex.EncodeToString(bytes), defaultHashingAlg))
+		files = append(files, NewFile(strings.TrimPrefix(filepath.ToSlash(path), "/"), hex.EncodeToString(bytes), defaultHashingAlg))
 	}
 
-	result, err := hashBundleFiles(hash, b)
+	result, err := hashBundleFiles(hash, b, useModulePath)
 	if err != nil {
 		return err
 	}
@@ -1861,7 +1866,7 @@ func IsYAMLDataFile(name string) bool {
 	return base == yamlDataFile || base == ymlDataFile
 }
 
-func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (*Bundle, []*Descriptor, error) {
+func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64, checkRootFile func(*Descriptor, string) error) (*Bundle, []*Descriptor, error) {
 	bundle := &Bundle{}
 	descriptors := []*Descriptor{}
 	signaturesFilePath := ""
@@ -1876,19 +1881,26 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 		}
 
 		if IsSignaturesFile(f.Path()) {
-			if !skipVerify {
-				if signaturesFilePath != "" {
-					return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
-				}
-				signaturesFilePath = f.Path()
+			// Under skip-verify, signatures files are dropped.
+			// Legacy mode still warns for nested signatures files via checkRootFile.
+			if skipVerify {
+				_ = checkRootFile(f, signaturesFilename)
+				continue
+			}
+			if err := checkRootFile(f, signaturesFilename); err != nil {
+				return bundle, nil, err
+			}
+			if signaturesFilePath != "" {
+				return bundle, nil, fmt.Errorf("bundle contains multiple signatures files: %q and %q", signaturesFilePath, f.Path())
+			}
+			signaturesFilePath = f.Path()
 
-				buf, err := readFile(f, sizeLimitBytes)
-				if err != nil {
-					return bundle, nil, err
-				}
-				if err := util.NewJSONDecoder(&buf).Decode(&bundle.Signatures); err != nil {
-					return bundle, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
-				}
+			buf, err := readFile(f, sizeLimitBytes)
+			if err != nil {
+				return bundle, nil, err
+			}
+			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Signatures); err != nil {
+				return bundle, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
 			}
 			continue
 		}
@@ -1896,6 +1908,9 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 		descriptors = append(descriptors, f)
 
 		if filepath.Base(f.Path()) == patchFile {
+			if err := checkRootFile(f, patchFile); err != nil {
+				return bundle, nil, err
+			}
 			b := new(bytes.Buffer)
 			f.reader = io.TeeReader(f.reader, b)
 
@@ -1911,6 +1926,33 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 	}
 
 	return bundle, descriptors, nil
+}
+
+// checkRootFile returns an error if f is not at the bundle root. With legacy
+// manifest placement, it warns instead.
+func (r *Reader) checkRootFile(f *Descriptor, name string) error {
+	if path.Clean("/"+filepath.ToSlash(f.Path())) == "/"+name {
+		return nil
+	}
+	if r.legacyWarn != nil {
+		// The URL identifies the bundle's source, as not every caller names it.
+		var of string
+		if r.name != "" {
+			of = fmt.Sprintf(" of bundle %q", r.name)
+		}
+		r.legacyWarn("File %q%s is used where %q is expected at the bundle root. Bundles like this are deprecated and will fail to load in a future OPA release. Rebuild the bundle with opa build to place %q at the root of the archive.", f.URL(), of, name, name)
+		return nil
+	}
+	return fmt.Errorf("bundle file %q must be at the bundle root", f.URL())
+}
+
+// isManifest reports whether path is a manifest file named name. Legacy
+// manifest placement also matches by suffix, as OPA did before.
+func (r *Reader) isManifest(path, name string) bool {
+	if r.legacyWarn != nil {
+		return strings.HasSuffix(path, name)
+	}
+	return filepath.Base(path) == name
 }
 
 func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {

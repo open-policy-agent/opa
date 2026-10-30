@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -892,8 +893,10 @@ func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn
 	}
 
 	if regoVersion == ast.RegoUndefined {
+		// file_rego_versions keys are relative to the bundle root.
+		path := cmp.Or(mf.RelativePath, mf.Path)
 		var err error
-		regoVersion, err = b.RegoVersionForFile(mf.Path, runtimeRegoVersion)
+		regoVersion, err = b.RegoVersionForFile(path, runtimeRegoVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get rego version for module '%s' in bundle: %w", mf.Path, err)
 		}

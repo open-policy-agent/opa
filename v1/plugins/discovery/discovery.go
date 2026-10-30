@@ -307,8 +307,9 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 }
 
 func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
+	// Persisted bundles were downloaded, so they keep the legacy manifest placement.
 	return bundleUtils.LoadBundleFromDiskForRegoVersion(c.manager.ParserOptions().RegoVersion,
-		c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
+		c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing, c.logger.Warn)
 }
 
 func (c *Discovery) saveBundleToDisk(raw io.Reader) error {

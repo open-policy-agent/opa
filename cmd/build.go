@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
+	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/compile"
@@ -342,6 +343,10 @@ func dobuild(params buildParams, args []string) error {
 				}
 			}
 		}
+	}
+
+	if params.bundleMode {
+		bundleUtils.WarnSourcesAboveManifest(params.stderr, args, buildCommandLoaderFilter(true, params.ignore))
 	}
 
 	out := &deferredFileWriter{path: params.outputFile}
