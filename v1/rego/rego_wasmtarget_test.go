@@ -224,19 +224,22 @@ allow if {
 	} {
 		t.Run(tc.target+"/"+tc.note, func(t *testing.T) {
 			defer leaktest.Check(t)()
-			before := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-			defer cancel()
-
+			// Preparing the wasm target compiles the module, which can take
+			// seconds on a loaded runner. Keep it outside of the timeout and of
+			// the cancellation timing below, which are about evaluation only.
 			pq, err := New(
 				Query("data.p.allow"),
 				Module("p.rego", tc.policy),
 				Target(tc.target),
 				StrictBuiltinErrors(true), // ignored for wasm target (always non-strict)
-			).PrepareForEval(ctx)
+			).PrepareForEval(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			before := time.Now()
+			ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+			defer cancel()
 
 			_, err = pq.Eval(ctx)
 			if testing.Verbose() {
