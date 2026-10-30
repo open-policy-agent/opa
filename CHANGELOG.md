@@ -5,51 +5,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-## 1.22.0
-
-This release contains a mix of new features, performance improvements and bug fixes. Notably:
-
-- New `rego.v2` import
-- Configurable log level for HTTP access logs
-- Stricter handling of bundle signature filenames (breaking change)
-- Partial evaluation unrolls `every` over a known domain
-
-### Configurable log level for HTTP access logs
-
-Added `--log-level-request` (default `info`) to control the level at which the HTTP
-server's "Received request."/"Sent response." access log lines are emitted, independent
-of the general `--log-level`. Set it to `debug` to keep those lines out of logs unless
-`--log-level` is also turned up.
-
-Authored by @srenatus
-
-### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224), [#9269](https://github.com/open-policy-agent/opa/issues/9269))
-
-`import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
-import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
-In a v0 module it also implies `rego.v1`. It is gated by the new `rego_v2_import` capability
-feature.
-
-```rego
-package example
-
-import rego.v2
-
-allow if input.user.admin or not (input.user.suspended or input.user.locked)
-```
-
-See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
-
-Additionally: bundles can be declared as Rego v2 by setting the `rego_version` manifest attribute to `2` (individua 
-bundle modules by setting `file_rego_versions`); and the Go API accepts the new `ast.RegoV2` rego-version when parsing,
-compiling, and formatting Rego modules. 
-The `rego.v2` import is a redundant no-op for modules loaded these ways.
-
-See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format).
-
-Authored by @johanfylling
-
-### Bundles are rooted at their `.manifest` file
+### Bundles are rooted at their `.manifest` file ([#9459](https://github.com/open-policy-agent/opa/pull/9459))
 
 Breaking change: OPA now treats the directory containing a bundle's `.manifest` file as the bundle root, as the
 [bundle documentation](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format) describes.
@@ -96,6 +52,52 @@ Go API: the `bundle.Reader` expects bundle-relative descriptor paths, so directo
 `SlashRooted` or `Passthrough` path formats now have their manifests rejected. When `Reader.WithBaseDir` is used,
 module paths include the manifest's directory, which directory loaders report through a `RootOffset() string`
 method. Custom loaders that wrap a directory loader should forward `RootOffset`.
+
+Authored by @philipaconrad
+
+## 1.22.0
+
+This release contains a mix of new features, performance improvements and bug fixes. Notably:
+
+- New `rego.v2` import
+- Configurable log level for HTTP access logs
+- Stricter handling of bundle signature filenames (breaking change)
+- Partial evaluation unrolls `every` over a known domain
+
+### Configurable log level for HTTP access logs
+
+Added `--log-level-request` (default `info`) to control the level at which the HTTP
+server's "Received request."/"Sent response." access log lines are emitted, independent
+of the general `--log-level`. Set it to `debug` to keep those lines out of logs unless
+`--log-level` is also turned up.
+
+Authored by @srenatus
+
+### New `rego.v2` import ([#9224](https://github.com/open-policy-agent/opa/issues/9224), [#9269](https://github.com/open-policy-agent/opa/issues/9269))
+
+`import rego.v2` enables the `and` and `or` keywords and the improved `not` semantics in one
+import, in place of `future.keywords.and`, `future.keywords.or`, and `future.keywords.not`.
+In a v0 module it also implies `rego.v1`. It is gated by the new `rego_v2_import` capability
+feature.
+
+```rego
+package example
+
+import rego.v2
+
+allow if input.user.admin or not (input.user.suspended or input.user.locked)
+```
+
+See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-regov2).
+
+Additionally: bundles can be declared as Rego v2 by setting the `rego_version` manifest attribute to `2` (individua 
+bundle modules by setting `file_rego_versions`); and the Go API accepts the new `ast.RegoV2` rego-version when parsing,
+compiling, and formatting Rego modules.
+The `rego.v2` import is a redundant no-op for modules loaded these ways.
+
+See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format).
+
+Authored by @johanfylling
 
 ### Stricter handling of bundle signature filenames ([#9300](https://github.com/open-policy-agent/opa/pull/9300))
 
