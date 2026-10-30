@@ -410,8 +410,6 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 				t.Fatal("expected index build to succeed")
 			}
 
-			t.Log(index.mermaid())
-
 			result, err := index.Lookup(testResolver{input: MustParseTerm(tc.input)})
 			if err != nil {
 				t.Fatalf("unexpected error during index lookup: %v", err)
