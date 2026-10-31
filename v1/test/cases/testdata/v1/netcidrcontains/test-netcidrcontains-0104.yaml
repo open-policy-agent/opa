@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr contains itself with an ipv4-mapped last address
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/80", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
