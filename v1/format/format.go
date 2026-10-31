@@ -1667,24 +1667,28 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*
 	var err error
 	switch numCallArgs {
 	case numDeclArgs: // Print infix where result is unassigned (e.g., x != y)
-		comments, err = w.writeTerm(terms[1], comments)
+		writeOperand := w.writeRelationOperand
+		if operator == ast.Assign.Name {
+			writeOperand = w.writeTerm
+		}
+		comments, err = writeOperand(terms[1], comments)
 		if err != nil {
 			return nil, err
 		}
 		w.write(" " + bi.Infix + " ")
-		return w.writeTerm(terms[2], comments)
+		return writeOperand(terms[2], comments)
 	case numDeclArgs + 1: // Print infix where result is assigned (e.g., z = x + y)
 		comments, err = w.writeTerm(terms[3], comments)
 		if err != nil {
 			return nil, err
 		}
 		w.write(" " + ast.Equality.Infix + " ")
-		comments, err = w.writeTerm(terms[1], comments)
+		comments, err = w.writeRelationOperand(terms[1], comments)
 		if err != nil {
 			return nil, err
 		}
 		w.write(" " + bi.Infix + " ")
-		comments, err = w.writeTerm(terms[2], comments)
+		comments, err = w.writeRelationOperand(terms[2], comments)
 		if err != nil {
 			return nil, err
 		}
@@ -1756,8 +1760,27 @@ func saveComments(comments []*ast.Comment) *[]*ast.Comment {
 }
 
 func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
+	return w.writeTermWithParens(false, term, comments)
+}
+
+// writeRelationOperand groups infix calls nested inside an expression-level
+// infix call. Relations associate to the left, while membership has lower
+// precedence than relations, so either kind of operand needs parentheses.
+func (w *writer) writeRelationOperand(term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if call, ok := term.Value.(ast.Call); ok {
+		if bi, found := ast.BuiltinMap[call[0].String()]; found {
+			switch bi.Infix {
+			case "==", "!=", "<", ">", "<=", ">=", "in":
+				return w.writeTermWithParens(true, term, comments)
+			}
+		}
+	}
+	return w.writeTerm(term, comments)
+}
+
+func (w *writer) writeTermWithParens(parens bool, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
 	if len(comments) == 0 {
-		return w.writeTermParens(false, term, comments)
+		return w.writeTermParens(parens, term, comments)
 	}
 
 	currentLen := w.buf.Len()
@@ -1765,7 +1788,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	currentComments := saveComments(comments)
 	defer commentsSlicePool.Put(currentComments)
 
-	comments, err := w.writeTermParens(false, term, comments)
+	comments, err := w.writeTermParens(parens, term, comments)
 	if err != nil {
 		if isUnexpectedCommentError(err) {
 			w.buf.Truncate(currentLen)
@@ -2091,7 +2114,7 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 	if bi.Infix == "in" {
 		// NOTE(sr): `in` requires special handling, mirroring what happens in the parser,
 		// since there can be one or two lhs arguments.
-		return w.writeInOperator(true, x[1:], comments, loc, bi.Decl)
+		return w.writeInOperator(parens || bi.Decl.Arity() == 3, x[1:], comments, loc, bi.Decl)
 	}
 
 	// TODO(tsandall): improve to consider precedence?
@@ -2139,6 +2162,10 @@ func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*
 	var err error
 	switch len(operands) {
 	case 2:
+		if parens {
+			w.write("(")
+			defer w.write(")")
+		}
 		comments, err = w.writeTermParens(true, operands[0], comments)
 		if err != nil {
 			return nil, err

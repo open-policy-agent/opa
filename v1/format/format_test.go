@@ -102,6 +102,131 @@ func TestFormatSourceError(t *testing.T) {
 	}
 }
 
+func TestFormatPreservesNestedComparisonGrouping(t *testing.T) {
+	type groupingCase struct {
+		name    string
+		policy  string
+		v0      bool
+		want    string
+		comment string
+	}
+	cases := []groupingCase{
+		{name: "both comparison operands", policy: `out := (input.a == 1) == (input.b == 2)`},
+		{name: "left comparison", policy: `out := (input.a == 1) == true`},
+		{name: "right comparison", policy: `out := true == (input.a == 1)`},
+		{name: "mixed comparisons", policy: `out := (input.a != 1) == (input.b < 2)`},
+		{name: "remaining comparisons", policy: `out := (input.a <= 1) != (input.b >= 2)`},
+		{name: "three levels", policy: `out := ((input.a == 1) == true) != false`},
+		{name: "left membership", policy: `out := (input.a in {"x"}) == false`},
+		{name: "right membership", policy: `out := false == (input.a in {"x"})`},
+		{name: "comparison inside membership", policy: `out := (input.a == "x") in {true}`},
+		{name: "ordinary comparison", policy: `out := input.a == "x"`, want: `out := input.a == "x"`},
+		{name: "standalone membership", policy: `out := input.a in {"x"}`, want: `out := input.a in {"x"}`},
+		{name: "reported body", policy: `r := {"verdict": "vetoed"}
+entry := ["POST"]
+body if {
+	(r.verdict == "permitted") == (entry[0] == "GET")
+}`},
+		{name: "reported head", policy: `profile := "bb-block"
+head := (profile in {"default", "bb-public"}) == false`},
+		{name: "nested membership", policy: `out := 1 in ({1, 2} == {1, 2})`},
+		{name: "commented operand", policy: `out := (1 == # keep this comment
+	1) == true`, comment: "# keep this comment"},
+		{name: "v0 membership", v0: true, policy: `import future.keywords.in
+out = (input.a in {"x"}) == false`},
+	}
+	for _, op := range []string{"==", "!=", "<", "<=", ">", ">="} {
+		nested := "input.a " + op + " 1"
+		cases = append(cases,
+			groupingCase{name: op + " nested left", policy: "out := (" + nested + ") == true"},
+			groupingCase{name: op + " nested right", policy: "out := true == (" + nested + ")"},
+		)
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			source := []byte("package p\n\n" + tc.policy + "\n")
+			regoVersion := ast.RegoV1
+			if tc.v0 {
+				regoVersion = ast.RegoV0
+			}
+			parserOpts := ast.ParserOptions{RegoVersion: regoVersion}
+			formatOpts := Opts{RegoVersion: regoVersion}
+			original, err := ast.ParseModuleWithOpts("p.rego", string(source), parserOpts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			formatted, err := SourceWithOpts("p.rego", source, formatOpts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reparsed, err := ast.ParseModuleWithOpts("p.rego", string(formatted), parserOpts)
+			if err != nil {
+				t.Fatalf("formatted policy does not parse: %v\n%s", err, formatted)
+			}
+			if !original.Equal(reparsed) {
+				t.Fatalf("formatting changed the AST:\nsource:\n%s\nformatted:\n%s", source, formatted)
+			}
+			if tc.want != "" && !strings.Contains(string(formatted), tc.want) {
+				t.Fatalf("expected %q in formatted policy:\n%s", tc.want, formatted)
+			}
+			if tc.comment != "" && strings.Count(string(formatted), tc.comment) != 1 {
+				t.Fatalf("expected comment exactly once in formatted policy:\n%s", formatted)
+			}
+			again, err := SourceWithOpts("p.rego", formatted, formatOpts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(formatted, again) {
+				t.Fatalf("formatting is not idempotent:\nfirst:\n%s\nsecond:\n%s", formatted, again)
+			}
+		})
+	}
+}
+
+func TestFormatNestedComparisonWithoutLocations(t *testing.T) {
+	left := ast.Equal.Call(ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("a")), ast.IntNumberTerm(1))
+	right := ast.Equal.Call(ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("b")), ast.IntNumberTerm(2))
+	expr := ast.Equal.Expr(left, right)
+	if expr.Location != nil || left.Location != nil || right.Location != nil {
+		t.Fatal("test AST unexpectedly has source locations")
+	}
+
+	formatted, err := AstWithOpts(expr, Opts{RegoVersion: ast.RegoV1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reparsed, err := ast.ParseExpr(string(formatted))
+	if err != nil {
+		t.Fatalf("formatted expression does not parse: %v\n%s", err, formatted)
+	}
+	if !expr.Equal(reparsed) {
+		t.Fatalf("formatting changed the AST:\n%s", formatted)
+	}
+	again, err := AstWithOpts(reparsed, Opts{RegoVersion: ast.RegoV1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(formatted, again) {
+		t.Fatalf("formatting is not idempotent: %q, %q", formatted, again)
+	}
+}
+
+func TestFormatAssignedResultWithNestedComparisons(t *testing.T) {
+	left := ast.Equal.Call(ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("a")), ast.IntNumberTerm(1))
+	right := ast.Equal.Call(ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("b")), ast.IntNumberTerm(2))
+	expr := ast.Equal.Expr(left, right, ast.VarTerm("out"))
+
+	formatted, err := AstWithOpts(expr, Opts{RegoVersion: ast.RegoV1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "out = (input.a == 1) == (input.b == 2)"
+	if string(formatted) != want {
+		t.Fatalf("expected %q, got %q", want, formatted)
+	}
+}
+
 func TestFormatV0Source(t *testing.T) {
 	regoFiles, err := filepath.Glob("testfiles/v0/*.rego")
 	if err != nil {
