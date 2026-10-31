@@ -1138,8 +1138,7 @@ test_both if {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	// RaiseBuiltinErrors alone reports both errors as one list. Strict mode stops
-	// at the first one and reports it as a single topdown.Error.
+	// Strict mode stops at the first error instead of collecting both as a list.
 	tdErr, ok := errors.AsType[*topdown.Error](results[0].Error)
 	if !ok {
 		t.Fatalf("expected *topdown.Error, got %v (%[1]T)", results[0].Error)
@@ -1149,6 +1148,174 @@ test_both if {
 	}
 	if results[0].Fail {
 		t.Fatal("expected the test to be reported as an error, not a failure")
+	}
+}
+
+func TestRunnerStrictBuiltinErrorsParameterizedTest(t *testing.T) {
+	const failingCases = `package test
+
+test_3_divided_by[x] if {
+	some x in [3, 0]
+	3 / x != 1
+}`
+
+	const passingCase = `package test
+
+test_3_divided_by[x] if {
+	some x in [1, 0]
+	3 / x == 3
+}`
+
+	testCases := []struct {
+		note                string
+		module              string
+		strictBuiltinErrors bool
+		wantCaseFail        map[string]bool
+	}{
+		{
+			note:         "strict flag disabled reports each case",
+			module:       failingCases,
+			wantCaseFail: map[string]bool{"3": true, "0": true},
+		},
+		{
+			note:         "strict flag disabled reports a passing case",
+			module:       passingCase,
+			wantCaseFail: map[string]bool{"1": false, "0": true},
+		},
+		{
+			note:                "strict flag enabled reports the test as an error",
+			module:              failingCases,
+			strictBuiltinErrors: true,
+		},
+		{
+			note:                "strict flag enabled drops a passing case",
+			module:              passingCase,
+			strictBuiltinErrors: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.note, func(t *testing.T) {
+			modules, store, err := tester.Load([]string{test.TempDir(t, map[string]string{"/test.rego": tc.module})}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := t.Context()
+			txn := storage.NewTransactionOrDie(ctx, store)
+			defer store.Abort(ctx, txn)
+
+			ch, err := tester.NewRunner().
+				SetStore(store).
+				SetModules(modules).
+				StrictBuiltinErrors(tc.strictBuiltinErrors).
+				RunTests(ctx, txn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var results []*tester.Result
+			for r := range ch {
+				results = append(results, r)
+			}
+			if len(results) != 1 {
+				t.Fatalf("expected 1 result, got %d", len(results))
+			}
+			r := results[0]
+
+			if !tc.strictBuiltinErrors {
+				if r.Error != nil || !r.Fail {
+					t.Fatalf("expected a failure without an error, got fail=%v err=%v", r.Fail, r.Error)
+				}
+				if len(r.SubResults) != len(tc.wantCaseFail) {
+					t.Fatalf("expected %d test cases, got %d", len(tc.wantCaseFail), len(r.SubResults))
+				}
+				for name, wantFail := range tc.wantCaseFail {
+					sr, ok := r.SubResults[name]
+					if !ok {
+						t.Fatalf("expected test case %q", name)
+					}
+					if sr.Fail != wantFail {
+						t.Errorf("test case %q: expected fail=%v, got %v", name, wantFail, sr.Fail)
+					}
+				}
+				return
+			}
+
+			// Strict mode stops the query at 3 / 0, so no case results are reported.
+			tdErr, ok := errors.AsType[*topdown.Error](r.Error)
+			if !ok || tdErr.Code != topdown.BuiltinErr {
+				t.Fatalf("expected a %q error, got %v (%[2]T)", topdown.BuiltinErr, r.Error)
+			}
+			if r.Fail {
+				t.Fatal("expected the test to be reported as an error, not a failure")
+			}
+			if len(r.SubResults) != 0 {
+				t.Fatalf("expected no test cases, got %d", len(r.SubResults))
+			}
+		})
+	}
+}
+
+func TestRunnerStrictBuiltinErrorsWithCoverage(t *testing.T) {
+	files := map[string]string{
+		"/policy.rego": `package policy
+
+allow if {
+	input.n > 0
+	10 / input.d > 1
+}`,
+		"/policy_test.rego": `package policy_test
+
+import data.policy
+
+test_ok if policy.allow with input as {"n": 1, "d": 2}
+
+test_div_zero if policy.allow with input as {"n": 1, "d": 0}`,
+	}
+
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	cov := cover.New()
+	ch, err := tester.NewRunner().
+		SetStore(store).
+		SetModules(modules).
+		SetCoverageQueryTracer(cov).
+		StrictBuiltinErrors(true).
+		RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results := map[string]*tester.Result{}
+	for r := range ch {
+		results[r.Name] = r
+	}
+
+	if r := results["test_ok"]; r == nil || !r.Pass() {
+		t.Fatalf("expected test_ok to pass, got %v", r)
+	}
+	r := results["test_div_zero"]
+	if r == nil {
+		t.Fatal("expected a result for test_div_zero")
+	}
+	if tdErr, ok := errors.AsType[*topdown.Error](r.Error); !ok || tdErr.Code != topdown.BuiltinErr {
+		t.Fatalf("expected a %q error, got %v (%[2]T)", topdown.BuiltinErr, r.Error)
+	}
+
+	report := cov.Report(modules)
+	if len(report.Files) != len(modules) {
+		t.Fatalf("expected %d files in coverage report, got %d", len(modules), len(report.Files))
+	}
+	if report.Coverage == 0 {
+		t.Fatal("expected test coverage")
 	}
 }
 
