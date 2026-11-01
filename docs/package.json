@@ -20,7 +20,7 @@
     "@iconify/react": "^6.0.3",
     "@mermaid-js/layout-elk": "^0.1.9",
     "eslint": "^10.13.0",
-    "glob": "^13.0.6",
+    "glob": "^14.0.2",
     "js-yaml": "^5.5.0",
     "markdownlint-cli2": "^0.24.0",
     "md-front-matter": "^1.0.4",
