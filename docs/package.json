@@ -17,11 +17,11 @@
     "@docusaurus/theme-mermaid": "^3.10.2",
     "@eslint/js": "^10.0.1",
     "@floating-ui/react": "^0.27.20",
-    "@iconify/react": "^6.0.2",
+    "@iconify/react": "^6.0.3",
     "@mermaid-js/layout-elk": "^0.1.9",
-    "eslint": "^10.11.0",
+    "eslint": "^10.13.0",
     "glob": "^13.0.6",
-    "js-yaml": "^5.4.2",
+    "js-yaml": "^5.5.0",
     "markdownlint-cli2": "^0.24.0",
     "md-front-matter": "^1.0.4",
     "raw-loader": "^4.0.2",
@@ -34,7 +34,7 @@
     "node": ">=24.0.0"
   },
   "devDependencies": {
-    "baseline-browser-mapping": "^2.11.25",
+    "baseline-browser-mapping": "^2.11.32",
     "pagefind": "^1.5.2"
   }
 }
