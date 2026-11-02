@@ -92,6 +92,23 @@ jobs:
               "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
+  security-txt-expiry:
+    name: security.txt not expired
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check Expires mentions the current year
+        run: |
+          year=$(date -u +%Y)
+          if ! grep -q "^Expires: $year" docs/static/.well-known/security.txt; then
+            echo "ERROR: docs/static/.well-known/security.txt has no Expires date in $year. Renew it."
+            exit 1
+          fi
+
   test-ocp-with-opa-main:
     name: Test OCP with OPA main
     uses: ./.github/workflows/test-ocp-with-opa.yaml
