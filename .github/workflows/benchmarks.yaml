@@ -48,7 +48,7 @@ jobs:
             | jq -R '{filename: .}' \
             | jq -s --arg event "$EVENT_NAME" '{event: $event, files: .}' > checks_input.json
 
-          if [ "$(jq '.files | length' checks_input.json)" = "0" ]; then
+          if jq -e '.files | length == 0' checks_input.json >/dev/null; then
             echo "Warning: No changed files found"
             exit 0
           fi

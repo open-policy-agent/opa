@@ -58,7 +58,7 @@ jobs:
           exit 0
         fi
 
-        if [ "$(jq '.files | length' checks_input.json)" = "0" ]; then
+        if jq -e '.files | length == 0' checks_input.json >/dev/null; then
           echo "Warning: No changed files found"
           echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true, proto=true)"
           exit 0
