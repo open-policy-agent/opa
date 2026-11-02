@@ -1,25 +1,38 @@
+import Callout from "../components/Callout";
+
+<Callout>
+  The OPA team has a high volume of security reports. Please be considerate when submitting a report.
+</Callout>
+
 # Security Policy
 
-The Open Policy Agent (OPA) community has adopted this security disclosures and
-response policy to ensure we responsibly handle critical issues.
+This page explains how to report a security issue to the Open Policy Agent (OPA) community and how we handle it.
 
 ---
 
 ## Reporting a Security Bug
 
-- Before reporting a suspected security issue, make sure to read the documentation on OPA's
-  [security](https://www.openpolicyagent.org/docs/security) model. Attack vectors that depend on the OPA server running
-  without authentication/authorization enabled will not be considered, as none of OPAs APIs are protected at that point.
+- Before you report an issue, read the OPA [security](https://www.openpolicyagent.org/docs/security) documentation.
+  We do not accept reports that need an OPA server with authentication and authorization turned off, because OPA does
+  not protect its APIs in that state. Authentication proves who you are. Authorization decides what you may do.
 
 - If you think you have found a security issue in an OPA project, please send an email to
   [open-policy-agent-security@googlegroups.com](mailto:open-policy-agent-security@googlegroups.com).
-  This list is delivered to a small security team. We will then acknowledge receipt of your report and prioritize initial analysis of severity.
+  A small security team reads this address. We will confirm that we received your report and decide how serious it is.
 
-- After the initial reply to your report, the security team will endeavor to keep you informed of the progress being made towards a fix and full announcement, and may ask for additional information or guidance surrounding the reported issue.
+  - Keep your report short. Say what is wrong, which version is affected, and the smallest steps to reproduce it.
+    Short reports help us to reproduce and triage the issue quickly.
 
-- If you have not received a reply to your report within two days, please reach out on our [Slack](https://slack.openpolicyagent.org) by posting a message in the `#contributors` channel.
+  - Please do not send attachments. Please do not link to files you have created, such as archives, repositories or
+    videos. Put the steps in the email text. Links are only for existing public reference material, such as a
+    CVE, a specification or the OPA documentation.
 
-- Note that the `#contributors` channel is public, so please don't discuss details of your issue there. Instead, simply say that you're trying to get a hold of someone from the security team.
+  - If you would like to be credited for your report, include your GitHub handle in the email.
+
+- After we reply, we will tell you how the fix is going and when we will announce it. We may ask you for more information.
+
+- If you have not received a reply within two days, post in the `#contributors` channel on our [Slack](https://slack.openpolicyagent.org).
+  The channel is public, so do not share details of your issue. Say only that you are trying to reach the security team.
 
 ---
 
