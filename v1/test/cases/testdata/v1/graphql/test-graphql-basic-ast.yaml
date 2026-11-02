@@ -7,7 +7,7 @@ cases:
         package test
 
         ast := {"Operations": [{
-        	"Name": "",
+        	"Description": "", "Name": "",
         	"Operation": "query",
         	"SelectionSet": [{
         		"Alias": "hero",
@@ -49,7 +49,7 @@ cases:
         }`
 
         ast := {"Operations": [{
-        	"Name": "hero",
+        	"Description": "", "Name": "hero",
         	"Operation": "query",
         	"SelectionSet": [{
         		"Alias": "hero",
@@ -114,7 +114,7 @@ cases:
         		],
         	}],
         	"VariableDefinitions": [{
-        		"Type": {
+        		"Description": "", "Type": {
         			"NamedType": "Episode",
         			"NonNull": true,
         		},
@@ -147,7 +147,7 @@ cases:
         }`
 
         ast := {"Operations": [{
-        	"Name": "HeroForEpisode",
+        	"Description": "", "Name": "HeroForEpisode",
         	"Operation": "query",
         	"SelectionSet": [{
         		"Alias": "hero",
@@ -182,7 +182,7 @@ cases:
         		],
         	}],
         	"VariableDefinitions": [{
-        		"Type": {
+        		"Description": "", "Type": {
         			"NamedType": "Episode",
         			"NonNull": true,
         		},
@@ -218,7 +218,7 @@ cases:
         }`
 
         ast := {"Operations": [{
-        	"Name": "",
+        	"Description": "", "Name": "",
         	"Operation": "query",
         	"SelectionSet": [{
         		"Alias": "search",
