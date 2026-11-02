@@ -132,3 +132,27 @@ cases:
     want_error_code: eval_builtin_error
     want_error: "units.parse_bytes: exponent too large"
     strict_error: true
+  - note: units_parse_bytes/exponent too large with unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e999999KB")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse_bytes: exponent too large"
+    strict_error: true
+  - note: units_parse_bytes/exponent too large negative with unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e-999999KB")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse_bytes: exponent too large"
+    strict_error: true

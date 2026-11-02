@@ -561,3 +561,14 @@ cases:
         }
     want_result:
       - x: true
+  - note: units_parse/large exponent within bound with unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("1e30000K") > 0
+        }
+    want_result:
+      - x: true

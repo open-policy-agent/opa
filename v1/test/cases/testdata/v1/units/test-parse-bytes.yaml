@@ -561,3 +561,14 @@ cases:
         }
     want_result:
       - x: true
+  - note: units_parse_bytes/large exponent within bound with unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1e30000KB") > 0
+        }
+    want_result:
+      - x: true

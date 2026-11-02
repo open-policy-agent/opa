@@ -169,7 +169,7 @@ func extractNumAndUnit(s string) (string, string, error) {
 	}
 
 	// Check before big.Rat/big.Float expands e.g. "1e999999" to a plain decimal.
-	if ast.NumberTooLarge(num) {
+	if !ast.NumberInRange(num) {
 		return "", "", errors.New("exponent too large")
 	}
 
