@@ -251,7 +251,7 @@ cases:
         query_ast := {
           "Operations": [
             {
-              "Name": "",
+              "Description": "", "Name": "",
               "Operation": "mutation",
               "SelectionSet": [
                 {
