@@ -79,13 +79,6 @@ jobs:
           "\($k)=\(.[$k] // false)"
         ' changes.json | tee -a "$GITHUB_OUTPUT" | sed 's/^/  /'
 
-    - name: Upload checks input
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        name: checks-input
-        path: checks_input.json
-        if-no-files-found: ignore
-
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
   generate:
@@ -527,15 +520,15 @@ jobs:
     - name: Test embedded Rego policies
       run: ./build/run-rego-tests.sh
 
-    - name: Download checks input
-      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-      with:
-        name: checks-input
-
     - name: Run file policy checks on changed files
-      run: opa eval --bundle build/policy --format values --input checks_input.json --fail-defined 'data.files.deny[message]'
+      run: |
+        build/gen-checks-input.sh "$EVENT_NAME" "$PR_NUMBER" checks_input.json
+        opa eval --bundle build/policy --format values --input checks_input.json --fail-defined 'data.files.deny[message]'
       env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
 
     - name: Download Regal
       uses: open-policy-agent/setup-regal@761188c3b435761fa254beca508a44875619648f # v2.0.0

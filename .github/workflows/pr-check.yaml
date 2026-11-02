@@ -1,0 +1,39 @@
+name: PR Policy
+
+# This is an extra workflow that also runs on "edited". It catches fixes to
+# errors in the PR description.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-check:
+    name: PR checks
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Download OPA
+      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
+      with:
+        version: edge
+
+    - name: Run PR policy checks
+      run: |
+        build/gen-checks-input.sh "$EVENT_NAME" "$PR_NUMBER" checks_input.json
+        opa eval --bundle build/policy --format values --input checks_input.json --fail-defined 'data.pr.deny[message]'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
