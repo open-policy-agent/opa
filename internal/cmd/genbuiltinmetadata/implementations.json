@@ -4,7 +4,7 @@
       "id": "swift",
       "label": "Swift",
       "repo": "open-policy-agent/swift-opa",
-      "version": "0.0.10",
+      "version": "0.0.11",
       "builtins": {
         "abs": "0.0.1",
         "and": "0.0.1",
@@ -141,14 +141,15 @@
         "json.remove": "0.0.10",
         "yaml.is_valid": "0.0.10",
         "yaml.marshal": "0.0.10",
-        "yaml.unmarshal": "0.0.10"
+        "yaml.unmarshal": "0.0.10",
+        "array.flatten": "0.0.11"
       }
     },
     {
       "id": "java",
       "label": "Java",
       "repo": "open-policy-agent/java-opa-sdk",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "builtins": {
         "abs": "0.1.0",
         "and": "0.1.0",
@@ -305,7 +306,9 @@
         "walk": "0.4.0",
         "yaml.is_valid": "0.4.0",
         "yaml.marshal": "0.4.0",
-        "yaml.unmarshal": "0.4.0"
+        "yaml.unmarshal": "0.4.0",
+        "units.parse": "0.7.0",
+        "units.parse_bytes": "0.7.0"
       }
     }
   ]
