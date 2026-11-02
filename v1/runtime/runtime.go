@@ -299,6 +299,10 @@ type Params struct {
 	// If V0Compatible is set, V1Compatible will be ignored.
 	V1Compatible bool
 
+	// V2Compatible will enable OPA features and behaviors that will be enabled by default in a future OPA v2.0 release.
+	// Takes precedence over V1Compatible, but is ignored if V0Compatible is set.
+	V2Compatible bool
+
 	// CipherSuites specifies the list of enabled TLS 1.0–1.2 cipher suites
 	CipherSuites *[]uint16
 
@@ -324,6 +328,9 @@ func (p *Params) regoVersion() ast.RegoVersion {
 	// v0 takes precedence over v1
 	if p.V0Compatible {
 		return ast.RegoV0
+	}
+	if p.V2Compatible {
+		return ast.RegoV2
 	}
 	if p.V1Compatible {
 		return ast.RegoV1

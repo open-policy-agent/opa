@@ -50,6 +50,7 @@ type (
 		ns                 string
 		v0Compatible       bool
 		v1Compatible       bool
+		v2Compatible       bool
 		followSymlinks     bool
 		wasmIncludePrint   bool
 		planAddons         []string
@@ -86,6 +87,9 @@ func (p *buildParams) regoVersion() ast.RegoVersion {
 	if p.v0Compatible {
 		// v0 takes precedence over v1
 		return ast.RegoV0
+	}
+	if p.v2Compatible {
+		return ast.RegoV2
 	}
 	if p.v1Compatible {
 		return ast.RegoV1
@@ -305,6 +309,7 @@ against ` + brand + ` v0.22.0:
 
 	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible)
 	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible)
+	addV2CompatibleFlag(buildCommand.Flags(), &buildParams.v2Compatible)
 
 	root.AddCommand(buildCommand)
 }

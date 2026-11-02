@@ -30,6 +30,7 @@ type fmtCommandParams struct {
 	regoV1           bool
 	v0Compatible     bool
 	v1Compatible     bool
+	v2Compatible     bool
 	checkResult      bool
 	dropV0Imports    bool
 	capabilitiesFlag *capabilitiesFlag
@@ -57,6 +58,9 @@ func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
 	if p.v0Compatible {
 		return ast.RegoV0
 	}
+	if p.v2Compatible {
+		return ast.RegoV2
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
@@ -73,6 +77,8 @@ func (p *fmtCommandParams) parserOptions() *ast.ParserOptions {
 	switch {
 	case p.v0Compatible:
 		popts.RegoVersion = ast.RegoV0
+	case p.v2Compatible:
+		popts.RegoVersion = ast.RegoV2
 	case p.v1Compatible:
 		popts.RegoVersion = ast.RegoV1
 	case p.regoV1:
@@ -348,6 +354,7 @@ different Rego versions:
 	addRegoV0V1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v0 and v1")
 	addV0CompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible)
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible)
+	addV2CompatibleFlag(formatCommand.Flags(), &fmtParams.v2Compatible)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed")
 	formatCommand.Flags().BoolVar(&fmtParams.dropV0Imports, "drop-v0-imports", false, "drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'")
 	addCapabilitiesFlag(formatCommand.Flags(), fmtParams.capabilitiesFlag)
