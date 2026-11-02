@@ -56,17 +56,18 @@ var (
 // can do efficient shallow copies of these values when doing a
 // save() and restore().
 type state struct {
-	errors    Errors
-	comments  []*Comment
-	hints     []string
-	s         *scanner.Scanner
-	loc       Location
-	lit       string
-	lastEnd   int
-	tokEnd    int
-	wildcard  int
-	tok       tokens.Token
-	skippedNL bool
+	errors               Errors
+	comments             []*Comment
+	hints                []string
+	s                    *scanner.Scanner
+	loc                  Location
+	lit                  string
+	lastEnd              int
+	tokEnd               int
+	wildcard             int
+	tok                  tokens.Token
+	skippedNL            bool
+	templateStringFailed bool
 }
 
 func (s *state) String() string {
@@ -2784,6 +2785,20 @@ func templateStringPartToStringLiteral(tok tokens.Token, lit string) (string, er
 }
 
 func (p *Parser) parseTemplateString(multiLine bool) *Term {
+	numErrors := len(p.s.errors)
+
+	term := p.parseTemplateStringParts(multiLine)
+	if term == nil && len(p.s.errors) > numErrors {
+		// Report only the first error of a template string that fails to
+		// parse, and none of the follow-ups from the callers.
+		p.s.errors = p.s.errors[:numErrors+1]
+		p.s.templateStringFailed = true
+	}
+
+	return term
+}
+
+func (p *Parser) parseTemplateStringParts(multiLine bool) *Term {
 	loc := p.s.Loc()
 
 	if !p.po.Capabilities.ContainsFeatureAt(FeatureTemplateStrings, p.po.EffectiveRegoVersion()) {
@@ -2813,9 +2828,17 @@ func (p *Parser) parseTemplateString(multiLine bool) *Term {
 		p.scan()
 		numCommentsAfter := len(p.s.comments)
 
+		if p.s.tok == tokens.RBrace {
+			p.error(p.s.Loc(), "empty template-string expression")
+			return nil
+		}
+
+		numErrors := len(p.s.errors)
 		expr := p.parseLiteral()
 		if expr == nil {
-			p.error(p.s.Loc(), "invalid template-string expression")
+			if len(p.s.errors) == numErrors {
+				p.error(p.s.Loc(), "invalid template-string expression")
+			}
 			return nil
 		}
 
@@ -3366,6 +3389,11 @@ func writeHints(msg *strings.Builder, hints []string) {
 }
 
 func (p *Parser) error(loc *location.Location, reason string) {
+	if p.s.templateStringFailed {
+		p.s.hints = nil
+		return
+	}
+
 	if len(p.s.hints) > 0 {
 		sb := &strings.Builder{}
 		sb.WriteString(reason)
@@ -3383,6 +3411,11 @@ func (p *Parser) error(loc *location.Location, reason string) {
 }
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...any) {
+	if p.s.templateStringFailed {
+		p.s.hints = nil
+		return
+	}
+
 	msg := &strings.Builder{}
 	fmt.Fprintf(msg, f, a...)
 
