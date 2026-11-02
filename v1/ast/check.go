@@ -699,7 +699,6 @@ func (tc *typeChecker) checkExprWith(env *TypeEnv, expr *Expr, i int) *Error {
 }
 
 func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
-
 	nilA := types.Nil(typeA)
 	nilB := types.Nil(typeB)
 
@@ -883,7 +882,8 @@ func unify1Object(env *TypeEnv, val Object, tpe *types.Object, union bool) bool 
 	if val.Len() != tpe.Len() && tpe.DynamicValue() == nil {
 		return false
 	}
-	stop := val.Until(func(k, v *Term) bool {
+	obj := objectFromObject(val)
+	stop := obj.Until(func(k, v *Term) bool {
 		if IsConstant(k.Value) {
 			if child := selectConstant(tpe, k); child != nil {
 				if !unify1(env, v, child, union) {

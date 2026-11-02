@@ -11,6 +11,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -204,13 +205,13 @@ func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		max := ast.InternedNullTerm.Value
-		a.Foreach(func(x *ast.Term) {
-			if max.Compare(x.Value) <= 0 {
-				max = x.Value
+		max, maxIndex := a.Elem(0).Value, 0
+		for i := 1; i < a.Len(); i++ {
+			if val := a.Elem(i).Value; max.Compare(val) <= 0 {
+				max, maxIndex = val, i
 			}
-		})
-		return iter(ast.NewTerm(max))
+		}
+		return iter(a.Elem(maxIndex))
 	case ast.Set:
 		if a.Len() == 0 {
 			return nil
@@ -227,13 +228,13 @@ func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		min := a.Elem(0).Value
-		a.Foreach(func(x *ast.Term) {
-			if min.Compare(x.Value) >= 0 {
-				min = x.Value
+		min, minIndex := a.Elem(0).Value, 0
+		for i := 1; i < a.Len(); i++ {
+			if val := a.Elem(i).Value; min.Compare(val) >= 0 {
+				min, minIndex = val, i
 			}
-		})
-		return iter(ast.NewTerm(min))
+		}
+		return iter(a.Elem(minIndex))
 	case ast.Set:
 		if a.Len() == 0 {
 			return nil
@@ -257,16 +258,7 @@ func builtinSort(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
 	case ast.Set:
-		res := true
-		match := ast.InternedTerm(true)
-		val.Until(func(term *ast.Term) bool {
-			if !match.Equal(term) {
-				res = false
-				return true
-			}
-			return false
-		})
-		return iter(ast.InternedTerm(res))
+		return iter(ast.InternedTerm(util.Every(val.Slice(), ast.InternedBooleanTrue.Equal)))
 	case *ast.Array:
 		res := true
 		match := ast.InternedTerm(true)
@@ -311,9 +303,14 @@ func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	case *ast.Array:
 		return iter(ast.InternedTerm(c.Until(operands[0].Equal)))
 	case ast.Object:
-		return iter(ast.InternedTerm(c.Until(func(_, v *ast.Term) bool {
-			return operands[0].Equal(v)
-		})))
+		ki := ast.BorrowKeysIterator(c)
+		defer ast.ReturnKeysIterator(ki)
+
+		for k, more := ki.Next(); more; k, more = ki.Next() {
+			if operands[0].Equal(c.Get(k)) {
+				return iter(ast.InternedTerm(true))
+			}
+		}
 	}
 	return iter(ast.InternedTerm(false))
 }

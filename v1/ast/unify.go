@@ -155,12 +155,11 @@ func (u *unifier) unify(a *Term, b *Term) {
 			}
 		case *object:
 			if a.Len() == b.Len() {
-				_ = a.Iter(func(k, v *Term) error {
-					if v2 := b.Get(k); v2 != nil {
-						u.unify(v, v2)
+				for _, node := range a.sortedKeys() {
+					if v2 := b.Get(node.key); v2 != nil {
+						u.unify(node.value, v2)
 					}
-					return nil
-				}) // impossible to return error
+				}
 			}
 		}
 

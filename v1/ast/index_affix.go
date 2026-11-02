@@ -101,14 +101,12 @@ func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 	case Set:
 		return col.Iter(checkMember)
 	case Object:
-		if o, ok := col.(*object); ok {
-			return o.Iter(func(_, v *Term) error {
-				return checkMember(v)
-			})
+		obj := objectFromObject(col)
+		for _, node := range obj.sortedKeys() {
+			if err := checkMember(node.value); err != nil {
+				return err
+			}
 		}
-		return col.Iter(func(_, v *Term) error {
-			return checkMember(v)
-		})
 	}
 
 	return nil
@@ -144,19 +142,12 @@ func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversal
 	case Set:
 		return col.Iter(checkMember)
 	case Object:
-		if o, ok := col.(*object); ok {
-			// doesn't allocate / escape
-			for _, node := range o.sortedKeys() {
-				if err := checkMember(node.value); err != nil {
-					return err
-				}
+		obj := objectFromObject(col)
+		for _, node := range obj.sortedKeys() {
+			if err := checkMember(node.value); err != nil {
+				return err
 			}
-			return nil
 		}
-		// allocates / escapes
-		return col.Iter(func(_, v *Term) error {
-			return checkMember(v)
-		})
 	}
 
 	return nil

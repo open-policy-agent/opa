@@ -113,30 +113,38 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		if a.IsGround() {
 			return a
 		}
+		ki := ast.BorrowKeysIterator(v)
+		defer ast.ReturnKeysIterator(ki)
+
+		obj := ast.NewObjectWithCapacity(v.Len())
+		for k, more := ki.Next(); more; k, more = ki.Next() {
+			obj.Insert(u.plugNamespaced(k, caller), u.plugNamespaced(v.Get(k), caller))
+		}
+
 		cpy := *a
-		cpy.Value, _ = v.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
-			return u.plugNamespaced(k, caller), u.plugNamespaced(v, caller), nil
-		})
+		cpy.Value = obj
 		return &cpy
 	case ast.Set:
 		if a.IsGround() {
 			return a
 		}
 		cpy := *a
-		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
-			return u.plugNamespaced(x, caller), nil
-		})
+		cpy.Value = ast.NewSet(u.plugNamespacedTerms(v.Slice(), caller)...)
 		return &cpy
 	case ast.Ref:
 		cpy := *a
-		ref := make(ast.Ref, len(v))
-		for i := range ref {
-			ref[i] = u.plugNamespaced(v[i], caller)
-		}
-		cpy.Value = ref
+		cpy.Value = ast.Ref(u.plugNamespacedTerms(v, caller))
 		return &cpy
 	}
 	return a
+}
+
+func (u *bindings) plugNamespacedTerms(terms []*ast.Term, caller *bindings) []*ast.Term {
+	plg := make([]*ast.Term, len(terms))
+	for i := range terms {
+		plg[i] = u.plugNamespaced(terms[i], caller)
+	}
+	return plg
 }
 
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings, und *undo) {
@@ -283,19 +291,23 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 		if a.IsGround() {
 			return a
 		}
+		ki := ast.BorrowKeysIterator(v)
+		defer ast.ReturnKeysIterator(ki)
+
+		obj := ast.NewObjectWithCapacity(v.Len())
+		for k, more := ki.Next(); more; k, more = ki.Next() {
+			obj.Insert(vis.namespaceTerm(k), vis.namespaceTerm(v.Get(k)))
+		}
+
 		cpy := *a
-		cpy.Value, _ = v.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
-			return vis.namespaceTerm(k), vis.namespaceTerm(v), nil
-		})
+		cpy.Value = obj
 		return &cpy
 	case ast.Set:
 		if a.IsGround() {
 			return a
 		}
 		cpy := *a
-		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
-			return vis.namespaceTerm(x), nil
-		})
+		cpy.Value = ast.NewSet(util.Map(v.Slice(), vis.namespaceTerm)...)
 		return &cpy
 	case ast.Ref:
 		cpy := *a

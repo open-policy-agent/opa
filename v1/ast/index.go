@@ -521,10 +521,8 @@ func (i *baseDocEqIndex) gather(tr *trieTraversalResult, resolver ValueResolver,
 	consults := i.consultsCollections(resolver)
 
 	// Words are marked as they are first written to, in traversal order.
-	slices.Sort(tr.touched)
-
 	found := 0
-	for _, w := range tr.touched {
+	for _, w := range util.Sorted(tr.touched) {
 		found += bits.OnesCount64(tr.hits[w])
 	}
 	result.Rules = slices.Grow(result.Rules, found)
@@ -1361,18 +1359,12 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 	case Set:
 		forEach, n = rcol.Foreach, rcol.Len()
 	case Object:
-		n = rcol.Len()
-		// Function literal does not escape / allocate
-		if o, ok := rcol.(*object); ok {
-			forEach = func(f func(*Term)) {
-				for _, node := range o.sortedKeys() {
-					f(node.value)
-				}
-			}
-			// Function literal escapes
-		} else {
-			forEach = func(f func(*Term)) {
-				rcol.Foreach(func(_, v *Term) { f(v) })
+		o := objectFromObject(rcol)
+
+		n = o.Len()
+		forEach = func(f func(*Term)) {
+			for _, node := range o.sortedKeys() {
+				f(node.value)
 			}
 		}
 	default:
@@ -2404,16 +2396,11 @@ func (d *levelDetail) traverseMembers(resolver ValueResolver, tr *trieTraversalR
 	case Set:
 		return col.Iter(checkMember)
 	case Object:
-		// Function literal does not escape
-		if o, ok := col.(*object); ok {
-			return o.Iter(func(_, v *Term) error {
-				return checkMember(v)
-			})
+		for _, node := range objectFromObject(col).sortedKeys() {
+			if err := checkMember(node.value); err != nil {
+				return err
+			}
 		}
-		// Function literal escapes
-		return col.Iter(func(_, v *Term) error {
-			return checkMember(v)
-		})
 	}
 
 	return nil

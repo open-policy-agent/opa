@@ -2457,26 +2457,27 @@ func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, 
 		return nil, nil
 	}
 
-	var rs ResultSet
-	err := resultSet.Iter(func(term *ast.Term) error {
+	rs := make(ResultSet, 0, resultSet.Len())
+
+	for _, term := range resultSet.Slice() {
 		obj, ok := term.Value.(ast.Object)
 		if !ok {
-			return errors.New("illegal result type")
+			return rs, errors.New("illegal result type")
 		}
+
 		qr := topdown.QueryResult{}
 		obj.Foreach(func(k, v *ast.Term) {
-			kvt := ast.VarTerm(string(k.Value.(ast.String)))
-			qr[kvt.Value.(ast.Var)] = v
+			kvt := ast.Var(string(k.Value.(ast.String)))
+			qr[kvt] = v
 		})
 		result, err := r.generateResult(qr, ectx)
 		if err != nil {
-			return err
+			return rs, err
 		}
 		rs = append(rs, result)
-		return nil
-	})
+	}
 
-	return rs, err
+	return rs, nil
 }
 
 func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {

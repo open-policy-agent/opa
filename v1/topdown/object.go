@@ -102,11 +102,15 @@ func builtinObjectRemove(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	// Pre-allocate with obj size (upper bound for result)
 	r := ast.NewObjectWithCapacity(obj.Len())
-	obj.Foreach(func(key *ast.Term, value *ast.Term) {
+
+	ki := ast.BorrowKeysIterator(obj)
+	defer ast.ReturnKeysIterator(ki)
+
+	for key, more := ki.Next(); more; key, more = ki.Next() {
 		if !keysToRemove.Contains(key) {
-			r.Insert(key, value)
+			r.Insert(key, obj.Get(key))
 		}
-	})
+	}
 
 	return iter(ast.NewTerm(r))
 }
@@ -126,9 +130,9 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	// Pre-allocate with keys size (upper bound for filter object)
 	filterObj := ast.NewObjectWithCapacity(keys.Len())
-	keys.Foreach(func(key *ast.Term) {
+	for _, key := range keys.Slice() {
 		filterObj.Insert(key, ast.InternedNullTerm)
-	})
+	}
 
 	// Actually do the filtering
 	r, err := obj.Filter(filterObj)
@@ -220,7 +224,11 @@ func mergewithOverwriteInPlace(dst, src ast.Object, frozenKeys map[*ast.Term]str
 		return
 	}
 
-	src.Foreach(func(k, v *ast.Term) {
+	ki := ast.BorrowKeysIterator(src)
+	defer ast.ReturnKeysIterator(ki)
+
+	for k, more := ki.Next(); more; k, more = ki.Next() {
+		v := src.Get(k)
 		if v2 := dst.Get(k); v2 == nil {
 			// key not in dst, insert from src
 			dst.Insert(k, copyIfObject(v))
@@ -239,7 +247,7 @@ func mergewithOverwriteInPlace(dst, src ast.Object, frozenKeys map[*ast.Term]str
 				frozenKeys[v2] = struct{}{}
 			}
 		}
-	})
+	}
 }
 
 // copyIfObject returns term in which objects are copied recursively
@@ -249,10 +257,13 @@ func mergewithOverwriteInPlace(dst, src ast.Object, frozenKeys map[*ast.Term]str
 func copyIfObject(term *ast.Term) *ast.Term {
 	switch val := term.Value.(type) {
 	case ast.Object:
-		cpy, _ := val.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
-			return k, copyIfObject(v), nil
-		})
-		return ast.NewTerm(cpy)
+		ki := ast.BorrowKeysIterator(val)
+		ts := make([][2]*ast.Term, 0, val.Len())
+		for k, more := ki.Next(); more; k, more = ki.Next() {
+			ts = append(ts, [2]*ast.Term{k, copyIfObject(val.Get(k))})
+		}
+		ast.ReturnKeysIterator(ki)
+		return ast.ObjectTerm(ts...)
 	default:
 		return term
 	}

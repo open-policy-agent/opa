@@ -67,13 +67,11 @@ func validateAWSAuthParameters(o ast.Object) error {
 	}
 
 	invalidKeys := ast.NewSet()
-	awsRequiredConfigKeyNames.Foreach(func(t *ast.Term) {
-		if v := o.Get(t); v != nil {
-			if _, ok := v.Value.(ast.String); !ok {
-				invalidKeys.Add(t)
-			}
+	for _, t := range awsRequiredConfigKeyNames.Slice() {
+		if !ast.TermValueIs[ast.String](o.Get(t)) {
+			invalidKeys.Add(t)
 		}
-	})
+	}
 	if invalidKeys.Len() != 0 {
 		return builtins.NewOperandErr(2, "invalid values for required AWS config parameters(s): %v", invalidKeys)
 	}
