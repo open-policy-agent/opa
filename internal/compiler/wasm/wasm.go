@@ -1389,12 +1389,18 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, _
 	instrs = append(instrs,
 		instruction.GetLocal{Index: c.local(local)},
 		instruction.SetLocal{Index: lcopy},
-		// Shallow copy the local if defined otherwise initialize to an empty object.
+		// Shallow copy the local if it is an object otherwise initialize to an
+		// empty object.
 		instruction.Block{
 			Instrs: []instruction.Instruction{
 				instruction.Block{Instrs: []instruction.Instruction{
 					instruction.GetLocal{Index: lcopy},
 					instruction.I32Eqz{},
+					instruction.BrIf{Index: 0},
+					instruction.GetLocal{Index: lcopy},
+					instruction.Call{Index: c.function(opaValueType)},
+					instruction.I32Const{Value: opaTypeObject},
+					instruction.I32Ne{},
 					instruction.BrIf{Index: 0},
 					instruction.GetLocal{Index: lcopy},
 					instruction.Call{Index: c.function(opaValueShallowCopy)},
