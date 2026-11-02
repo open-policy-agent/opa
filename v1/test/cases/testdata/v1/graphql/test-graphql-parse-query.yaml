@@ -79,7 +79,7 @@ cases:
 
         gql := `{ field(complex: { a: { b: [ $var ] } }) }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "field", "Arguments": [{"Name": "complex", "Value": {"Children": [{"Name": "a", "Value": {"Children": [{"Name": "b", "Value": {"Children": [{"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "var"}}], "ExpectedTypeHasDefault": false, "Kind": 8, "Raw": ""}}], "ExpectedTypeHasDefault": false, "Kind": 9, "Raw": ""}}], "ExpectedTypeHasDefault": false, "Kind": 9, "Raw": ""}}], "Name": "field"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "field", "Arguments": [{"Name": "complex", "Value": {"Children": [{"Name": "a", "Value": {"Children": [{"Name": "b", "Value": {"Children": [{"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "var"}}], "ExpectedTypeHasDefault": false, "Kind": 8, "Raw": ""}}], "ExpectedTypeHasDefault": false, "Kind": 9, "Raw": ""}}], "ExpectedTypeHasDefault": false, "Kind": 9, "Raw": ""}}], "Name": "field"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -108,7 +108,7 @@ cases:
 
         gql := `query ($withDirective: String @first @second, $withoutDirective: String) { f }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Name": "f"}], "VariableDefinitions": [{"Directives": [{"Location": "", "Name": "first"}, {"Location": "", "Name": "second"}], "Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "withDirective"}, {"Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "withoutDirective"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Name": "f"}], "VariableDefinitions": [{"Description": "", "Directives": [{"Location": "", "Name": "first"}, {"Location": "", "Name": "second"}], "Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "withDirective"}, {"Description": "", "Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "withoutDirective"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -154,7 +154,7 @@ cases:
           { field(arg: "Has a ਊ multi-byte character.") }
         `
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "field", "Arguments": [{"Name": "arg", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "Has a ਊ multi-byte character."}}], "Name": "field"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "field", "Arguments": [{"Name": "arg", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "Has a ਊ multi-byte character."}}], "Name": "field"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -178,7 +178,7 @@ cases:
           }
         `
 
-        ast := {"Fragments": [{"Name": "a", "SelectionSet": [{"Alias": "on", "Arguments": [{"Name": "on", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "on"}}], "Directives": [{"Arguments": [{"Name": "on", "Value": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "on"}}], "Location": "", "Name": "on"}], "Name": "on"}], "TypeCondition": "Type"}], "Operations": [{"Name": "on", "Operation": "query", "SelectionSet": [{"Name": "a"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "on"}]}]}
+        ast := {"Fragments": [{"Description": "", "Name": "a", "SelectionSet": [{"Alias": "on", "Arguments": [{"Name": "on", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "on"}}], "Directives": [{"Arguments": [{"Name": "on", "Value": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "on"}}], "Location": "", "Name": "on"}], "Name": "on"}], "TypeCondition": "Type"}], "Operations": [{"Description": "", "Name": "on", "Operation": "query", "SelectionSet": [{"Name": "a"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "on"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -202,7 +202,7 @@ cases:
           }
         `
 
-        ast := {"Fragments": [{"Name": "subscription", "SelectionSet": [{"Alias": "subscription", "Arguments": [{"Name": "subscription", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "subscription"}}], "Directives": [{"Arguments": [{"Name": "subscription", "Value": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "subscription"}}], "Location": "", "Name": "subscription"}], "Name": "subscription"}], "TypeCondition": "Type"}], "Operations": [{"Name": "subscription", "Operation": "query", "SelectionSet": [{"Name": "subscription"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "subscription"}]}]}
+        ast := {"Fragments": [{"Description": "", "Name": "subscription", "SelectionSet": [{"Alias": "subscription", "Arguments": [{"Name": "subscription", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "subscription"}}], "Directives": [{"Arguments": [{"Name": "subscription", "Value": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "subscription"}}], "Location": "", "Name": "subscription"}], "Name": "subscription"}], "TypeCondition": "Type"}], "Operations": [{"Description": "", "Name": "subscription", "Operation": "query", "SelectionSet": [{"Name": "subscription"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "subscription"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -226,7 +226,7 @@ cases:
           }
         `
 
-        ast := {"Fragments": [{"Name": "true", "SelectionSet": [{"Alias": "true", "Arguments": [{"Name": "true", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "true"}}], "Directives": [{"Arguments": [{"Name": "true", "Value": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "true"}}], "Location": "", "Name": "true"}], "Name": "true"}], "TypeCondition": "Type"}], "Operations": [{"Name": "true", "Operation": "query", "SelectionSet": [{"Name": "true"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "true"}]}]}
+        ast := {"Fragments": [{"Description": "", "Name": "true", "SelectionSet": [{"Alias": "true", "Arguments": [{"Name": "true", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "true"}}], "Directives": [{"Arguments": [{"Name": "true", "Value": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "true"}}], "Location": "", "Name": "true"}], "Name": "true"}], "TypeCondition": "Type"}], "Operations": [{"Description": "", "Name": "true", "Operation": "query", "SelectionSet": [{"Name": "true"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "true"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -241,7 +241,7 @@ cases:
 
         gql := `mutation { mutationField }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "mutation", "SelectionSet": [{"Alias": "mutationField", "Name": "mutationField"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "mutation", "SelectionSet": [{"Alias": "mutationField", "Name": "mutationField"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -256,7 +256,7 @@ cases:
 
         gql := `mutation Foo { mutationField }`
 
-        ast := {"Operations": [{"Name": "Foo", "Operation": "mutation", "SelectionSet": [{"Alias": "mutationField", "Name": "mutationField"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "Foo", "Operation": "mutation", "SelectionSet": [{"Alias": "mutationField", "Name": "mutationField"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -271,7 +271,7 @@ cases:
 
         gql := `subscription { subscriptionField }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "subscription", "SelectionSet": [{"Alias": "subscriptionField", "Name": "subscriptionField"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "subscription", "SelectionSet": [{"Alias": "subscriptionField", "Name": "subscriptionField"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -286,7 +286,7 @@ cases:
 
         gql := `subscription Foo { subscriptionField }`
 
-        ast := {"Operations": [{"Name": "Foo", "Operation": "subscription", "SelectionSet": [{"Alias": "subscriptionField", "Name": "subscriptionField"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "Foo", "Operation": "subscription", "SelectionSet": [{"Alias": "subscriptionField", "Name": "subscriptionField"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -308,7 +308,7 @@ cases:
           }
         `
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "node", "Arguments": [{"Name": "id", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "4"}}], "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Alias": "name", "Name": "name"}]}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "node", "Arguments": [{"Name": "id", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "4"}}], "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Alias": "name", "Name": "name"}]}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -329,7 +329,7 @@ cases:
           }
         `
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "node", "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}]}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "node", "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}]}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -344,7 +344,7 @@ cases:
 
         gql := `fragment a($v: Boolean = false) on t { f(v: $v) }`
 
-        ast := {"Fragments": [{"Name": "a", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "v", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "v"}}], "Name": "f"}], "TypeCondition": "t", "VariableDefinition": [{"DefaultValue": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "false"}, "Type": {"NamedType": "Boolean", "NonNull": false}, "Used": false, "Variable": "v"}]}]}
+        ast := {"Fragments": [{"Description": "", "Name": "a", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "v", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "v"}}], "Name": "f"}], "TypeCondition": "t", "VariableDefinition": [{"Description": "", "DefaultValue": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "false"}, "Type": {"NamedType": "Boolean", "NonNull": false}, "Used": false, "Variable": "v"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -359,7 +359,7 @@ cases:
 
         gql := `{ f(id: null) }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "id", "Value": {"ExpectedTypeHasDefault": false, "Kind": 6, "Raw": "null"}}], "Name": "f"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "id", "Value": {"ExpectedTypeHasDefault": false, "Kind": 6, "Raw": "null"}}], "Name": "f"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -374,7 +374,7 @@ cases:
 
         gql := `{ f(long: """long""", short: "short") }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "long", "Value": {"ExpectedTypeHasDefault": false, "Kind": 4, "Raw": "long"}}, {"Name": "short", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "short"}}], "Name": "f"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "long", "Value": {"ExpectedTypeHasDefault": false, "Kind": 4, "Raw": "long"}}, {"Name": "short", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "short"}}], "Name": "f"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -389,7 +389,7 @@ cases:
 
         gql := `{ f(id: [1,2]) }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "id", "Value": {"Children": [{"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "1"}}, {"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "2"}}], "ExpectedTypeHasDefault": false, "Kind": 8, "Raw": ""}}], "Name": "f"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "id", "Value": {"Children": [{"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "1"}}, {"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "2"}}], "ExpectedTypeHasDefault": false, "Kind": 8, "Raw": ""}}], "Name": "f"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -404,7 +404,7 @@ cases:
 
         gql := `query ($string: String, $int: Int, $arr: [Arr], $notnull: [Arr!]!) { f }`
 
-        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Name": "f"}], "VariableDefinitions": [{"Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "string"}, {"Type": {"NamedType": "Int", "NonNull": false}, "Used": false, "Variable": "int"}, {"Type": {"Elem": {"NamedType": "Arr", "NonNull": false}, "NamedType": "", "NonNull": false}, "Used": false, "Variable": "arr"}, {"Type": {"Elem": {"NamedType": "Arr", "NonNull": true}, "NamedType": "", "NonNull": true}, "Used": false, "Variable": "notnull"}]}]}
+        ast := {"Operations": [{"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Name": "f"}], "VariableDefinitions": [{"Description": "", "Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "string"}, {"Description": "", "Type": {"NamedType": "Int", "NonNull": false}, "Used": false, "Variable": "int"}, {"Description": "", "Type": {"Elem": {"NamedType": "Arr", "NonNull": false}, "NamedType": "", "NonNull": false}, "Used": false, "Variable": "arr"}, {"Description": "", "Type": {"Elem": {"NamedType": "Arr", "NonNull": true}, "NamedType": "", "NonNull": true}, "Used": false, "Variable": "notnull"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
@@ -472,7 +472,7 @@ cases:
           }
         `
 
-        ast := {"Fragments": [{"Name": "frag", "SelectionSet": [{"Alias": "foo", "Arguments": [{"Name": "size", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "size"}}, {"Name": "bar", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "b"}}, {"Name": "obj", "Value": {"Children": [{"Name": "key", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "value"}}, {"Name": "block", "Value": {"ExpectedTypeHasDefault": false, "Kind": 4, "Raw": "block string uses \"\"\""}}], "ExpectedTypeHasDefault": false, "Kind": 9, "Raw": ""}}], "Name": "foo"}], "TypeCondition": "Friend"}], "Operations": [{"Name": "queryName", "Operation": "query", "SelectionSet": [{"Alias": "whoever123is", "Arguments": [{"Name": "id", "Value": {"Children": [{"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "123"}}, {"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "456"}}], "ExpectedTypeHasDefault": false, "Kind": 8, "Raw": ""}}], "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Directives": [{"Location": "", "Name": "defer"}], "SelectionSet": [{"Alias": "field2", "Name": "field2", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Alias": "alias", "Arguments": [{"Name": "first", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "10"}}, {"Name": "after", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "foo"}}], "Directives": [{"Arguments": [{"Name": "if", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "foo"}}], "Location": "", "Name": "include"}], "Name": "field1", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Name": "frag"}]}]}], "TypeCondition": "User"}, {"Directives": [{"Arguments": [{"Name": "unless", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "foo"}}], "Location": "", "Name": "skip"}], "SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": ""}, {"SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": ""}]}], "VariableDefinitions": [{"Type": {"NamedType": "ComplexType", "NonNull": false}, "Used": false, "Variable": "foo"}, {"DefaultValue": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "MOBILE"}, "Type": {"NamedType": "Site", "NonNull": false}, "Used": false, "Variable": "site"}]}, {"Name": "likeStory", "Operation": "mutation", "SelectionSet": [{"Alias": "like", "Arguments": [{"Name": "story", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "123"}}], "Directives": [{"Location": "", "Name": "defer"}], "Name": "like", "SelectionSet": [{"Alias": "story", "Name": "story", "SelectionSet": [{"Alias": "id", "Name": "id"}]}]}]}, {"Name": "StoryLikeSubscription", "Operation": "subscription", "SelectionSet": [{"Alias": "storyLikeSubscribe", "Arguments": [{"Name": "input", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "input"}}], "Name": "storyLikeSubscribe", "SelectionSet": [{"Alias": "story", "Name": "story", "SelectionSet": [{"Alias": "likers", "Name": "likers", "SelectionSet": [{"Alias": "count", "Name": "count"}]}, {"Alias": "likeSentence", "Name": "likeSentence", "SelectionSet": [{"Alias": "text", "Name": "text"}]}]}]}], "VariableDefinitions": [{"Type": {"NamedType": "StoryLikeSubscribeInput", "NonNull": false}, "Used": false, "Variable": "input"}]}, {"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "unnamed", "Arguments": [{"Name": "truthy", "Value": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "true"}}, {"Name": "falsey", "Value": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "false"}}, {"Name": "nullish", "Value": {"ExpectedTypeHasDefault": false, "Kind": 6, "Raw": "null"}}], "Name": "unnamed"}, {"Alias": "query", "Name": "query"}]}]}
+        ast := {"Fragments": [{"Description": "", "Name": "frag", "SelectionSet": [{"Alias": "foo", "Arguments": [{"Name": "size", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "size"}}, {"Name": "bar", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "b"}}, {"Name": "obj", "Value": {"Children": [{"Name": "key", "Value": {"ExpectedTypeHasDefault": false, "Kind": 3, "Raw": "value"}}, {"Name": "block", "Value": {"ExpectedTypeHasDefault": false, "Kind": 4, "Raw": "block string uses \"\"\""}}], "ExpectedTypeHasDefault": false, "Kind": 9, "Raw": ""}}], "Name": "foo"}], "TypeCondition": "Friend"}], "Operations": [{"Description": "", "Name": "queryName", "Operation": "query", "SelectionSet": [{"Alias": "whoever123is", "Arguments": [{"Name": "id", "Value": {"Children": [{"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "123"}}, {"Name": "", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "456"}}], "ExpectedTypeHasDefault": false, "Kind": 8, "Raw": ""}}], "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Directives": [{"Location": "", "Name": "defer"}], "SelectionSet": [{"Alias": "field2", "Name": "field2", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Alias": "alias", "Arguments": [{"Name": "first", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "10"}}, {"Name": "after", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "foo"}}], "Directives": [{"Arguments": [{"Name": "if", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "foo"}}], "Location": "", "Name": "include"}], "Name": "field1", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Name": "frag"}]}]}], "TypeCondition": "User"}, {"Directives": [{"Arguments": [{"Name": "unless", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "foo"}}], "Location": "", "Name": "skip"}], "SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": ""}, {"SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": ""}]}], "VariableDefinitions": [{"Description": "", "Type": {"NamedType": "ComplexType", "NonNull": false}, "Used": false, "Variable": "foo"}, {"Description": "", "DefaultValue": {"ExpectedTypeHasDefault": false, "Kind": 7, "Raw": "MOBILE"}, "Type": {"NamedType": "Site", "NonNull": false}, "Used": false, "Variable": "site"}]}, {"Description": "", "Name": "likeStory", "Operation": "mutation", "SelectionSet": [{"Alias": "like", "Arguments": [{"Name": "story", "Value": {"ExpectedTypeHasDefault": false, "Kind": 1, "Raw": "123"}}], "Directives": [{"Location": "", "Name": "defer"}], "Name": "like", "SelectionSet": [{"Alias": "story", "Name": "story", "SelectionSet": [{"Alias": "id", "Name": "id"}]}]}]}, {"Description": "", "Name": "StoryLikeSubscription", "Operation": "subscription", "SelectionSet": [{"Alias": "storyLikeSubscribe", "Arguments": [{"Name": "input", "Value": {"ExpectedTypeHasDefault": false, "Kind": 0, "Raw": "input"}}], "Name": "storyLikeSubscribe", "SelectionSet": [{"Alias": "story", "Name": "story", "SelectionSet": [{"Alias": "likers", "Name": "likers", "SelectionSet": [{"Alias": "count", "Name": "count"}]}, {"Alias": "likeSentence", "Name": "likeSentence", "SelectionSet": [{"Alias": "text", "Name": "text"}]}]}]}], "VariableDefinitions": [{"Description": "", "Type": {"NamedType": "StoryLikeSubscribeInput", "NonNull": false}, "Used": false, "Variable": "input"}]}, {"Description": "", "Name": "", "Operation": "query", "SelectionSet": [{"Alias": "unnamed", "Arguments": [{"Name": "truthy", "Value": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "true"}}, {"Name": "falsey", "Value": {"ExpectedTypeHasDefault": false, "Kind": 5, "Raw": "false"}}, {"Name": "nullish", "Value": {"ExpectedTypeHasDefault": false, "Kind": 6, "Raw": "null"}}], "Name": "unnamed"}, {"Alias": "query", "Name": "query"}]}]}
 
         p if {
         	graphql.parse_query(gql) == ast
