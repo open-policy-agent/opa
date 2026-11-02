@@ -37,24 +37,28 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_SHA: ${{ github.event.after }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -e
 
           echo "Comparing $BEFORE_SHA with $CURRENT_SHA"
+          # There is no pull request here, so the input has no "pr" key. The
+          # policies that need it do nothing in that case.
           git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" \
-            | jq -R '{filename: .}' | jq -s '.' > changed_files.json
+            | jq -R '{filename: .}' \
+            | jq -s --arg event "$EVENT_NAME" '{event: $event, files: .}' > checks_input.json
 
-          if [ ! -s changed_files.json ] || [ "$(cat changed_files.json)" = "[]" ]; then
+          if jq -e '.files | length == 0' checks_input.json >/dev/null; then
             echo "Warning: No changed files found"
             exit 0
           fi
 
           echo "Changed files:"
-          jq -r '.[].filename' changed_files.json
+          jq -r '.files[].filename' checks_input.json
 
           opa eval \
           --data build/policy/pr-check/pr_check.rego \
-          --input changed_files.json \
+          --input checks_input.json \
           --format pretty \
           'data.policy["pr-check"]' > opa_result.json
 
