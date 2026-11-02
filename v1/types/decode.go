@@ -5,7 +5,7 @@
 package types
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -26,156 +26,159 @@ const (
 
 // Unmarshal deserializes bs and returns the resulting type.
 func Unmarshal[T byte, BS ~[]byte](bs BS) (result Type, err error) {
-	var hint rawtype
+	var x any
+	if err := util.UnmarshalJSON(bs, &x); err != nil {
+		return nil, err
+	}
+	// Decode once and walk the result: re-decoding the raw bytes of each nested
+	// type would be quadratic in the nesting depth.
+	return unmarshalType(x)
+}
 
-	if err = util.UnmarshalJSON(bs, &hint); err == nil {
-		switch hint.Type {
-		case typeNull:
-			result = Nl
-		case typeBoolean:
-			result = B
-		case typeNumber:
-			result = N
-		case typeString:
-			result = S
-		case typeArray:
-			var arr rawarray
-			if err = util.UnmarshalJSON(bs, &arr); err == nil {
-				var err error
-				var static []Type
-				var dynamic Type
-				if static, err = util.TryMap(arr.Static, Unmarshal); err != nil {
-					return nil, err
-				}
-				if len(arr.Dynamic) != 0 {
-					if dynamic, err = Unmarshal(arr.Dynamic); err != nil {
-						return nil, err
-					}
-				}
-				result = NewArray(static, dynamic)
-			}
-		case typeObject:
-			var obj rawobject
-			if err = util.UnmarshalJSON(bs, &obj); err == nil {
-				var err error
-				var static []*StaticProperty
-				var dynamic *DynamicProperty
-				if static, err = unmarshalStaticPropertySlice(obj.Static); err != nil {
-					return nil, err
-				}
-				if dynamic, err = unmarshalDynamicProperty(obj.Dynamic); err != nil {
-					return nil, err
-				}
-				result = NewObject(static, dynamic)
-			}
-		case typeSet:
-			var set rawset
-			if err = util.UnmarshalJSON(bs, &set); err == nil {
-				var of Type
-				if of, err = Unmarshal(set.Of); err == nil {
-					result = NewSet(of)
-				}
-			}
-		case typeAny:
-			var union rawunion
-			if err = util.UnmarshalJSON(bs, &union); err == nil {
-				var of []Type
-				if of, err = util.TryMap(union.Of, Unmarshal); err == nil {
-					result = NewAny(of...)
-				}
-			}
-		case typeFunction:
-			var decl rawdecl
-			if err = util.UnmarshalJSON(bs, &decl); err == nil {
-				args, err := util.TryMap(decl.Args, Unmarshal)
-				if err != nil {
-					return nil, err
-				}
-				var ret Type
-				if len(decl.Result) > 0 {
-					ret, err = Unmarshal(decl.Result)
-					if err != nil {
-						return nil, err
-					}
-				}
-				if len(decl.Variadic) > 0 {
-					varargs, err := Unmarshal(decl.Variadic)
-					if err != nil {
-						return nil, err
-					}
-					result = NewVariadicFunction(args, varargs, ret)
-				} else {
-					result = NewFunction(args, ret)
-				}
-			}
-		default:
-			err = fmt.Errorf("unsupported type '%v'", hint.Type)
-		}
+func unmarshalType(x any) (Type, error) {
+	if x == nil {
+		return nil, errors.New("unsupported type ''")
+	}
+	m, ok := x.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid type: expected object, got %T", x)
+	}
+	tpe, ok := m["type"].(string)
+	if !ok && m["type"] != nil {
+		return nil, fmt.Errorf("invalid type field: expected string, got %T", m["type"])
 	}
 
-	return result, err
-}
-
-type rawtype struct {
-	Type string `json:"type"`
-}
-
-type rawarray struct {
-	Static  []json.RawMessage `json:"static"`
-	Dynamic json.RawMessage   `json:"dynamic"`
-}
-
-type rawobject struct {
-	Static  []rawstaticproperty `json:"static"`
-	Dynamic rawdynamicproperty  `json:"dynamic"`
-}
-
-type rawstaticproperty struct {
-	Key   any             `json:"key"`
-	Value json.RawMessage `json:"value"`
-}
-
-type rawdynamicproperty struct {
-	Key   json.RawMessage `json:"key"`
-	Value json.RawMessage `json:"value"`
-}
-
-type rawset struct {
-	Of json.RawMessage `json:"of"`
-}
-
-type rawunion struct {
-	Of []json.RawMessage `json:"of"`
-}
-
-type rawdecl struct {
-	Args     []json.RawMessage `json:"args"`
-	Result   json.RawMessage   `json:"result"`
-	Variadic json.RawMessage   `json:"variadic"`
-}
-
-func unmarshalStaticPropertySlice(elems []rawstaticproperty) (result []*StaticProperty, err error) {
-	result = make([]*StaticProperty, len(elems))
-	for i := range elems {
-		value, err := Unmarshal(elems[i].Value)
+	switch tpe {
+	case typeNull:
+		return Nl, nil
+	case typeBoolean:
+		return B, nil
+	case typeNumber:
+		return N, nil
+	case typeString:
+		return S, nil
+	case typeArray:
+		static, err := unmarshalTypeSlice(m, "static")
 		if err != nil {
 			return nil, err
 		}
-		result[i] = NewStaticProperty(elems[i].Key, value)
+		var dynamic Type
+		if d, ok := m["dynamic"]; ok {
+			if dynamic, err = unmarshalType(d); err != nil {
+				return nil, err
+			}
+		}
+		return NewArray(static, dynamic), nil
+	case typeObject:
+		static, err := unmarshalStaticPropertySlice(m["static"])
+		if err != nil {
+			return nil, err
+		}
+		dynamic, err := unmarshalDynamicProperty(m["dynamic"])
+		if err != nil {
+			return nil, err
+		}
+		return NewObject(static, dynamic), nil
+	case typeSet:
+		of, err := unmarshalRequiredType(m, "of")
+		if err != nil {
+			return nil, err
+		}
+		return NewSet(of), nil
+	case typeAny:
+		of, err := unmarshalTypeSlice(m, "of")
+		if err != nil {
+			return nil, err
+		}
+		return NewAny(of...), nil
+	case typeFunction:
+		args, err := unmarshalTypeSlice(m, "args")
+		if err != nil {
+			return nil, err
+		}
+		var ret Type
+		if r, ok := m["result"]; ok {
+			if ret, err = unmarshalType(r); err != nil {
+				return nil, err
+			}
+		}
+		if v, ok := m["variadic"]; ok {
+			varargs, err := unmarshalType(v)
+			if err != nil {
+				return nil, err
+			}
+			return NewVariadicFunction(args, varargs, ret), nil
+		}
+		return NewFunction(args, ret), nil
+	default:
+		return nil, fmt.Errorf("unsupported type '%v'", tpe)
 	}
-	return result, err
 }
 
-func unmarshalDynamicProperty(x rawdynamicproperty) (result *DynamicProperty, err error) {
-	if len(x.Key) == 0 {
+func unmarshalRequiredType(m map[string]any, key string) (Type, error) {
+	x, ok := m[key]
+	if !ok {
+		return nil, fmt.Errorf("missing %q field", key)
+	}
+	return unmarshalType(x)
+}
+
+func unmarshalTypeSlice(m map[string]any, key string) ([]Type, error) {
+	if m[key] == nil {
 		return nil, nil
 	}
-	var key Type
-	if key, err = Unmarshal(x.Key); err == nil {
-		var value Type
-		if value, err = Unmarshal(x.Value); err == nil {
-			return NewDynamicProperty(key, value), nil
-		}
+	elems, ok := m[key].([]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid %s field: expected array, got %T", key, m[key])
 	}
-	return nil, err
+	return util.TryMap(elems, unmarshalType)
+}
+
+func unmarshalStaticPropertySlice(x any) ([]*StaticProperty, error) {
+	if x == nil {
+		return []*StaticProperty{}, nil
+	}
+	elems, ok := x.([]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid static field: expected array, got %T", x)
+	}
+	result := make([]*StaticProperty, len(elems))
+	for i := range elems {
+		elem, ok := elems[i].(map[string]any)
+		if !ok {
+			if elems[i] != nil {
+				return nil, fmt.Errorf("invalid static property: expected object, got %T", elems[i])
+			}
+			elem = map[string]any{}
+		}
+		value, err := unmarshalRequiredType(elem, "value")
+		if err != nil {
+			return nil, err
+		}
+		result[i] = NewStaticProperty(elem["key"], value)
+	}
+	return result, nil
+}
+
+func unmarshalDynamicProperty(x any) (*DynamicProperty, error) {
+	if x == nil {
+		return nil, nil
+	}
+	m, ok := x.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid dynamic field: expected object, got %T", x)
+	}
+	k, ok := m["key"]
+	if !ok {
+		return nil, nil
+	}
+	key, err := unmarshalType(k)
+	if err != nil {
+		return nil, err
+	}
+	value, err := unmarshalRequiredType(m, "value")
+	if err != nil {
+		return nil, err
+	}
+	return NewDynamicProperty(key, value), nil
 }
