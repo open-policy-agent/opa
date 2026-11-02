@@ -1,30 +1,30 @@
 package policy["pr-check"]
 
 changes.docs if {
-	some changed_file in input
+	some changed_file in input.files
 	startswith(changed_file.filename, "docs/")
 }
 
 changes.docs if {
-	some changed_file in input
+	some changed_file in input.files
 	changed_file.filename in docs_root_files
 }
 
 changes.docs if _workflows_changed
 
 changes.go if {
-	some changed_file in input
+	some changed_file in input.files
 	endswith(changed_file.filename, ".go")
 }
 
 changes.go if {
-	some changed_file in input
+	some changed_file in input.files
 	strings.any_prefix_match(changed_file.filename, go_change_prefixes)
 	strings.any_suffix_match(changed_file.filename, go_change_suffixes)
 }
 
 changes.go if {
-	some changed_file in input
+	some changed_file in input.files
 	changed_file.filename in go_root_files
 }
 
@@ -34,44 +34,44 @@ changes.go if changes.proto
 changes.go if _workflows_changed
 
 changes.wasm if {
-	some changed_file in input
+	some changed_file in input.files
 	strings.any_prefix_match(changed_file.filename, wasm_change_prefixes)
 }
 
 changes.wasm if {
-	some changed_file in input
+	some changed_file in input.files
 	changed_file.filename in rego_and_wasm_change_root_files
 }
 
 changes.wasm if _workflows_changed
 
 changes.rego if {
-	some changed_file in input
+	some changed_file in input.files
 	endswith(changed_file.filename, ".rego")
 }
 
 changes.rego if {
-	some changed_file in input
+	some changed_file in input.files
 	changed_file.filename in rego_and_wasm_change_root_files
 }
 
 changes.rego if _workflows_changed
 
 changes.yaml if {
-	some changed_file in input
+	some changed_file in input.files
 	strings.any_suffix_match(changed_file.filename, yaml_change_suffixes)
 }
 
 changes.yaml if _workflows_changed
 
 changes.proto if {
-	some changed_file in input
+	some changed_file in input.files
 	strings.any_prefix_match(changed_file.filename, proto_change_prefixes)
 	endswith(changed_file.filename, ".proto")
 }
 
 changes.proto if {
-	some changed_file in input
+	some changed_file in input.files
 	changed_file.filename == "buf.yaml"
 }
 
@@ -83,19 +83,19 @@ changes.bench contains "./v1/rego" if _compiler_related
 changes.bench contains "./v1/compile" if _compiler_related
 
 _compiler_related if {
-	some changed_file in input
+	some changed_file in input.files
 	strings.any_prefix_match(changed_file.filename, {"v1/topdown/", "v1/rego/", "v1/ast/", "v1/compile/"})
 	endswith(changed_file.filename, ".go")
 }
 
 _in_go_package(p) if {
-	some changed_file in input
+	some changed_file in input.files
 	startswith(changed_file.filename, p)
 	endswith(changed_file.filename, ".go")
 }
 
 _workflows_changed if {
-	some changed_file in input
+	some changed_file in input.files
 	startswith(changed_file.filename, ".github/workflows/")
 }
 

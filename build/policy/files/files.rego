@@ -1,13 +1,14 @@
 # METADATA
 # description: |
-#   Expects policy input as provided by:
+#   Expects policy input as provided by build/gen-checks-input.sh. The
+#   "files" key has the response of:
 #   https://api.github.com/repos/open-policy-agent/opa/pulls/${PR_ID}/files
 #
 #   Note that the "filename" here refers to the full, relative path of the file,
 #   like docs/foo/bar.yaml - since that's how it's named in the input we'll use
 #   the same convention here.
 # schemas:
-#   - input: schema.files
+#   - input: schema.input
 package files
 
 # METADATA
@@ -34,10 +35,10 @@ json_file_contents[filename] := file_in_pr(filename) if {
 	extension(filename) == "json"
 }
 
-filenames contains f.filename if some f in input
+filenames contains f.filename if some f in input.files
 
 changes[filename] := attributes if {
-	some change in input
+	some change in input.files
 	filename := change.filename
 	attributes := object.remove(change, ["filename"])
 }
