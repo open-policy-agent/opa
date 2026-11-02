@@ -125,23 +125,28 @@ infrastructure data. When OPA evaluates policies, it binds data provided in the
 query to a global variable called `input`. You can refer to specific parts of
 the input data using the `.` (dot) operator.
 
-```rego
-package servers
+A Rego file starts with a [`package`](./docs/policy-language#packages), a
+namespace for the rules that follow. Dots express hierarchy, so `policy.network`
+means network rules within policy. We've created a simple rule called `result`
+to show off a few examples.
 
-output := input.servers
+```rego
+package policy.network
+
+result := input.servers
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 To refer to array elements you can use the familiar square-bracket syntax:
 
 ```rego
-package servers
+package policy.network
 
-output := input.servers[0].protocols[0]
+result := input.servers[0].protocols[0]
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 :::tip
 You can use the same square bracket syntax if keys contain other than
@@ -152,66 +157,66 @@ If you refer to a value that does not exist, OPA returns _undefined_. Undefined
 means that OPA was not able to find any results.
 
 ```rego
-package servers
+package policy.network
 
-output := input.foobar
+result := input.foobar
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 The most simple policy decisions are made by writing expressions that perform
 logical operations on the input data. For example, to check if a server has
 a specific ID, use an equality check with `==`.
 
 ```rego
-package servers
+package policy.network
 
-output := input.servers[0].id == "app"
+result := input.servers[0].id == "app"
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 OPA includes a set of [built-in functions](./docs/policy-reference/builtins) you
 can use to perform common operations like string manipulation, regular
 expression matching, arithmetic, aggregation, and more.
 
 ```rego
-package servers
+package policy.network
 
-output := count(input.servers[0].protocols) >= 1
+result := count(input.servers[0].protocols) >= 1
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 For queries to produce results, all of the expressions in the query must be true
 or defined. You can separate expressions across multiple lines (or optionally
 join them with `;` - meaning AND, on a single line):
 
 ```rego
-package servers
+package policy.network
 
-output if {
+result if {
     input.servers[0].id == "app"
     input.servers[0].protocols[0] == "https"
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 If any of the expressions in the query are not true (or defined) the result is
 undefined. In the example below, the second expression is false:
 
 ```rego
-package servers
+package policy.network
 
-output if {
+result if {
     input.servers[0].id == "app"
     // highlight-next-line
     input.servers[0].protocols[0] == "telnet"
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 :::note
 Expressions are joined together with AND only when they are in the same rule
@@ -220,11 +225,11 @@ are in different rule bodies. See [Logical OR](#logical-or) in the Rules section
 below for more detail.
 
 ```rego
-output if {
+result if {
     input.servers[0].id == "app"
 }
 
-output if {
+result if {
     input.servers[0].protocols[0] == "telnet"
 }
 ```
@@ -236,9 +241,9 @@ operator to help make more complex rules easier to read. Variables can be
 referenced just like `input` and are, like `input`, immutable.
 
 ```rego
-package servers
+package policy.network
 
-output if {
+result if {
     s := input.servers[0]
     s.id == "app"
     p := s.protocols[0]
@@ -246,23 +251,23 @@ output if {
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 When OPA evaluates expressions, it finds values for the variables that make all
 of the expressions true. If there are no variable assignments that make all of
 the expressions true, the result is undefined.
 
 ```rego
-package servers
+package policy.network
 
-output if {
+result if {
     s := input.servers[0]
     s.id == "app"
     s.protocols[1] == "telnet"
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.output"/>
+<RunSnippet files="#input.json" command="data.policy.network.result"/>
 
 Imagine you need to check if any networks are public. Recall that the networks
 are supplied inside an array:
@@ -273,7 +278,7 @@ To solve this problem, you might naively first think to test each network
 individually by checking specific array indices like this:
 
 ```rego
-package servers
+package policy.network
 
 # if any are true, the result of the exists_public_network is true.
 
@@ -287,7 +292,7 @@ exists_public_network if input.networks[3].public == true
 # ...
 ```
 
-<RunSnippet files="#input.json" command="data.servers.exists_public_network"/>
+<RunSnippet files="#input.json" command="data.policy.network.exists_public_network"/>
 
 This approach is problematic, there may be too many networks to list statically,
 the number of networks may not be known in advance.
@@ -297,7 +302,7 @@ implicitly. The solution for this case is to use `some ... in ...` to iterate
 over the collection:
 
 ```rego
-package servers
+package policy.network
 
 exists_public_network if {
     some network in input.networks
@@ -305,7 +310,7 @@ exists_public_network if {
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.exists_public_network"/>
+<RunSnippet files="#input.json" command="data.policy.network.exists_public_network"/>
 
 OPA evaluates the rule body for each element bound to `network`. If any element
 satisfies all expressions in the body, the rule is defined.
@@ -314,7 +319,7 @@ For example, to find out if any servers expose the insecure `"http"` protocol
 you could write:
 
 ```rego
-package servers
+package policy.network
 
 http_server if {
     some server in input.servers
@@ -322,12 +327,12 @@ http_server if {
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.http_server"/>
+<RunSnippet files="#input.json" command="data.policy.network.http_server"/>
 
 Or perhaps to find the IDs of ports connected to public networks:
 
 ```rego
-package servers
+package policy.network
 
 exposed_ports contains port.id if {
     some port in input.ports
@@ -337,13 +342,13 @@ exposed_ports contains port.id if {
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.exposed_ports"/>
+<RunSnippet files="#input.json" command="data.policy.network.exposed_ports"/>
 
 Just like references that refer to non-existent fields or expressions that fail to match,
 if OPA is unable to find matches that satisfy all of the expressions, the result is undefined.
 
 ```rego
-package servers
+package policy.network
 
 email_server if {
     some server in input.servers
@@ -352,7 +357,7 @@ email_server if {
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.email_server"/>
+<RunSnippet files="#input.json" command="data.policy.network.email_server"/>
 
 #### FOR SOME and FOR ALL
 
@@ -368,7 +373,7 @@ It introduces new bindings to the evaluation of the rest of the rule body.
 Using `some`, the iteration patterns introduced above can be used to build named rules:
 
 ```rego
-package servers
+package policy.network
 
 public_network contains net.id if {
     some net in input.networks # some network exists and..
@@ -386,7 +391,7 @@ shell_accessible contains server.id if {
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.shell_accessible"/>
+<RunSnippet files="#input.json" command="data.policy.network.shell_accessible"/>
 
 For details on `some ... in ...`, see
 [the documentation of the `in` operator](./docs/policy-language/#membership-and-iteration-in).
@@ -418,7 +423,7 @@ a condition holds for all elements of a domain.
 <RunSnippet id="input2.json" />
 
 ```rego
-package servers
+package policy.network
 
 no_telnet_exposed if {
     every server in input.servers {
@@ -427,7 +432,7 @@ no_telnet_exposed if {
 }
 ```
 
-<RunSnippet files="#input2.json" command="data.servers.no_telnet_exposed"/>
+<RunSnippet files="#input2.json" command="data.policy.network.no_telnet_exposed"/>
 
 Learn more about the [Every Keyword](./docs/policy-language/#every-keyword).
 
@@ -505,12 +510,12 @@ To define constants, omit the rule body. When you omit the rule body it defaults
 to `true`. Since the rule body is true, the rule head is always true/defined.
 
 ```rego
-package servers
+package policy.network
 
 max_allowed_protocols := 5
 ```
 
-<RunSnippet command="data.servers.max_allowed_protocols"/>
+<RunSnippet command="data.policy.network.max_allowed_protocols"/>
 
 Constants defined like this can be queried just like any other values:
 
