@@ -879,6 +879,12 @@ func NumberChecked(s string) (Number, error) {
 	return Number(s), nil
 }
 
+// NumberInRange reports whether s is within the magnitude bound enforced by
+// NumberChecked. Invalid numbers are reported as in range.
+func NumberInRange(s string) bool {
+	return validateNumber(s) != errNumberTooBig
+}
+
 func checkExponent(s string, i int) error {
 	if !smallExponent(s, i) {
 		if err := validateNumber(s); err != nil {

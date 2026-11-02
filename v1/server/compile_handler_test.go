@@ -189,6 +189,58 @@ func TestCompileHandlerTranslationError(t *testing.T) {
 	}
 }
 
+func TestCompileHandlerLucene(t *testing.T) {
+	t.Parallel()
+
+	rego := `package filters
+include if {
+	input.fruits.name in {"apple", "cherry"}
+	input.fruits.price < 12
+}
+`
+	const exp = `(name:("apple" OR "cherry") AND price:{* TO 12})`
+
+	for _, tc := range []struct {
+		note    string
+		accept  string
+		payload map[string]any
+		expBody map[string]any
+	}{
+		{
+			note:    "single target",
+			accept:  "application/vnd.opa.lucene.solr+json",
+			expBody: map[string]any{"result": map[string]any{"query": exp}},
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			payload := map[string]any{
+				"input":    map[string]any{},
+				"unknowns": []string{"input.fruits"},
+			}
+			maps.Copy(payload, tc.payload)
+			jsonData, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatalf("marshal payload: %v", err)
+			}
+			expBody, err := json.Marshal(tc.expBody)
+			if err != nil {
+				t.Fatalf("marshal expected response: %v", err)
+			}
+
+			f := setup(t, rego, nil)
+			req, err := http.NewRequest("POST", "/v1/compile/filters/include", bytes.NewBuffer(jsonData))
+			if err != nil {
+				t.Fatalf("create request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", tc.accept)
+			if err := f.executeRequest(req, http.StatusOK, string(expBody), ignoreMetrics); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestCompileHandlerInvalidMappings(t *testing.T) {
 	t.Parallel()
 
@@ -747,4 +799,92 @@ func evalReq(t testing.TB, path string, payload map[string]any, target string) *
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", target)
 	return req
+}
+
+func TestCompileHandlerLuceneNotInMultitarget(t *testing.T) {
+	payload, err := json.Marshal(map[string]any{
+		"unknowns": []string{"input.fruits"},
+		"options":  map[string]any{"targetDialects": []string{"sql+postgresql", "lucene+solr"}},
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	expBody, err := json.Marshal(map[string]any{
+		"code":    "invalid_parameter",
+		"message": "options.targetDialects: lucene+solr can not be combined with other targets, use its Accept header",
+	})
+	if err != nil {
+		t.Fatalf("marshal expected response: %v", err)
+	}
+
+	f := setup(t, "package filters\ninclude if input.fruits.price < 12\n", nil)
+	req, err := http.NewRequest("POST", "/v1/compile/filters/include", bytes.NewBuffer(payload))
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/vnd.opa.multitarget+json")
+	if err := f.executeRequest(req, http.StatusBadRequest, string(expBody)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCompileHandlerLuceneSchemaAnnotation(t *testing.T) {
+	t.Parallel()
+
+	const schema = `# METADATA
+# scope: package
+# schemas:
+#   - input.fruits.name: {"type": "string"}
+#   - input.fruits.tags: {"type": "array", "items": {"type": "string"}}
+package filters
+`
+	for _, tc := range []struct {
+		note, rule string
+		status     int
+		expBody    map[string]any
+	}{
+		{
+			note:    "declared shapes",
+			rule:    "include if {\n\tinput.fruits.name == \"apple\"\n\t\"fresh\" in input.fruits.tags\n}\n",
+			status:  http.StatusOK,
+			expBody: map[string]any{"result": map[string]any{"query": `(name:"apple" AND tags:"fresh")`}},
+		},
+		{
+			note:   "single value used as an array",
+			rule:   "include if \"apple\" in input.fruits.name\n",
+			status: http.StatusBadRequest,
+			expBody: map[string]any{
+				"code":    "evaluation_error",
+				"message": "error(s) occurred while evaluating query",
+				"errors": []map[string]any{{
+					"code":     "pe_fragment_error",
+					"message":  "input.fruits.name is a single value, not an array: compare it directly, as in `input.fruits.name == \"v\"`: internal.member_2(\"apple\", input.fruits.name)",
+					"location": map[string]any{"file": "filters.rego", "row": 7, "col": 12},
+				}},
+			},
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			payload, err := json.Marshal(map[string]any{"unknowns": []string{"input.fruits"}})
+			if err != nil {
+				t.Fatalf("marshal payload: %v", err)
+			}
+			expBody, err := json.Marshal(tc.expBody)
+			if err != nil {
+				t.Fatalf("marshal expected response: %v", err)
+			}
+
+			f := setup(t, schema+tc.rule, nil)
+			req, err := http.NewRequest("POST", "/v1/compile/filters/include", bytes.NewBuffer(payload))
+			if err != nil {
+				t.Fatalf("create request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", "application/vnd.opa.lucene.solr+json")
+			if err := f.executeRequest(req, tc.status, string(expBody), ignoreMetrics); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }

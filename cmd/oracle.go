@@ -28,6 +28,7 @@ type findDefinitionParams struct {
 	capabilities *capabilitiesFlag
 	v0Compatible bool
 	v1Compatible bool
+	v2Compatible bool
 }
 
 func newFindDefinitionParams() findDefinitionParams {
@@ -41,6 +42,9 @@ func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
 	if p.v0Compatible {
 		return ast.RegoV0
 	}
+	if p.v2Compatible {
+		return ast.RegoV2
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
@@ -49,7 +53,7 @@ func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
 
 func (p *findDefinitionParams) parserOptions() ast.ParserOptions {
 	popts := ast.ParserOptions{Capabilities: p.capabilities.C}
-	if p.v0Compatible || p.v1Compatible {
+	if p.v0Compatible || p.v1Compatible || p.v2Compatible {
 		popts.RegoVersion = p.regoVersion()
 	}
 	return popts
@@ -127,6 +131,7 @@ by the input location.`,
 	addCapabilitiesFlag(findDefinitionCommand.Flags(), findDefinitionParams.capabilities)
 	addV0CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible)
 	addV1CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v1Compatible)
+	addV2CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v2Compatible)
 	oracleCommand.AddCommand(findDefinitionCommand)
 	root.AddCommand(oracleCommand)
 }

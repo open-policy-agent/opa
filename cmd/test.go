@@ -66,6 +66,7 @@ type testCommandParams struct {
 	errOutput    io.Writer
 	v0Compatible bool
 	v1Compatible bool
+	v2Compatible bool
 	varValues    bool
 	parallel     int
 	failOnEmpty  bool
@@ -91,6 +92,9 @@ func (p *testCommandParams) RegoVersion() ast.RegoVersion {
 	// v0 takes precedence over v1
 	if p.v0Compatible {
 		return ast.RegoV0
+	}
+	if p.v2Compatible {
+		return ast.RegoV2
 	}
 	if p.v1Compatible {
 		return ast.RegoV1
@@ -623,6 +627,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
 	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible)
 	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible)
+	addV2CompatibleFlag(testCommand.Flags(), &testParams.v2Compatible)
 
 	root.AddCommand(testCommand)
 }

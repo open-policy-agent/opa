@@ -11,6 +11,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/open-policy-agent/opa/internal/compile"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -30,6 +32,7 @@ type Compile struct {
 	unknowns []*ast.Term // ast.Ref would be slightly more on-the-spot, but we follow what is done in v1/rego to minimise surprises.
 	query    ast.Body
 	mappings map[string]any
+	schema   any
 	metrics  metrics.Metrics
 
 	regoOpts []func(*rego.Rego)
@@ -97,6 +100,14 @@ func MaskRule(rule ast.Ref) CompileOption {
 func Mappings(m map[string]any) CompileOption {
 	return func(c *Compile) {
 		c.mappings = m
+	}
+}
+
+// Schema is the JSON Schema of the document a Lucene filter searches. It tells
+// multi-valued fields (type "array") from single-valued ones. Other targets ignore it.
+func Schema(s any) CompileOption {
+	return func(c *Compile) {
+		c.schema = s
 	}
 }
 
@@ -196,6 +207,10 @@ func (c *Compile) Prepare(ctx context.Context, po ...PrepareOption) (*Prepared, 
 	// constraints
 	c.timer(metrics.CompileEvalConstraints).Start()
 	defer c.timer(metrics.CompileEvalConstraints).Stop()
+	if len(p.compile.targets) > 1 && slices.Contains(p.compile.targets, "lucene") {
+		return nil, errors.New("the lucene target can not be combined with other targets: " +
+			"a comparison with a multi-valued field means something else in each")
+	}
 	constrs := make([]*compile.Constraint, len(p.compile.targets))
 	for i := range p.compile.targets {
 		var err error
@@ -275,6 +290,13 @@ func (f *Filters) One() Filter {
 // Compile does all the steps needed to generate `*compile.Filters` from a
 // prepared state (`*compile.Prepared`).
 func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters, error) {
+	if slices.Contains(p.compile.targets, "lucene") {
+		if docs := p.documents(); len(docs) > 1 {
+			return nil, compile.TranslationErrors(fmt.Errorf(
+				"the lucene target filters one document, got unknowns: %s", strings.Join(util.Map(docs, ast.Ref.String), ", ")))
+		}
+	}
+
 	// mask eval (non-partial)
 	var maskResult map[string]any
 	maskOpts := append(eo,
@@ -309,6 +331,14 @@ func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters
 		return nil, fmt.Errorf("partial eval: %w", err)
 	}
 
+	if len(p.compile.targets) > 0 && p.constraintSet.Supports("multi-valued") {
+		queries, errs := compile.NormalizeMultiValued(pq.Queries, p.document(), p.compile.schema)
+		if errs != nil {
+			return nil, ast.Errors(errs)
+		}
+		pq.Queries = queries
+	}
+
 	if errs := compile.Check(pq, p.constraintSet, p.shorts).ASTErrors(); errs != nil {
 		return nil, ast.Errors(errs)
 	}
@@ -337,10 +367,43 @@ func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters
 				return nil, compile.TranslationErrors(err)
 			}
 			ret.push(target, dialect, sql, maskResult)
+		case "lucene":
+			q, err := compile.QueriesToLucene(pq.Queries, mappings)
+			if err != nil {
+				return nil, compile.TranslationErrors(err)
+			}
+			ret.push(target, dialect, q, maskResult)
 		}
 	}
 
 	return &ret, nil
+}
+
+// document is the unknown that names the document, if there is exactly one.
+func (p *Prepared) document() ast.Ref {
+	if docs := p.documents(); len(docs) == 1 {
+		return docs[0]
+	}
+	return nil
+}
+
+// documents returns the unknowns that name a document, as opposed to those that
+// are a field of one: a short unknown declared through the mappings.
+func (p *Prepared) documents() []ast.Ref {
+	var docs []ast.Ref
+	for _, u := range p.compile.unknowns {
+		ref, ok := u.Value.(ast.Ref)
+		if !ok {
+			continue
+		}
+		if len(ref) == 2 && ref.HasPrefix(ast.InputRootRef) {
+			if name, ok := ref[1].Value.(ast.String); ok && p.shorts.Contains(string(name)) {
+				continue
+			}
+		}
+		docs = append(docs, ref)
+	}
+	return docs
 }
 
 func lookupMappings(mappings map[string]any, target, dialect string) (map[string]any, error) {

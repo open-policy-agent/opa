@@ -28,9 +28,8 @@
 # logs.
 /decision_logs /docs/management-decision-logs
 
-# TODO: Remove after 2026-10-01
-# https://github.com/open-policy-agent/opa/issues/8424
-/docs/management/ /docs/management-introduction
+# security.txt is expected under /.well-known/ (RFC 9116)
+/security.txt /.well-known/security.txt
 
 # renamed along with the error message it documents
 /docs/errors/eval-conflict-error/complete-rules-must-not-produce-multiple-outputs/ /docs/errors/eval-conflict-error/rule-name-produced-conflicting-values/
