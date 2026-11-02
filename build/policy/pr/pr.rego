@@ -16,7 +16,10 @@ non_maintainer_associations := {"FIRST_TIMER", "FIRST_TIME_CONTRIBUTOR", "CONTRI
 # entrypoint: true
 deny contains $"PR description has {length} characters. Please shorten it to {max_description_length} or fewer." if {
 	input.pr.author_association in non_maintainer_associations
+	not _is_dependabot
 
 	length := count(input.pr.body)
 	length > max_description_length
 }
+
+_is_dependabot if input.pr.user.login == "dependabot[bot]"

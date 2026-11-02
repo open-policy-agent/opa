@@ -17,6 +17,12 @@ test_allow_long_description_for_maintainers if {
 	count(pr.deny) == 0 with input as _pull_request(association, _repeat("a", 5000))
 }
 
+test_allow_long_description_for_dependabot if {
+	dependabot := {"pr": {"user": {"login": "dependabot[bot]", "type": "Bot"}}}
+	input_ := object.union(_pull_request("CONTRIBUTOR", _repeat("a", 5000)), dependabot)
+	count(pr.deny) == 0 with input as input_
+}
+
 test_limit_counts_characters_not_bytes if {
 	count(pr.deny) == 0 with input as _pull_request("CONTRIBUTOR", _repeat("é", 1000))
 }
