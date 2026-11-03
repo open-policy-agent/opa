@@ -1,0 +1,48 @@
+name: Issue Policy
+
+on:
+  issues:
+    types:
+    - opened
+    - edited
+    - reopened
+    - labeled
+    - unlabeled
+    - typed
+    - untyped
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  issue-check:
+    name: Issue checks
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Download OPA
+      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
+      with:
+        version: edge
+
+    - name: Run issue policy checks
+      run: |
+        gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" | jq '{issue: .}' > checks_input.json
+        opa eval --bundle build/policy --format json --input checks_input.json 'data.issue.deny' \
+          | jq -r '.result[0].expressions[0].value | sort | map("- " + .) | join("\n")' > deny.md
+        if [ -s deny.md ]; then
+          { printf "Please address the following:\n\n"; cat deny.md; } > comment.md
+          gh issue comment "$ISSUE_NUMBER" --body-file comment.md
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
