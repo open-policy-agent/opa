@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -829,7 +830,10 @@ func (r *Reader) Read() (Bundle, error) {
 	popts := r.ParserOptions()
 	popts.RegoVersion = bundle.RegoVersion(popts.EffectiveRegoVersion())
 
+	// Each module holds what parsing allocates until it's done, so parsing them
+	// all at once holds that for every module at the same time.
 	g := &errgroup.Group{}
+	g.SetLimit(runtime.GOMAXPROCS(0))
 	r.metrics.Timer(metrics.RegoModuleParse).Start()
 
 	for i, mf := range modules {
