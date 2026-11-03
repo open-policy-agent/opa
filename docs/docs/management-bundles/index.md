@@ -357,6 +357,12 @@ fields:
   for overlapping patterns. If a file is not matched by any pattern, the `rego_version` field is used.
   Existing bundle `rego_version` and `file_rego_versions` fields takes precedence to the `--v0-compatible` flag.
 
+- `generated` - An optional `boolean` marking the bundle's policies as generated code, such
+  as rules generated from a policy database. OPA then parses them without source locations,
+  which lowers the memory their compiled form takes. Annotations are kept, but errors, traces
+  and coverage reports no longer point at files and lines, and `opa build` optimizations write
+  the modules back without their comments.
+
 - `roots` - If you expect to load additional data into OPA from outside the
   bundle (e.g., via OPA's HTTP API) you should include a top-level
   `roots` field containing of path prefixes that declare the scope of

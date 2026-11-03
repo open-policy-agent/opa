@@ -205,6 +205,29 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 		updates            []any
 		runtimeRegoVersion ast.RegoVersion
 	}{
+		{
+			note: "generated bundle",
+			updates: []any{
+				activation{
+					bundles: bundles{
+						"bundle1": {
+							{"/.manifest", `{"roots": ["a"], "rego_version": 1, "generated": true}`},
+							{"a/policy.rego", "package a\n\np contains 42"},
+						},
+					},
+					expData: `{
+						"system":{
+							"bundles":{"bundle1":{"etag":"bar","manifest":{"generated":true,"rego_version":1,"revision":"","roots":["a"]}}},
+							"modules":{"bundle1/a/policy.rego":{"generated":true}}
+						}
+					}`,
+				},
+				deactivation{
+					bundles: map[string]struct{}{"bundle1": {}},
+					expData: `{"system":{"bundles":{},"modules":{}}}`,
+				},
+			},
+		},
 		// single v0 bundle
 		{
 			note: "v0 bundle, lazy, read with bundle name",
@@ -5372,4 +5395,41 @@ func FuzzPackageOnly(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestActivate_GeneratedBundle(t *testing.T) {
+	read := func(manifest, policy string) Bundle {
+		files := [][2]string{{"/.manifest", manifest}, {"/a/policy.rego", policy}}
+		return must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+			WithBundleName("a").
+			Read())(t)
+	}
+	policy := "package a\n\n# METADATA\n# title: p\np := 1 # comment\n"
+
+	b := read(`{"roots": ["a"], "generated": true}`, policy)
+	assertGenerated(t, b.Modules[0].Parsed)
+	if plain := read(`{"roots": ["a"]}`, policy); plain.Modules[0].Parsed.Rules[0].Location == nil {
+		t.Fatal("bundle not marked generated parsed without locations")
+	}
+
+	store := mock.New()
+	mustActivate(t, store, &ActivateOpts{
+		Compiler: ast.NewCompiler(),
+		Bundles:  map[string]*Bundle{"a": &b},
+	})
+
+	// Activating another bundle parses a's policy again, from the store.
+	c := ast.NewCompiler()
+	mustActivate(t, store, &ActivateOpts{
+		Compiler: c,
+		Bundles:  map[string]*Bundle{"b": {Manifest: Manifest{Roots: &[]string{"b"}}}},
+	})
+	assertGenerated(t, c.Modules["a/a/policy.rego"])
+}
+
+func assertGenerated(t *testing.T, m *ast.Module) {
+	t.Helper()
+	if m.Package.Location != nil || m.Rules[0].Location != nil || len(m.Comments) == 0 || m.Comments[0].Location != nil {
+		t.Fatalf("locations kept: %#v, %#v, %#v", m.Package.Location, m.Rules[0].Location, m.Comments)
+	}
 }

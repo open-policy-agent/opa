@@ -109,6 +109,12 @@ func TestManifestEqual(t *testing.T) {
 
 	m.FileRegoVersions["*/bar"] = 0
 	assertEqual()
+
+	n.Generated = true
+	assertNotEqual()
+
+	m.Generated = true
+	assertEqual()
 }
 
 func TestBundleRegoVersion(t *testing.T) {
@@ -3265,6 +3271,28 @@ func TestMerge(t *testing.T) {
 		{
 			note:    "empty list",
 			wantErr: errors.New("expected at least one bundle"),
+		},
+		{
+			note: "generated if all are",
+			bundles: []*Bundle{
+				{Manifest: Manifest{Roots: &[]string{"a"}, Generated: true}, Data: map[string]any{}},
+				{Manifest: Manifest{Roots: &[]string{"b"}, Generated: true}, Data: map[string]any{}},
+			},
+			wantBundle: &Bundle{
+				Manifest: Manifest{Roots: &[]string{"a", "b"}, RegoVersion: &expRegoVersion, Generated: true},
+				Data:     map[string]any{},
+			},
+		},
+		{
+			note: "not generated if one isn't",
+			bundles: []*Bundle{
+				{Manifest: Manifest{Roots: &[]string{"a"}, Generated: true}, Data: map[string]any{}},
+				{Manifest: Manifest{Roots: &[]string{"b"}}, Data: map[string]any{}},
+			},
+			wantBundle: &Bundle{
+				Manifest: Manifest{Roots: &[]string{"a", "b"}, RegoVersion: &expRegoVersion},
+				Data:     map[string]any{},
+			},
 		},
 		{
 			note: "no op",

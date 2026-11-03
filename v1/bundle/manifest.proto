@@ -35,6 +35,9 @@ message Manifest {
   // True if `bundle.Manifest.Roots` was non-nil. `repeated string` can't
   // distinguish nil (default to [""]) from explicit-empty (owns no paths).
   bool roots_set = 7;
+
+  // Marks the bundle's policies as generated code.
+  bool generated = 8;
 }
 
 // WasmResolver mirrors `bundle.WasmResolver` in v1/bundle/bundle.go.
