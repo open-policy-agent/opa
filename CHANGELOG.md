@@ -180,7 +180,7 @@ Authored by @srenatus
 - sdk: Convert ND builtins cache so decision log mask rules apply ([#9355](https://github.com/open-policy-agent/opa/issues/9355)) reported and authored by @girishkvs
 - server/types: Skip the extras decode when all top-level keys are known ([#9378](https://github.com/open-policy-agent/opa/pull/9378)) authored by @sspaink
 - server: Create TLS file watcher before returning listeners ([#9420](https://github.com/open-policy-agent/opa/pull/9420)) authored by @sspaink
-- server: Expose compile request body to the authorizer ([#9427](https://github.com/open-policy-agent/opa/pull/9427)) authored by @srenatus
+- server: Expose compile request body to the authorizer ([#9427](https://github.com/open-policy-agent/opa/pull/9427)) authored by @srenatus reported by @dpfkdlemtp
 - server: Expose query API request body to the authorizer ([#9427](https://github.com/open-policy-agent/opa/pull/9427)) authored by @srenatus
 - server: Name not activated bundles in /health?bundles error ([#6713](https://github.com/open-policy-agent/opa/issues/6713)) authored by @sspaink, reported by @ahd3r
 - server: Report size and limit when request body is too large ([#3310](https://github.com/open-policy-agent/opa/issues/3310)) authored by @sspaink, reported by @grosser
