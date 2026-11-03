@@ -61,4 +61,4 @@ jobs:
       with:
         title: "docs: Link Checker Report"
         content-filepath: ./lychee/combined-out.md
-        labels: report, automated issue
+        labels: automated issue
