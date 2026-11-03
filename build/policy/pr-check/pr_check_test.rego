@@ -153,3 +153,19 @@ test_workflow_change_triggers_all_checks if {
 test_proto_only_pr_triggers_go_test if {
 	pr_check.changes.go with input as {"files": example_proto_changelist}
 }
+
+test_pr_check_workflow_change_triggers_all_checks if {
+	files := [{"filename": ".github/workflows/pr-check.yaml"}]
+	pr_check.changes.go with input as {"files": files}
+	pr_check.changes.docs with input as {"files": files}
+}
+
+test_unrelated_workflow_change_only_runs_yaml_checks if {
+	files := [{"filename": ".github/workflows/issue-check.yaml"}]
+	pr_check.changes.yaml with input as {"files": files}
+	not pr_check.changes.go with input as {"files": files}
+	not pr_check.changes.wasm with input as {"files": files}
+	not pr_check.changes.docs with input as {"files": files}
+	not pr_check.changes.rego with input as {"files": files}
+	not pr_check.changes.proto with input as {"files": files}
+}
