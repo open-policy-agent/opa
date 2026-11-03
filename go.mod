@@ -10,7 +10,7 @@ require (
 	github.com/foxcpp/go-mockdns v1.3.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-logr/logr v1.4.4
-	github.com/gobwas/glob v1.0.0
+	github.com/gobwas/glob v1.1.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -49,7 +49,7 @@ require (
 	golang.org/x/term v0.47.0
 	golang.org/x/text v0.43.0
 	golang.org/x/time v0.16.0
-	google.golang.org/grpc v1.84.0
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/ini.v1 v1.67.3
