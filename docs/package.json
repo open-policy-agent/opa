@@ -34,7 +34,7 @@
     "node": ">=24.0.0"
   },
   "devDependencies": {
-    "baseline-browser-mapping": "^2.11.32",
+    "baseline-browser-mapping": "^2.11.33",
     "pagefind": "^1.5.2"
   }
 }
