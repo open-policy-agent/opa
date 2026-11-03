@@ -389,7 +389,7 @@ access.
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
 	addV0CompatibleFlag(evalCommand.Flags(), &params.v0Compatible)
 	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible)
-	addV2CompatibleFlag(evalCommand.Flags(), &params.v2Compatible)
+	addCompatibleFlag(evalCommand.Flags(), &params.v0Compatible, &params.v1Compatible, &params.v2Compatible)
 	addReadAstValuesFromStoreFlag(evalCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
 	root.AddCommand(evalCommand)

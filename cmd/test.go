@@ -627,7 +627,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
 	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible)
 	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible)
-	addV2CompatibleFlag(testCommand.Flags(), &testParams.v2Compatible)
+	addCompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, &testParams.v1Compatible, &testParams.v2Compatible)
 
 	root.AddCommand(testCommand)
 }

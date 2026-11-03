@@ -309,7 +309,7 @@ against ` + brand + ` v0.22.0:
 
 	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible)
 	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible)
-	addV2CompatibleFlag(buildCommand.Flags(), &buildParams.v2Compatible)
+	addCompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible, &buildParams.v1Compatible, &buildParams.v2Compatible)
 
 	root.AddCommand(buildCommand)
 }

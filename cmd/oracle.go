@@ -131,7 +131,7 @@ by the input location.`,
 	addCapabilitiesFlag(findDefinitionCommand.Flags(), findDefinitionParams.capabilities)
 	addV0CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible)
 	addV1CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v1Compatible)
-	addV2CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v2Compatible)
+	addCompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible, &findDefinitionParams.v1Compatible, &findDefinitionParams.v2Compatible)
 	oracleCommand.AddCommand(findDefinitionCommand)
 	root.AddCommand(oracleCommand)
 }

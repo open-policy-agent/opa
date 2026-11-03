@@ -146,7 +146,7 @@ func initParse(root *cobra.Command, _ string) {
 	addOutputFormat(parseCommand.Flags(), configuredParseParams.format)
 	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
 	addV1CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v1Compatible)
-	addV2CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v2Compatible)
+	addCompatibleFlag(parseCommand.Flags(), &configuredParseParams.v0Compatible, &configuredParseParams.v1Compatible, &configuredParseParams.v2Compatible)
 	addV0CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v0Compatible)
 
 	root.AddCommand(parseCommand)

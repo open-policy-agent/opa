@@ -113,7 +113,7 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 	refactorCommand.AddCommand(moveCommand)
 	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible)
 	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible)
-	addV2CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v2Compatible)
+	addCompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible, &moveCommandParams.v1Compatible, &moveCommandParams.v2Compatible)
 	root.AddCommand(refactorCommand)
 }
 

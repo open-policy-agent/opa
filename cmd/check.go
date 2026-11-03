@@ -219,7 +219,7 @@ and exit with a non-zero exit code.`,
 		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
 	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible)
 	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible)
-	addV2CompatibleFlag(checkCommand.Flags(), &checkParams.v2Compatible)
+	addCompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, &checkParams.v1Compatible, &checkParams.v2Compatible)
 
 	root.AddCommand(checkCommand)
 }

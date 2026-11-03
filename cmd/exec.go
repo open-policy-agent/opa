@@ -91,7 +91,7 @@ e.g., ` + executable + ` exec --decision /foo/bar/baz ...
 	execCommand.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
 	addV0CompatibleFlag(execCommand.Flags(), &params.V0Compatible)
 	addV1CompatibleFlag(execCommand.Flags(), &params.V1Compatible)
-	addV2CompatibleFlag(execCommand.Flags(), &params.V2Compatible)
+	addCompatibleFlag(execCommand.Flags(), &params.V0Compatible, &params.V1Compatible, &params.V2Compatible)
 
 	root.AddCommand(execCommand)
 }

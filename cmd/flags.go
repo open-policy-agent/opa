@@ -180,8 +180,30 @@ func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool) {
 	_ = fs.MarkHidden("v1-compatible")
 }
 
-func addV2CompatibleFlag(fs *pflag.FlagSet, v2Compatible *bool) {
-	fs.BoolVar(v2Compatible, "v2-compatible", false, "opt-in to OPA features and behaviors that will be enabled by default in OPA v2.0")
+// compatibleValue implements pflag.Value for --compatible=<version>, setting
+// the bool matching the requested OPA version and clearing the others.
+type compatibleValue struct {
+	v0, v1, v2 *bool
+	version    string
+}
+
+func (c *compatibleValue) String() string { return c.version }
+
+func (*compatibleValue) Type() string { return "string" }
+
+func (c *compatibleValue) Set(s string) error {
+	switch s {
+	case "v0", "v1", "v2":
+		*c.v0, *c.v1, *c.v2 = s == "v0", s == "v1", s == "v2"
+	default:
+		return fmt.Errorf("invalid value %q, must be one of: v0, v1, v2", s)
+	}
+	c.version = s
+	return nil
+}
+
+func addCompatibleFlag(fs *pflag.FlagSet, v0Compatible, v1Compatible, v2Compatible *bool) {
+	fs.Var(&compatibleValue{v0: v0Compatible, v1: v1Compatible, v2: v2Compatible}, "compatible", "opt-in to OPA features and behaviors of the given OPA version, one of: v0, v1, v2 (v2 enables behaviors that will be the default in OPA v2.0)")
 }
 
 func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bool, value bool) {

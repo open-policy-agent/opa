@@ -116,7 +116,7 @@ will load that file and summarize its structure and contents.
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
 	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible)
 	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible)
-	addV2CompatibleFlag(inspectCommand.Flags(), &params.v2Compatible)
+	addCompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, &params.v1Compatible, &params.v2Compatible)
 	root.AddCommand(inspectCommand)
 }
 
