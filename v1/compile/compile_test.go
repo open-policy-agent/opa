@@ -4593,3 +4593,15 @@ p := 7`
 		})
 	}
 }
+
+func TestPruneAnnotationsAndCommentsWithoutLocations(t *testing.T) {
+	mod := ast.MustParseModuleWithOpts("package p\n\n# METADATA\n# title: a\na := 1\n\n# METADATA\n# title: b\nb := 2\n",
+		ast.ParserOptions{ProcessAnnotation: true, DropLocations: true})
+	annotations, comments := pruneAnnotationsAndComments(mod, func(a *ast.Annotations) bool { return a.Title == "a" })
+	if len(annotations) != 1 || annotations[0].Title != "b" {
+		t.Errorf("annotations: %v", annotations)
+	}
+	if len(comments) != len(mod.Comments) {
+		t.Errorf("comments: %v", comments)
+	}
+}

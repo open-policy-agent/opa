@@ -10,6 +10,7 @@ import (
 	"maps"
 	"math/rand"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"weak"
@@ -17,7 +18,7 @@ import (
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 )
 
-func TestAttachRuleAnnotationsMatchesUnsorted(t *testing.T) {
+func TestAttachRuleAnnotationsMatchesByRow(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	for n := range 500 {
 		var sb strings.Builder
@@ -40,22 +41,61 @@ func TestAttachRuleAnnotationsMatchesUnsorted(t *testing.T) {
 		if err != nil {
 			continue // e.g. a document scope above a non-rule
 		}
-		got := map[*Rule][]string{}
-		for _, r := range mod.Rules {
-			for _, a := range r.Annotations {
-				got[r] = append(got[r], a.Title)
+		// Rules out of source order are attached to by row too.
+		for _, shuffle := range []bool{false, true} {
+			if shuffle {
+				rng.Shuffle(len(mod.Rules), func(i, j int) { mod.Rules[i], mod.Rules[j] = mod.Rules[j], mod.Rules[i] })
+				for _, r := range mod.Rules {
+					r.Annotations = nil
+				}
+				attachRuleAnnotations(mod)
 			}
-			r.Annotations = nil
+			got := map[*Rule][]string{}
+			for _, r := range mod.Rules {
+				for _, a := range r.Annotations {
+					got[r] = append(got[r], a.Title)
+				}
+				r.Annotations = nil
+			}
+			attachRuleAnnotationsByRow(mod)
+			for _, r := range mod.Rules {
+				var exp []string
+				for _, a := range r.Annotations {
+					exp = append(exp, a.Title)
+				}
+				if fmt.Sprint(got[r]) != fmt.Sprint(exp) {
+					t.Fatalf("module %d (shuffled %v), rule %v: got %v, want %v\n%s", n, shuffle, r.Head.Ref(), got[r], exp, sb.String())
+				}
+			}
 		}
-		attachRuleAnnotationsUnsorted(mod)
-		for _, r := range mod.Rules {
-			var exp []string
-			for _, a := range r.Annotations {
-				exp = append(exp, a.Title)
+	}
+}
+
+// attachRuleAnnotationsByRow is what attachRuleAnnotations does, by the rows
+// of annotations and rules and in quadratic time.
+func attachRuleAnnotationsByRow(mod *Module) {
+	cpy := make([]*Annotations, len(mod.Annotations))
+	for i, a := range mod.Annotations {
+		cpy[i] = a.Copy(a.node)
+	}
+
+	for _, rule := range mod.Rules {
+		var j int
+		var found bool
+		for i, a := range cpy {
+			if rule.Ref().GroundPrefix().Equal(a.GetTargetPath()) {
+				if a.Scope == annotationScopeDocument {
+					rule.Annotations = append(rule.Annotations, a)
+				} else if a.Scope == annotationScopeRule && rule.Loc().Row > a.Location.Row {
+					j = i
+					found = true
+					rule.Annotations = append(rule.Annotations, a)
+				}
 			}
-			if fmt.Sprint(got[r]) != fmt.Sprint(exp) {
-				t.Fatalf("module %d, rule %v: got %v, want %v\n%s", n, r.Head.Ref(), got[r], exp, sb.String())
-			}
+		}
+
+		if found && j < len(cpy) {
+			cpy = slices.Delete(cpy, j, j+1)
 		}
 	}
 }
@@ -129,21 +169,64 @@ func TestCompileMetadataOfDecodedModule(t *testing.T) {
 	astJSON.SetOptions(opts)
 	t.Cleanup(resetJSONOptions)
 
-	src := "package p\n\n# METADATA\n# title: hello\nallow if {\n\tm := rego.metadata.rule()\n\tm.title == \"hello\"\n}\n"
-	bs, err := json.Marshal(MustParseModule(src))
-	if err != nil {
-		t.Fatal(err)
+	src := "# unrelated\npackage p\n\n# METADATA\n# title: a\na := rego.metadata.rule().title\n\nb := 1\n\n# METADATA\n# title: c\nc := rego.metadata.rule().title\n"
+	tests := []struct {
+		note  string
+		parse func(t *testing.T) *Module
+	}{
+		{
+			note: "decoded from JSON",
+			parse: func(t *testing.T) *Module {
+				bs, err := json.Marshal(MustParseModule(src))
+				if err != nil {
+					t.Fatal(err)
+				}
+				var mod Module
+				if err := json.Unmarshal(bs, &mod); err != nil {
+					t.Fatal(err)
+				}
+				return &mod
+			},
+		},
+		{
+			// as opa build's pruning does
+			note: "comments and rules replaced after parsing",
+			parse: func(*testing.T) *Module {
+				mod := MustParseModule(src)
+				mod.Comments = mod.Comments[1:]
+				mod.Rules[0] = mod.Rules[0].Copy()
+				return mod
+			},
+		},
+		{
+			note:  "parsed without locations",
+			parse: func(*testing.T) *Module { return MustParseModuleWithOpts(src, ParserOptions{DropLocations: true}) },
+		},
+		{
+			note: "parsed without locations, annotations processed",
+			parse: func(*testing.T) *Module {
+				return MustParseModuleWithOpts(src, ParserOptions{DropLocations: true, ProcessAnnotation: true})
+			},
+		},
 	}
-	var mod Module
-	if err := json.Unmarshal(bs, &mod); err != nil {
-		t.Fatal(err)
-	}
-	c := NewCompiler()
-	if c.Compile(map[string]*Module{"p.rego": &mod}); c.Failed() {
-		t.Fatal(c.Errors)
-	}
-	if a := c.Modules["p.rego"].Rules[0].Annotations; len(a) != 1 || a[0].Title != "hello" {
-		t.Fatalf("annotations: %v", a)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			if c.Compile(map[string]*Module{"p.rego": tc.parse(t)}); c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			var got []string
+			for _, r := range c.Modules["p.rego"].Rules {
+				var titles []string
+				for _, a := range r.Annotations {
+					titles = append(titles, a.Title)
+				}
+				got = append(got, r.Head.Name.String()+fmt.Sprint(titles))
+			}
+			if exp := []string{"a[a]", "b[]", "c[c]"}; !slices.Equal(got, exp) {
+				t.Fatalf("got %v, want %v", got, exp)
+			}
+		})
 	}
 }
 

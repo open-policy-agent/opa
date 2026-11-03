@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -344,23 +345,81 @@ func (a *Annotations) toTerm() (*Term, *Error) {
 	return ObjectTerm(items...), nil
 }
 
+// unparsedAnnotation is a METADATA block, not parsed yet, and the statement below it.
+type unparsedAnnotation struct {
+	comments []*Comment
+	node     Node
+}
+
+// recordMetadata finds each METADATA block's statement while rows are known,
+// for attaching annotations after locations are dropped.
+func recordMetadata(mod *Module) {
+	if len(mod.Comments) > 0 && mod.Comments[0].Location == nil {
+		mod.unparsed = []unparsedAnnotation{} // their rows are gone already
+		return
+	}
+	mod.unparsed = make([]unparsedAnnotation, 0, util.Count(IsMetadataComment, mod.Comments...))
+	if cap(mod.unparsed) == 0 {
+		return
+	}
+	next := statementBelow(mod)
+	for b := range metadataBlocks(mod.Comments) {
+		mod.unparsed = append(mod.unparsed, unparsedAnnotation{b, next(b[0].Location.Row)})
+	}
+}
+
 // attachRuleAnnotations gives each rule copies of the document-scoped
 // annotations for its path, and of the rule-scoped ones for its path above it
-// that no earlier rule has claimed. Each rule claims the last of those.
+// that no earlier rule has claimed. Each rule claims the last of those. A
+// rule-scoped annotation counts as above the rule it's attached to.
 func attachRuleAnnotations(mod *Module) {
 	if len(mod.Annotations) == 0 {
 		return
 	}
-	if !slices.IsSortedFunc(mod.Rules, func(x, y *Rule) int { return x.Loc().Row - y.Loc().Row }) {
-		attachRuleAnnotationsUnsorted(mod)
+
+	// An annotation is above a rule by their rows, or, once rows are gone, if the
+	// rule it's attached to comes no later. Doubling lets <= express both.
+	rows := !slices.ContainsFunc(mod.Rules, func(r *Rule) bool { return r.Location == nil })
+	var index map[*Rule]int
+	if !rows {
+		index = make(map[*Rule]int, len(mod.Rules))
+		for i, r := range mod.Rules {
+			index[r] = i
+		}
+	}
+	p := positions{
+		rule: func(r *Rule) int {
+			if rows {
+				return 2 * r.Location.Row
+			}
+			return 2 * index[r]
+		},
+		annotation: func(a *Annotations) (int, bool) {
+			if rows {
+				if a.Location == nil {
+					return 0, false
+				}
+				return 2*a.Location.Row + 1, true
+			}
+			r, ok := a.node.(*Rule)
+			if !ok {
+				return 0, false
+			}
+			i, ok := index[r]
+			return 2 * i, ok
+		},
+	}
+	if !slices.IsSortedFunc(mod.Rules, func(x, y *Rule) int { return cmp.Compare(p.rule(x), p.rule(y)) }) {
+		attachRuleAnnotationsUnsorted(mod, p)
 		return
 	}
 
+	type ruleAnn struct{ idx, at int } // an annotation, and the position of its rule
 	type group struct {
-		doc     []int // document-scoped annotations, by index
-		byRow   []int // rule-scoped annotations, by row
-		next    int   // first entry of byRow not yet above the current rule
-		pending []int // rule-scoped annotations above the current rule, unclaimed, by index
+		doc     []int     // document-scoped annotations, by index
+		byRow   []ruleAnn // rule-scoped annotations, by position
+		next    int       // first entry of byRow not yet above the current rule
+		pending []int     // rule-scoped annotations above the current rule, unclaimed, by index
 	}
 
 	cpy := make([]*Annotations, len(mod.Annotations))
@@ -382,15 +441,15 @@ func attachRuleAnnotations(mod *Module) {
 		}
 		if a.Scope == annotationScopeDocument {
 			g.doc = append(g.doc, i)
-		} else {
-			g.byRow = append(g.byRow, i)
+		} else if at, ok := p.annotation(a); ok { // else claimed by no rule
+			g.byRow = append(g.byRow, ruleAnn{i, at})
 		}
 	}
 	if len(groups) == 0 {
 		return
 	}
 	for _, g := range groups {
-		slices.SortStableFunc(g.byRow, func(x, y int) int { return cpy[x].Location.Row - cpy[y].Location.Row })
+		slices.SortStableFunc(g.byRow, func(x, y ruleAnn) int { return cmp.Compare(x.at, y.at) })
 	}
 
 	for _, rule := range mod.Rules {
@@ -398,9 +457,8 @@ func attachRuleAnnotations(mod *Module) {
 		if g == nil {
 			continue
 		}
-		row := rule.Loc().Row
-		for ; g.next < len(g.byRow) && cpy[g.byRow[g.next]].Location.Row < row; g.next++ {
-			i := g.byRow[g.next]
+		for ; g.next < len(g.byRow) && g.byRow[g.next].at <= p.rule(rule); g.next++ {
+			i := g.byRow[g.next].idx
 			at, _ := slices.BinarySearch(g.pending, i)
 			g.pending = slices.Insert(g.pending, at, i)
 		}
@@ -422,30 +480,33 @@ func attachRuleAnnotations(mod *Module) {
 	}
 }
 
+type positions struct {
+	rule       func(*Rule) int
+	annotation func(*Annotations) (int, bool)
+}
+
 // attachRuleAnnotationsUnsorted does what attachRuleAnnotations does, in
-// quadratic time, for rules not in source order.
-func attachRuleAnnotationsUnsorted(mod *Module) {
+// quadratic time, for rules not in order.
+func attachRuleAnnotationsUnsorted(mod *Module, p positions) {
 	cpy := make([]*Annotations, len(mod.Annotations))
 	for i, a := range mod.Annotations {
 		cpy[i] = a.Copy(a.node)
 	}
-
 	for _, rule := range mod.Rules {
 		var j int
 		var found bool
 		for i, a := range cpy {
-			if rule.Ref().GroundPrefix().Equal(a.GetTargetPath()) {
-				if a.Scope == annotationScopeDocument {
-					rule.Annotations = append(rule.Annotations, a)
-				} else if a.Scope == annotationScopeRule && rule.Loc().Row > a.Location.Row {
-					j = i
-					found = true
-					rule.Annotations = append(rule.Annotations, a)
-				}
+			if !rule.Ref().GroundPrefix().Equal(a.GetTargetPath()) {
+				continue
+			}
+			if a.Scope == annotationScopeDocument {
+				rule.Annotations = append(rule.Annotations, a)
+			} else if at, ok := p.annotation(a); ok && a.Scope == annotationScopeRule && at <= p.rule(rule) {
+				j, found = i, true
+				rule.Annotations = append(rule.Annotations, a)
 			}
 		}
-
-		if found && j < len(cpy) {
+		if found {
 			cpy = slices.Delete(cpy, j, j+1)
 		}
 	}
@@ -455,7 +516,6 @@ func attachAnnotationsNodes(mod *Module) Errors {
 	if len(mod.Annotations) == 0 {
 		return nil
 	}
-	var errs Errors
 	// Find first non-annotation statement following each annotation and attach
 	// the annotation to that statement.
 	next := statementBelow(mod)
@@ -463,7 +523,15 @@ func attachAnnotationsNodes(mod *Module) Errors {
 		if stmt := next(a.Location.Row); stmt != nil {
 			a.node = stmt
 		}
+	}
+	return checkAnnotationScopes(mod)
+}
 
+// checkAnnotationScopes defaults the scopes of attached annotations by their
+// nodes, and checks that they fit.
+func checkAnnotationScopes(mod *Module) Errors {
+	var errs Errors
+	for _, a := range mod.Annotations {
 		if a.Scope == "" {
 			switch a.node.(type) {
 			case *Rule:

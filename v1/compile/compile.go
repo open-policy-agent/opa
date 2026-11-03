@@ -919,8 +919,9 @@ func pruneAnnotationsAndComments(
 
 	var keepComments []*ast.Comment
 	for _, comment := range module.Comments {
-		if slices.ContainsFunc(keepAnnotations, func(a *ast.Annotations) bool {
-			return comment.Location.Row >= a.Location.Row &&
+		// Location-less comments can't be matched to annotations; the formatter drops them anyway.
+		if comment.Location == nil || slices.ContainsFunc(keepAnnotations, func(a *ast.Annotations) bool {
+			return a.Location != nil && comment.Location.Row >= a.Location.Row &&
 				comment.Location.Row <= a.EndLoc().Row
 		}) {
 			keepComments = append(keepComments, comment)

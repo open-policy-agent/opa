@@ -336,6 +336,10 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 			}
 		}
 
+		// Comments without a location have no place to be written at, see writeModule.
+		if c, ok := x.(*ast.Comment); ok && c.Location == nil {
+			return false
+		}
 		if opts.IgnoreLocations || x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
 		}
@@ -548,7 +552,9 @@ func (w *writer) writeModule(module *ast.Module) error {
 	visitor := ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *ast.Comment:
-			comments = append(comments, x)
+			if x.Location != nil {
+				comments = append(comments, x)
+			}
 			return true
 		case *ast.Import, *ast.Rule:
 			others = append(others, x)

@@ -24,6 +24,7 @@ func TestFormatNilLocation(t *testing.T) {
 		note        string
 		regoVersion ast.RegoVersion
 		rule        string
+		module      string // parsed without locations, instead of rule
 		exp         string
 	}{
 		{
@@ -41,14 +42,27 @@ func TestFormatNilLocation(t *testing.T) {
 			exp: `r := y if y = "foo"
 `,
 		},
+		{
+			// Without locations, comments have no place to go.
+			note:        "module without locations",
+			regoVersion: ast.RegoV1,
+			module:      "package test\n\n# METADATA\n# title: p\np := rego.metadata.rule()\n\nq := 1 # q\n",
+			exp:         "package test\n\np := rego.metadata.rule()\n\nq := 1\n",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			rule := ast.MustParseRuleWithOpts(tc.rule, ast.ParserOptions{RegoVersion: tc.regoVersion})
-			rule.Head.Location = nil
+			var x any
+			if tc.module != "" {
+				x = ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{RegoVersion: tc.regoVersion, DropLocations: true})
+			} else {
+				rule := ast.MustParseRuleWithOpts(tc.rule, ast.ParserOptions{RegoVersion: tc.regoVersion})
+				rule.Head.Location = nil
+				x = rule
+			}
 
-			bs, err := AstWithOpts(rule, Opts{RegoVersion: tc.regoVersion})
+			bs, err := AstWithOpts(x, Opts{RegoVersion: tc.regoVersion})
 			if err != nil {
 				t.Fatal(err)
 			}

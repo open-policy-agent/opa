@@ -785,40 +785,26 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 	buf.WriteString(exprText)
 
 	e.localVirtualCacheSnapshot.Iter(func(k, v ast.Value) bool {
-		var info *varInfo
+		var loc *ast.Location
 		switch k := k.(type) {
 		case ast.Ref:
-			info = &varInfo{
-				VarMetadata: VarMetadata{Name: ast.Var(k.String())},
-				val:         v,
-				exprLoc:     k[0].Location,
-				col:         k[0].Location.Col,
-			}
+			loc = k[0].Location
 		case *ast.ArrayComprehension:
-			info = &varInfo{
-				VarMetadata: VarMetadata{Name: ast.Var(k.String())},
-				val:         v,
-				exprLoc:     k.Term.Location,
-				col:         k.Term.Location.Col,
-			}
+			loc = k.Term.Location
 		case *ast.SetComprehension:
-			info = &varInfo{
-				VarMetadata: VarMetadata{Name: ast.Var(k.String())},
-				val:         v,
-				exprLoc:     k.Term.Location,
-				col:         k.Term.Location.Col,
-			}
+			loc = k.Term.Location
 		case *ast.ObjectComprehension:
-			info = &varInfo{
-				VarMetadata: VarMetadata{Name: ast.Var(k.String())},
-				val:         v,
-				exprLoc:     k.Key.Location,
-				col:         k.Key.Location.Col,
-			}
+			loc = k.Key.Location
 		}
 
-		if info != nil {
-			exprVars[info.Title()] = *info
+		if loc != nil {
+			info := varInfo{
+				VarMetadata: VarMetadata{Name: ast.Var(k.String())},
+				val:         v,
+				exprLoc:     loc,
+				col:         loc.Col,
+			}
+			exprVars[info.Title()] = info
 		}
 
 		return false
