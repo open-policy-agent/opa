@@ -22,4 +22,11 @@ deny contains $"PR description has {length} characters. Please shorten it to {ma
 	length > max_description_length
 }
 
+deny contains "PR titles start with pkg/area/topic, (e.g. ast: Fix a bug)" if {
+	not regex.match(`^[^:\s,]+(, [^:\s,]+)*: `, input.pr.title)
+	not _is_release
+}
+
+_is_release if regex.match(`^(Release|Prepare|Integrate) `, input.pr.title)
+
 _is_dependabot if input.pr.user.login == "dependabot[bot]"
