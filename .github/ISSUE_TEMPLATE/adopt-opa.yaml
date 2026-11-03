@@ -1,7 +1,6 @@
 name: Adopt OPA
 description: Let the community know you have adopted OPA.
 title: organization_name has adopted OPA
-labels: "adopt-opa"
 assignees: []
 body:
   - type: markdown
