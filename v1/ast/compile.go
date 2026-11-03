@@ -3492,9 +3492,12 @@ func (c *Compiler) parseMetadataBlocks() {
 		for _, name := range c.sorted {
 			mod := c.Modules[name]
 			if len(mod.Annotations) == 0 {
+				if mod.unparsed == nil { // rows still known
+					recordMetadata(mod)
+				}
 				var errs Errors
-				mod.Annotations, errs = parseAnnotations(mod.Comments)
-				if !c.err(errs...) || !c.err(attachAnnotationsNodes(mod)...) {
+				mod.Annotations, errs = parseMetadataBlocks(len(mod.unparsed), slices.Values(mod.unparsed))
+				if !c.err(errs...) || !c.err(checkAnnotationScopes(mod)...) {
 					return
 				}
 

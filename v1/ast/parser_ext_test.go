@@ -5,6 +5,8 @@
 package ast_test
 
 import (
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -125,4 +127,90 @@ func TestParseBody_DefaultRegoVersion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseModuleDropLocations(t *testing.T) {
+	src := `# METADATA
+# title: pkg
+# schemas:
+#   - input: schema.x
+# compile:
+#   unknowns: [input.doc]
+#   mask_rule: data.test.mask
+package test
+
+import data.foo as bar
+
+# METADATA
+# labels:
+#   id: r1
+p.q[k] contains v if {
+	some k, v in input.xs
+	every x in input.ys { x > 0 }
+	not input.no
+	count([y | y := input.zs[_]]) > 1 with input.zs as [1, 2]
+	{a: b | a := 1; b := 2}
+	{c | c := 1}
+	bar.baz
+}
+
+r := 1 if { false } else := 2
+
+f(x) := x + 1 # comment
+`
+	for _, processAnnotation := range []bool{true, false} {
+		t.Run(fmt.Sprintf("ProcessAnnotation=%v", processAnnotation), func(t *testing.T) {
+			mod, err := ast.ParseModuleWithOpts("test.rego", src, ast.ParserOptions{ProcessAnnotation: processAnnotation, DropLocations: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if path := locationIn(reflect.ValueOf(mod), map[uintptr]bool{}, "mod"); path != "" {
+				t.Errorf("location at %s", path)
+			}
+			if len(mod.Comments) != 11 || string(mod.Comments[10].Text) != " comment" {
+				t.Errorf("comments: %v", mod.Comments)
+			}
+			if processAnnotation && (len(mod.Annotations) != 2 || mod.Rules[0].Annotations[0].Labels["id"] != "r1") {
+				t.Errorf("annotations: %v", mod.Annotations)
+			}
+		})
+	}
+}
+
+func locationIn(v reflect.Value, seen map[uintptr]bool, path string) string {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			return ""
+		}
+		if v.Type() == reflect.TypeFor[*ast.Location]() {
+			return path
+		}
+		if seen[v.Pointer()] {
+			return ""
+		}
+		seen[v.Pointer()] = true
+		return locationIn(v.Elem(), seen, path)
+	case reflect.Interface:
+		return locationIn(v.Elem(), seen, path)
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if p := locationIn(v.Field(i), seen, path+"."+v.Type().Field(i).Name); p != "" {
+				return p
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		for i := range v.Len() {
+			if p := locationIn(v.Index(i), seen, fmt.Sprintf("%s[%d]", path, i)); p != "" {
+				return p
+			}
+		}
+	case reflect.Map:
+		for _, k := range v.MapKeys() {
+			if p := locationIn(v.MapIndex(k), seen, fmt.Sprintf("%s[%v]", path, k)); p != "" {
+				return p
+			}
+		}
+	}
+	return ""
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"net/http"
@@ -2004,21 +2005,70 @@ func TestPartialResultSetsValidConflictChecker(t *testing.T) {
 }
 
 func TestMissingLocation(t *testing.T) {
+	t.Run("programmatic query", func(t *testing.T) {
+		// Create a query programmatically and evaluate it. The Location information
+		// is not set so the resulting expression value will not have it.
+		r := New(ParsedQuery(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))))
+		rs, err := r.Eval(t.Context())
 
-	// Create a query programmatically and evaluate it. The Location information
-	// is not set so the resulting expression value will not have it.
-	r := New(ParsedQuery(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))))
-	rs, err := r.Eval(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		} else if len(rs) == 0 || !rs[0].Expressions[0].Value.(bool) {
+			t.Fatal("Unexpected result set:", rs)
+		}
 
-	if err != nil {
-		t.Fatal(err)
-	} else if len(rs) == 0 || !rs[0].Expressions[0].Value.(bool) {
-		t.Fatal("Unexpected result set:", rs)
-	}
+		if rs[0].Expressions[0].Location != nil {
+			t.Fatal("Expected location data to be unset.")
+		}
+	})
 
-	if rs[0].Expressions[0].Location != nil {
-		t.Fatal("Expected location data to be unset.")
-	}
+	t.Run("module parsed without locations", func(t *testing.T) {
+		mod, err := ast.ParseModuleWithOpts("test.rego", `package test
+
+# METADATA
+# title: r
+r := rego.metadata.rule().title
+
+q := 1
+
+p if {
+	print("q", q)
+	q == 2
+}
+
+conflict := x if some x in [1, 2]
+`, ast.ParserOptions{ProcessAnnotation: true, DropLocations: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ctx := t.Context()
+		var out bytes.Buffer
+		tracer := topdown.NewBufferTracer()
+		eval := func(query string, opts ...func(*Rego)) (ResultSet, error) {
+			return New(append(opts, Query(query), ParsedModule(mod))...).Eval(ctx)
+		}
+
+		if rs, err := eval("data.test.r"); err != nil || len(rs) != 1 || rs[0].Expressions[0].Value != "r" {
+			t.Errorf("r: %v, %v", rs, err)
+		}
+
+		if rs, err := eval("data.test.p", QueryTracer(tracer), EnablePrintStatements(true), PrintHook(topdown.NewPrintHook(&out))); err != nil || len(rs) != 0 {
+			t.Errorf("p: %v, %v", rs, err)
+		}
+		if out.String() != "q 1\n" {
+			t.Errorf("print: %q", out.String())
+		}
+		for _, e := range *tracer {
+			if err := topdown.PrettyEvent(io.Discard, e, topdown.PrettyEventOpts{PrettyVars: true}); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		if _, err := eval("data.test.conflict"); !topdown.IsError(err) {
+			t.Errorf("conflict: %v", err)
+		}
+	})
 }
 
 func TestBundlePassing(t *testing.T) {

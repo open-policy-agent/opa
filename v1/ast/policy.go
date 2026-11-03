@@ -231,6 +231,8 @@ type (
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
 		regoVersion RegoVersionSpan
+		// unparsed holds annotations recorded before locations were dropped; nil means use the rows.
+		unparsed []unparsedAnnotation
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -414,6 +416,11 @@ func (mod *Module) Copy() *Module {
 	cpy.Comments = make([]*Comment, len(mod.Comments))
 	for i := range mod.Comments {
 		cpy.Comments[i] = mod.Comments[i].Copy()
+	}
+
+	cpy.unparsed = slices.Clone(mod.unparsed)
+	for i := range cpy.unparsed {
+		cpy.unparsed[i].node = nodes[cpy.unparsed[i].node]
 	}
 
 	return &cpy
