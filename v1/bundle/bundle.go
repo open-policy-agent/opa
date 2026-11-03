@@ -165,7 +165,9 @@ type Manifest struct {
 	// FileRegoVersions is a map from file paths to Rego versions.
 	// This allows individual files to override the global Rego version specified by RegoVersion.
 	FileRegoVersions map[string]int `json:"file_rego_versions,omitempty"`
-	Metadata         map[string]any `json:"metadata,omitempty"`
+	// Generated marks the bundle's policies as generated code, parsed without locations.
+	Generated bool           `json:"generated,omitempty"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 
 	compiledFileRegoVersions []fileRegoVersion
 }
@@ -211,7 +213,7 @@ func (m Manifest) Equal(other Manifest) bool {
 	m.Init()
 	other.Init()
 
-	if m.Revision != other.Revision {
+	if m.Revision != other.Revision || m.Generated != other.Generated {
 		return false
 	}
 
@@ -528,6 +530,11 @@ type Reader struct {
 	followSymlinks        bool
 }
 
+func generatedParserOptions(popts ast.ParserOptions) ast.ParserOptions {
+	popts.DropLocations = true
+	return popts
+}
+
 // NewReader is deprecated. Use NewCustomReader instead.
 func NewReader(r io.Reader) *Reader {
 	return NewCustomReader(NewTarballLoader(r))
@@ -829,6 +836,9 @@ func (r *Reader) Read() (Bundle, error) {
 	// Parse modules
 	popts := r.ParserOptions()
 	popts.RegoVersion = bundle.RegoVersion(popts.EffectiveRegoVersion())
+	if bundle.Manifest.Generated {
+		popts = generatedParserOptions(popts)
+	}
 
 	// Each module holds what parsing allocates until it's done, so parsing them
 	// all at once holds that for every module at the same time.
@@ -1619,8 +1629,10 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePat
 	)
 
 	result := &Bundle{}
+	result.Manifest.Generated = true
 
 	for _, b := range bundles {
+		result.Manifest.Generated = result.Manifest.Generated && b.Manifest.Generated
 		if b.Manifest.Roots == nil {
 			return nil, errors.New("bundle manifest not initialized")
 		}

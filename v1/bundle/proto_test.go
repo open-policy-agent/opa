@@ -60,6 +60,7 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 		}},
 		RegoVersion:      &regoV1,
 		FileRegoVersions: map[string]int{"a.rego": 1},
+		Generated:        true,
 		Metadata:         map[string]any{"k": "v", "n": float64(7)},
 	}
 
