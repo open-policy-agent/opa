@@ -32,6 +32,33 @@ test_no_deny_when_description_is_empty if {
 	count(pr.deny) == 0 with input as {"pr": {"author_association": "CONTRIBUTOR"}}
 }
 
+test_title_prefix[note] if {
+	some note, tc in {
+		"area prefix": {
+			"title": "ast: Fix a bug",
+			"exp": set(),
+		},
+		"multiple areas": {
+			"title": "ast, topdown: Fix a bug",
+			"exp": set(),
+		},
+		"release": {
+			"title": "Release 1.2.3",
+			"exp": set(),
+		},
+		"no prefix": {
+			"title": "Fix a bug",
+			"exp": {"PR titles start with pkg/area/topic, (e.g. ast: Fix a bug)"},
+		},
+		"no space after comma": {
+			"title": "ast,topdown: Fix a bug",
+			"exp": {"PR titles start with pkg/area/topic, (e.g. ast: Fix a bug)"},
+		},
+	}
+
+	pr.deny == tc.exp with input as {"pr": {"author_association": "OWNER", "title": tc.title}}
+}
+
 test_no_deny_without_pr if {
 	count(pr.deny) == 0 with input as {"event": "push", "files": [{"filename": "a.go"}]}
 }
