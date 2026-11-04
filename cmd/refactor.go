@@ -32,17 +32,7 @@ type moveCommandParams struct {
 }
 
 func (m *moveCommandParams) regoVersion() ast.RegoVersion {
-	// v0 takes precedence over v1
-	if m.v0Compatible {
-		return ast.RegoV0
-	}
-	if m.v2Compatible {
-		return ast.RegoV2
-	}
-	if m.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(m.v0Compatible, m.v1Compatible, m.v2Compatible)
 }
 
 func initRefactor(root *cobra.Command) {
@@ -111,9 +101,7 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 	moveCommand.Flags().BoolVarP(&moveCommandParams.overwrite, "write", "w", false, "overwrite the original source file")
 	addIgnoreFlag(moveCommand.Flags(), &moveCommandParams.ignore)
 	refactorCommand.AddCommand(moveCommand)
-	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible)
-	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible)
-	addV2CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v2Compatible)
+	addCompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible, &moveCommandParams.v1Compatible, &moveCommandParams.v2Compatible)
 	root.AddCommand(refactorCommand)
 }
 

@@ -84,17 +84,7 @@ func newBuildParams() buildParams {
 }
 
 func (p *buildParams) regoVersion() ast.RegoVersion {
-	if p.v0Compatible {
-		// v0 takes precedence over v1
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func initBuild(root *cobra.Command, brand string) {
@@ -307,9 +297,7 @@ against ` + brand + ` v0.22.0:
 	addSigningPluginFlag(buildCommand.Flags(), &buildParams.plugin)
 	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
 
-	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible)
-	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible)
-	addV2CompatibleFlag(buildCommand.Flags(), &buildParams.v2Compatible)
+	addCompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible, &buildParams.v1Compatible, &buildParams.v2Compatible)
 
 	root.AddCommand(buildCommand)
 }

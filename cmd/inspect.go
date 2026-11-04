@@ -43,16 +43,7 @@ type inspectCommandParams struct {
 }
 
 func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func newInspectCommandParams() inspectCommandParams {
@@ -114,9 +105,7 @@ will load that file and summarize its structure and contents.
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
-	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible)
-	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible)
-	addV2CompatibleFlag(inspectCommand.Flags(), &params.v2Compatible)
+	addCompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, &params.v1Compatible, &params.v2Compatible)
 	root.AddCommand(inspectCommand)
 }
 

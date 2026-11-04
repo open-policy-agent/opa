@@ -49,17 +49,7 @@ func (p *checkParams) regoVersion() ast.RegoVersion {
 	if p.regoV1 {
 		return ast.RegoV0CompatV1
 	}
-	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func checkModules(params checkParams, args []string) error {
@@ -217,9 +207,7 @@ and exit with a non-zero exit code.`,
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
 	addRegoV0V1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
 		"check for Rego v0 and v1 compatibility (policies must be compatible with both Rego versions)")
-	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible)
-	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible)
-	addV2CompatibleFlag(checkCommand.Flags(), &checkParams.v2Compatible)
+	addCompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, &checkParams.v1Compatible, &checkParams.v2Compatible)
 
 	root.AddCommand(checkCommand)
 }
