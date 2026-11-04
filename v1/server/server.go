@@ -31,6 +31,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/open-policy-agent/opa/internal/json/patch"
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
@@ -1058,7 +1059,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 
 	input, goInput, err := readInputV0(r)
 	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, fmt.Errorf("unexpected parse error for input: %w", err))
+		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, fmt.Errorf("unexpected parse error for input: %w", err))
 		return
 	}
 
@@ -1391,7 +1392,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 
 	req, err := readRequest(r, compileRequestFromMap)
 	if err != nil {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+		writer.Error(w, bodylimit.ErrorStatus(r.Context(), err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 
@@ -1650,7 +1651,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Start()
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
 		return
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -1717,7 +1718,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	parsed, err := readInputPostV1(r)
 	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -1938,7 +1939,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoInputParse).Start()
 	var value any
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
 		return
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -2196,7 +2197,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -2369,7 +2370,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 
 	request, err := readRequest(r, queryRequestFromMap)
 	if err != nil {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+		writer.Error(w, bodylimit.ErrorStatus(r.Context(), err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 	qStr := request.Query

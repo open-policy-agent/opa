@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
+	"github.com/open-policy-agent/opa/v1/ast"
 	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 	"github.com/open-policy-agent/opa/v1/server/authorizer"
@@ -102,7 +104,13 @@ func (s *Server) decodingLimitsMiddleware(ctx context.Context) (middleware, erro
 	}
 
 	return func(next http.Handler) http.Handler {
-		return handlers.DecodingLimitsHandler(next, *config.MaxLength, *config.Gzip.MaxLength)
+		handler := handlers.DecodingLimitsHandler(next, *config.MaxLength, *config.Gzip.MaxLength)
+		if s.manager.ParserOptions().RegoVersion != ast.RegoV2 {
+			return handler
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler.ServeHTTP(w, r.WithContext(bodylimit.WithV2Compatibility(r.Context())))
+		})
 	}, nil
 }
 

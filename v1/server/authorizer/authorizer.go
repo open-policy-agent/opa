@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/server/identifier"
@@ -109,7 +110,7 @@ func (b *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// conversions.
 	r, input, err := makeInput(r, b.urlPathExpectsBodyFunc)
 	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
 		return
 	}
 

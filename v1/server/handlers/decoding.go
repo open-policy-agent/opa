@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
 	"github.com/open-policy-agent/opa/v1/server/types"
 	"github.com/open-policy-agent/opa/v1/server/writer"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -25,7 +26,7 @@ func DecodingLimitsHandler(handler http.Handler, maxLength, gzipMaxLength int64)
 		// requests, since those should report a ContentLength of -1.
 		if r.ContentLength > maxLength {
 			err := &util.BodyTooLargeError{Limit: maxLength, Size: r.ContentLength}
-			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+			writer.Error(w, bodylimit.ErrorStatus(r.Context(), err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 			return
 		}
 		// For requests where full size is not known in advance (such as chunked

@@ -1083,6 +1083,10 @@ The `server` configuration sets:
   The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
 - buckets for `http_request_duration_seconds` histogram
 
+Requests that exceed a body-size limit return HTTP 400 by default. When v2
+compatibility is enabled (`--v2-compatible`), they return HTTP 413; the error
+response body is unchanged.
+
 | Field                                                       | Type        | Required                                                                 | Description                                                                                                                                                                                                                          |
 | ----------------------------------------------------------- | ----------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `server.decoding.max_length`                                | `int`       | No, (default: 268435456)                                                 | Specifies the maximum allowed number of bytes to read from a request body.                                                                                                                                                           |
