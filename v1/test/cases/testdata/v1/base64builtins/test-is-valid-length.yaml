@@ -1,0 +1,11 @@
+---
+cases:
+  - note: "base64builtins/base64 is_valid unpadded input of invalid length"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := base64.is_valid("abc")
+    want_result:
+      - x: false

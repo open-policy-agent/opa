@@ -1,0 +1,58 @@
+---
+cases:
+  - note: "aggregates/max: empty array is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := max([])
+    want_result: []
+  - note: "aggregates/max: empty set is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := max(set())
+    want_result: []
+  - note: "aggregates/min: empty array is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := min([])
+    want_result: []
+  - note: "aggregates/min: empty set is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := min(set())
+    want_result: []
+  - note: "aggregates/max: undefined in an array literal makes the array undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [max([])]
+    want_result: []
+  - note: "aggregates/min: undefined in an object literal makes the object undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {"a": min([])}
+    want_result: []
+  - note: "aggregates/max: undefined as a call argument makes the call undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := count([max([])])
+    want_result: []

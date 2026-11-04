@@ -8,3 +8,6 @@
 "aggregates/sum integer fast-path overflow (elements fit int64, sum does not)": "WASM cannot represent integers larger than 64 bits (see https://github.com/open-policy-agent/opa/issues/3711); this change fixes the Go topdown builtin."
 "jsonbuiltins/unmarshal number beyond the supported exponent is undefined": "WASM parses JSON natively and does not apply the exponent limit of the Go topdown json.unmarshal."
 "jsonbuiltins/unmarshal number with too big an exponent is undefined": "WASM parses JSON natively and does not apply the exponent limit of the Go topdown json.unmarshal."
+"strings/indexof: empty search string is an error": "WASM indexof returns 0 for an empty search string; the Go topdown builtin raises an error."
+"strings/indexof: empty search string in the empty string is an error": "WASM indexof returns 0 for an empty search string; the Go topdown builtin raises an error."
+"base64builtins/base64 is_valid unpadded input of invalid length": "WASM base64.is_valid accepts the unpadded input \"abc\"; the Go topdown builtin rejects it."
