@@ -718,7 +718,7 @@ func NewVariadicFunction(args []Type, varargs Type, result Type) *Function {
 
 // FuncArgs returns the function's arguments.
 func (t *Function) FuncArgs() FuncArgs {
-	return FuncArgs{Args: t.Args(), Variadic: unwrap(t.variadic)}
+	return FuncArgs{Args: util.Map(t.args, unwrap), Variadic: unwrap(t.variadic)}
 }
 
 // NamedFuncArgs returns the function's arguments, with a name and
@@ -729,7 +729,7 @@ func (t *Function) NamedFuncArgs() FuncArgs {
 
 // Args returns the function's arguments as a slice, ignoring variadic arguments.
 //
-// Deprecated: Use FuncArgs instead.
+// Deprecated: Use [*Function.FuncArgs] instead.
 func (t *Function) Args() []Type {
 	return util.Map(t.args, unwrap)
 }

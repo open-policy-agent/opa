@@ -63,11 +63,15 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 			}
 		}
 	case ast.Object:
-		for _, k := range v.Keys() {
-			if err := walk(filter, pathAppend(path, k), v.Get(k), iter); err != nil {
+		ki := ast.BorrowKeysIterator(v)
+		defer ast.ReturnKeysIterator(ki)
+
+		for key, more := ki.Next(); more; key, more = ki.Next() {
+			if err := walk(filter, pathAppend(path, key), v.Get(key), iter); err != nil {
 				return err
 			}
 		}
+		return nil
 	case ast.Set:
 		for _, elem := range v.Slice() {
 			if err := walk(filter, pathAppend(path, elem), elem, iter); err != nil {
@@ -94,12 +98,16 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 
 	switch v := value.(type) {
 	case ast.Object:
-		for _, k := range v.Keys() {
-			inputArray.Set(1, v.Get(k))
+		ki := ast.BorrowKeysIterator(v)
+		defer ast.ReturnKeysIterator(ki)
+
+		for key, more := ki.Next(); more; key, more = ki.Next() {
+			inputArray.Set(1, v.Get(key))
 			if err := walkNoPath(input, iter); err != nil {
 				return err
 			}
 		}
+		return nil
 	case *ast.Array:
 		for i := range v.Len() {
 			inputArray.Set(1, v.Elem(i))
@@ -150,11 +158,10 @@ func pathIsWildcard(operands []*ast.Term) bool {
 }
 
 func copyShallow(arr *ast.Array) *ast.Array {
-	cpy := make([]*ast.Term, 0, arr.Len())
-
-	arr.Foreach(func(elem *ast.Term) {
-		cpy = append(cpy, elem)
-	})
+	cpy := make([]*ast.Term, arr.Len())
+	for i := range arr.Len() {
+		cpy[i] = arr.Elem(i)
+	}
 
 	return ast.NewArray(cpy...)
 }

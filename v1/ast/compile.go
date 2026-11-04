@@ -6625,9 +6625,9 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 	return &localVarGenerator{exclude: vis.vars, suffix: LocalVarPrefix}
 }
 
-func newLocalVarGenerator(suffix string, node any) *localVarGenerator {
+func newLocalVarGenerator(suffix string, node Body) *localVarGenerator {
 	vis := NewVarVisitor()
-	vis.Walk(node)
+	vis.WalkBody(node)
 	return &localVarGenerator{exclude: vis.vars, suffix: LocalVarPrefix + suffix}
 }
 
@@ -6872,7 +6872,7 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		cpy := *term
 		cpy.Value = Call(resolveRefsInTermSlice(globals, ignore, v))
 		return &cpy
-	case Set:
+	case *set:
 		cpy := *term
 		cpy.Value, _ = v.Map(func(e *Term) (*Term, error) {
 			return resolveRefsInTerm(globals, ignore, e), nil
@@ -7254,7 +7254,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		}
 		return result, term
 	case *object:
-		cpy := NewObject()
+		cpy := NewObjectWithCapacity(v.Len())
 		v.Foreach(func(key, value *Term) {
 			result, key = rewriteDynamicsOne(original, f, key, result)
 			result, value = rewriteDynamicsOne(original, f, value, result)
@@ -7468,7 +7468,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 			return expandedKey, expandedValue, nil
 		})
 		output = NewTerm(cpy).SetLocation(term.Location)
-	case Set:
+	case *set:
 		cpy, _ := v.Map(func(x *Term) (*Term, error) {
 			extras, expanded := expandExprTerm(gen, x)
 			support = append(support, extras...)

@@ -2591,11 +2591,11 @@ func (obj *object) Diff(other Object) Object {
 // as the last two terms in the triplet (respectively).
 func (obj *object) Intersect(other Object) [][3]*Term {
 	r := [][3]*Term{}
-	obj.Foreach(func(k, v *Term) {
-		if v2 := other.Get(k); v2 != nil {
-			r = append(r, [3]*Term{k, v, v2})
+	for _, node := range obj.sortedKeys() {
+		if v2 := other.Get(node.key); v2 != nil {
+			r = append(r, [3]*Term{node.key, node.value, v2})
 		}
-	})
+	}
 	return r
 }
 
@@ -2709,12 +2709,17 @@ func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (
 		return nil, false
 	}
 
+	// Forcing concrete type here avoids function
+	// literal escaping to heap in Foreach call below.
+	otherImp := objectFromObject(other)
+
 	// Copy in any values from other for keys that don't exist in obj
-	other.Foreach(func(k, v *Term) {
+	otherImp.Foreach(func(k, v *Term) {
 		if v2 := obj.Get(k); v2 == nil {
 			result.insert(k, v, false)
 		}
 	})
+
 	return result, true
 }
 
@@ -2762,8 +2767,8 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 			curr.value = v
 			obj.elems[hash] = curr
 			obj.hash = 0
-			for ehash := range obj.elems {
-				obj.hash += ehash + obj.elems[ehash].value.Hash()
+			for ehash, elem := range obj.elems {
+				obj.hash += ehash + elem.value.Hash()
 			}
 
 			return
@@ -2819,11 +2824,11 @@ func filterObject(o Value, filter Value) (Value, error) {
 			}
 		}
 		return NewArray(values...), nil
-	case Set:
+	case *set:
 		terms := make([]*Term, 0, v.Len())
 		for _, t := range v.Slice() {
-			if filteredObj.Get(t) != nil {
-				filteredValue, err := filterObject(t.Value, filteredObj.Get(t).Value)
+			if vt := filteredObj.Get(t); vt != nil {
+				filteredValue, err := filterObject(t.Value, vt.Value)
 				if err != nil {
 					return nil, err
 				}
@@ -2872,11 +2877,7 @@ type objectKeysIterator struct {
 }
 
 func newobjectKeysIterator(o *object) ObjectKeysIterator {
-	return &objectKeysIterator{
-		obj:     o,
-		numKeys: o.Len(),
-		index:   0,
-	}
+	return &objectKeysIterator{obj: o, numKeys: o.Len()}
 }
 
 func (oki *objectKeysIterator) Next() (*Term, bool) {
@@ -2887,6 +2888,10 @@ func (oki *objectKeysIterator) Next() (*Term, bool) {
 	return oki.obj.sortedKeys()[oki.index-1].key, true
 }
 
+func (oki *objectKeysIterator) Reset() {
+	oki.obj, oki.numKeys, oki.index = nil, 0, 0
+}
+
 // ArrayComprehension represents an array comprehension as defined in the language.
 type ArrayComprehension struct {
 	Term *Term `json:"term"`
@@ -2895,12 +2900,10 @@ type ArrayComprehension struct {
 
 // ArrayComprehensionTerm creates a new Term with an ArrayComprehension value.
 func ArrayComprehensionTerm(term *Term, body Body) *Term {
-	return &Term{
-		Value: &ArrayComprehension{
-			Term: term,
-			Body: body,
-		},
-	}
+	return &Term{Value: &ArrayComprehension{
+		Term: term,
+		Body: body,
+	}}
 }
 
 // Copy returns a deep copy of ac.

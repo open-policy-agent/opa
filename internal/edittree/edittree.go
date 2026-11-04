@@ -818,12 +818,16 @@ func (e *EditTree) Render() *ast.Term {
 		}
 		skipKeys := ast.NewSet(skipKeysList...)
 		// Copy over all keys that weren't deleted/modified.
-		x.Foreach(func(k, v *ast.Term) {
-			if skipKeys.Contains(k) {
-				return
+		ki := ast.BorrowKeysIterator(x)
+
+		for key, more := ki.Next(); more; key, more = ki.Next() {
+			if !skipKeys.Contains(key) {
+				out = append(out, [2]*ast.Term{key, x.Get(key)})
 			}
-			out = append(out, [2]*ast.Term{k, v})
-		})
+		}
+
+		ast.ReturnKeysIterator(ki)
+
 		return ast.ObjectTerm(out...)
 	case ast.Set:
 		// Early exit if no modifications.
@@ -856,10 +860,9 @@ func (e *EditTree) Render() *ast.Term {
 		skipKeys := ast.NewSet(skipKeysList...)
 		// Copy over all keys that weren't deleted/modified.
 		x.Foreach(func(key *ast.Term) {
-			if skipKeys.Contains(key) {
-				return
+			if !skipKeys.Contains(key) {
+				out = append(out, key)
 			}
-			out = append(out, key)
 		})
 		return ast.SetTerm(out...)
 	case *ast.Array:

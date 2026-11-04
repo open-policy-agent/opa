@@ -425,15 +425,11 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		for i := range x {
 			tv.walk(x[i], visit)
 		}
-	case *object:
-		for _, node := range x.sortedKeys() {
+	case Object:
+		obj := objectFromObject(x)
+		for _, node := range obj.sortedKeys() {
 			tv.walk(node.key, visit)
 			tv.walk(node.value, visit)
-		}
-	case Object:
-		for _, k := range x.Keys() {
-			tv.walk(k, visit)
-			tv.walk(x.Get(k), visit)
 		}
 	case *Array:
 		for i := range x.Len() {
@@ -570,15 +566,11 @@ func (vis *GenericVisitor) Walk(x any) {
 		for i := range x {
 			vis.Walk(x[i])
 		}
-	case *object:
-		for _, node := range x.sortedKeys() {
-			vis.Walk(node.key)
-			vis.Walk(node.value)
-		}
 	case Object:
-		for _, k := range x.Keys() {
-			vis.Walk(k)
-			vis.Walk(x.Get(k))
+		obj := objectFromObject(x)
+		for _, e := range obj.sortedKeys() {
+			vis.Walk(e.key)
+			vis.Walk(e.value)
 		}
 	case *Array:
 		for i := range x.Len() {
@@ -713,16 +705,12 @@ func (vis *BeforeAfterVisitor) Walk(x any) {
 		for i := range x {
 			vis.Walk(x[i])
 		}
-	case *object:
-		x.Foreach(func(k, _ *Term) {
-			vis.Walk(k)
-			vis.Walk(x.Get(k))
-		})
 	case Object:
-		x.Foreach(func(k, _ *Term) {
-			vis.Walk(k)
-			vis.Walk(x.Get(k))
-		})
+		obj := objectFromObject(x)
+		for _, e := range obj.sortedKeys() {
+			vis.Walk(e.key)
+			vis.Walk(e.value)
+		}
 	case *Array:
 		x.Foreach(func(t *Term) {
 			vis.Walk(t)
@@ -823,17 +811,11 @@ func (vis *VarVisitor) Vars() VarSet {
 // the visitor will _skip_ that branch of the AST
 func (vis *VarVisitor) visit(v any) bool {
 	if vis.params.SkipObjectKeys {
-		if o, ok := v.(*object); ok {
-			// doesn't allocate / escape
-			for _, node := range o.sortedKeys() {
-				vis.Walk(node.value)
+		if oi, ok := v.(Object); ok {
+			obj := objectFromObject(oi)
+			for _, e := range obj.sortedKeys() {
+				vis.Walk(e.value)
 			}
-			return true
-		}
-		if o, ok := v.(Object); ok {
-			o.Foreach(func(_, v *Term) {
-				vis.Walk(v)
-			})
 			return true
 		}
 	}
