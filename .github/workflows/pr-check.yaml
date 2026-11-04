@@ -1,10 +1,15 @@
 name: PR Policy
 
-# This is an extra workflow that also runs on "edited". It catches fixes to
-# errors in the PR description.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
+  pull_request_target: # zizmor: ignore[dangerous-triggers] Needed to comment on fork PRs. See the checkout step.
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - edited
+    - labeled
+    - unlabeled
+    - ready_for_review
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -12,7 +17,7 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   pr-check:
@@ -22,6 +27,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        # This must always be main. This trigger has a write token and runs for fork PRs.
+        # Never check out the PR head or run anything from the PR here. Only read the PR
+        # through the API.
+        # https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target
+        ref: main
         persist-credentials: false
 
     - name: Download OPA
@@ -31,8 +41,20 @@ jobs:
 
     - name: Run PR policy checks
       run: |
+        # Delete all earlier bot comments first. This stops duplicates and clears stale ones.
+        gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+          --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- pr-policy -->"))) | .id' \
+          | xargs -r -I{} gh api -X DELETE "repos/${GITHUB_REPOSITORY}/issues/comments/{}" \
+          || echo "::warning::Could not delete earlier comments"
         build/gen-checks-input.sh "$EVENT_NAME" "$PR_NUMBER" checks_input.json
-        opa eval --bundle build/policy --format values --input checks_input.json --fail-defined 'data.pr.deny[message]'
+        opa eval --bundle build/policy --format json --input checks_input.json 'data.pr.deny' \
+          | jq -r '.result[0].expressions[0].value | if length == 0 then empty else sort | map("- " + .) | join("\n") end' > deny.md
+        if [ -s deny.md ]; then
+          { printf "<!-- pr-policy -->\nPlease address the following:\n\n"; cat deny.md; } > comment.md
+          cat comment.md
+          gh pr comment "$PR_NUMBER" --body-file comment.md || echo "::warning::Could not post a comment"
+          exit 1
+        fi
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         EVENT_NAME: ${{ github.event_name }}
