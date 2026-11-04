@@ -54,17 +54,7 @@ func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
 	if p.regoV1 {
 		return ast.RegoV0CompatV1
 	}
-	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 // parserOptions returns the options for parsing the source to format.
@@ -352,8 +342,6 @@ different Rego versions:
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
 	addRegoV0V1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v0 and v1")
-	addV0CompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible)
-	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible)
 	addCompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible, &fmtParams.v1Compatible, &fmtParams.v2Compatible)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed")
 	formatCommand.Flags().BoolVar(&fmtParams.dropV0Imports, "drop-v0-imports", false, "drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'")

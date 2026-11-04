@@ -89,17 +89,7 @@ func newTestCommandParams() testCommandParams {
 }
 
 func (p *testCommandParams) RegoVersion() ast.RegoVersion {
-	// v0 takes precedence over v1
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func opaTest(args []string, testParams testCommandParams) int {
@@ -625,8 +615,6 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
-	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible)
-	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible)
 	addCompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, &testParams.v1Compatible, &testParams.v2Compatible)
 
 	root.AddCommand(testCommand)

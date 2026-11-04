@@ -31,17 +31,7 @@ type parseParams struct {
 }
 
 func (p *parseParams) regoVersion() ast.RegoVersion {
-	// the '--v0--compatible' flag takes precedence over the '--v1-compatible' flag
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 var configuredParseParams = parseParams{
@@ -145,9 +135,7 @@ func initParse(root *cobra.Command, _ string) {
 
 	addOutputFormat(parseCommand.Flags(), configuredParseParams.format)
 	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
-	addV1CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v1Compatible)
 	addCompatibleFlag(parseCommand.Flags(), &configuredParseParams.v0Compatible, &configuredParseParams.v1Compatible, &configuredParseParams.v2Compatible)
-	addV0CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v0Compatible)
 
 	root.AddCommand(parseCommand)
 }

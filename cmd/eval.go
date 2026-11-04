@@ -89,14 +89,7 @@ type evalCommandParams struct {
 }
 
 func (p *evalCommandParams) regoVersion() ast.RegoVersion {
-	if p.v0Compatible {
-		return ast.RegoV0
-	} else if p.v2Compatible {
-		return ast.RegoV2
-	} else if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -387,8 +380,6 @@ access.
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
-	addV0CompatibleFlag(evalCommand.Flags(), &params.v0Compatible)
-	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible)
 	addCompatibleFlag(evalCommand.Flags(), &params.v0Compatible, &params.v1Compatible, &params.v2Compatible)
 	addReadAstValuesFromStoreFlag(evalCommand.Flags(), &params.ReadAstValuesFromStore, false)
 

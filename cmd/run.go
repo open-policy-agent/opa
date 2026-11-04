@@ -246,8 +246,6 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
 	runCommand.Flags().BoolVar(&cmdParams.rt.WatchConfig, "watch-config", false, "watch the configuration file for changes and restart to apply them")
-	addV0CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible)
-	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible)
 	addCompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible, &cmdParams.rt.V1Compatible, &cmdParams.rt.V2Compatible)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
 	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")

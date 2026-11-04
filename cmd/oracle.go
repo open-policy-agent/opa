@@ -38,17 +38,7 @@ func newFindDefinitionParams() findDefinitionParams {
 }
 
 func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
-	// v0 takes precedence over v1
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v2Compatible {
-		return ast.RegoV2
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func (p *findDefinitionParams) parserOptions() ast.ParserOptions {
@@ -129,8 +119,6 @@ by the input location.`,
 	findDefinitionCommand.Flags().BoolVarP(&findDefinitionParams.stdinBuffer, "stdin-buffer", "", false, "read buffer from stdin")
 	addBundleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.bundlePaths)
 	addCapabilitiesFlag(findDefinitionCommand.Flags(), findDefinitionParams.capabilities)
-	addV0CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible)
-	addV1CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v1Compatible)
 	addCompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible, &findDefinitionParams.v1Compatible, &findDefinitionParams.v2Compatible)
 	oracleCommand.AddCommand(findDefinitionCommand)
 	root.AddCommand(oracleCommand)
