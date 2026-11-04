@@ -110,9 +110,10 @@ func BenchmarkAciTestBuildAndEval(b *testing.B) {
 }
 
 // BenchmarkAciTestOnlyEval-10    12752    92188 ns/op   50005 B/op    1062 allocs/op
-// BenchmarkAciTestOnlyEval-10    13521	   86647 ns/op   47448 B/op     967 allocs/op // ground-aware Copy
-// BenchmarkAciTestOnlyEval-16    24430	   48475 ns/op   32337 B/op     781 allocs/op
+// BenchmarkAciTestOnlyEval-10    13521    86647 ns/op   47448 B/op     967 allocs/op // ground-aware Copy
+// BenchmarkAciTestOnlyEval-16    24430    48475 ns/op   32337 B/op     781 allocs/op
 // BenchmarkAciTestOnlyEval-16    24780    47997 ns/op   32241 B/op     770 allocs/op // reuse tr.unordered
+// BenchmarkAciTestOnlyEval-16    29727    40451 ns/op   25115 B/op     542 allocs/op
 func BenchmarkAciTestOnlyEval(b *testing.B) {
 	ctx := b.Context()
 

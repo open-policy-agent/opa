@@ -807,3 +807,17 @@ func TestCompareAnnotations(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkValueEqualScalars(b *testing.B) {
+	x, y := InternedTerm(499), InternedTerm(499)
+	s1, s2 := InternedTerm("some string not too short"), InternedTerm("some string not too short")
+	var v1 Value = Var("__local2304__")
+	var v2 Value = Var("__local2304__")
+	for b.Loop() {
+		_ = ValueEqual(x.Value, y.Value)
+		_ = ValueEqual(s1.Value, s2.Value)
+		_ = ValueEqual(s1.Value, y.Value)
+		_ = ValueEqual(v1, v2)
+		_ = ValueEqual(v1, x.Value)
+	}
+}
