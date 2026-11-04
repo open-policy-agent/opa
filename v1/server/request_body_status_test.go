@@ -43,32 +43,39 @@ func TestRequestBodyLimitStatus(t *testing.T) {
 		cases = append(cases, requestCase{name: endpoint.method + " " + endpoint.path, method: endpoint.method, path: endpoint.path, body: oversized, chunked: true, tooLarge: true})
 	}
 	for _, authz := range []bool{false, true} {
+		versions := []ast.RegoVersion{ast.RegoUndefined, ast.RegoV0, ast.RegoV1, ast.RegoV2}
+		servers := map[ast.RegoVersion]*Server{}
+		// Initialize all modes before serving requests to catch shared compatibility state.
+		for _, version := range versions {
+			ctx := t.Context()
+			store := inmem.New()
+			if err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+				return store.UpsertPolicy(ctx, txn, "authz", []byte("package system.authz\nimport rego.v1\nallow := true"))
+			}); err != nil {
+				t.Fatal(err)
+			}
+			manager, err := plugins.New([]byte(`{"server":{"decoding":{"max_length":64,"gzip":{"max_length":64}}}}`), "test", store,
+				plugins.WithParserOptions(ast.ParserOptions{RegoVersion: version}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := manager.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { manager.Stop(ctx) })
+			srv := New().WithStore(store).WithManager(manager)
+			if authz {
+				srv.WithAuthorization(AuthorizationBasic)
+			}
+			if _, err := srv.Init(ctx); err != nil {
+				t.Fatal(err)
+			}
+			servers[version] = srv
+		}
 		bodies := map[string]string{}
-		for _, version := range []ast.RegoVersion{ast.RegoUndefined, ast.RegoV0, ast.RegoV1, ast.RegoV2} {
+		for _, version := range versions {
 			t.Run(fmt.Sprintf("%s/authorization=%t", version, authz), func(t *testing.T) {
-				ctx := t.Context()
-				store := inmem.New()
-				if err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-					return store.UpsertPolicy(ctx, txn, "authz", []byte("package system.authz\nimport rego.v1\nallow := true"))
-				}); err != nil {
-					t.Fatal(err)
-				}
-				manager, err := plugins.New([]byte(`{"server":{"decoding":{"max_length":64,"gzip":{"max_length":64}}}}`), "test", store,
-					plugins.WithParserOptions(ast.ParserOptions{RegoVersion: version}))
-				if err != nil {
-					t.Fatal(err)
-				}
-				if err := manager.Start(ctx); err != nil {
-					t.Fatal(err)
-				}
-				t.Cleanup(func() { manager.Stop(ctx) })
-				srv := New().WithStore(store).WithManager(manager)
-				if authz {
-					srv.WithAuthorization(AuthorizationBasic)
-				}
-				if _, err := srv.Init(ctx); err != nil {
-					t.Fatal(err)
-				}
+				srv := servers[version]
 				for _, tc := range cases {
 					t.Run(tc.name, func(t *testing.T) {
 						method, path := tc.method, tc.path

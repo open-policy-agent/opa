@@ -152,7 +152,7 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoQueryParse).Start()
 	req, err := readRequest(r, compileFiltersRequestFromMap)
 	if err != nil && !isEmptyBody(err) {
-		writer.Error(w, bodylimit.ErrorStatus(r.Context(), err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+		writer.Error(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 

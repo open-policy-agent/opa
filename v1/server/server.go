@@ -115,6 +115,7 @@ type Server struct {
 	h2cEnabled                  bool
 	authentication              AuthenticationScheme
 	authorization               AuthorizationScheme
+	v2Compatible                bool
 	cert                        *tls.Certificate
 	tlsConfigMtx                sync.RWMutex
 	certFile                    string
@@ -196,6 +197,8 @@ func New() *Server {
 // Init initializes the server. This function MUST be called before starting any loops
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
+	s.v2Compatible = s.manager.ParserOptions().RegoVersion == ast.RegoV2
+
 	// The hooks below and the authorization middleware both read these.
 	cacheConfig := s.manager.InterQueryBuiltinCacheConfig()
 	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, cacheConfig)
@@ -1059,7 +1062,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 
 	input, goInput, err := readInputV0(r)
 	if err != nil {
-		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, fmt.Errorf("unexpected parse error for input: %w", err))
+		writer.ErrorString(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.CodeInvalidParameter, fmt.Errorf("unexpected parse error for input: %w", err))
 		return
 	}
 
@@ -1392,7 +1395,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 
 	req, err := readRequest(r, compileRequestFromMap)
 	if err != nil {
-		writer.Error(w, bodylimit.ErrorStatus(r.Context(), err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+		writer.Error(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 
@@ -1651,7 +1654,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Start()
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
-		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.CodeInvalidParameter, err)
 		return
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -1718,7 +1721,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	parsed, err := readInputPostV1(r)
 	if err != nil {
-		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -1939,7 +1942,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoInputParse).Start()
 	var value any
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
-		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.CodeInvalidParameter, err)
 		return
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -2197,7 +2200,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
-		writer.ErrorString(w, bodylimit.ErrorStatus(r.Context(), err), types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -2370,7 +2373,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 
 	request, err := readRequest(r, queryRequestFromMap)
 	if err != nil {
-		writer.Error(w, bodylimit.ErrorStatus(r.Context(), err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+		writer.Error(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 	qStr := request.Query

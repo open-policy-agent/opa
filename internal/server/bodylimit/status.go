@@ -5,23 +5,15 @@
 package bodylimit
 
 import (
-	"context"
 	"errors"
 	"net/http"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-type v2CompatibilityKey struct{}
-
-// WithV2Compatibility enables v2 request-size error responses.
-func WithV2Compatibility(ctx context.Context) context.Context {
-	return context.WithValue(ctx, v2CompatibilityKey{}, struct{}{})
-}
-
 // ErrorStatus returns the status for a request-body error.
-func ErrorStatus(ctx context.Context, err error) int {
-	if ctx.Value(v2CompatibilityKey{}) != nil {
+func ErrorStatus(v2Compatible bool, err error) int {
+	if v2Compatible {
 		_, bodyTooLarge := errors.AsType[*util.BodyTooLargeError](err)
 		_, maxBytes := errors.AsType[*http.MaxBytesError](err)
 		if bodyTooLarge || maxBytes {
