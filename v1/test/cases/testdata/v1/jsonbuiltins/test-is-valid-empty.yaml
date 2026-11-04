@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "jsonbuiltins/json is_valid empty string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.is_valid("")
+    want_result:
+      - x: false
+  - note: "jsonbuiltins/json is_valid whitespace only"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.is_valid("  ")
+    want_result:
+      - x: false

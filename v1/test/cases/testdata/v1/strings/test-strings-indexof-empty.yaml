@@ -1,0 +1,42 @@
+---
+cases:
+  - note: "strings/indexof: empty search string is an error"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := indexof("abc", "")
+    want_error_code: eval_builtin_error
+    want_error: "indexof: empty search character"
+    strict_error: true
+  - note: "strings/indexof: empty search string in the empty string is an error"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := indexof("", "")
+    want_error_code: eval_builtin_error
+    want_error: "indexof: empty search character"
+    strict_error: true
+  - note: "strings/indexof_n: empty search string is an error"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := indexof_n("abc", "")
+    want_error_code: eval_builtin_error
+    want_error: "indexof_n: empty search character"
+    strict_error: true
+  - note: "strings/indexof_n: empty search string in the empty string is an error"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := indexof_n("", "")
+    want_error_code: eval_builtin_error
+    want_error: "indexof_n: empty search character"
+    strict_error: true
