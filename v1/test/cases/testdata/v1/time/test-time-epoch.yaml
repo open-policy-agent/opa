@@ -1,0 +1,92 @@
+---
+cases:
+  - note: "time/date: the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.date(0)
+    want_result:
+      - x: [1970, 1, 1]
+  - note: "time/date: one second after the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.date(1000000000)
+    want_result:
+      - x: [1970, 1, 1]
+  - note: "time/date: the epoch in a time zone"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.date([0, "America/New_York"])
+    want_result:
+      - x: [1969, 12, 31]
+  - note: "time/clock: the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.clock(0)
+    want_result:
+      - x: [0, 0, 0]
+  - note: "time/clock: one second after the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.clock(1000000000)
+    want_result:
+      - x: [0, 0, 1]
+  - note: "time/clock: the epoch in a time zone"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.clock([0, "America/New_York"])
+    want_result:
+      - x: [19, 0, 0]
+  - note: "time/weekday: the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.weekday(0)
+    want_result:
+      - x: Thursday
+  - note: "time/diff: equal timestamps at the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.diff(0, 0)
+    want_result:
+      - x: [0, 0, 0, 0, 0, 0]
+  - note: "time/diff: the epoch against one day later"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.diff(0, 86400000000000)
+    want_result:
+      - x: [0, 0, 1, 0, 0, 0]
+  - note: "time/diff: one second after the epoch against the epoch"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.diff(1000000000, 0)
+    want_result:
+      - x: [0, 0, 0, 0, 0, 1]
