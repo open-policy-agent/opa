@@ -35,7 +35,7 @@ type biunifyArraysRecParams struct {
 	a, b    *ast.Array
 	b1, b2  *bindings
 	iter    unifyIterator
-	idx     int
+	idx     uint64
 	inPlace bool // bind and compare elements without a continuation, see unifyInPlace
 }
 
@@ -130,8 +130,8 @@ type eval struct {
 	tracingOpts                 tracing.Options
 	queryID                     uint64
 	timeStart                   int64
-	index                       uint
-	genvarid                    int
+	index                       uint64
+	genvarid                    uint64
 	everyUnrollDiv              int
 	indexing                    bool
 	earlyExit                   bool
@@ -433,7 +433,7 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return cancelErr
 	}
 
-	if e.index >= uint(len(e.query)) {
+	if e.index >= uint64(len(e.query)) {
 		if err := iter(e); err != nil {
 			switch err := err.(type) {
 			case *deferredEarlyExitError, *earlyExitError:
@@ -711,7 +711,7 @@ func (e *eval) evalStepTrace(iter evalIterator, expr *ast.Expr, advance bool) (e
 // Single-purpose fmt.Sprintf replacement for generating variable names with only
 // one allocation performed instead of 4, and in 1/3 the time.
 func (e *eval) fmtVar() string {
-	buf := make([]byte, 0, len(e.genvarprefix)+util.NumDigitsUint(e.queryID)+util.NumDigitsUint(uint64(e.index))+7)
+	buf := make([]byte, 0, len(e.genvarprefix)+util.NumDigitsInt(e.queryID)+util.NumDigitsInt(e.index)+7)
 
 	buf = append(buf, e.genvarprefix...)
 	buf = append(buf, "_term_"...)
@@ -1331,15 +1331,13 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 }
 
 func (e *eval) biunifyArraysRec(params *biunifyArraysRecParams) (err error) {
-	n := params.a.Len()
-
 	var undos [4]undo
 	var nu uint8 // uint to avoid bounds check in &undos[nu]
 
 	if params.inPlace {
-		for params.idx < n && params.idx < params.b.Len() && nu < uint8(len(undos)) {
-			lhs := params.a.Elem(params.idx)
-			rhs := params.b.Elem(params.idx)
+		for params.idx < uint64(params.a.Len()) && params.idx < uint64(params.b.Len()) && nu < uint8(len(undos)) {
+			lhs := params.a.Elem(int(params.idx))
+			rhs := params.b.Elem(int(params.idx))
 
 			r := unifyInPlace(lhs, rhs, params.b1, params.b2, &undos[nu])
 			if r == unifyNeedsMore {
@@ -1358,16 +1356,16 @@ func (e *eval) biunifyArraysRec(params *biunifyArraysRecParams) (err error) {
 	}
 
 	switch {
-	case params.idx == n:
+	case int(params.idx) == params.a.Len():
 		err = params.iter()
 		arraysRecPool.Put(params)
-	case params.idx == n-1: // nothing left to continue with after the last element
-		a, b := params.a.Elem(params.idx), params.b.Elem(params.idx)
+	case int(params.idx) == params.a.Len()-1: // nothing left to continue with after the last element
+		a, b := params.a.Elem(int(params.idx)), params.b.Elem(int(params.idx))
 		b1, b2, iter := params.b1, params.b2, params.iter
 		arraysRecPool.Put(params)
 		err = e.biunify(a, b, b1, b2, iter)
 	default:
-		err = e.biunify(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, func() error {
+		err = e.biunify(params.a.Elem(int(params.idx)), params.b.Elem(int(params.idx)), params.b1, params.b2, func() error {
 			params.idx++
 			return e.biunifyArraysRec(params)
 		})
@@ -1512,7 +1510,6 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 	// enabled, then skip evaluation (and save the expression) if the term is
 	// in the save set. Currently, comprehensions are not evaluated during
 	// partial eval. This could be improved in the future.
-
 	var saveA, saveB bool
 
 	if _, ok := a.Value.(ast.Set); ok {
@@ -1653,9 +1650,7 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 		return e.biunifyComprehensionPartial(a, b, b1, b2, swap, iter)
 	}
 
-	value, err := e.buildComprehensionCache(a)
-
-	if err != nil {
+	if value, err := e.buildComprehensionCache(a); err != nil {
 		return err
 	} else if value != nil {
 		return e.biunify(value, b, b1, b2, iter)
@@ -2888,7 +2883,6 @@ type evalTree struct {
 }
 
 func (e evalTree) eval(iter unifyIterator) error {
-
 	if len(e.ref) == e.pos {
 		return e.finish(iter)
 	}
@@ -4595,37 +4589,27 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 				return e.termbindings.apply(plugged)
 			}
 		} else {
-			var t *ast.Term
-			var b *bindings
-			stop := v.Until(func(elem *ast.Term) bool {
+			for _, elem := range v.Slice() {
 				if e.termbindings.Plug(elem).Equal(plugged) {
-					t, b = e.termbindings.apply(plugged)
-					return true
+					return e.termbindings.apply(plugged)
 				}
-				return false
-			})
-			if stop {
-				return t, b
 			}
 		}
 	case ast.Object:
 		if v.IsGround() {
-			term := v.Get(plugged)
-			if term != nil {
+			if term := v.Get(plugged); term != nil {
 				return e.termbindings.apply(term)
 			}
 		} else {
-			var t *ast.Term
-			var b *bindings
-			stop := v.Until(func(k, v *ast.Term) bool {
-				if e.termbindings.Plug(k).Equal(plugged) {
-					t, b = e.termbindings.apply(v)
-					return true
+			ki := ast.BorrowKeysIterator(v)
+			defer ast.ReturnKeysIterator(ki)
+
+			for key, more := ki.Next(); more; key, more = ki.Next() {
+				if e.termbindings.Plug(key).Equal(plugged) {
+					if val := v.Get(key); val != nil {
+						return e.termbindings.apply(val)
+					}
 				}
-				return false
-			})
-			if stop {
-				return t, b
 			}
 		}
 	case *ast.Array:
@@ -4690,12 +4674,24 @@ func (e evalEvery) eval(iter unifyIterator) error {
 
 	e.e.closure(e.generator(), domain)
 
-	all := true // all generator evaluations yield one successful body evaluation
-
 	domain.traceEnter(e.expr)
 
+	// put everything going into the closure in a single struct pointer
+	// to have only that escape to the heap rather than each individual
+	// variable (along with the `e` receiver)
+	context := &struct {
+		every                   *ast.Every
+		expr                    *ast.Expr
+		all, done, traceEnabled bool
+	}{
+		every:        e.every,
+		expr:         e.expr,
+		all:          true, // all generator evaluations yield one successful body evaluation
+		traceEnabled: e.e.traceEnabled,
+	}
+
 	err := domain.eval(func(child *eval) error {
-		if !all {
+		if !context.all {
 			// NOTE(sr): Is this good enough? We don't have a "fail EE".
 			// This would do extra work, like iterating needlessly if domain was a large array.
 			return nil
@@ -4704,28 +4700,30 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		body := evalPool.Get()
 		defer evalPool.Put(body)
 
-		child.closure(e.every.Body, body)
+		child.closure(context.every.Body, body)
 		body.findOne = true
 
-		if e.e.traceEnabled {
-			body.traceEnter(e.every.Body)
+		var everyBody ast.Node
+		if context.traceEnabled {
+			everyBody = context.every.Body
+			body.traceEnter(everyBody)
 		}
 
-		done := false
+		context.done = false
 		err := body.eval(func(*eval) error {
-			if e.e.traceEnabled {
-				body.traceExit(e.every.Body)
-				body.traceRedo(e.every.Body)
+			if context.traceEnabled {
+				body.traceExit(everyBody)
+				body.traceRedo(everyBody)
 			}
-			done = true
+			context.done = true
 
 			return nil
 		})
-		if !done {
-			all = false
+		if !context.done {
+			context.all = false
 		}
 
-		child.traceRedo(e.expr)
+		child.traceRedo(context.expr)
 
 		// We don't want to abort the generator domain enumeration with EE.
 		return suppressEarlyExit(err)
@@ -4735,7 +4733,7 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		return err
 	}
 
-	if all {
+	if context.all {
 		err := iter()
 		domain.traceExit(e.expr)
 		return err
@@ -4799,7 +4797,7 @@ func (e evalEvery) unroll(pairs [][2]*ast.Term, iter unifyIterator) error {
 // bindings are still live.
 func (e evalEvery) elementBody(pair [2]*ast.Term) ast.Body {
 	e.e.genvarid++
-	suffix := "__e" + strconv.Itoa(e.e.genvarid)
+	suffix := "__e" + strconv.FormatUint(e.e.genvarid, 10)
 
 	// Scalars are substituted. Anything else is bound to a fresh variable, since a
 	// composite value can't be the head of a reference.

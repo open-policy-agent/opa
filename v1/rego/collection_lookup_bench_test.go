@@ -21,7 +21,8 @@ func collectionPolicy(n, members int, head string) (string, map[string]any) {
 	var sb strings.Builder
 	sb.WriteString("package test\n\n")
 	for i := range n {
-		sb.WriteString(strings.ReplaceAll(head, "IDX", strconv.Itoa(i)) + " if {\n")
+		sb.WriteString(strings.ReplaceAll(head, "IDX", strconv.Itoa(i)))
+		sb.WriteString(" if {\n")
 		fmt.Fprintf(&sb, "\tdata.groups.g%d.members[input.subject]\n}\n\n", i)
 	}
 

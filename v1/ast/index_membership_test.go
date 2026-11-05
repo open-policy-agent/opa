@@ -476,7 +476,8 @@ func TestBaseDocEqIndexCollectionEarlyExit(t *testing.T) {
 			var sb strings.Builder
 			sb.WriteString("package test\n\n")
 			for i := range n {
-				sb.WriteString(strings.ReplaceAll(tc.head, "IDX", strconv.Itoa(i)) + "\n")
+				sb.WriteString(strings.ReplaceAll(tc.head, "IDX", strconv.Itoa(i)))
+				sb.WriteByte('\n')
 				fmt.Fprintf(&sb, "\tdata.groups.g%d.members[input.subject]\n}\n\n", i)
 			}
 

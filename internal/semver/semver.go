@@ -253,7 +253,7 @@ func isAllDecimals(s string) bool {
 
 // length allows calculating the length of the version for pre-allocation.
 func length(v Version) int {
-	n := util.NumDigitsInt64(v.Major) + util.NumDigitsInt64(v.Minor) + util.NumDigitsInt64(v.Patch) + 2
+	n := util.NumDigitsInt(v.Major) + util.NumDigitsInt(v.Minor) + util.NumDigitsInt(v.Patch) + 2
 	if v.PreRelease != "" {
 		n += len(v.PreRelease) + 1
 	}

@@ -216,7 +216,7 @@ func (u *bindings) namespaceVar(v *ast.Term, caller *bindings) *ast.Term {
 	if caller != nil && caller != u && !ast.RootDocumentNames.Contains(v) {
 		// Root documents (i.e., data, input) should never be namespaced
 		// because they are globally unique.
-		len := len(name) + util.NumDigitsUint(u.id)
+		len := len(name) + util.NumDigitsInt(u.id)
 		buf := util.AppendInt(append(make([]byte, 0, len), name...), u.id)
 		return ast.VarTerm(util.ByteSliceToString(buf))
 	}
