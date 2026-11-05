@@ -197,10 +197,13 @@ This is also useful in CI/CD pipelines to ensure that tests are actually being e
 ## Test Results
 
 If the test rule is undefined or generates a non-`true` value the test result
-is reported as `FAIL`. If the test encounters a runtime error (e.g., a divide
-by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
-`todo_` will be reported as `SKIPPED`. Otherwise, the test result is marked as
-`PASS`.
+is reported as `FAIL`. If the test encounters a runtime error (e.g., conflicting
+values for a rule) the test result is marked as an `ERROR`. An error raised by a
+built-in function (e.g., a divide by zero condition) makes the expression
+undefined, so the test is reported as `FAIL`, unless `opa test` is run with
+`--strict-builtin-errors`, which reports the first such error as an `ERROR`.
+Tests prefixed with `todo_` will be reported as `SKIPPED`. Otherwise, the test
+result is marked as `PASS`.
 
 ```rego title="pass_fail_error_test.rego"
 package example_test
@@ -226,7 +229,7 @@ By default, `opa test` reports the number of tests executed and displays all
 of the tests that failed or errored.
 
 ```console
-$ opa test pass_fail_error_test.rego
+$ opa test --strict-builtin-errors pass_fail_error_test.rego
 data.example_test.test_failure: FAIL (253ns)
 data.example_test.test_error: ERROR (289ns)
   pass_fail_error_test.rego:15: eval_builtin_error: div: divide by zero
@@ -236,11 +239,15 @@ FAIL: 1/3
 ERROR: 1/3
 ```
 
+:::info
+`--strict-builtin-errors` has no effect when `opa test` runs with `--bench`. A built-in error still makes the expression undefined, so the test is reported as `FAIL`.
+:::
+
 By default, OPA prints the test results in a human-readable format. If you
 need to consume the test results programmatically, use the JSON output format.
 
 ```bash
-opa test --format=json pass_fail_error_test.rego
+opa test --strict-builtin-errors --format=json pass_fail_error_test.rego
 ```
 
 ```json
@@ -275,7 +282,7 @@ opa test --format=json pass_fail_error_test.rego
     "package": "data.example_test",
     "name": "test_error",
     "error": {
-      "code": "eval_internal_error",
+      "code": "eval_builtin_error",
       "message": "div: divide by zero",
       "location": {
         "file": "pass_fail_error_test.rego",
@@ -426,6 +433,26 @@ data.example_test.test_sign_token: FAIL (1.214541ms)
     HS512: PASS
 --------------------------------------------------------------------------------
 FAIL: 1/1
+```
+
+With `--strict-builtin-errors`, a built-in error in any test case stops the whole test rule.
+The test is reported as a single `ERROR`, and none of its test cases are listed, including those that passed:
+
+```rego title="strict_cases_test.rego"
+package example_test
+
+test_divide_three[x] if {
+    some x in [1, 0]
+    3 / x == 3
+}
+```
+
+```console
+$ opa test --strict-builtin-errors strict_cases_test.rego
+data.example_test.test_divide_three: ERROR (373.268µs)
+  strict_cases_test.rego:5: eval_builtin_error: div: divide by zero
+--------------------------------------------------------------------------------
+ERROR: 1/1
 ```
 
 ## Data and Function Mocking
