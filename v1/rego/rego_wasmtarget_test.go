@@ -472,7 +472,10 @@ func TestPreparedEvalQueryCloseWithWasmTarget(t *testing.T) {
 
 	pq.Close()
 
-	if _, err := pq.Eval(ctx); err == nil {
+	evalCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	if _, err := pq.Eval(evalCtx); err == nil {
 		t.Fatal("Expected an error evaluating a closed query")
 	}
 

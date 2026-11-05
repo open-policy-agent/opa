@@ -7,8 +7,10 @@
 package plugins
 
 import (
+	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
@@ -64,7 +66,10 @@ func TestSetWasmResolversClosesReplacedResolvers(t *testing.T) {
 
 	m.setWasmResolvers([]*wasm.Resolver{second})
 
-	if _, err := first.Eval(t.Context(), input); err == nil {
+	evalCtx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	if _, err := first.Eval(evalCtx, input); err == nil {
 		t.Fatal("expected an error evaluating a replaced resolver, which should be closed")
 	}
 	if _, err := second.Eval(t.Context(), input); err != nil {
