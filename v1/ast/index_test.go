@@ -1158,6 +1158,94 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{},
 		},
 		{
+			note: "internal.member_2: var member in rhs makes the ref unconstrained",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = input.other
+				internal.member_2(__local0__, {"admin", __local1__})
+			}
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "user"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest", "other": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = input.other; internal.member_2(__local0__, {"admin", __local1__}) }`},
+		},
+		{
+			note: "internal.member_2: var member in rhs bound to a constant (no match, but still a candidate)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = "someone"
+				internal.member_2(__local0__, {"admin", __local1__})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = "someone"; internal.member_2(__local0__, {"admin", __local1__}) }`},
+		},
+		{
+			note: "internal.member_2: var member in rhs (no match, but still a candidate)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = input.other
+				internal.member_2(__local0__, {"admin", __local1__})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest", "other": "someoneelse"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = input.other; internal.member_2(__local0__, {"admin", __local1__}) }`},
+		},
+		{
+			note: "internal.member_2: var nested in an rhs member",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = input.other
+				internal.member_2(__local0__, {["admin"], [__local1__]})
+			}`),
+			ruleset: "p",
+			input:   `{"role": ["guest"], "other": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = input.other; internal.member_2(__local0__, {["admin"], [__local1__]}) }`},
+		},
+		{
+			note: "internal.member_2: rhs local bound to a constant collection",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = {"admin", "user"}
+				internal.member_2(__local0__, __local1__)
+			}
+			p if {
+				__local0__ = input.role
+				__local1__ = {"x", "y"}
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "user"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = {"admin", "user"}; internal.member_2(__local0__, __local1__) }`},
+		},
+		{
+			note: "internal.member_2: rhs local bound to a collection with a var member",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = input.other
+				__local2__ = {"admin", __local1__}
+				internal.member_2(__local0__, __local2__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest", "other": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = input.other; __local2__ = {"admin", __local1__}; internal.member_2(__local0__, __local2__) }`},
+		},
+		{
 			// Regression test: elements of a collection literal in `x in [...]`
 			// used to be inserted into the trie as-is (see updateMemberRefInValue),
 			// without restricting them to scalars/arrays like the equality-based

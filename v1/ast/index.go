@@ -1354,6 +1354,12 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		members = append(members, t.Value)
 	})
 
+	// A var member lets the ref be anything, but insertPath would drop it in
+	// favour of the constant members, taking the path's values to all hold.
+	if slices.ContainsFunc(members, valueIsVar) {
+		return
+	}
+
 	i.insertMembers(rule, ref, members)
 }
 
@@ -1375,20 +1381,7 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	// the rule's list is short at that point, so the scan it costs is cheap.
 	i.insert(rule, &refindex{ref: id, Value: members[0]})
 
-	// insert is the only one that may put a value somewhere other than the end
-	// of the list, which is what a var needs, so those go in through it and are
-	// left out of the block below. A collection holding one is rare, and paying
-	// a copy for it keeps the common case a single pass.
 	rest := members[1:]
-	if slices.ContainsFunc(rest, valueIsVar) {
-		for _, member := range rest {
-			if valueIsVar(member) {
-				i.insert(rule, &refindex{ref: id, Value: member})
-			}
-		}
-		rest = slices.DeleteFunc(slices.Clone(rest), valueIsVar)
-	}
-
 	concrete := 0
 	seen := util.NewHasherMap[Value, struct{}](ValueEqual)
 
