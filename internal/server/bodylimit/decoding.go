@@ -5,6 +5,7 @@
 package bodylimit
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -56,4 +57,16 @@ func Handler(handler http.Handler, maxLength, gzipMaxLength int64, v2Compatible 
 		r2.Body = http.MaxBytesReader(w, r.Body, maxLength)
 		handler.ServeHTTP(w, &r2)
 	})
+}
+
+// ErrorStatus returns the status for a request-body error.
+func ErrorStatus(v2Compatible bool, err error) int {
+	if v2Compatible {
+		_, bodyTooLarge := errors.AsType[*util.BodyTooLargeError](err)
+		_, maxBytes := errors.AsType[*http.MaxBytesError](err)
+		if bodyTooLarge || maxBytes {
+			return http.StatusRequestEntityTooLarge
+		}
+	}
+	return http.StatusBadRequest
 }

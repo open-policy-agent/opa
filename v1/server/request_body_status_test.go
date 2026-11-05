@@ -40,7 +40,10 @@ func TestRequestBodyLimitStatus(t *testing.T) {
 		{http.MethodPost, "/v1/compile/test"}, {http.MethodPut, "/v1/data/test"},
 		{http.MethodPatch, "/v1/data/test"}, {http.MethodPut, "/v1/policies/test"},
 	} {
-		cases = append(cases, requestCase{name: endpoint.method + " " + endpoint.path, method: endpoint.method, path: endpoint.path, body: oversized, chunked: true, tooLarge: true})
+		cases = append(cases,
+			requestCase{name: endpoint.method + " " + endpoint.path, method: endpoint.method, path: endpoint.path, body: oversized, chunked: true, tooLarge: true},
+			requestCase{name: "malformed " + endpoint.method + " " + endpoint.path, method: endpoint.method, path: endpoint.path, body: "{", chunked: true, status: http.StatusBadRequest},
+		)
 	}
 	for _, authz := range []bool{false, true} {
 		versions := []ast.RegoVersion{ast.RegoUndefined, ast.RegoV0, ast.RegoV1, ast.RegoV2}
