@@ -543,6 +543,11 @@ func selectRef(tpe types.Type, ref Ref) types.Type {
 
 	switch head.Value.(type) {
 	case Var, Ref, *Array, Object, Set:
+		if isEmptyCollectionType(tpe) {
+			// Iterating a collection that holds nothing yields nothing, so
+			// the element type is unconstrained rather than unknown.
+			return types.A
+		}
 		return selectRef(types.Values(tpe), tail)
 	default:
 		return selectRef(selectConstant(tpe, head), tail)
