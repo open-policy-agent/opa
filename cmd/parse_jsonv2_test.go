@@ -970,7 +970,7 @@ allow = true if {
             "file": "TEMPDIR/x.rego",
             "row": 4,
             "col": 1,
-            "text": "ZGVmYXVsdA=="
+            "text": "ZGVmYXVsdCBhbGxvdyA9IGZhbHNl"
           },
           "generated": true,
           "terms": {
@@ -978,7 +978,7 @@ allow = true if {
               "file": "TEMPDIR/x.rego",
               "row": 4,
               "col": 1,
-              "text": "ZGVmYXVsdA=="
+              "text": "ZGVmYXVsdCBhbGxvdyA9IGZhbHNl"
             },
             "type": "boolean",
             "value": true
@@ -989,7 +989,7 @@ allow = true if {
         "file": "TEMPDIR/x.rego",
         "row": 4,
         "col": 1,
-        "text": "ZGVmYXVsdA=="
+        "text": "ZGVmYXVsdCBhbGxvdyA9IGZhbHNl"
       }
     },
     {
