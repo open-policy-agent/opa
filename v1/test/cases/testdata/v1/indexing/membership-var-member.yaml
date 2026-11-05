@@ -1,0 +1,108 @@
+---
+cases:
+  - note: indexing/membership in set literal mixing constant and reference
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	input.x in {"a", input.y}
+        }
+    data: {}
+    input_term: '{"x": "b", "y": "b"}'
+    want_result:
+      - x: true
+  - note: indexing/membership in array literal mixing constant and local
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	y := input.y
+        	input.x in ["a", y]
+        }
+    data: {}
+    input_term: '{"x": "b", "y": "b"}'
+    want_result:
+      - x: true
+  - note: indexing/membership in object values mixing constant and reference
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	input.x in {"k": "a", "j": input.y}
+        }
+    data: {}
+    input_term: '{"x": "b", "y": "b"}'
+    want_result:
+      - x: true
+  - note: indexing/membership in literal mixing constant and reference, constant matches
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	input.x in {"a", input.y}
+        }
+    data: {}
+    input_term: '{"x": "a", "y": "b"}'
+    want_result:
+      - x: true
+  - note: indexing/membership in literal mixing constant and reference, neither matches
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	input.x in {"a", input.y}
+        }
+    data: {}
+    input_term: '{"x": "b", "y": "c"}'
+    want_result: []
+  - note: indexing/membership in literal mixing constant and local bound to a constant
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	y := "b"
+        	input.x in {"a", y}
+        }
+    data: {}
+    input_term: '{"x": "b"}'
+    want_result:
+      - x: true
+  - note: indexing/membership in literal with a reference nested in a member
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	input.x in {["a"], [input.y]}
+        }
+    data: {}
+    input_term: '{"x": ["b"], "y": "b"}'
+    want_result:
+      - x: true
+  - note: indexing/membership in local collection mixing constant and reference
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	l := {"a", input.y}
+        	input.x in l
+        }
+    data: {}
+    input_term: '{"x": "b", "y": "b"}'
+    want_result:
+      - x: true
