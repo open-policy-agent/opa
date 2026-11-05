@@ -1278,9 +1278,15 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   1,
 		},
 		{
-			note:  "missing key of empty object, var operand",
-			query: `obj = {}; obj[i]`,
-			ref:   `obj[i]`,
+			note:  "missing key of empty object, null operand",
+			query: `obj = {}; obj[null]`,
+			ref:   `obj[null]`,
+			pos:   1,
+		},
+		{
+			note:  "missing key of empty object, boolean operand",
+			query: `obj = {}; obj[true]`,
+			ref:   `obj[true]`,
 			pos:   1,
 		},
 		{
@@ -1290,21 +1296,9 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   1,
 		},
 		{
-			note:  "out of range index of empty array, var operand",
-			query: `arr = []; arr[i]`,
-			ref:   `arr[i]`,
-			pos:   1,
-		},
-		{
 			note:  "member of empty set",
 			query: `s = set(); s.foo`,
 			ref:   `s.foo`,
-			pos:   1,
-		},
-		{
-			note:  "member of empty set, var operand",
-			query: `s = set(); s[x]`,
-			ref:   `s[x]`,
 			pos:   1,
 		},
 	}
@@ -2862,7 +2856,6 @@ p if {
 p contains v if {
 	some v in {}
 }`,
-			expectedError: "policy.rego:4: rego_type_error: undefined ref: {}[__local2__]",
 		},
 		{
 			name: "iterating an empty array literal",
@@ -2871,7 +2864,6 @@ p contains v if {
 p contains v if {
 	some v in []
 }`,
-			expectedError: "policy.rego:4: rego_type_error: undefined ref: [][__local2__]",
 		},
 		{
 			name: "iterating an empty set literal",
@@ -2880,7 +2872,110 @@ p contains v if {
 p contains v if {
 	some v in set()
 }`,
-			expectedError: "policy.rego:4: rego_type_error: undefined ref: set()[__local2__]",
+		},
+		{
+			name: "iterating an empty array bound to a variable",
+			policy: `package p
+
+f := out if {
+	responses := []
+	out := [x | some x in responses; x.required]
+}`,
+		},
+		{
+			name: "iterating an empty object bound to a variable",
+			policy: `package p
+
+g := out if {
+	m := {}
+	out := [v | some v in m]
+}`,
+		},
+		{
+			name: "iterating an empty array with a bound variable key",
+			policy: `package p
+
+p if {
+	arr := []
+	i := 0
+	arr[i]
+}`,
+		},
+		{
+			name: "iterating an empty array with a string variable key",
+			policy: `package p
+
+p if {
+	arr := []
+	i := "a"
+	arr[i]
+}`,
+			expectedError: "policy.rego:6: rego_type_error: undefined ref: arr[i]",
+		},
+		{
+			name: "iterating an empty object with a number variable key",
+			policy: `package p
+
+p if {
+	obj := {}
+	i := 1
+	obj[i]
+}`,
+		},
+		{
+			name: "comparing an element of an empty array to a constant",
+			policy: `package p
+
+p if {
+	roles := []
+	roles[_] == "admin"
+}`,
+		},
+		{
+			name: "unifying a constant with an element of an empty array",
+			policy: `package p
+
+p if {
+	roles := []
+	"admin" = roles[_]
+}`,
+		},
+		{
+			name: "comparing an element of an empty object to a constant",
+			policy: `package p
+
+p if {
+	m := {}
+	m[_] == "admin"
+}`,
+		},
+		{
+			name: "comparing an element of an empty set to a constant",
+			policy: `package p
+
+p if {
+	s := set()
+	s[_] == 1
+}`,
+		},
+		{
+			name: "comparing a member of an empty array to a constant",
+			policy: `package p
+
+p if {
+	roles := []
+	some x in roles
+	x == "admin"
+}`,
+		},
+		{
+			name: "selecting a field of an element of an empty array",
+			policy: `package p
+
+p if {
+	roles := []
+	roles[_].name == "admin"
+}`,
 		},
 		{
 			name: "key of object literal with dynamic properties",
