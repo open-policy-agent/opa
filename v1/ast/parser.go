@@ -917,6 +917,7 @@ func (p *Parser) parseRules() []*Rule {
 			}
 		}
 
+		rule.Location.Text = p.s.Text(rule.Location.Offset, p.s.lastEnd)
 		rule.Body = implicitTrueBody(rule.Location)
 		return []*Rule{&rule}
 	}
