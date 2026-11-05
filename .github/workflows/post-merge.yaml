@@ -136,7 +136,7 @@ jobs:
 
   release-build-darwin:
     name: Release Build (darwin)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: generate
     steps:
       - name: Check out code
