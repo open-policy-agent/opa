@@ -453,3 +453,46 @@ func TestRegoTargetWasmAndTargetPluginDisablesIndexingTopdownStages(t *testing.T
 		})
 	}
 }
+
+func TestPreparedEvalQueryCloseWithWasmTarget(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	pq, err := New(
+		Query("data.test.p = x"),
+		Target("wasm"),
+		Module("a.rego", "package test\np := 1\n"),
+	).PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true]]")
+
+	pq.Close()
+
+	if _, err := pq.Eval(ctx); err == nil {
+		t.Fatal("Expected an error evaluating a closed query")
+	}
+
+	pq.Close()
+}
+
+func TestPreparedEvalQueryCloseWithRegoTarget(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	pq, err := New(
+		Query("data.test.p = x"),
+		Module("a.rego", "package test\np := 1\n"),
+	).PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	pq.Close()
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true]]")
+}
