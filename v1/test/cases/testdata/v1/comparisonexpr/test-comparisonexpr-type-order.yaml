@@ -1,0 +1,155 @@
+---
+cases:
+  - note: "comparisonexpr/type order: null is less than a boolean"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := null < false
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: a boolean is less than a number"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := true < 0
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: a number is less than a string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := 0 < "a"
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: a string is less than an array"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := "a" < []
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: an array is less than an object"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [1] < {"a": 1}
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: an object is less than a set"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {"a": 1} < {1}
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: an array is greater than a number"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [] > 0
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: an array is greater than or equal to a number"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [] >= 0
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: an array is not less than a number"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [] < 0
+    want_result:
+      - x: false
+  - note: "comparisonexpr/type order: an array is not less than or equal to a number"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [] <= 0
+    want_result:
+      - x: false
+  - note: "comparisonexpr/type order: a string is greater than null"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := "a" > null
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: a string is greater than a boolean"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := "a" > true
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: a string is less than an object"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := "a" < {"a": 1}
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: a string is less than a set"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := "a" < {1}
+    want_result:
+      - x: true
+  - note: "comparisonexpr/type order: every pair of types is ordered null, boolean, number, string, array, object, set"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        values := [null, false, 0, "a", [], {"a": 1}, {1}]
+
+        ordered := [1 |
+            some i, a in values
+            some j, b in values
+            i < j
+            a < b
+        ]
+
+        misordered := [1 |
+            some i, a in values
+            some j, b in values
+            i < j
+            a >= b
+        ]
+
+        p := {"ordered": count(ordered), "misordered": count(misordered)}
+    want_result:
+      - x:
+          ordered: 21
+          misordered: 0
