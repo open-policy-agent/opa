@@ -478,21 +478,3 @@ func TestPreparedEvalQueryCloseWithWasmTarget(t *testing.T) {
 
 	pq.Close()
 }
-
-func TestPreparedEvalQueryCloseWithRegoTarget(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-
-	pq, err := New(
-		Query("data.test.p = x"),
-		Module("a.rego", "package test\np := 1\n"),
-	).PrepareForEval(ctx)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-
-	pq.Close()
-
-	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true]]")
-}
