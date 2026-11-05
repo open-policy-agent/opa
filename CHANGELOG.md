@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.22.2
+
+This is a bugfix release for a type checker regression in v1.21.0.
+
+### Iterating an empty collection is rejected by the type checker
+
+Policies that iterate a collection known to be empty, such as `some x in []` or `m[_]` where `m := {}`,
+were rejected with `rego_type_error: undefined ref`. Iteration with a non-constant key is valid again, and simply
+yields nothing. Comparing or unifying the elements of such a collection with a value is accepted as well.
+Constant keys, like `[][0]`, are still reported as undefined.
+
+Reported by @kholia.
+
 ## 1.22.1
 
 This is a bugfix release for a rule indexer regression in v1.21.0.
