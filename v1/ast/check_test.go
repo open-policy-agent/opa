@@ -1544,6 +1544,84 @@ func TestCheckValidErrors(t *testing.T) {
 	}
 }
 
+func TestCheckRefErrIndexOutOfBounds(t *testing.T) {
+	tests := []struct {
+		note   string
+		data   types.Type
+		query  string
+		ref    string
+		pos    int
+		index  int
+		length int
+	}{
+		{
+			note:   "array var",
+			query:  `arr = [1, 2, 3]; arr[3]`,
+			ref:    `arr[3]`,
+			pos:    1,
+			index:  3,
+			length: 3,
+		},
+		{
+			note:   "negative index",
+			query:  `arr = [1, 2, 3]; arr[-1]`,
+			ref:    `arr[-1]`,
+			pos:    1,
+			index:  -1,
+			length: 3,
+		},
+		{
+			note:   "recursive array type",
+			data:   types.NewRecursive("#/$defs/pair", types.NewArray([]types.Type{types.S, types.S}, nil)),
+			query:  `data.pair[2]`,
+			ref:    `data.pair[2]`,
+			pos:    2,
+			index:  2,
+			length: 2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			env := newTestEnv(nil, BuiltinMap)
+			if tc.data != nil {
+				env.tree.Put(MustParseRef("data.pair"), tc.data)
+			}
+
+			_, errs := newTypeChecker().CheckBody(env, MustParseBody(tc.query))
+			if len(errs) != 1 {
+				t.Fatalf("Expected exactly one error but got: %v", errs)
+			}
+
+			details, ok := errs[0].Details.(*RefErrIndexOutOfBoundsDetail)
+			if !ok {
+				t.Fatalf("Expected index out of bounds error but got: %v", errs)
+			}
+
+			if !details.Ref.Equal(MustParseRef(tc.ref)) || details.Pos != tc.pos || details.Index != tc.index || details.Length != tc.length {
+				t.Fatalf("Expected (%v, %v, %v, %v) but got: (%v, %v, %v, %v)", tc.ref, tc.pos, tc.index, tc.length, details.Ref, details.Pos, details.Index, details.Length)
+			}
+		})
+	}
+
+	t.Run("array literal query", func(t *testing.T) {
+		_, err := NewCompiler().QueryCompiler().Compile(MustParseBody(`[1][1]`))
+		errs, ok := err.(Errors)
+		if !ok || len(errs) != 1 {
+			t.Fatalf("Expected exactly one error but got: %v", err)
+		}
+
+		details, ok := errs[0].Details.(*RefErrIndexOutOfBoundsDetail)
+		if !ok {
+			t.Fatalf("Expected index out of bounds error but got: %v", errs)
+		}
+
+		if !details.Ref.Equal(MustParseRef(`[1][1]`)) || details.Index != 1 || details.Length != 1 {
+			t.Fatalf("Expected ([1][1], 1, 1) but got: (%v, %v, %v)", details.Ref, details.Index, details.Length)
+		}
+	})
+}
+
 func TestCheckErrorDetails(t *testing.T) {
 
 	tests := []struct {
@@ -1603,6 +1681,19 @@ func TestCheckErrorDetails(t *testing.T) {
 				"    ^",
 				`    have: "foo"`,
 				"    want (one of): []",
+			},
+		},
+		{
+			detail: &RefErrIndexOutOfBoundsDetail{
+				Ref:    MustParseRef("arr[3]"),
+				Pos:    1,
+				Index:  3,
+				Length: 3,
+			},
+			expected: []string{
+				"arr[3]",
+				"    ^",
+				"    index 3 out of bounds for array of length 3",
 			},
 		},
 		{
