@@ -550,7 +550,6 @@ func generatePartialEvalBenchmarkData(numRoles int) map[string]any {
 }
 
 func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
-
 	tmpl, err := template.New("Test").Parse(`{
 		"operation": "operation-{{ . }}",
 		"resource": "resource-{{ . }}",
@@ -571,11 +570,10 @@ func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
 	return ast.MustParseTerm(buf.String())
 }
 
-// BenchmarkWalk/100-16         	  319608	      3388 ns/op	    7862 B/op	      66 allocs/op
-// BenchmarkWalk/1000-16        	   49064	     25721 ns/op	   53824 B/op	    1043 allocs/op
-// BenchmarkWalk/2000-16        	   16743	     72156 ns/op	  114898 B/op	    3043 allocs/op
-// BenchmarkWalk/3000-16        	   10000	    115028 ns/op	  175968 B/op	    5043 allocs/op
-
+// BenchmarkWalk/100-16         	  383415	      3118 ns/op	    7526 B/op	      55 allocs/op
+// BenchmarkWalk/1000-16        	   50845	     23604 ns/op	   51928 B/op	     542 allocs/op
+// BenchmarkWalk/2000-16        	   19908	     60316 ns/op	  109059 B/op	    1542 allocs/op
+// BenchmarkWalk/3000-16        	   12272	     97774 ns/op	  166188 B/op	    2542 allocs/op
 func BenchmarkWalk(b *testing.B) {
 	sizes := []int{100, 1000, 2000, 3000}
 
@@ -597,9 +595,11 @@ func BenchmarkWalk(b *testing.B) {
 					WithCompiler(compiler).
 					WithTransaction(txn)
 
+				exp := ast.IntNumberTerm(n - 1)
+
 				for b.Loop() {
 					rs, err := q.Run(ctx)
-					if err != nil || len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.IntNumberTerm(n-1)) {
+					if err != nil || len(rs) != 1 || !rs[0][ast.Var("x")].Equal(exp) {
 						b.Fatal("Unexpected result:", rs, "err:", err)
 					}
 				}
