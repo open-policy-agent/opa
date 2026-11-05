@@ -724,6 +724,12 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 			return unify2Array(env, b, a)
 		case *object:
 			return unify2Object(env, b, a)
+		case Ref:
+			return unify1(env, a, types.A, false)
+		}
+	case Ref:
+		if _, ok := b.Value.(Var); ok {
+			return unify1(env, b, types.A, false)
 		}
 	}
 
@@ -1044,10 +1050,23 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	head := ref[idx]
 
 	if isEmptyCollectionType(tpe) {
-		// The collection has no members at all, so nothing can be selected from
-		// it. Report that like any other missing key rather than as a value that
-		// can't be dereferenced at all.
-		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+		// The collection has no members at all, so a constant key can never
+		// match and is reported like any other missing key. Iterating with a
+		// non-constant key is valid and simply yields nothing, as is common for
+		// collections that are empty at the moment.
+		if IsScalar(head.Value) {
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+		}
+		if v, ok := head.Value.(Var); ok {
+			exist := rc.env.GetByValue(v)
+			if exist == nil {
+				rc.env.vars.PutOne(v, types.A)
+			} else if keys := types.Keys(tpe); keys != nil && !unifies(exist, keys) {
+				// Only arrays constrain their keys: objects and sets accept any.
+				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, keys, nil)
+			}
+		}
+		return nil
 	}
 
 	keys := types.Keys(tpe)
