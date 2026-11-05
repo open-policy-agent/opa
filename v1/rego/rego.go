@@ -579,6 +579,14 @@ type PreparedEvalQuery struct {
 	preparedQuery
 }
 
+// Close releases the resources held by the prepared query, such as the Wasm
+// engine created for the "wasm" target. The query must not be evaluated afterwards.
+func (pq PreparedEvalQuery) Close() {
+	if pq.r != nil && pq.r.opa != nil {
+		pq.r.opa.Close()
+	}
+}
+
 // Eval evaluates this PartialResult's Rego object with additional eval options
 // and returns a ResultSet.
 // If options are provided they will override the original Rego options respective value.
