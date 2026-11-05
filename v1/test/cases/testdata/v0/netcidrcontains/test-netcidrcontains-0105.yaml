@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr contains range with an ipv4-mapped last address in a supernet
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p[x] {
+        	net.cidr_contains("::/0", "::/80", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true

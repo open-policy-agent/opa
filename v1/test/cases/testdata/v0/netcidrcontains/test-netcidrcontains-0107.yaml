@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr contains ipv4-mapped network in supernet
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p[x] {
+        	net.cidr_contains("::/0", "::ffff:1.2.3.0/120", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
