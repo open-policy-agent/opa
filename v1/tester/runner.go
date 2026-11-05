@@ -1270,6 +1270,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			tr.Fail = true
 			b.Fatalf("Unexpected error: %s", err)
 		}
+		defer pq.Close()
 
 		m := metrics.New()
 
