@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.22.1
+
+This is a bugfix release for a rule indexer regression in v1.21.0.
+
+### `x in {"a", input.y}` never matches for a ref x
+
+```rego
+allow if {
+	input.x in {"a", input.y}
+}
+```
+
+For an input of `{"x": "b", "y": "b"}`, this should evaluate to true. Due to a bug in the
+rule indexer, the rule body hadn't been returned, and `allow` thus evaluated to `undefined`.
+
+Reported by @kholia.
+
+
 ## 1.22.0
 
 This release contains a mix of new features, performance improvements and bug fixes. Notably:
