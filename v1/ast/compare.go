@@ -264,21 +264,31 @@ func TermValueCompare(a, b *Term) int {
 }
 
 func ValueEqual(a, b Value) bool {
-	switch v := a.(type) {
-	case Null, Boolean, String, Var:
-		return v == b
+	switch av := a.(type) {
+	case Null:
+		_, ok := b.(Null)
+		return ok
+	case Boolean:
+		bv, ok := b.(Boolean)
+		return ok && av == bv
+	case String:
+		bv, ok := b.(String)
+		return ok && av == bv
+	case Var:
+		bv, ok := b.(Var)
+		return ok && av == bv
 	case Number:
-		return v.Equal(b)
+		return av.Equal(b)
 	case Ref:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *Array:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *object:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *Not:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *TemplateString:
-		return v.Equal(b)
+		return av.Equal(b)
 	}
 
 	return a.Compare(b) == 0

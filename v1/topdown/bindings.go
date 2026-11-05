@@ -93,7 +93,7 @@ func (u *bindings) size() int {
 func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	switch v := a.Value.(type) {
 	case ast.Var:
-		b, next := u.apply(a)
+		b, next := u.applyVar(a)
 		if a != b || u != next {
 			return next.plugNamespaced(b, caller)
 		}
@@ -165,6 +165,19 @@ func (u *bindings) apply(a *ast.Term) (*ast.Term, *bindings) {
 	if !ok {
 		return a, u
 	}
+	val, ok := u.get(a)
+	if !ok {
+		return a, u
+	}
+	return val.u.apply(val.v)
+}
+
+// NOTE(anders):
+// applyVar does same thing apply does but for when a is known to carry
+// a Var and doesn't need an extra interface lookup. This is called so
+// frequently that this made a noticeable difference in my Regal benchmarks
+// CPU profiling(!)
+func (u *bindings) applyVar(a *ast.Term) (*ast.Term, *bindings) {
 	val, ok := u.get(a)
 	if !ok {
 		return a, u
@@ -282,7 +295,8 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 		}
 		cpy := *a
 		arr := make([]*ast.Term, v.Len())
-		for i := range arr {
+		// silly double check to prevent bounds check
+		for i := 0; i < v.Len() && i < len(arr); i++ {
 			arr[i] = vis.namespaceTerm(v.Elem(i))
 		}
 		cpy.Value = ast.NewArray(arr...)
@@ -327,7 +341,6 @@ const maxLinearScan = 16
 // wasting memory when only a few bindings are used. This is critical for scenarios
 // like comprehensions and functions with few arguments that are called thousands of times.
 type bindingsArrayHashmap struct {
-	n int // Entries in the slice.
 	a []bindingArrayKeyValue
 	m map[ast.Var]bindingArrayKeyValue
 }
@@ -375,41 +388,25 @@ func newBindingsArrayHashmapWithSize(sizeHint int) bindingsArrayHashmap {
 func (b *bindingsArrayHashmap) Put(key *ast.Term, value value) {
 	if b.m == nil {
 		// Check if key already exists and update value
-		if i := b.find(key); i >= 0 {
-			b.a[i].value = value
+		if b.update(key, value) {
 			return
 		}
 
 		// Still room in slice mode (< maxLinearScan)
-		if b.n < maxLinearScan {
-			// Grow slice if needed using exponential growth strategy
-			if b.n == cap(b.a) {
-				newCap := cap(b.a) * 2
-				if newCap == 0 {
-					newCap = 2 // Start with 2 elements
-				}
-				if newCap > maxLinearScan {
-					newCap = maxLinearScan
-				}
-				newA := make([]bindingArrayKeyValue, b.n, newCap)
-				copy(newA, b.a)
-				b.a = newA
-			}
+		if len(b.a) < maxLinearScan {
 			b.a = append(b.a, bindingArrayKeyValue{key, value})
-			b.n++
 			return
 		}
 
 		// Slice is full (reached maxLinearScan), transition to map mode.
 		b.m = make(map[ast.Var]bindingArrayKeyValue, maxLinearScan+1)
 		for _, kv := range b.a {
-			b.m[kv.key.Value.(ast.Var)] = bindingArrayKeyValue{kv.key, kv.value}
+			b.m[kv.key.Value.(ast.Var)] = kv
 		}
 		b.m[key.Value.(ast.Var)] = bindingArrayKeyValue{key, value}
 
 		// Clear slice to allow GC
 		b.a = nil
-		b.n = 0
 		return
 	}
 
@@ -417,17 +414,15 @@ func (b *bindingsArrayHashmap) Put(key *ast.Term, value value) {
 }
 
 func (b *bindingsArrayHashmap) Get(key *ast.Term) (value, bool) {
+	v := key.Value.(ast.Var)
 	if b.m == nil {
-		if i := b.find(key); i >= 0 {
-			return b.a[i].value, true
+		for i := range b.a {
+			if b.a[i].key.Value.(ast.Var) == v {
+				return b.a[i].value, true
+			}
 		}
-
-		return value{}, false
-	}
-
-	v, ok := b.m[key.Value.(ast.Var)]
-	if ok {
-		return v.value, true
+	} else if bv, ok := b.m[v]; ok {
+		return bv.value, true
 	}
 
 	return value{}, false
@@ -435,28 +430,28 @@ func (b *bindingsArrayHashmap) Get(key *ast.Term) (value, bool) {
 
 func (b *bindingsArrayHashmap) Delete(key *ast.Term) {
 	if b.m == nil {
-		if i := b.find(key); i >= 0 {
-			n := b.n - 1
-			if i < n {
-				b.a[i] = b.a[n]
+		if i, found := b.find(key); found {
+			aLen := uint(len(b.a))
+			lastIdx := aLen - 1
+			if i < aLen && i < lastIdx {
+				b.a[i] = b.a[lastIdx]
 			}
 			// Shrink slice to reflect deletion
-			b.a = b.a[:n]
-			b.n = n
+			b.a = b.a[:lastIdx]
+			clear(b.a[lastIdx:])
 		}
+
 		return
 	}
 
 	delete(b.m, key.Value.(ast.Var))
 }
 
-func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
+func (b *bindingsArrayHashmap) Iter(f func(*ast.Term, value) bool) {
 	if b.m == nil {
-		if b.a != nil {
-			for i := range b.n {
-				if f(b.a[i].key, b.a[i].value) {
-					return
-				}
+		for _, v := range b.a {
+			if f(v.key, v.value) {
+				return
 			}
 		}
 		return
@@ -471,21 +466,30 @@ func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
 
 func (b *bindingsArrayHashmap) size() int {
 	if b.m == nil {
-		return b.n
+		return len(b.a)
 	}
 	return len(b.m)
 }
 
-func (b *bindingsArrayHashmap) find(key *ast.Term) int {
-	if b.a == nil || b.n == 0 {
-		return -1
-	}
+func (b *bindingsArrayHashmap) find(key *ast.Term) (uint, bool) {
 	v := key.Value.(ast.Var)
-	for i := range b.n {
+	for i := range b.a {
 		if b.a[i].key.Value.(ast.Var) == v {
-			return i
+			return uint(i), true
 		}
 	}
 
-	return -1
+	return 0, false
+}
+
+func (b *bindingsArrayHashmap) update(key *ast.Term, value value) bool {
+	v := key.Value.(ast.Var)
+	for i := range b.a {
+		if b.a[i].key.Value.(ast.Var) == v {
+			b.a[i].value = value
+			return true
+		}
+	}
+
+	return false
 }
