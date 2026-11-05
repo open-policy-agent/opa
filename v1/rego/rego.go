@@ -29,6 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/resolver"
+	wasmresolver "github.com/open-policy-agent/opa/v1/resolver/wasm"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
@@ -579,11 +580,23 @@ type PreparedEvalQuery struct {
 	preparedQuery
 }
 
-// Close releases the resources held by the prepared query, such as the Wasm
-// engine created for the "wasm" target. The query must not be evaluated afterwards.
+// Close releases the resources held by the prepared query: the Wasm engine
+// created for the "wasm" target, and the Wasm resolvers loaded from the store.
+// The query, and any other query prepared from the same Rego object, must not
+// be evaluated afterwards.
 func (pq PreparedEvalQuery) Close() {
-	if pq.r != nil && pq.r.opa != nil {
+	if pq.r == nil {
+		return
+	}
+	if pq.r.opa != nil {
 		pq.r.opa.Close()
+	}
+	if len(pq.r.loadedResolvers) > 0 {
+		for _, rslvr := range pq.r.loadedResolvers {
+			rslvr.Close()
+		}
+		pq.r.loadedResolvers = nil
+		pq.r.resolvers = nil
 	}
 }
 
@@ -732,6 +745,7 @@ type Rego struct {
 	stackTraces                 bool
 	builtinErrorList            *[]topdown.Error
 	resolvers                   []refResolver
+	loadedResolvers             []*wasmresolver.Resolver
 	externalSources             []ast.ExternalRuleSource
 	schemaSet                   *ast.SchemaSet
 	target                      string // target type (wasm, rego, etc.)
@@ -2245,6 +2259,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 			return err
 		}
 
+		r.loadedResolvers = resolvers
 		for _, rslvr := range resolvers {
 			for _, ep := range rslvr.Entrypoints() {
 				r.resolvers = append(r.resolvers, refResolver{ep, rslvr})
