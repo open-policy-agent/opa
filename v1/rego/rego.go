@@ -1582,6 +1582,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 	}
 
 	rs, err := pq.Eval(ctx, evalArgs...)
+	pq.Close()
 	txnErr := txnClose(ctx, err) // Always call closer
 	if err == nil {
 		err = txnErr

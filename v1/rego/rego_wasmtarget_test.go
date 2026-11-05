@@ -481,3 +481,28 @@ func TestPreparedEvalQueryCloseWithWasmTarget(t *testing.T) {
 
 	pq.Close()
 }
+
+func TestEvalClosesWasmEngine(t *testing.T) {
+	t.Parallel()
+
+	r := New(
+		Query("data.test.p = x"),
+		Target("wasm"),
+		Module("a.rego", "package test\np := 1\n"),
+	)
+
+	rs, err := r.Eval(t.Context())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	if len(rs) != 1 {
+		t.Fatalf("Expected one result, got %v", rs)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	if _, err := r.opa.Entrypoints(ctx); err == nil {
+		t.Fatal("Expected an error using the engine after Eval, which should have closed it")
+	}
+}
