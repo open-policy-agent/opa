@@ -579,6 +579,18 @@ dev-prepare:
 		$(if $(REL_DRY_RUN),--dry-run,) \
 		$(if $(REL_ALLOW_EXISTING_UNRELEASED),--allow-existing-unreleased,)
 
+# Brings a patch release's CHANGELOG section and capabilities from its tag into
+# main. Run by .github/workflows/post-tag.yaml.
+#
+#   make release-integrate VERSION=1.19.1
+.PHONY: release-integrate
+release-integrate:
+	@if [ "$(origin VERSION)" != "command line" ]; then \
+		echo "error: pass the patch release version explicitly, e.g. make release-integrate VERSION=1.19.1"; \
+		exit 1; \
+	fi
+	@cd build/release && $(GO) run . integrate --version=$(VERSION)
+
 # Deprecated targets. To be removed.
 .PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin release release-local
 build-linux: deprecation-build-linux

@@ -110,6 +110,25 @@ is an error — fails before `version.go` is touched.
 `--allow-existing-unreleased` downgrades that to a warning: the heading is left
 alone and the version bump still happens.
 
+## `integrate`
+
+```
+integrate --version X.Y.Z [--ref ref] [--repo-root path]
+```
+
+Brings a patch release, tagged on a release branch, into `main`. Run by
+`.github/workflows/post-tag.yaml`, which opens a PR with the result.
+
+1. Read the `## X.Y.Z` CHANGELOG section and `capabilities/vX.Y.Z.json` at
+   `--ref` (default `vX.Y.Z`).
+2. Remove the `## Unreleased` subsections the release already carries: those
+   whose `###` heading or body matches one of its subsections. One of the two is
+   often edited for the release, so either is enough.
+3. Insert the section above the first older release, so a patch for an older
+   minor lands below the newer minors. An existing `## X.Y.Z` is an error.
+4. Write the capabilities snapshot, then regenerate `builtin_metadata.json` and
+   `v1/ast/version_index.json`.
+
 ## Tests
 
 ```sh
