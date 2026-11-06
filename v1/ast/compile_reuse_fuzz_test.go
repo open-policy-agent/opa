@@ -72,9 +72,9 @@ func genRule(rng *rand.Rand, id int, reusableOnly bool) fuzzRule {
 		meta = fmt.Sprintf("# METADATA\n# scope: document\n# title: d%d\n", id)
 	}
 	var body string
-	kind := rng.Intn(14)
+	kind := rng.Intn(15)
 	if reusableOnly {
-		kind = []int{0, 0, 0, 1, 2, 3, 4, 5, 11, 12, 13}[rng.Intn(11)]
+		kind = []int{0, 0, 0, 1, 2, 3, 4, 5, 11, 12, 13, 14}[rng.Intn(12)]
 	}
 	switch kind {
 	case 0:
@@ -105,6 +105,8 @@ func genRule(rng *rand.Rand, id int, reusableOnly bool) fuzzRule {
 		body = fmt.Sprintf("allow if { x := data.%s.v; x == %d }", other, id%3)
 	case 13:
 		body = fmt.Sprintf("o.k%d := %d", id%3, id%4)
+	case 14:
+		body = fmt.Sprintf("g contains n if { some k in input.zs; n := count([z | some z in input.zs; z == k]) + %d }", id%2)
 	}
 	return fuzzRule{pkg: pkg, text: meta + body}
 }
@@ -136,9 +138,19 @@ func fuzzParse(files map[string]string) (map[string]*Module, bool) {
 	return mods, true
 }
 
+// compareCompilers compares c to full, a compile from scratch of the same
+// modules, in what eval reads of a compiler.
 func compareCompilers(c, full *Compiler) string {
-	if c.Failed() != full.Failed() {
-		return fmt.Sprintf("failed: reuse=%v full=%v\nreuse: %v\nfull: %v", c.Failed(), full.Failed(), c.Errors, full.Errors)
+	errs := func(c *Compiler) string {
+		var out []string
+		for _, e := range c.Errors {
+			out = append(out, normalizeLocals(e.Error()))
+		}
+		slices.Sort(out)
+		return strings.Join(out, "\n")
+	}
+	if got, exp := errs(c), errs(full); got != exp {
+		return fmt.Sprintf("errors:\ngot:\n%s\nfull:\n%s", got, exp)
 	}
 	if c.Failed() {
 		return ""
@@ -148,8 +160,38 @@ func compareCompilers(c, full *Compiler) string {
 	}
 	for name, m := range full.Modules {
 		if got, exp := normalizeLocals(c.Modules[name].String()), normalizeLocals(m.String()); got != exp {
-			return fmt.Sprintf("module %s:\nreuse:\n%s\nfull:\n%s", name, got, exp)
+			return fmt.Sprintf("module %s:\ngot:\n%s\nfull:\n%s", name, got, exp)
 		}
+		for i, r := range m.Rules {
+			if got, exp := ruleFacts(c, c.Modules[name].Rules[i]), ruleFacts(full, r); got != exp {
+				return fmt.Sprintf("module %s, rule %d:\ngot:  %s\nfull: %s", name, i, got, exp)
+			}
+		}
+	}
+	// Entries for rules that are gone would keep them alive.
+	if a, b := len(c.RewrittenVars), len(full.RewrittenVars); a != b {
+		return fmt.Sprintf("%d rewritten vars, full has %d", a, b)
+	}
+	if a, b := len(c.comprehensionIndices), len(full.comprehensionIndices); a != b {
+		return fmt.Sprintf("%d comprehension indices, full has %d", a, b)
+	}
+	// Incremental compiles keep what removed rules required, which only decides
+	// whether the compile checks for deprecated built-ins.
+	required := func(c *Compiler) []string {
+		var out []string
+		for _, b := range c.Required.Builtins {
+			out = append(out, "builtin "+b.Name)
+		}
+		for _, f := range c.Required.Features {
+			out = append(out, "feature "+f)
+		}
+		for _, k := range c.Required.FutureKeywords {
+			out = append(out, "keyword "+k)
+		}
+		return out
+	}
+	if got, exp := required(c), required(full); slices.ContainsFunc(exp, func(r string) bool { return !slices.Contains(got, r) }) {
+		return fmt.Sprintf("required: got %v, full %v", got, exp)
 	}
 	annotations := func(c *Compiler) string {
 		var out []string
@@ -160,7 +202,7 @@ func compareCompilers(c, full *Compiler) string {
 		return strings.Join(out, "\n")
 	}
 	if got, exp := annotations(c), annotations(full); got != exp {
-		return fmt.Sprintf("annotations:\nreuse:\n%s\nfull:\n%s", got, exp)
+		return fmt.Sprintf("annotations:\ngot:\n%s\nfull:\n%s", got, exp)
 	}
 	var diff string
 	full.RuleTree.DepthFirst(func(n *TreeNode) bool {
@@ -169,11 +211,104 @@ func compareCompilers(c, full *Compiler) string {
 		}
 		ref := n.Values[0].Ref().GroundPrefix()
 		if a, b := c.TypeEnv.Get(ref), full.TypeEnv.Get(ref); !typesEqual(a, b) {
-			diff = fmt.Sprintf("type of %v: reuse=%v full=%v", ref, a, b)
+			diff = fmt.Sprintf("type of %v: got %v, full %v", ref, a, b)
+			return true
+		}
+		for _, input := range oracleInputs {
+			if got, exp := indexLookup(c, ref, input), indexLookup(full, ref, input); got != exp {
+				diff = fmt.Sprintf("index of %v, input %v:\ngot:  %s\nfull: %s", ref, input, got, exp)
+				return true
+			}
 		}
 		return false
 	})
 	return diff
+}
+
+// ruleFacts describes what a compiler holds about r besides r itself, in
+// terms of r's generated names.
+func ruleFacts(c *Compiler, r *Rule) string {
+	var b strings.Builder
+	seen := map[Var]bool{}
+	WalkVars(r, func(v Var) bool {
+		if localVarRE.MatchString(string(v)) && !seen[v] {
+			seen[v] = true
+			fmt.Fprintf(&b, "%v=%v ", v, c.RewrittenVars[v])
+		}
+		return false
+	})
+	WalkTerms(r, func(t *Term) bool {
+		switch t.Value.(type) {
+		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
+			fmt.Fprintf(&b, "ci%v ", c.ComprehensionIndex(t))
+		}
+		return false
+	})
+	return normalizeLocals(b.String())
+}
+
+var oracleInputs = func() []*Term {
+	var out []*Term
+	for i := range 7 {
+		out = append(out, MustParseTerm(fmt.Sprintf(`{"x": %d, "y": %v, "zs": [%d, 1], "q": %d, "m": %d}`, i, i%2 == 0, i%3, i%3, i%2)))
+	}
+	return out
+}()
+
+type oracleResolver struct{ input *Term }
+
+func (r oracleResolver) Resolve(ref Ref) (Value, error) {
+	if !ref.HasPrefix(InputRootRef) {
+		return nil, UnknownValueErr{}
+	}
+	v, err := r.input.Value.Find(ref[1:])
+	if err != nil {
+		return nil, nil
+	}
+	return v, nil
+}
+
+func indexLookup(c *Compiler, ref Ref, input *Term) string {
+	idx := c.RuleIndex(ref)
+	if idx == nil {
+		return "no index"
+	}
+	res, err := idx.Lookup(oracleResolver{input})
+	if err != nil {
+		return "error: " + err.Error()
+	}
+	var b strings.Builder
+	for _, r := range res.Rules {
+		b.WriteString(r.String())
+		for _, e := range res.Else[r] {
+			b.WriteString(" else " + e.String())
+		}
+		b.WriteString("; ")
+	}
+	if res.Default != nil {
+		b.WriteString("default " + res.Default.String())
+	}
+	fmt.Fprintf(&b, " early exit: %v", res.EarlyExit)
+	return normalizeLocals(b.String())
+}
+
+// An incrementalCompile compiles mods, parsed from files, with what it kept of
+// prev, the compile of the revision before (nil for the first). It reports
+// whether it compiled incrementally.
+type incrementalCompile func(prev *Compiler, files map[string]string, mods map[string]*Module) (*Compiler, bool)
+
+func ruleReuseCompile(placeholders bool) incrementalCompile {
+	return func(prev *Compiler, files map[string]string, mods map[string]*Module) (*Compiler, bool) {
+		c := NewCompiler().WithRuleReuse(prev).WithReparser(func(name string) (*Module, error) {
+			m, _ := fuzzParse(map[string]string{name: files[name]})
+			return m[name], nil
+		})
+		if placeholders {
+			withPlaceholders(prev, mods)
+		}
+		c.Compile(mods)
+		return c, c.RuleReuseStats().Incremental
+	}
 }
 
 // FuzzCompilerRuleReuse compiles a sequence of revisions derived from seed,
@@ -186,23 +321,27 @@ func FuzzCompilerRuleReuse(f *testing.F) {
 			}
 		}
 	}
+	f.Add(int64(428), true, false)  // added rule's local named like a reused rule's
+	f.Add(int64(1488), false, true) // one of two identical rules removed
 	f.Fuzz(func(t *testing.T, seed int64, reusableOnly, placeholders bool) {
-		checkRuleReuse(t, seed, reusableOnly, placeholders)
+		checkIncrementalCompile(t, seed, reusableOnly, ruleReuseCompile(placeholders))
 	})
 }
 
 func TestCompilerRuleReuseFuzzSeedsCompileIncrementally(t *testing.T) {
 	var n int
 	for seed := range int64(100) {
-		n += checkRuleReuse(t, seed, true, true)
+		n += checkIncrementalCompile(t, seed, true, ruleReuseCompile(true))
 	}
 	if n == 0 {
 		t.Fatal("no incremental compiles")
 	}
 }
 
-// checkRuleReuse returns how many of the compiles were incremental.
-func checkRuleReuse(t *testing.T, seed int64, reusableOnly, placeholders bool) int {
+// checkIncrementalCompile compiles a sequence of revisions derived from seed
+// with compile and from scratch, compares them, and returns how many of the
+// compiles were incremental.
+func checkIncrementalCompile(t *testing.T, seed int64, reusableOnly bool, compile incrementalCompile) int {
 	t.Helper()
 	rng := rand.New(rand.NewSource(seed))
 	var rules []fuzzRule
@@ -237,19 +376,12 @@ func checkRuleReuse(t *testing.T, seed int64, reusableOnly, placeholders bool) i
 			prev = nil
 			continue
 		}
-		c := NewCompiler().WithRuleReuse(prev).WithReparser(func(name string) (*Module, error) {
-			m, _ := fuzzParse(map[string]string{name: files[name]})
-			return m[name], nil
-		})
-		if placeholders {
-			withPlaceholders(prev, mods)
-		}
-		c.Compile(mods)
+		c, inc := compile(prev, files, mods)
 		fullMods, _ := fuzzParse(files)
 		full := NewCompiler()
 		full.Compile(fullMods)
 		// Lets the seed corpus be checked to exercise the incremental path at all.
-		if c.RuleReuseStats().Incremental {
+		if inc {
 			incremental++
 		}
 		if d := compareCompilers(c, full); d != "" {
@@ -257,7 +389,7 @@ func checkRuleReuse(t *testing.T, seed int64, reusableOnly, placeholders bool) i
 			for _, n := range slices.Sorted(maps.Keys(files)) {
 				srcs = append(srcs, "--- "+n+"\n"+files[n])
 			}
-			t.Fatalf("seed %d rev %d (incremental=%v): %s\nfiles:\n%s", seed, rev, c.RuleReuseStats().Incremental, d, strings.Join(srcs, ""))
+			t.Fatalf("seed %d rev %d (incremental=%v): %s\nfiles:\n%s", seed, rev, inc, d, strings.Join(srcs, ""))
 		}
 		if c.Failed() {
 			prev = nil
