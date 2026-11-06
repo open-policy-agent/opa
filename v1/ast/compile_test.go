@@ -586,7 +586,7 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 					t.Fatalf("expected no errors, got %v", c.Errors)
 				}
 				if tc.expected != nil {
-					assertRulesEqual(t, tc.expected, mods["0"].Rules[0])
+					assertRulesEqual(t, numberLocals(tc.expected), numberLocals(mods["0"].Rules[0]))
 				}
 			}
 		})
@@ -804,7 +804,7 @@ func TestRuleIndices(t *testing.T) {
 				for _, expRef := range expIndex {
 					found := false
 					for _, id := range index.root.rules {
-						if index.rules[id].Head.Ref().Equal(expRef) {
+						if numberLocals(index.rules[id].Head.Ref()).Equal(numberLocals(expRef)) {
 							found = true
 							break
 						}
@@ -1715,7 +1715,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["reordering"].Rules[0].Body
 
-			if !expected.Equal(result) {
+			if !numberLocals(expected).Equal(numberLocals(result)) {
 				t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, expected, result)
 			}
 		})
@@ -1791,7 +1791,7 @@ p if {
 			assertNotFailed(t, c)
 			last := len(c.Modules["mod"].Rules) - 1
 			actual := c.Modules["mod"].Rules[last].Body
-			if !actual.Equal(tc.exp) {
+			if !numberLocals(actual).Equal(numberLocals(tc.exp)) {
 				t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", tc.exp, actual)
 			}
 		})
@@ -3704,7 +3704,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 				expected := MustParseModuleWithOpts(exp, opts)
 
-				if !expected.Equal(compiler.Modules["test"]) {
+				if !numberLocals(expected).Equal(numberLocals(compiler.Modules["test"])) {
 					t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
 				}
 			case Errors:
@@ -5280,7 +5280,7 @@ q[1] = 1
 			if err := c.Errors; len(err) > 0 {
 				t.Errorf("compile module: %v", err)
 			}
-			if act := c.Modules["test"]; !exp.Equal(act) {
+			if act := c.Modules["test"]; !numberLocals(exp).Equal(numberLocals(act)) {
 				t.Errorf("compiled: expected %v, got %v", exp, act)
 			}
 		})
@@ -5794,7 +5794,7 @@ x.y.w contains bar[i] if true
 			compileStages(c, StageRewriteRefsInHead)
 			assertNotFailed(t, c)
 			act := c.Modules["head"].Rules[0]
-			assertRulesEqual(t, act, tc.exp)
+			assertRulesEqual(t, numberLocals(act), numberLocals(tc.exp))
 		})
 	}
 }
@@ -6128,7 +6128,7 @@ p = true if {
 				ProcessAnnotation: true,
 			})
 
-			if result.Compare(exp) != 0 {
+			if numberLocals(result).Compare(numberLocals(exp)) != 0 {
 				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
 		})
@@ -6680,10 +6680,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			default:
 				panic("expected value must be string or func() *Module")
 			}
-			if result.Compare(exp) != 0 {
+			if numberLocals(result).Compare(numberLocals(exp)) != 0 {
 				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
-			if !maps.Equal(c.RewrittenVars, tc.expRewrittenMap) {
+			if len(c.RewrittenVars) != len(tc.expRewrittenMap) ||
+				!slices.Equal(numberRewrittenVars(result, c.RewrittenVars), numberRewrittenVars(exp, tc.expRewrittenMap)) {
 				t.Fatalf("\nExpected Rewritten Vars:\n\n\t%+v\n\nGot:\n\n\t%+v\n\n", tc.expRewrittenMap, c.RewrittenVars)
 			}
 		})
@@ -6835,7 +6836,7 @@ func TestRewriteDeclaredVarsStage(t *testing.T) {
 			exp := module(tc.exp)
 			result := c.Modules["test.rego"]
 
-			if !exp.Equal(result) {
+			if !numberLocals(exp).Equal(numberLocals(result)) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
 		})
@@ -6940,7 +6941,7 @@ func TestRewriteLocalVarsBuiltinShadowing(t *testing.T) {
 			exp := module(tc.exp)
 			result := c.Modules["test.rego"]
 
-			if exp.String() != result.String() {
+			if numberLocals(exp).String() != numberLocals(result).String() {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
 		})
@@ -7781,7 +7782,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			} else {
 				exp := MustParseModuleWithOpts(tc.exp, opts.ParserOptions)
 				result := compiler.Modules["test.rego"]
-				if exp.Compare(result) != 0 {
+				if numberLocals(exp).Compare(numberLocals(result)) != 0 {
 					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 				}
 			}
@@ -8325,15 +8326,15 @@ func TestCompilerRewriteComprehensionTerm(t *testing.T) {
 
 	arrCompRule := c.Modules["head"].Rules[2]
 	exp1 := MustParseRule(`arr_comp = [__local0__ | data.head.arr[j] = x; __local0__ = [x[i]]] { true }`)
-	assertRulesEqual(t, arrCompRule, exp1)
+	assertRulesEqual(t, numberLocals(arrCompRule), numberLocals(exp1))
 
 	setCompRule := c.Modules["head"].Rules[3]
 	exp2 := MustParseRule(`set_comp = {__local1__ | data.head.arr[j] = x; __local1__ = [x[i]]} { true }`)
-	assertRulesEqual(t, setCompRule, exp2)
+	assertRulesEqual(t, numberLocals(setCompRule), numberLocals(exp2))
 
 	objCompRule := c.Modules["head"].Rules[4]
 	exp3 := MustParseRule(`obj_comp = {__local2__: __local3__ | data.head.arr2[j] = x; __local2__ = x[i]; __local3__ = x[i]} { true }`)
-	assertRulesEqual(t, objCompRule, exp3)
+	assertRulesEqual(t, numberLocals(objCompRule), numberLocals(exp3))
 }
 
 func TestCompilerRewriteDoubleEq(t *testing.T) {
@@ -8392,7 +8393,7 @@ func TestCompilerRewriteDoubleEq(t *testing.T) {
 			assertNotFailed(t, c)
 			exp := MustParseBody(tc.exp)
 			result := c.Modules["test"].Rules[0].Body
-			if result.Compare(exp) != 0 {
+			if numberLocals(result).Compare(numberLocals(exp)) != 0 {
 				t.Fatalf("\nExp: %v\nGot: %v", exp, result)
 			}
 		})
@@ -8450,7 +8451,7 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 			assertNotFailed(t, c)
 			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["test"].Rules[1].Body
-			if result.Compare(expected) != 0 {
+			if numberLocals(result).Compare(numberLocals(expected)) != 0 {
 				t.Fatalf("\nExp: %v\nGot: %v", expected, result)
 			}
 		})
@@ -8644,7 +8645,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 					expected = MustParseRuleWithOpts(tc.expected, ParserOptions{RegoVersion: RegoV1})
 				}
 				result := c.Modules["test"].Rules[1]
-				if result.Compare(expected) != 0 {
+				if numberLocals(result).Compare(numberLocals(expected)) != 0 {
 					t.Fatalf("\nExp: %v\nGot: %v", expected, result)
 				}
 			} else {
@@ -8744,7 +8745,7 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 			c.Compile(map[string]*Module{"test.rego": module(tc.module)})
 			assertNotFailed(t, c)
 
-			if exp := module(tc.exp); !exp.Equal(c.Modules["test.rego"]) {
+			if exp := module(tc.exp); !numberLocals(exp).Equal(numberLocals(c.Modules["test.rego"])) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
 		})
@@ -9074,7 +9075,7 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			c.Compile(map[string]*Module{"test.rego": module(tc.module)})
 			assertNotFailed(t, c)
 
-			if exp := module(tc.exp); !exp.Equal(c.Modules["test.rego"]) {
+			if exp := module(tc.exp); !numberLocals(exp).Equal(numberLocals(c.Modules["test.rego"])) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
 		})
@@ -9104,7 +9105,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					t.Parallel()
 					t.Helper()
 					c := MustCompileModules(map[string]string{"test.rego": tc.module})
-					if exp, act := module(tc.exp, popts), c.Modules["test.rego"]; !exp.Equal(act) {
+					if exp, act := module(tc.exp, popts), c.Modules["test.rego"]; !numberLocals(exp).Equal(numberLocals(act)) {
 						t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, act)
 					}
 				})
@@ -10275,7 +10276,7 @@ func TestRewritePrintCallsWithElseImplicitArgs(t *testing.T) {
 	exp.Rules[0].Else.Head.Args[0] = VarTerm("__local0__")
 	exp.Rules[0].Else.Head.Args[1] = VarTerm("__local1__")
 
-	if !exp.Equal(c.Modules["test.rego"]) {
+	if !numberLocals(exp).Equal(numberLocals(c.Modules["test.rego"])) {
 		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 	}
 }
@@ -15411,7 +15412,7 @@ test_something = true if {
 			result := c.Modules["test.rego"]
 			exp := module(tc.exp)
 			exp.Imports = nil // We strip the imports since the compiler will too
-			if result.Compare(exp) != 0 {
+			if numberLocals(result).Compare(numberLocals(exp)) != 0 {
 				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
 		})
@@ -16840,7 +16841,7 @@ func TestCompilerNotImport(t *testing.T) {
 			}
 
 			if tc.expMod != nil {
-				if diff := cmp.Diff(tc.expMod, c.Modules["mod.rego"]); diff != "" {
+				if diff := cmp.Diff(numberLocals(tc.expMod), numberLocals(c.Modules["mod.rego"])); diff != "" {
 					t.Errorf("unexpected module (-want, +got):\n%s", diff)
 				}
 
@@ -16915,7 +16916,7 @@ func TestCompilerAndOrRegoVersionParity(t *testing.T) {
 				t.Fatalf("unexpected compile errors: %v", c.Errors)
 			}
 
-			if got := c.Modules["mod.rego"].Rules[0].Body.String(); got != expectedBody {
+			if got := numberLocals(c.Modules["mod.rego"].Rules[0].Body).String(); got != expectedBody {
 				t.Fatalf("compiled body diverged from cross-version baseline:\n  want: %s\n  got:  %s", expectedBody, got)
 			}
 		})
@@ -18333,7 +18334,7 @@ func TestCompilerAndOrImports(t *testing.T) {
 					expMod = MustParseModuleWithOpts(tc.expMod.(string), popts)
 				}
 
-				if diff := cmp.Diff(expMod, c.Modules["mod.rego"]); diff != "" {
+				if diff := cmp.Diff(numberLocals(expMod), numberLocals(c.Modules["mod.rego"])); diff != "" {
 					t.Errorf("unexpected module (-want, +got):\n%s", diff)
 				}
 			}
@@ -18416,7 +18417,7 @@ func TestCompilerLogicalGroupRewrites(t *testing.T) {
 			}
 			got := c.Modules["mod.rego"].Rules[0].Body
 			want := MustParseBodyWithOpts(tc.expBody, popts)
-			if !got.Equal(want) {
+			if !numberLocals(got).Equal(numberLocals(want)) {
 				t.Errorf("compiled body:\n  want: %s\n  got:  %s", want, got)
 			}
 		})

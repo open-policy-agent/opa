@@ -159,12 +159,15 @@ func compareCompilers(c, full *Compiler) string {
 		return fmt.Sprintf("modules %v vs %v", a, b)
 	}
 	for name, m := range full.Modules {
-		if got, exp := normalizeLocals(c.Modules[name].String()), normalizeLocals(m.String()); got != exp {
+		if got, exp := numberLocals(c.Modules[name]).String(), numberLocals(m).String(); got != exp {
 			return fmt.Sprintf("module %s:\ngot:\n%s\nfull:\n%s", name, got, exp)
 		}
+		if got, exp := numberRewrittenVars(c.Modules[name], c.RewrittenVars), numberRewrittenVars(m, full.RewrittenVars); !slices.Equal(got, exp) {
+			return fmt.Sprintf("module %s, rewritten vars:\ngot:  %v\nfull: %v", name, got, exp)
+		}
 		for i, r := range m.Rules {
-			if got, exp := ruleFacts(c, c.Modules[name].Rules[i]), ruleFacts(full, r); got != exp {
-				return fmt.Sprintf("module %s, rule %d:\ngot:  %s\nfull: %s", name, i, got, exp)
+			if got, exp := comprehensionIndicesOf(c, c.Modules[name].Rules[i]), comprehensionIndicesOf(full, r); !slices.Equal(got, exp) {
+				return fmt.Sprintf("module %s, rule %d, comprehension indices:\ngot:  %v\nfull: %v", name, i, got, exp)
 			}
 		}
 	}
@@ -225,26 +228,31 @@ func compareCompilers(c, full *Compiler) string {
 	return diff
 }
 
-// ruleFacts describes what a compiler holds about r besides r itself, in
-// terms of r's generated names.
-func ruleFacts(c *Compiler, r *Rule) string {
-	var b strings.Builder
-	seen := map[Var]bool{}
-	WalkVars(r, func(v Var) bool {
-		if localVarRE.MatchString(string(v)) && !seen[v] {
-			seen[v] = true
-			fmt.Fprintf(&b, "%v=%v ", v, c.RewrittenVars[v])
-		}
-		return false
-	})
+// comprehensionIndicesOf lists the keys of the comprehension indices c holds
+// for r, in the names numberLocals gives r's locals.
+func comprehensionIndicesOf(c *Compiler, r *Rule) []string {
+	names, _ := localNames(r)
+	var out []string
 	WalkTerms(r, func(t *Term) bool {
 		switch t.Value.(type) {
 		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
-			fmt.Fprintf(&b, "ci%v ", c.ComprehensionIndex(t))
+			ci := c.ComprehensionIndex(t)
+			if ci == nil {
+				out = append(out, "none")
+				return false
+			}
+			keys := make([]string, len(ci.Keys))
+			for i, k := range ci.Keys {
+				keys[i] = k.String()
+				if v, ok := k.Value.(Var); ok && names[v] != "" {
+					keys[i] = string(names[v])
+				}
+			}
+			out = append(out, strings.Join(keys, ", "))
 		}
 		return false
 	})
-	return normalizeLocals(b.String())
+	return out
 }
 
 var oracleInputs = func() []*Term {

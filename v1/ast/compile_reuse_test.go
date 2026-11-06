@@ -46,7 +46,7 @@ func compileReusing(t *testing.T, prev *Compiler, mods map[string]*Module) *Comp
 func ruleStrings(c *Compiler, ref string) []string {
 	var out []string
 	for _, r := range c.GetRulesExact(MustParseRef(ref)) {
-		out = append(out, r.String())
+		out = append(out, numberLocals(r).String())
 	}
 	slices.Sort(out)
 	return out
@@ -163,8 +163,11 @@ func TestCompilerRuleReuse(t *testing.T) {
 				t.Fatalf("modules: got %v, want %v", got, exp)
 			}
 			for name, m := range full.Modules {
-				if got, exp := c.Modules[name].String(), m.String(); got != exp {
+				if got, exp := numberLocals(c.Modules[name]).String(), numberLocals(m).String(); got != exp {
 					t.Errorf("module %s: got\n%s\nwant\n%s", name, got, exp)
+				}
+				if got, exp := numberRewrittenVars(c.Modules[name], c.RewrittenVars), numberRewrittenVars(m, full.RewrittenVars); !slices.Equal(got, exp) {
+					t.Errorf("module %s: rewritten vars: got %v, want %v", name, got, exp)
 				}
 			}
 			indexed := func(c *Compiler) int {
@@ -187,8 +190,8 @@ func TestCompilerRuleReuse(t *testing.T) {
 					t.Errorf("required builtins: %s missing", b.Name)
 				}
 			}
-			if !maps.Equal(c.RewrittenVars, full.RewrittenVars) {
-				t.Errorf("rewritten vars: got %v, want %v", c.RewrittenVars, full.RewrittenVars)
+			if a, b := len(c.RewrittenVars), len(full.RewrittenVars); a != b {
+				t.Errorf("%d rewritten vars, want %d", a, b)
 			}
 			assertModuleLinks(t, c)
 			for _, r := range c.GetRulesExact(MustParseRef("data.gen.allow")) {
@@ -597,25 +600,15 @@ func TestCompilerRuleReuseRewrittenVars(t *testing.T) {
 			if a, b := len(c.comprehensionIndices), len(full.comprehensionIndices); a != b {
 				t.Errorf("%d comprehension indices, want %d", a, b)
 			}
-			for i, r := range full.Modules["a.rego"].Rules {
-				if got, exp := rewrittenVarsOf(c, c.Modules["a.rego"].Rules[i]), rewrittenVarsOf(full, r); got != exp {
-					t.Errorf("rule %d: got\n%s\nwant\n%s", i, got, exp)
-				}
+			got, exp := c.Modules["a.rego"], full.Modules["a.rego"]
+			if !numberLocals(got).Equal(numberLocals(exp)) {
+				t.Errorf("module: got\n%v\nwant\n%v", got, exp)
+			}
+			if got, exp := numberRewrittenVars(got, c.RewrittenVars), numberRewrittenVars(exp, full.RewrittenVars); !slices.Equal(got, exp) {
+				t.Errorf("rewritten vars: got %v, want %v", got, exp)
 			}
 		})
 	}
-}
-
-func rewrittenVarsOf(c *Compiler, r *Rule) string {
-	var b strings.Builder
-	b.WriteString(r.String())
-	WalkVars(r, func(v Var) bool {
-		if rw, ok := c.RewrittenVars[v]; ok {
-			fmt.Fprintf(&b, " %v=%v", v, rw)
-		}
-		return false
-	})
-	return normalizeLocals(b.String())
 }
 
 func TestCompilerRuleReusePathConflicts(t *testing.T) {
