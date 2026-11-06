@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -326,6 +328,16 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 						l = append(l, listEntry{removeNewLines(res.Ref.String()), res.Description})
 					}
 					printList(out, l, " ")
+					fmt.Fprintln(out)
+				}
+				if len(a.Labels) > 0 {
+					fmt.Fprintln(out, "Labels:")
+					l := make([]listEntry, 0, len(a.Labels))
+					for _, k := range slices.Sorted(maps.Keys(a.Labels)) {
+						b, _ := json.Marshal(a.Labels[k])
+						l = append(l, listEntry{k, string(b)})
+					}
+					printList(out, l, ": ")
 					fmt.Fprintln(out)
 				}
 				if len(a.Custom) > 0 {
