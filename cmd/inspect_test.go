@@ -2439,3 +2439,39 @@ NAMESPACES:
 		}
 	})
 }
+
+func TestDoInspectLabels(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{"revision":"", "roots":["example"]}`},
+		{"/example/policy.rego", `# METADATA
+# labels:
+#   team: authz
+#   tier: 1
+package example
+
+# METADATA
+# labels:
+#   owner: bob
+allow := true
+`},
+	}
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
+	if err := os.WriteFile(bundleFile, archive.MustWriteTarGz(files).Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	params := newInspectCommandParams()
+	params.listAnnotations = true
+	if err := params.outputFormat.Set(formats.Pretty); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := doInspect(params, bundleFile, &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Labels:", " team: \"authz\"", " tier: 1", " owner: \"bob\""} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in inspect output:\n%s", want, &out)
+		}
+	}
+}
