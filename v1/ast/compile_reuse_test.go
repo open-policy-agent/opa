@@ -562,6 +562,62 @@ func TestCompilerRuleReuseMatchesFullCompile(t *testing.T) {
 	}
 }
 
+func TestCompilerRuleReuseRewrittenVars(t *testing.T) {
+	rx := labeledRule("rx", "1", `x := input.a; x == 1`)
+	ry := labeledRule("ry", "1", `y := input.b; y == 2`)
+	rt := labeledRule("rt", "1", `count(input.zs) > 0`) // its local isn't a rewritten var
+	rc := labeledRule("rc", "1", `x := input.x; ys := [y | some y in input.zs; y == x]; count(ys) > 0`)
+	r1 := labeledRule("r1", "1", `input.x == "a"`)
+
+	tests := []struct {
+		note        string
+		prev, next  string
+		incremental bool
+	}{
+		{note: "rule with locals removed", prev: pkg(rx, r1), next: pkg(r1), incremental: true},
+		{note: "rule with an indexed comprehension removed", prev: pkg(rc, r1), next: pkg(r1), incremental: true},
+		{note: "added rule's locals next to a reused rule's", prev: pkg(rt), next: pkg(rt, ry), incremental: true},
+		// Only one of them was reusable, so the other's removal would go unnoticed.
+		{note: "one of two identical rules removed", prev: pkg(rx, rx, r1), next: pkg(rx, r1)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			prev := compileReusing(t, nil, parseReuseModules(t, map[string]string{"a.rego": tc.prev}))
+			c := compileReusing(t, prev, parseReuseModules(t, map[string]string{"a.rego": tc.next}))
+			if c.RuleReuseStats().Incremental != tc.incremental {
+				t.Fatalf("incremental: %v", c.RuleReuseStats().Incremental)
+			}
+			full := NewCompiler()
+			if full.Compile(parseReuseModules(t, map[string]string{"a.rego": tc.next})); full.Failed() {
+				t.Fatal(full.Errors)
+			}
+			if a, b := len(c.RewrittenVars), len(full.RewrittenVars); a != b {
+				t.Errorf("%d rewritten vars, want %d: %v", a, b, c.RewrittenVars)
+			}
+			if a, b := len(c.comprehensionIndices), len(full.comprehensionIndices); a != b {
+				t.Errorf("%d comprehension indices, want %d", a, b)
+			}
+			for i, r := range full.Modules["a.rego"].Rules {
+				if got, exp := rewrittenVarsOf(c, c.Modules["a.rego"].Rules[i]), rewrittenVarsOf(full, r); got != exp {
+					t.Errorf("rule %d: got\n%s\nwant\n%s", i, got, exp)
+				}
+			}
+		})
+	}
+}
+
+func rewrittenVarsOf(c *Compiler, r *Rule) string {
+	var b strings.Builder
+	b.WriteString(r.String())
+	WalkVars(r, func(v Var) bool {
+		if rw, ok := c.RewrittenVars[v]; ok {
+			fmt.Fprintf(&b, " %v=%v", v, rw)
+		}
+		return false
+	})
+	return normalizeLocals(b.String())
+}
+
 func TestCompilerRuleReusePathConflicts(t *testing.T) {
 	exists := false
 	opts := func(c *Compiler) *Compiler {
