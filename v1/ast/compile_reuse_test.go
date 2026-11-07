@@ -46,7 +46,7 @@ func compileReusing(t *testing.T, prev *Compiler, mods map[string]*Module) *Comp
 func ruleStrings(c *Compiler, ref string) []string {
 	var out []string
 	for _, r := range c.GetRulesExact(MustParseRef(ref)) {
-		out = append(out, r.String())
+		out = append(out, numberLocals(r).String())
 	}
 	slices.Sort(out)
 	return out
@@ -163,8 +163,11 @@ func TestCompilerRuleReuse(t *testing.T) {
 				t.Fatalf("modules: got %v, want %v", got, exp)
 			}
 			for name, m := range full.Modules {
-				if got, exp := c.Modules[name].String(), m.String(); got != exp {
+				if got, exp := numberLocals(c.Modules[name]).String(), numberLocals(m).String(); got != exp {
 					t.Errorf("module %s: got\n%s\nwant\n%s", name, got, exp)
+				}
+				if got, exp := numberRewrittenVars(c.Modules[name], c.RewrittenVars), numberRewrittenVars(m, full.RewrittenVars); !slices.Equal(got, exp) {
+					t.Errorf("module %s: rewritten vars: got %v, want %v", name, got, exp)
 				}
 			}
 			indexed := func(c *Compiler) int {
@@ -187,8 +190,8 @@ func TestCompilerRuleReuse(t *testing.T) {
 					t.Errorf("required builtins: %s missing", b.Name)
 				}
 			}
-			if !maps.Equal(c.RewrittenVars, full.RewrittenVars) {
-				t.Errorf("rewritten vars: got %v, want %v", c.RewrittenVars, full.RewrittenVars)
+			if a, b := len(c.RewrittenVars), len(full.RewrittenVars); a != b {
+				t.Errorf("%d rewritten vars, want %d", a, b)
 			}
 			assertModuleLinks(t, c)
 			for _, r := range c.GetRulesExact(MustParseRef("data.gen.allow")) {
@@ -557,6 +560,52 @@ func TestCompilerRuleReuseMatchesFullCompile(t *testing.T) {
 						}
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestCompilerRuleReuseRewrittenVars(t *testing.T) {
+	rx := labeledRule("rx", "1", `x := input.a; x == 1`)
+	ry := labeledRule("ry", "1", `y := input.b; y == 2`)
+	rt := labeledRule("rt", "1", `count(input.zs) > 0`) // its local isn't a rewritten var
+	rc := labeledRule("rc", "1", `x := input.x; ys := [y | some y in input.zs; y == x]; count(ys) > 0`)
+	r1 := labeledRule("r1", "1", `input.x == "a"`)
+
+	tests := []struct {
+		note        string
+		prev, next  string
+		incremental bool
+	}{
+		{note: "rule with locals removed", prev: pkg(rx, r1), next: pkg(r1), incremental: true},
+		{note: "rule with an indexed comprehension removed", prev: pkg(rc, r1), next: pkg(r1), incremental: true},
+		{note: "added rule's locals next to a reused rule's", prev: pkg(rt), next: pkg(rt, ry), incremental: true},
+		// Only one of them was reusable, so the other's removal would go unnoticed.
+		{note: "one of two identical rules removed", prev: pkg(rx, rx, r1), next: pkg(rx, r1)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			prev := compileReusing(t, nil, parseReuseModules(t, map[string]string{"a.rego": tc.prev}))
+			c := compileReusing(t, prev, parseReuseModules(t, map[string]string{"a.rego": tc.next}))
+			if c.RuleReuseStats().Incremental != tc.incremental {
+				t.Fatalf("incremental: %v", c.RuleReuseStats().Incremental)
+			}
+			full := NewCompiler()
+			if full.Compile(parseReuseModules(t, map[string]string{"a.rego": tc.next})); full.Failed() {
+				t.Fatal(full.Errors)
+			}
+			if a, b := len(c.RewrittenVars), len(full.RewrittenVars); a != b {
+				t.Errorf("%d rewritten vars, want %d: %v", a, b, c.RewrittenVars)
+			}
+			if a, b := len(c.comprehensionIndices), len(full.comprehensionIndices); a != b {
+				t.Errorf("%d comprehension indices, want %d", a, b)
+			}
+			got, exp := c.Modules["a.rego"], full.Modules["a.rego"]
+			if !numberLocals(got).Equal(numberLocals(exp)) {
+				t.Errorf("module: got\n%v\nwant\n%v", got, exp)
+			}
+			if got, exp := numberRewrittenVars(got, c.RewrittenVars), numberRewrittenVars(exp, full.RewrittenVars); !slices.Equal(got, exp) {
+				t.Errorf("rewritten vars: got %v, want %v", got, exp)
 			}
 		})
 	}

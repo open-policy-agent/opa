@@ -2721,9 +2721,7 @@ func (c *Compiler) removeImports() {
 
 func (c *Compiler) initLocalVarGen() {
 	c.localvargen = newLocalVarGeneratorForModuleSet(c.sorted, c.Modules)
-	for v := range c.reuse.reserved {
-		c.localvargen.exclude.Add(v)
-	}
+	c.localvargen.next = c.reuse.firstLocal
 }
 
 func (c *Compiler) rewriteComprehensionTerms() {

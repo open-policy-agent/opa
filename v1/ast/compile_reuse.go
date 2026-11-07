@@ -157,7 +157,7 @@ type ruleReuseState struct {
 	reused       int
 	incremental  bool
 	parseSkipped int
-	reserved     map[Var]Var // locals of reused rules, which a delta compiler mustn't generate
+	firstLocal   int // where a delta compiler numbers generated locals from, past those of reused rules
 }
 
 type reusePackage struct {
@@ -172,9 +172,27 @@ func splitReusable(modules map[string]*Module) (map[string][]RuleKey, map[string
 	keys := make(map[string][]RuleKey, len(modules))
 	base := map[string]*Module{}
 	pkgs := map[string]reusePackage{}
+	// Of rules with the same key, only one is reusable, so dropping another
+	// later would go unnoticed.
+	n := 0
+	for _, mod := range modules {
+		n += len(mod.Rules)
+	}
+	count := make(map[RuleKey]int, n)
+	for name, mod := range modules {
+		if mkeys, ok := reusableKeys(mod); ok {
+			keys[name] = mkeys
+			for _, k := range mkeys {
+				count[k]++
+			}
+		}
+	}
 	for _, name := range slices.Sorted(maps.Keys(modules)) {
 		mod := modules[name]
-		mkeys, ok := reusableKeys(mod)
+		mkeys, ok := keys[name]
+		if ok && slices.ContainsFunc(mkeys, func(k RuleKey) bool { return count[k] > 1 }) {
+			ok = false
+		}
 		if ok {
 			p := mod.Package.Path.String()
 			if pkg, seen := pkgs[p]; !seen {
@@ -183,9 +201,8 @@ func splitReusable(modules map[string]*Module) (map[string][]RuleKey, map[string
 				ok = false
 			}
 		}
-		if ok {
-			keys[name] = mkeys
-		} else {
+		if !ok {
+			delete(keys, name)
 			base[name] = mod
 		}
 	}
@@ -279,6 +296,7 @@ type reuseDelta struct {
 	seen      map[RuleKey]struct{} // keys of all reusable rules
 	added     map[string]*Module   // per reusable module, the rules prev lacks
 	reused    int
+	removed   []*Rule         // rules of prev that are gone
 	unchanged map[string]bool // reusable modules with the same rules as in prev
 	dc        *Compiler       // compiled the added rules
 	ext       []externalIndex
@@ -354,9 +372,6 @@ func (d *reuseDelta) splitRules() bool {
 		var a *Module
 		for i, r := range mod.Rules {
 			k := mkeys[i]
-			if _, dup := d.seen[k]; dup {
-				return false
-			}
 			d.seen[k] = struct{}{}
 			if _, ok := d.prev.reuse.rules[k]; ok {
 				d.reused++
@@ -395,6 +410,7 @@ func (d *reuseDelta) checkRemovals() bool {
 			if _, ok := d.seen[k]; !ok {
 				ref := r.Ref().String()
 				removed[ref] = append(removed[ref], r)
+				d.removed = append(d.removed, r)
 			}
 		}
 	}
@@ -422,7 +438,7 @@ func (c *Compiler) compileAdded(d *reuseDelta) bool {
 	}
 	d.ext = ext
 	d.dc = c.newDeltaCompiler()
-	d.dc.reuse.reserved = d.prev.RewrittenVars
+	d.dc.reuse.firstLocal = d.prev.localvargen.next
 	for _, e := range ext {
 		d.dc.externalSources.Put(e.ref, e)
 	}
@@ -524,16 +540,28 @@ func (c *Compiler) assemble(d *reuseDelta) bool {
 
 	c.sorted = slices.Sorted(maps.Keys(c.Modules))
 	c.Required = mergeRequired(prev.Required, dc.Required)
-	c.RewrittenVars = make(map[Var]Var, len(prev.RewrittenVars)+len(dc.RewrittenVars))
-	maps.Copy(c.RewrittenVars, prev.RewrittenVars)
-	maps.Copy(c.RewrittenVars, dc.RewrittenVars)
+	c.RewrittenVars = maps.Clone(prev.RewrittenVars)
 	c.comprehensionIndices = maps.Clone(prev.comprehensionIndices)
 	if c.comprehensionIndices == nil {
 		c.comprehensionIndices = map[*Term]*ComprehensionIndex{}
 	}
-	// dc's others index its copies of the base modules, which c doesn't use.
+	for _, r := range d.removed {
+		WalkTerms(r, func(t *Term) bool {
+			if v, ok := t.Value.(Var); ok {
+				delete(c.RewrittenVars, v)
+			}
+			delete(c.comprehensionIndices, t)
+			return false
+		})
+	}
+	// dc's other entries are for its copies of the base modules, which c doesn't use.
 	for name := range d.added {
 		WalkTerms(dc.Modules[name], func(t *Term) bool {
+			if v, ok := t.Value.(Var); ok {
+				if rw, ok := dc.RewrittenVars[v]; ok {
+					c.RewrittenVars[v] = rw
+				}
+			}
 			if ci, ok := dc.comprehensionIndices[t]; ok {
 				c.comprehensionIndices[t] = ci
 			}
@@ -554,7 +582,7 @@ func (c *Compiler) assemble(d *reuseDelta) bool {
 	}
 	exclude := prev.localvargen.exclude.Copy()
 	exclude.Update(vis.vars)
-	c.localvargen = &localVarGenerator{exclude: exclude, suffix: LocalVarPrefix}
+	c.localvargen = &localVarGenerator{exclude: exclude, suffix: LocalVarPrefix, next: dc.localvargen.next}
 
 	c.TypeEnv = c.rebindTypeEnv(prev.TypeEnv)
 	c.setAnnotationSet()
