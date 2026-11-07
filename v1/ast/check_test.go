@@ -3278,6 +3278,103 @@ func TestCheckWithModifiers(t *testing.T) {
 			},
 		},
 		{
+			note: "key of a replaced empty default object",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a contains x if { some x in allowed.k }
+				test_a if { count(a) == 1 with data.p.allowed as {"k": [1]} }`,
+			},
+		},
+		{
+			note: "key of a replaced empty default array",
+			modules: []string{
+				`package p
+				default allowed := []
+				a := allowed[0]
+				test_a if { a == 1 with data.p.allowed as [1] }`,
+			},
+		},
+		{
+			note: "key of a replaced empty default set",
+			modules: []string{
+				`package p
+				default s := set()
+				a := s[1]
+				test_a if { a == 1 with data.p.s as {1} }`,
+			},
+		},
+		{
+			note: "key of a replaced rule with an empty default and another definition",
+			modules: []string{
+				`package p
+				default allowed := {}
+				allowed := {"z": 1} if { input.x }
+				a := allowed.k
+				test_a if { a == 1 with data.p.allowed as {"k": 1} }`,
+			},
+		},
+		{
+			note: "key of a nested empty collection in a replaced default",
+			modules: []string{
+				`package p
+				default cfg := {"a": {}, "b": [[]], "c": {"d": set()}}
+				r := [cfg.a.x, cfg.b[0][0], cfg.c.d[1]]
+				test_r if { r == [1, 2, 3] with data.p.cfg as {"a": {"x": 1}, "b": [[2]], "c": {"d": {3}}} }`,
+			},
+		},
+		{
+			note: "empty default replaced through an import alias",
+			modules: []string{
+				`package p
+				import data.p as pp
+				default allowed := {}
+				a := allowed.k
+				test_a if { a == 1 with pp.allowed as {"k": 1} }`,
+			},
+		},
+		{
+			note: "empty default replaced from another package",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a := allowed.k`,
+				`package q
+				test_a if { data.p.a == 1 with data.p.allowed as {"k": 1} }`,
+			},
+		},
+		{
+			note: "empty default replaced by its package",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a := allowed.k`,
+				`package q
+				test_a if { data.p.a == 1 with data.p as {"allowed": {"k": 1}} }`,
+			},
+		},
+		{
+			note: "key of an unreplaced empty default next to a replaced one",
+			modules: []string{
+				`package p
+				default replaced := {}
+				default other := {}
+				a := replaced.k
+				b := other.k
+				test_a if { a == 1 with data.p.replaced as {"k": 1} }`,
+			},
+			err: "rego_type_error: undefined ref: data.p.other.k",
+		},
+		{
+			note: "key of an empty default object that is never replaced",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a contains x if { some x in allowed.k }`,
+			},
+			err: "rego_type_error: undefined ref: data.p.allowed.k[__local",
+		},
+		{
 			note: "function replacement arity is still checked",
 			modules: []string{
 				`package p
