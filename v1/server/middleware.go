@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
 	serverDecodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/v1/plugins/server/encoding"
 	"github.com/open-policy-agent/opa/v1/server/authorizer"
@@ -58,6 +59,7 @@ func (s *Server) authzMiddleware() middleware {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
+			authorizer.V2Compatible(s.v2Compatible),
 			authorizer.Decision(s.manager.GetConfig().DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
@@ -102,7 +104,7 @@ func (s *Server) decodingLimitsMiddleware(ctx context.Context) (middleware, erro
 	}
 
 	return func(next http.Handler) http.Handler {
-		return handlers.DecodingLimitsHandler(next, *config.MaxLength, *config.Gzip.MaxLength)
+		return bodylimit.Handler(next, *config.MaxLength, *config.Gzip.MaxLength, s.v2Compatible)
 	}, nil
 }
 

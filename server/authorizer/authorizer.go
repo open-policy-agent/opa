@@ -28,6 +28,12 @@ func Runtime(term *ast.Term) func(*Basic) {
 	return v1.Runtime(term)
 }
 
+// V2Compatible enables v2-compatible request-body error responses on the authorizer.
+// Oversized request bodies return HTTP 413 instead of HTTP 400.
+func V2Compatible(yes bool) func(*Basic) {
+	return v1.V2Compatible(yes)
+}
+
 // Decision returns an argument that sets the path of the authorization decision
 // to query.
 func Decision(ref func() ast.Ref) func(*Basic) {
