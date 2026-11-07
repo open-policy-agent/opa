@@ -417,6 +417,13 @@ func verifyURLHost(caps *ast.Capabilities, unverifiedURL string) error {
 		return err
 	}
 
+	// unix:// dials the socket query parameter, not the URL authority. When
+	// allow_net is set, refuse the scheme so an allow-listed host cannot
+	// authorize a local socket.
+	if parsedURL.Scheme == "unix" {
+		return errors.New("disallowed unix socket destination when allow_net is set")
+	}
+
 	host, _, _ := strings.Cut(parsedURL.Host, ":")
 
 	return verifyHost(caps, host)

@@ -150,7 +150,7 @@ Note that the metaschemas [https://json-schema.org/draft-04/schema](https://json
 
 This applies both to schemas resolved while type checking a policy, and to schemas compiled at evaluation time by the `json.match_schema` and `json.verify_schema` built-in functions. A schema passed to either built-in may contain a remote `$ref`, and if the host is not permitted, the reference is not fetched and the built-in reports an error instead.
 
-Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
+Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for. When `allow_net` is set, `http.send` denies `unix://` destinations: those dial a local socket rather than a network host, so an allow-listed hostname in the URL does not authorize them. Leaving `allow_net` unset leaves `unix://` unrestricted.
 
 ### Features
 
