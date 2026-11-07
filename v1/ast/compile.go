@@ -2278,6 +2278,7 @@ func (c *Compiler) checkTypes() {
 		WithRequiredCapabilities(c.Required).
 		WithVarRewriter(rewriteRefErrVars(c.localvargen.subjects, c.RewrittenVars)).
 		WithDependentsResolver(c.dependentRuleRefs).
+		WithReplacedRules(c.replacedRules).
 		WithAllowUndefinedFunctionCalls(c.allowUndefinedFuncCalls)
 	var as *AnnotationSet
 	if c.useTypeCheckAnnotations {
@@ -2286,6 +2287,25 @@ func (c *Compiler) checkTypes() {
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted, as)
 	c.errRecoverable(errs...)
 	c.TypeEnv = env
+}
+
+// replacedRules returns the rules that the with modifier of any module could replace.
+func (c *Compiler) replacedRules() map[*Rule]struct{} {
+	var rules map[*Rule]struct{}
+	for _, module := range c.Modules {
+		WalkWiths(module, func(w *With) bool {
+			if ref, ok := w.Target.Value.(Ref); ok && ref.HasPrefix(DefaultRootRef) {
+				for _, rule := range c.GetRulesDynamicWithOpts(ref, RulesOptions{IncludeHiddenModules: true}) {
+					if rules == nil {
+						rules = map[*Rule]struct{}{}
+					}
+					rules[rule] = struct{}{}
+				}
+			}
+			return false
+		})
+	}
+	return rules
 }
 
 // dependentRuleRefs returns the refs of the rules that ref could refer to,
