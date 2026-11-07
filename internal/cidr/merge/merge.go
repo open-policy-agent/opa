@@ -106,7 +106,8 @@ func GetAddressRange(ipNet net.IPNet) (net.IP, net.IP) {
 	firstIP = firstIP.Mask(ipNet.Mask)
 	lastIP = lastIP.Mask(ipNet.Mask)
 
-	if firstIP.To4() != nil {
+	// To4 is also non-nil for IPv4-mapped IPv6 addresses, which already have the prefix.
+	if len(firstIP) == net.IPv4len {
 		firstIP = append(v4Mappedv6Prefix, firstIP...)
 		lastIP = append(v4Mappedv6Prefix, lastIP...)
 	}

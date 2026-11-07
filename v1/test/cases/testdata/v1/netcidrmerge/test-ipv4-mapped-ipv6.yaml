@@ -1,0 +1,38 @@
+---
+cases:
+  - note: netcidrmerge/ipv4-mapped ipv6, same twice
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	net.cidr_merge(["::ffff:10.0.0.0/104", "::ffff:10.0.0.0/104"], x)
+        }
+    want_result:
+      - x:
+          - 10.0.0.0/8
+  - note: netcidrmerge/ipv4-mapped ipv6, adjacent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	net.cidr_merge(["::ffff:10.0.0.0/104", "::ffff:11.0.0.0/104"], x)
+        }
+    want_result:
+      - x:
+          - 10.0.0.0/7
+  - note: netcidrmerge/ipv4-mapped ipv6 and ipv4, adjacent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	net.cidr_merge(["::ffff:10.0.0.0/104", "11.0.0.0/8"], x)
+        }
+    want_result:
+      - x:
+          - 10.0.0.0/7
