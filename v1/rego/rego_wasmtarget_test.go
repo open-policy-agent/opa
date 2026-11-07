@@ -25,6 +25,8 @@ import (
 
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/resolver"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
@@ -106,7 +108,7 @@ func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
 
 	pq, err := New(
 		Compiler(compiler),
-		Query("data.test.p"),
+		Query("result = data.test.p"),
 		Target("wasm"),
 		Store(inmem.NewFromObject(map[string]any{
 			"x": map[string]any{"p": 1},
@@ -451,5 +453,131 @@ func TestRegoTargetWasmAndTargetPluginDisablesIndexingTopdownStages(t *testing.T
 				}
 			}
 		})
+	}
+}
+
+func TestPreparedEvalQueryCloseWithWasmTarget(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	pq, err := New(
+		Query("data.test.p = x"),
+		Target("wasm"),
+		Module("a.rego", "package test\np := 1\n"),
+	).PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true]]")
+
+	pq.Close()
+
+	evalCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	if _, err := pq.Eval(evalCtx); err == nil {
+		t.Fatal("Expected an error evaluating a closed query")
+	}
+
+	pq.Close()
+}
+
+func TestEvalClosesWasmEngine(t *testing.T) {
+	t.Parallel()
+
+	r := New(
+		Query("data.test.p = x"),
+		Target("wasm"),
+		Module("a.rego", "package test\np := 1\n"),
+	)
+
+	rs, err := r.Eval(t.Context())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	if len(rs) != 1 {
+		t.Fatalf("Expected one result, got %v", rs)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	if _, err := r.opa.Entrypoints(ctx); err == nil {
+		t.Fatal("Expected an error using the engine after Eval, which should have closed it")
+	}
+}
+
+func wasmResolverBundle(t *testing.T) *bundle.Bundle {
+	t.Helper()
+
+	cr, err := New(
+		Query("result = data.test.p"),
+		Module("p.rego", "package test\np := 1\n"),
+	).Compile(t.Context())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	b := &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			WasmResolvers: []bundle.WasmResolver{{Entrypoint: "eval", Module: "/policy.wasm"}},
+		},
+		Data:        map[string]any{},
+		WasmModules: []bundle.WasmModuleFile{{URL: "/policy.wasm", Path: "/policy.wasm", Raw: cr.Bytes}},
+	}
+	b.Manifest.Init()
+	return b
+}
+
+func TestPreparedEvalQueryCloseClosesLoadedWasmResolvers(t *testing.T) {
+	t.Parallel()
+
+	r := New(Query("data.eval"), ParsedBundle("b", wasmResolverBundle(t)))
+
+	pq, err := r.PrepareForEval(t.Context())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	rs, err := pq.Eval(t.Context())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	if len(rs) != 1 {
+		t.Fatalf("Expected one result from the Wasm resolver, got %v", rs)
+	}
+
+	loaded := r.loadedResolvers
+	if len(loaded) != 1 {
+		t.Fatalf("Expected one Wasm resolver loaded from the store, got %d", len(loaded))
+	}
+
+	pq.Close()
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	if _, err := loaded[0].Eval(ctx, resolver.Input{Ref: loaded[0].Entrypoints()[0]}); err == nil {
+		t.Fatal("Expected an error using the Wasm resolver after Close, which should have closed it")
+	}
+}
+
+func TestEvalAgainAfterWasmResolversAreClosed(t *testing.T) {
+	t.Parallel()
+
+	r := New(Query("data.eval"), ParsedBundle("b", wasmResolverBundle(t)))
+
+	for range 2 {
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		rs, err := r.Eval(ctx)
+		cancel()
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		if len(rs) != 1 {
+			t.Fatalf("Expected one result from the Wasm resolver, got %v", rs)
+		}
 	}
 }
