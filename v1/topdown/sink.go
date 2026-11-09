@@ -3,71 +3,71 @@ package topdown
 import (
 	"bytes"
 	"io"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
-var _ io.Writer = (*sinkW)(nil)
+var (
+	_ io.Writer = (*sinkW)(nil)
 
-type sinkWriter interface {
-	io.Writer
-	String() string
-	Grow(int)
-	WriteByte(byte) error
-	WriteString(string) (int, error)
-}
+	sinkWriterPool = util.NewSyncPool[sinkW]()
+)
 
-type sinkW struct {
-	buf    *bytes.Buffer
-	cancel Cancel
-	err    error
-}
+type (
+	sinkWriter interface {
+		io.Writer
+		io.StringWriter
+		io.ByteWriter
 
-func newSink(name string, hint int, c Cancel) sinkWriter {
-	b := &bytes.Buffer{}
-	if hint > 0 {
-		b.Grow(hint)
+		String() string
+		Grow(int)
 	}
+	sinkW struct {
+		bytes.Buffer
 
-	if c == nil {
-		return b
+		cancel Cancel
+		name   string
 	}
-
-	return &sinkW{
-		cancel: c,
-		buf:    b,
-		err: Halt{
-			Err: &Error{
-				Code:    CancelErr,
-				Message: name + ": timed out before finishing",
-			},
-		},
-	}
-}
-
-func (sw *sinkW) Grow(n int) {
-	sw.buf.Grow(n)
-}
+)
 
 func (sw *sinkW) Write(bs []byte) (int, error) {
-	if sw.cancel.Cancelled() {
-		return 0, sw.err
+	if sw.isCancelled() {
+		return 0, sw.halt()
 	}
-	return sw.buf.Write(bs)
+	return sw.Buffer.Write(bs)
 }
 
 func (sw *sinkW) WriteByte(b byte) error {
-	if sw.cancel.Cancelled() {
-		return sw.err
+	if sw.isCancelled() {
+		return sw.halt()
 	}
-	return sw.buf.WriteByte(b)
+	return sw.Buffer.WriteByte(b)
 }
 
 func (sw *sinkW) WriteString(s string) (int, error) {
-	if sw.cancel.Cancelled() {
-		return 0, sw.err
+	if sw.isCancelled() {
+		return 0, sw.halt()
 	}
-	return sw.buf.WriteString(s)
+	return sw.Buffer.WriteString(s)
 }
 
 func (sw *sinkW) String() string {
-	return sw.buf.String()
+	return sw.Buffer.String()
+}
+
+// reset used as Reset() would overwrite the method on the buffer
+func (sw *sinkW) reset(name string, c Cancel) sinkWriter {
+	sw.Buffer.Reset()
+	sw.name = name
+	sw.cancel = c
+
+	return sw
+}
+
+func (sw *sinkW) isCancelled() bool {
+	return sw.cancel != nil && sw.cancel.Cancelled()
+}
+
+func (sw *sinkW) halt() error {
+	return Halt{Err: &Error{Code: CancelErr, Message: sw.name + ": timed out before finishing"}}
 }
