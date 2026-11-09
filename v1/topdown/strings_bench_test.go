@@ -246,7 +246,6 @@ func BenchmarkTrimSpace(b *testing.B) {
 // BenchmarkLower/not_lowercase-10         	 5960936	       198.6 ns/op	      88 B/op	       3 allocs/op
 // BenchmarkLower/lowercase-10             	20954871	        57.36 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkLower(b *testing.B) {
-	bctx := BuiltinContext{}
 	lower := ast.StringTerm("the quick brown fox jumps over the lazy dog")
 	cases := []struct {
 		name     string
@@ -264,7 +263,7 @@ func BenchmarkLower(b *testing.B) {
 
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
-			b.ResetTimer()
+			bctx := BuiltinContext{}
 			for b.Loop() {
 				if err := builtinLower(bctx, c.operands, eqIter(lower)); err != nil {
 					b.Fatal(err)
@@ -274,12 +273,14 @@ func BenchmarkLower(b *testing.B) {
 	}
 }
 
+// BenchmarkConcat/100_elements_','_sep-16                  2084217       574 ns/op	     744 B/op	       3 allocs/op
+// BenchmarkConcat/100_elements_','_sep,_with_cancel-16     1909150       630 ns/op	     744 B/op	       3 allocs/op
 func BenchmarkConcat(b *testing.B) {
-	bctx := BuiltinContext{}
 	tests := []struct {
 		name     string
 		operands []*ast.Term
 		expected *ast.Term
+		cancel   Cancel
 	}{
 		{
 			name:     "0 elements '.' sep",
@@ -292,24 +293,43 @@ func BenchmarkConcat(b *testing.B) {
 			expected: ast.InternedTerm("foobar"),
 		},
 		{
+			name:     "2 elements '.' sep",
+			operands: []*ast.Term{ast.InternedTerm("."), ast.ArrayTerm(ast.InternedTerm("foo"), ast.InternedTerm("bar"))},
+			expected: ast.InternedTerm("foo.bar"),
+		},
+		{
+			name:     "2 elements '.' sep, with cancel",
+			operands: []*ast.Term{ast.InternedTerm("."), ast.ArrayTerm(ast.InternedTerm("foo"), ast.InternedTerm("bar"))},
+			expected: ast.InternedTerm("foo.bar"),
+			cancel:   NewCancel(),
+		},
+		{
 			name:     "100 elements ',' sep",
-			operands: []*ast.Term{ast.InternedTerm(","), repeatTerm(ast.InternedTerm("foobar"), 100)},
+			operands: []*ast.Term{ast.InternedTerm(","), repeatTerm("foobar", 100)},
 			expected: ast.StringTerm(strings.Repeat("foobar,", 99) + "foobar"),
 		},
 		{
+			name:     "100 elements ',' sep, with cancel",
+			operands: []*ast.Term{ast.InternedTerm(","), repeatTerm("foobar", 100)},
+			expected: ast.StringTerm(strings.Repeat("foobar,", 99) + "foobar"),
+			cancel:   NewCancel(),
+		},
+		{
 			name:     "100 elements ', ' sep",
-			operands: []*ast.Term{ast.InternedTerm(", "), repeatTerm(ast.InternedTerm("foobar"), 100)},
+			operands: []*ast.Term{ast.InternedTerm(", "), repeatTerm("foobar", 100)},
 			expected: ast.StringTerm(strings.Repeat("foobar, ", 99) + "foobar"),
 		},
 		{
 			name:     "100 elements blank sep",
-			operands: []*ast.Term{ast.InternedEmptyString, repeatTerm(ast.InternedTerm("foobar"), 100)},
+			operands: []*ast.Term{ast.InternedEmptyString, repeatTerm("foobar", 100)},
 			expected: ast.StringTerm(strings.Repeat("foobar", 100)),
 		},
 	}
 
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
+			bctx := BuiltinContext{Cancel: test.cancel}
+
 			for b.Loop() {
 				if err := builtinConcat(bctx, test.operands, eqIter(test.expected)); err != nil {
 					b.Fatal(err)
@@ -376,8 +396,8 @@ func BenchmarkLongSprintf(b *testing.B) {
 	}
 }
 
-func repeatTerm(t *ast.Term, n int) *ast.Term {
-	return ast.ArrayTerm(slices.Repeat([]*ast.Term{t}, n)...)
+func repeatTerm(s string, n int) *ast.Term {
+	return ast.ArrayTerm(slices.Repeat([]*ast.Term{ast.InternedTerm(s)}, n)...)
 }
 
 func BenchmarkSplitLenVsStringsCount(b *testing.B) {

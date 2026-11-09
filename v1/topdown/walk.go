@@ -19,8 +19,7 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 		return walkNoPath(ast.ArrayTerm(ast.InternedEmptyArray, input), iter)
 	}
 
-	filter := getOutputPath(operands)
-	return walk(filter, nil, input, iter)
+	return walk(getOutputPath(operands), nil, input, iter)
 }
 
 func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
@@ -94,7 +93,7 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 	}
 
 	inputArray := input.Value.(*ast.Array)
-	value := inputArray.Get(ast.InternedTerm(1)).Value
+	value := inputArray.Elem(1).Value
 
 	switch v := value.(type) {
 	case ast.Object:
