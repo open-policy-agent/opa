@@ -18,12 +18,12 @@ style/page-style
 
 (style/page-title %s)
 
-;; **Package:** `%s` | [source](%s) | [index](index.html)
+(style/breadcrumb %s %s)
 
 (charts/benchmark-chart %s %s)
 "
-                  id (pr-str name) pkg
-                  (charts/source-search-url pkg name)
+                  id (pr-str name)
+                  (pr-str pkg) (pr-str (charts/source-search-url pkg name))
                   (pr-str pkg) (pr-str name)))
     file))
 
