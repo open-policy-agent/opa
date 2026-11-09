@@ -48,6 +48,10 @@ svg.plotje-plot { width: 100%; height: auto; }
 /* hollow markers have fill=none, so only their ring would take the hover */
 svg.plotje-plot g[data-row-idx] rect[fill=none] { pointer-events: all; }
 
+.crumbs { margin: 0 0 12px 0; color: var(--fg-muted); }
+.crumbs .sep { margin: 0 6px; color: var(--border); }
+.crumbs .pkg { background: var(--blue); padding: 1px 4px; }
+
 .interval-box {
   font-family: 'Go Mono', monospace !important;
   font-size: 12px;
@@ -95,3 +99,12 @@ table.dataTable tbody td { border-color: var(--tag-bg) !important; }
 
 (defn page-title [text]
   (kind/hiccup [:h1 text]))
+
+(defn breadcrumb [pkg source-url]
+  (kind/hiccup
+    [:nav.crumbs
+     [:a {:href "index.html"} "index"]
+     [:span.sep "/"]
+     [:span.pkg pkg]
+     [:span.sep "/"]
+     [:a {:href source-url} "source"]]))
