@@ -176,6 +176,9 @@ func getResult(evalResult *opa.Result) (ast.Value, error) {
 	}
 
 	result := obj.Get(ast.InternedTerm("result"))
+	if result == nil {
+		return nil, errors.New("illegal result type")
+	}
 
 	return result.Value, nil
 }
