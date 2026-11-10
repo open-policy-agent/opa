@@ -512,8 +512,14 @@ func TestEvalClosesWasmEngine(t *testing.T) {
 func wasmResolverBundle(t *testing.T) *bundle.Bundle {
 	t.Helper()
 
+	return wasmResolverBundleForQuery(t, "result = data.test.p")
+}
+
+func wasmResolverBundleForQuery(t *testing.T, query string) *bundle.Bundle {
+	t.Helper()
+
 	cr, err := New(
-		Query("result = data.test.p"),
+		Query(query),
 		Module("p.rego", "package test\np := 1\n"),
 	).Compile(t.Context())
 	if err != nil {
@@ -579,5 +585,19 @@ func TestEvalAgainAfterWasmResolversAreClosed(t *testing.T) {
 		if len(rs) != 1 {
 			t.Fatalf("Expected one result from the Wasm resolver, got %v", rs)
 		}
+	}
+}
+
+func TestWasmResolverResultNotNamedResultIsAnError(t *testing.T) {
+	t.Parallel()
+
+	r := New(Query("data.eval"), ParsedBundle("b", wasmResolverBundleForQuery(t, "x = data.test.p")))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	_, err := r.Eval(ctx)
+	if err == nil || !strings.Contains(err.Error(), "illegal result type") {
+		t.Fatalf("Expected an illegal result type error, got %v", err)
 	}
 }
