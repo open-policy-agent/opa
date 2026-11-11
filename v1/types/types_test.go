@@ -638,6 +638,23 @@ func TestRoundtripJSONVariadicFunction(t *testing.T) {
 	}
 }
 
+func TestRoundtripJSONSetOfUnknown(t *testing.T) {
+	tpe := NewSet(NewSet(nil))
+	bs, err := json.Marshal(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Unmarshal(bs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if Compare(result, tpe) != 0 {
+		t.Fatalf("Got: %v\n\nExpected: %v", result, tpe)
+	}
+}
+
 func TestUnmarshalNested(t *testing.T) {
 	nested := func(n int) []byte {
 		return []byte(strings.Repeat(`{"type":"set","of":`, n) + `{"type":"string"}` + strings.Repeat("}", n))
@@ -674,7 +691,6 @@ func TestUnmarshalErrors(t *testing.T) {
 		`{"type":"object","static":[{"key":"a"}]}`,
 		`{"type":"object","dynamic":1}`,
 		`{"type":"object","dynamic":{"key":{"type":"string"}}}`,
-		`{"type":"set"}`,
 		`{"type":"set","of":null}`,
 		`{"type":"any","of":{}}`,
 		`{"type":"function","args":"x"}`,
@@ -692,6 +708,7 @@ func TestUnmarshalErrors(t *testing.T) {
 func TestUnmarshalOptionalFields(t *testing.T) {
 	for in, exp := range map[string]Type{
 		`{"type":"array"}`:                    NewArray(nil, nil),
+		`{"type":"set"}`:                      NewSet(nil),
 		`{"type":"object"}`:                   NewObject(nil, nil),
 		`{"type":"object","dynamic":null}`:    NewObject(nil, nil),
 		`{"type":"object","dynamic":{}}`:      NewObject(nil, nil),
