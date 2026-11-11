@@ -44,6 +44,8 @@ b = true if { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
 call_values if { f(x) != g(x) }
 assigned := 1
 rule.having.ref.head[1] = x if x := 2
+all_positive if { every x in input.xs { x > 0 } }
+all_above_key if { every k, v in input.obj { v > k } }
 
 # METADATA
 # scope: rule
