@@ -350,6 +350,31 @@ func (txn *transaction) isObject(path storage.Path) (exists bool, isObj bool, er
 	return isObjectNode(pointer(txn.db.data, path))
 }
 
+// nonEmpty reports whether path collides with stored data. The path collides
+// when a value exists at the path itself, or when a proper prefix exists and
+// is not an object. A prefix that merely contains a pending write is an object
+// and is not a collision, so this does not copy that prefix.
+func (txn *transaction) nonEmpty(path []string) (bool, error) {
+	exists, _, err := txn.isObject(storage.Path(path))
+	if err != nil {
+		return false, err
+	}
+	if exists {
+		return true, nil
+	}
+	for i := len(path) - 1; i > 0; i-- {
+		exists, isObj, err := txn.isObject(storage.Path(path[:i]))
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			continue
+		}
+		return !isObj, nil
+	}
+	return false, nil
+}
+
 func isObjectNode(node any, err error) (bool, bool, error) {
 	if err != nil {
 		if storage.IsNotFound(err) {
