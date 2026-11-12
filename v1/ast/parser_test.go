@@ -6907,6 +6907,9 @@ func TestRuleFromExprGeneratedBody(t *testing.T) {
 		`a[0] := 1`,
 		`a["foo"] = "bar"`,
 		`p.q.r := 1`,
+		`f(x) := 1`,
+		`f(x) = 1`,
+		`f(x) := x`,
 	}
 
 	mod := MustParseModule("package test")
