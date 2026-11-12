@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/ipv6 cidr does not contain ipv4 cidr
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p[x] {
+        	net.cidr_contains("::/0", "192.168.0.0/16", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - false
+    sort_bindings: true

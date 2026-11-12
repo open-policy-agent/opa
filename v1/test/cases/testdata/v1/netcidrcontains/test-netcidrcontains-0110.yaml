@@ -1,0 +1,16 @@
+---
+cases:
+  - note: netcidrcontains/cidr contains range with ipv4-mapped last address in a supernet 95
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	net.cidr_contains("::/0", "::fffe:0:0/95", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true
