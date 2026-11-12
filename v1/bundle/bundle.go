@@ -528,17 +528,11 @@ type Reader struct {
 	persist               bool
 	regoVersion           ast.RegoVersion
 	followSymlinks        bool
-	ruleReuseFrom         func() *ast.Compiler
-}
-
-type moduleParser func(path string, raw []byte, opts ast.ParserOptions) (*ast.Module, error)
-
-func parseModule(path string, raw []byte, opts ast.ParserOptions) (*ast.Module, error) {
-	return ast.ParseModuleWithOpts(path, util.ByteSliceToString(raw), opts)
 }
 
 func generatedParserOptions(popts ast.ParserOptions) ast.ParserOptions {
-	// Rule reuse keys rules with their annotations, attached while parsing.
+	// Rules are keyed by their source with annotations, attached while parsing;
+	// see ast.Rule.SourceKey.
 	popts.ProcessAnnotation, popts.DropLocations = true, true
 	return popts
 }
@@ -646,14 +640,6 @@ func (r *Reader) WithFollowSymlinks(yes bool) *Reader {
 // outside the bundle's roots will not be performed while reading the bundle.
 func (r *Reader) WithLazyLoadingMode(yes bool) *Reader {
 	r.lazyLoadingMode = yes
-	return r
-}
-
-// WithRuleReuse makes the reader take the rules of generated bundles that
-// current() compiled from the same source instead of parsing them. current may
-// be nil or return nil. Experimental.
-func (r *Reader) WithRuleReuse(current func() *ast.Compiler) *Reader {
-	r.ruleReuseFrom = current
 	return r
 }
 
@@ -856,11 +842,6 @@ func (r *Reader) Read() (Bundle, error) {
 		popts = generatedParserOptions(popts)
 	}
 
-	parse := parseModule
-	if r.ruleReuseFrom != nil && bundle.Manifest.Generated {
-		parse = reuseModuleParser(r.ruleReuseFrom)
-	}
-
 	// Each module holds what parsing allocates until it's done, so parsing them
 	// all at once holds that for every module at the same time.
 	g := &errgroup.Group{}
@@ -878,8 +859,7 @@ func (r *Reader) Read() (Bundle, error) {
 		}
 
 		g.Go(func() (err error) {
-			mf.Parsed, err = parse(mf.Path, mf.Raw, mpopts)
-			if err == nil {
+			if mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, util.ByteSliceToString(mf.Raw), mpopts); err == nil {
 				modules[i] = mf
 			}
 			return err

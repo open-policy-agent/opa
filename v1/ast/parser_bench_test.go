@@ -337,18 +337,14 @@ func BenchmarkParseRuleAnnotations(b *testing.B) {
 
 // generatedSources returns n generated rules of one package, 500 to a file,
 // each with METADATA labels.
-func generatedSources(n int, changed int) map[string]string {
+func generatedSources(n int) map[string]string {
 	files := map[string]string{}
 	for f := range (n + 499) / 500 {
 		var b strings.Builder
 		b.WriteString("package gen\n\n")
 		for r := f * 500; r < min(n, (f+1)*500); r++ {
-			version := 1
-			if r == changed {
-				version = 2
-			}
-			fmt.Fprintf(&b, "# METADATA\n# labels:\n#   id: \"r%d\"\n#   version: \"%d\"\nallow if {\n\tinput.action == \"read%d\"\n\tinput.role == \"viewer%d\"\n\tinput.resource.id == \"res-%d-%d\"\n}\n\n",
-				r, version, r%17, r%101, r, version)
+			fmt.Fprintf(&b, "# METADATA\n# labels:\n#   id: \"r%d\"\n#   version: \"1\"\nallow if {\n\tinput.action == \"read%d\"\n\tinput.role == \"viewer%d\"\n\tinput.resource.id == \"res-%d-1\"\n}\n\n",
+				r, r%17, r%101, r)
 		}
 		files[fmt.Sprintf("gen/rules_%d.rego", f)] = b.String()
 	}
@@ -369,7 +365,7 @@ func retainedBytes(b *testing.B, keep *any) {
 }
 
 func BenchmarkCompileGeneratedRules(b *testing.B) {
-	files := generatedSources(20000, -1)
+	files := generatedSources(20000)
 	for _, skip := range []bool{false, true} {
 		b.Run(fmt.Sprintf("DropLocations=%v", skip), func(b *testing.B) {
 			popts := ParserOptions{RegoVersion: RegoV1, ProcessAnnotation: true, DropLocations: skip}
