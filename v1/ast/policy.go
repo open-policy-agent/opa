@@ -231,8 +231,8 @@ type (
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
 		regoVersion RegoVersionSpan
-		reusable    bool    // compiled by Compiler.WithRuleReuse, its rules reusable
-		reuseKey    RuleKey // set by the parser, see moduleKey
+		keyed       bool              // parsed with annotations, see Rule.SourceKey
+		sourceKeys  map[*Rule]RuleKey // of rules parsed without locations
 		// unparsed holds annotations recorded before locations were dropped; nil means use the rows.
 		unparsed []unparsedAnnotation
 	}
@@ -277,7 +277,6 @@ type (
 
 		Default       bool `json:"default,omitempty"`
 		generatedBody bool
-		reuseKey      RuleKey // set by the parser, see reuseKey
 	}
 
 	// Head represents the head of a rule.
@@ -424,6 +423,15 @@ func (mod *Module) Copy() *Module {
 	cpy.unparsed = slices.Clone(mod.unparsed)
 	for i := range cpy.unparsed {
 		cpy.unparsed[i].node = nodes[cpy.unparsed[i].node]
+	}
+
+	if mod.sourceKeys != nil {
+		cpy.sourceKeys = make(map[*Rule]RuleKey, len(mod.sourceKeys))
+		for r, k := range mod.sourceKeys {
+			if c, ok := nodes[r].(*Rule); ok {
+				cpy.sourceKeys[c] = k
+			}
+		}
 	}
 
 	return &cpy
