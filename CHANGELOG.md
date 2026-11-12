@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.22.4
+
+This is a fix release for a vulnerability (CVE-2026-97054) in Go's
+HTTP/1 server:
+
+https://groups.google.com/g/golang-announce/c/iY8TY0wWgbM
+
+> net/http: HTTP/1 server crash due to MaxBytesReader header race
+>
+> For HTTP/1 servers, when MaxBytesReader's limit is exceeded,
+> "Connection: close" header is automatically set without synchronization,
+> which might race with another header being set explicitly in the server
+> handler. As a result, an HTTP/1 server that utilizes MaxBytesReader or
+> MaxBytesHandler can crash due to runtime panic if its handler reads the
+> request body concurrently with writing the response header.
+>
+> Thanks to Jakub Ciolek (https://ciolek.dev) for reporting this issue.
+>
+> This is CVE-2026-97054 and Go issue https://go.dev/issue/82563.
+
+Note that our security guidance includes not running OPA with its
+interfaces exposed to adversarial actors, like the public internet.
+This is fixed regardless, if only to avoid too many spurious vulnerability
+checker reports.
+
+Also note that if you build your OPA binaries yourself, this patch release
+does not apply to you, as you control the version of Go that's used. This
+patch release affects the published binaries and docker images of OPA.
+
+
 ## 1.22.3
 
 This is a bugfix release for a type checker regression in v1.22.0.
