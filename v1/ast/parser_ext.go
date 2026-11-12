@@ -409,10 +409,11 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	body := implicitTrueBody(rhs.Location)
 
 	rule := &Rule{
-		Location: lhs.Location,
-		Head:     head,
-		Body:     body,
-		Module:   module,
+		Location:      lhs.Location,
+		Head:          head,
+		Body:          body,
+		Module:        module,
+		generatedBody: true,
 	}
 
 	return rule, nil
@@ -438,10 +439,11 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	body := implicitTrueBody(loc)
 
 	rule := &Rule{
-		Location: loc,
-		Head:     head,
-		Module:   module,
-		Body:     body,
+		Location:      loc,
+		Head:          head,
+		Module:        module,
+		Body:          body,
+		generatedBody: true,
 	}
 	return rule, nil
 }
