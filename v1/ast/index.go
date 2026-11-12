@@ -103,8 +103,6 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 
 	i.kind = rules[0].Head.RuleKind()
 	indices := newrefindices(i.isVirtual, newRefTable())
-	// Only Build needs it; a reused index mustn't keep its compiler alive.
-	i.isVirtual = nil
 	values := make(map[Var]Value)
 
 	// build indices for each rule.

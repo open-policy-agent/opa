@@ -470,7 +470,6 @@ func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*
 			sizeLimitBytes:   source.SizeLimitBytes,
 			f:                p.oneShot,
 			bundleParserOpts: p.manager.ParserOptions(),
-			ruleReuseFrom:    p.manager.GetCompiler,
 		}
 	}
 
@@ -500,8 +499,7 @@ func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*
 		WithBundlePersistence(p.persistBundle(name, bundles)).
 		WithLazyLoadingMode(true).
 		WithBundleName(name).
-		WithBundleParserOpts(p.manager.ParserOptions()).
-		WithRuleReuse(p.manager.GetCompiler)
+		WithBundleParserOpts(p.manager.ParserOptions())
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) error {
@@ -652,14 +650,8 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 			compiler = p.manager.GetCompiler()
 		}
 
-		var reuseFrom func() *ast.Compiler
 		if compiler == nil {
 			compiler = ast.NewCompiler()
-			// Keep reuse on once a generated bundle is compiled, so other bundles don't recompile its rules.
-			if prev := p.manager.GetCompiler(); b.Manifest.Generated || (prev != nil && prev.RuleReuseStats().Enabled) {
-				compiler = compiler.WithRuleReuse(prev)
-				reuseFrom = func() *ast.Compiler { return prev }
-			}
 		}
 
 		compiler = compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
@@ -682,16 +674,15 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 		})
 
 		opts := &bundle.ActivateOpts{
-			Ctx:               ctx,
-			Store:             p.manager.Store,
-			Txn:               txn,
-			TxnCtx:            params.Context,
-			Compiler:          compiler,
-			Metrics:           p.status[name].Metrics,
-			Bundles:           map[string]*bundle.Bundle{name: b},
-			ExternalSources:   p.manager.GetExternalSources(),
-			ParserOptions:     p.manager.ParserOptions(),
-			RuleReuseCompiler: reuseFrom,
+			Ctx:             ctx,
+			Store:           p.manager.Store,
+			Txn:             txn,
+			TxnCtx:          params.Context,
+			Compiler:        compiler,
+			Metrics:         p.status[name].Metrics,
+			Bundles:         map[string]*bundle.Bundle{name: b},
+			ExternalSources: p.manager.GetExternalSources(),
+			ParserOptions:   p.manager.ParserOptions(),
 		}
 
 		if p.manager.Info != nil {
@@ -864,7 +855,6 @@ type fileLoader struct {
 	sizeLimitBytes   int64
 	f                func(context.Context, string, download.Update) error
 	bundleParserOpts ast.ParserOptions
-	ruleReuseFrom    func() *ast.Compiler
 }
 
 func (fl *fileLoader) Start(ctx context.Context) {
@@ -920,7 +910,6 @@ func (fl *fileLoader) oneShot(ctx context.Context) (err error) {
 		WithSizeLimitBytes(fl.sizeLimitBytes).
 		WithRegoVersion(fl.bundleParserOpts.RegoVersion).
 		WithProcessAnnotations(fl.bundleParserOpts.ProcessAnnotation).
-		WithRuleReuse(fl.ruleReuseFrom).
 		Read()
 	u.Error = err
 	if err == nil {

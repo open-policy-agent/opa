@@ -4046,7 +4046,7 @@ func TestErasePolicies(t *testing.T) {
 			for _, root := range tc.roots {
 				roots[root] = struct{}{}
 			}
-			remaining, _, err := erasePolicies(t.Context(), mockStore, txn, ast.ParserOptions{}, nil, roots)
+			remaining, _, err := erasePolicies(t.Context(), mockStore, txn, ast.ParserOptions{}, roots)
 			if !tc.expectErr && err != nil {
 				t.Fatalf("unepected error: %s", err)
 			} else if tc.expectErr && err == nil {
@@ -5398,37 +5398,18 @@ func FuzzPackageOnly(f *testing.F) {
 }
 
 func TestActivate_GeneratedBundle(t *testing.T) {
-	read := func(manifest, policy string, reuseFrom *ast.Compiler) Bundle {
+	read := func(manifest, policy string) Bundle {
 		files := [][2]string{{"/.manifest", manifest}, {"/a/policy.rego", policy}}
 		return must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
 			WithBundleName("a").
-			WithRuleReuse(func() *ast.Compiler { return reuseFrom }).
 			Read())(t)
 	}
 	policy := "package a\n\n# METADATA\n# title: p\np := 1 # comment\n"
 
-	b := read(`{"roots": ["a"], "generated": true}`, policy, nil)
+	b := read(`{"roots": ["a"], "generated": true}`, policy)
 	assertGenerated(t, b.Modules[0].Parsed)
-	if plain := read(`{"roots": ["a"]}`, policy, nil); plain.Modules[0].Parsed.Rules[0].Location == nil {
+	if plain := read(`{"roots": ["a"]}`, policy); plain.Modules[0].Parsed.Rules[0].Location == nil {
 		t.Fatal("bundle not marked generated parsed without locations")
-	}
-
-	// The reader takes rules compiled from the same source for generated bundles only.
-	reusable := "package a\n\n# METADATA\n# title: p\np := 1\n"
-	prev := ast.NewCompiler().WithRuleReuse(nil)
-	if prev.Compile(map[string]*ast.Module{"a": read(`{"roots": ["a"], "generated": true}`, reusable, nil).Modules[0].Parsed}); prev.Failed() {
-		t.Fatal(prev.Errors)
-	}
-	for manifest, reused := range map[string]bool{`{"roots": ["a"], "generated": true}`: true, `{"roots": ["a"]}`: false} {
-		rb := read(manifest, reusable+"\nq := 2\n", prev)
-		if got := slices.ContainsFunc(rb.Modules[0].Parsed.Rules, func(r *ast.Rule) bool {
-			return slices.Contains(prev.GetRulesExact(ast.MustParseRef("data.a.p")), r)
-		}); got != reused {
-			t.Errorf("%s: reused %v", manifest, got)
-		}
-		if string(rb.Modules[0].Raw) != reusable+"\nq := 2\n" {
-			t.Errorf("%s: raw %q", manifest, rb.Modules[0].Raw)
-		}
 	}
 
 	store := mock.New()
@@ -5450,58 +5431,5 @@ func assertGenerated(t *testing.T, m *ast.Module) {
 	t.Helper()
 	if m.Package.Location != nil || m.Rules[0].Location != nil || len(m.Comments) == 0 || m.Comments[0].Location != nil {
 		t.Fatalf("locations kept: %#v, %#v, %#v", m.Package.Location, m.Rules[0].Location, m.Comments)
-	}
-}
-
-func TestActivate_RuleReuse(t *testing.T) {
-	ctx := t.Context()
-	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
-	popts := generatedParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1})
-	rule := func(id string) string {
-		return "# METADATA\n# labels:\n#   id: \"" + id + "\"\nallow if input.x == \"" + id + "\"\n\n"
-	}
-	var prev *ast.Compiler
-	activate := func(name, src string) (map[string]any, ast.RuleReuseStats) {
-		t.Helper()
-		parsed, err := ast.ParseModuleWithOpts(name+"/x.rego", src, popts)
-		if err != nil {
-			t.Fatal(err)
-		}
-		m := metrics.New()
-		c := ast.NewCompiler().WithRuleReuse(prev)
-		txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-		err = Activate(&ActivateOpts{Ctx: ctx, Store: store, Txn: txn, Compiler: c, Metrics: m,
-			ParserOptions: popts, RuleReuseCompiler: func() *ast.Compiler { return prev },
-			Bundles: map[string]*Bundle{name: {
-				Manifest: Manifest{Roots: &[]string{name}, Generated: true},
-				Modules:  []ModuleFile{{Path: name + "/x.rego", Raw: []byte(src), Parsed: parsed}},
-			}}})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := store.Commit(ctx, txn); err != nil {
-			t.Fatal(err)
-		}
-		prev = c
-		return m.All(), c.RuleReuseStats()
-	}
-
-	got, _ := activate("a", "package a\n\n"+rule("r1")+rule("r2"))
-	if got["counter_rego_module_compile_full"] != uint64(1) || got["counter_rego_module_compile_reused_rules"] != uint64(0) {
-		t.Fatalf("first activation: %v", got)
-	}
-	got, _ = activate("a", "package a\n\n"+rule("r1")+rule("r2")+rule("r3"))
-	if _, ok := got["counter_rego_module_compile_full"]; ok || got["counter_rego_module_compile_reused_rules"] != uint64(2) {
-		t.Fatalf("second activation: %v", got)
-	}
-
-	// b's activations read a's policy back from the store.
-	activate("b", "package b\n\nallow if input.y == 1\n")
-	if _, s := activate("b", "package b\n\nallow if input.y == 1\n\nallow if input.y == 2\n"); !s.Incremental || s.ParseSkipped != 3 {
-		t.Fatalf("b's switch: %+v", s)
-	}
-	// A function in b forces a full compile, with a's rules parsed again.
-	if _, s := activate("b", "package b\n\nf(x) := x\n"); s.Incremental {
-		t.Fatalf("b with a function: %+v", s)
 	}
 }
