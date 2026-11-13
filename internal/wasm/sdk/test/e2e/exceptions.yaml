@@ -11,3 +11,4 @@
 "strings/indexof: empty search string is an error": "WASM indexof returns 0 for an empty search string; the Go topdown builtin raises an error."
 "strings/indexof: empty search string in the empty string is an error": "WASM indexof returns 0 for an empty search string; the Go topdown builtin raises an error."
 "base64builtins/base64 is_valid unpadded input of invalid length": "WASM base64.is_valid accepts the unpadded input \"abc\"; the Go topdown builtin rejects it."
+"arithmetic/ceil, floor and round of 1e20": "WASM renders 1e20 as \"1e+20\" instead of the full integer (see https://github.com/open-policy-agent/opa/issues/3711)."
