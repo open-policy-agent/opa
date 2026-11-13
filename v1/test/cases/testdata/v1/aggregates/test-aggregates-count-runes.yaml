@@ -1,0 +1,11 @@
+---
+cases:
+  - note: "aggregates/count: strings are counted in runes"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [count("😀"), count("😀a"), count("日本語"), count("héllo")]
+    want_result:
+      - x: [1, 2, 3, 5]
