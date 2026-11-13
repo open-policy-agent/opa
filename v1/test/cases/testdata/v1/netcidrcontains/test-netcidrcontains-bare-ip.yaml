@@ -1,0 +1,31 @@
+---
+cases:
+  - note: "netcidrcontains/bare ipv4 address is not a cidr"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := net.cidr_contains("10.1.2.3", "10.1.2.3")
+    want_error_code: eval_builtin_error
+    want_error: "invalid CIDR address: 10.1.2.3"
+    strict_error: true
+  - note: "netcidrcontains/bare ipv6 address is not a cidr"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := net.cidr_contains("::1", "::1")
+    want_error_code: eval_builtin_error
+    want_error: "invalid CIDR address: ::1"
+    strict_error: true
+  - note: "netcidrcontains/bare ipv4 address as the second operand"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := net.cidr_contains("10.1.2.0/24", "10.1.2.3")
+    want_result:
+      - x: true

@@ -1,0 +1,32 @@
+---
+cases:
+  - note: "time/parse_ns: nanosecond exactness and fraction widths"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {
+        	"one_ns": sprintf("%v", [time.parse_rfc3339_ns("2024-01-01T00:00:00.000000001Z")]),
+        	"one_digit": sprintf("%v", [time.parse_rfc3339_ns("2024-01-01T00:00:00.1Z")]),
+        	"nine_digits_offset": sprintf("%v", [time.parse_rfc3339_ns("2024-01-01T00:00:00.123456789+01:00")]),
+        	"max_int64": sprintf("%v", [time.parse_rfc3339_ns("2262-04-11T23:47:16.854775807Z")]),
+        	"layout_nine_digits": sprintf("%v", [time.parse_ns("2006-01-02T15:04:05Z07:00", "2024-01-01T00:00:00.123456789Z")]),
+        	"fixed_fraction_ok": sprintf("%v", [time.parse_ns("2006-01-02T15:04:05.000Z07:00", "2024-01-01T00:00:00.123Z")]),
+        }
+    want_result:
+      - x:
+          one_ns: "1704067200000000001"
+          one_digit: "1704067200100000000"
+          nine_digits_offset: "1704063600123456789"
+          max_int64: "9223372036854775807"
+          layout_nine_digits: "1704067200123456789"
+          fixed_fraction_ok: "1704067200123000000"
+  - note: "time/parse_ns: fixed-width fraction layout rejects other widths"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.parse_ns("2006-01-02T15:04:05.000Z07:00", "2024-01-01T00:00:00.1Z")
+    want_result: []

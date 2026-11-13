@@ -1,0 +1,58 @@
+---
+cases:
+  - note: "jsonbuiltins/json.unmarshal replaces a lone surrogate in a value"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [
+        	json.unmarshal("\"\\ud800\""),
+        	json.unmarshal("\"a\\ud800b\""),
+        	json.unmarshal("\"\\ude00\""),
+        	json.unmarshal("\"\\ud83d\\ude00\""),
+        ]
+    want_result:
+      - x: ["\uFFFD", "a\uFFFDb", "\uFFFD", "😀"]
+  - note: "jsonbuiltins/json.unmarshal replaces a lone surrogate in an object key"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.unmarshal("{\"\\ud800\": 1}")
+    want_result:
+      - x:
+          "\uFFFD": 1
+  - note: "jsonbuiltins/a lone surrogate in a string counts as one code point"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := count(json.unmarshal("\"\\ud800\""))
+    want_result:
+      - x: 1
+  - note: "jsonbuiltins/a lone surrogate escape in a Rego string literal"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := ["\ud800", {"\ud800": 1}]
+    want_result:
+      - x:
+          - "\uFFFD"
+          - "\uFFFD": 1
+  - note: "jsonbuiltins/a lone surrogate escape in input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := input
+    input_term: '{"s": "\ud800", "\ud800": 1}'
+    want_result:
+      - x:
+          s: "\uFFFD"
+          "\uFFFD": 1

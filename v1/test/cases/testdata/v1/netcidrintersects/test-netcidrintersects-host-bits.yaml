@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "netcidrintersects/cidr with host bits set"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [net.cidr_intersects("172.27.0.0/12", "172.16.0.0/12"),
+        	net.cidr_intersects("172.16.0.0/12", "172.27.0.0/12"),
+        	net.cidr_intersects("10.1.2.3/8", "10.9.9.9/16"),
+        	net.cidr_intersects("10.1.2.3/24", "10.1.3.0/24")]
+    want_result:
+      - x: [true, true, true, false]

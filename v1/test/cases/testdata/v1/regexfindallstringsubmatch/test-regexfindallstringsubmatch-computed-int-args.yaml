@@ -1,0 +1,11 @@
+---
+cases:
+  - note: "regexfindallstringsubmatch/find_all_string_submatch_n: computed count"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := regex.find_all_string_submatch_n("a(.)", "abac", 1 + 1)
+    want_result:
+      - x: [["ab", "b"], ["ac", "c"]]
