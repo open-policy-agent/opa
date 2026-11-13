@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "netcidrintersects/ipv4 and ipv6 networks do not intersect"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [net.cidr_intersects("10.1.2.3/8", "::/0"), net.cidr_intersects("::/0", "10.1.2.3/8")]
+    want_result:
+      - x: [false, false]
+  - note: "netcidrintersects/all of ipv4 and all of ipv6 do not intersect"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [net.cidr_intersects("0.0.0.0/0", "::/0"), net.cidr_intersects("::/0", "0.0.0.0/0")]
+    want_result:
+      - x: [false, false]
