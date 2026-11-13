@@ -62,6 +62,21 @@ jobs:
         env:
           GOARCH: arm64
 
+      - name: Check binaries are not marked dirty
+        run: |
+          fail=0
+          for bin in _release/*/opa_*; do
+            case "$bin" in *.sha256) continue ;; esac
+            if ! go version -m "$bin" | grep -q 'vcs.modified=false'; then
+              echo "::error::$bin was built from a modified working tree"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            git status --porcelain --untracked-files=all
+            exit 1
+          fi
+
       - name: Upload binaries
         uses: actions/upload-artifact@v7.0.2
         if: always()

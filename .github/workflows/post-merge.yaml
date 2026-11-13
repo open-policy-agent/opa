@@ -127,6 +127,11 @@ jobs:
         env:
           GOARCH: arm64
 
+      - name: Check working copy is clean
+        # Anything untracked or modified here ends up as "-dirty" in the
+        # build commit of the binaries built above.
+        run: ./build/check-working-copy.sh
+
       - name: Upload binaries
         uses: actions/upload-artifact@v7.0.2
         if: always()
