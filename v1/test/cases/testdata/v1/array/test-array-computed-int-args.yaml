@@ -1,0 +1,11 @@
+---
+cases:
+  - note: "array/slice: computed stop index"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.slice([1, 2, 3], 0, 1 + 1)
+    want_result:
+      - x: [1, 2]
