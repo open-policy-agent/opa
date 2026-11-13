@@ -730,6 +730,10 @@ type RefErrUnsupportedDetail = v1.RefErrUnsupportedDetail
 // invalid key type, etc.)
 type RefErrInvalidDetail = v1.RefErrInvalidDetail
 
+// RefErrIndexOutOfBoundsDetail describes an undefined reference error where an
+// array with a known length is indexed outside of its bounds.
+type RefErrIndexOutOfBoundsDetail = v1.RefErrIndexOutOfBoundsDetail
+
 // Compare returns an integer indicating whether two AST values are less than,
 // equal to, or greater than each other.
 //
