@@ -1,7 +1,9 @@
 package topdown
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -130,6 +132,40 @@ func BenchmarkPartialEvalDynamicCompositionKnownRules(b *testing.B) {
 			// Spread over 100 type/subtype pairs, so a hundredth of the policies
 			// apply to the input and the entrypoint's rule is evaluated for each.
 			runDynamicCompositionBenchmark(b, generateDynamicCompositionPolicies(n, 100, `input.type == "no-match"`))
+		})
+	}
+}
+
+// BenchmarkPartialEvalLargeRuleSet partially evaluates one large rule set, none
+// of whose rules test the unknown. The index narrows it to one rule.
+func BenchmarkPartialEvalLargeRuleSet(b *testing.B) {
+	for _, n := range []int{100, 1000, 10000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			var src strings.Builder
+			src.WriteString("package test\n\n")
+			for i := range n {
+				fmt.Fprintf(&src, "allow if { input.subject == \"s%d\"; input.action == \"read\" }\n", i)
+			}
+			compiler := ast.MustCompileModules(map[string]string{"test.rego": src.String()})
+			body := ast.MustParseBody("data.test.allow = true")
+			unknowns := []*ast.Term{ast.MustParseTerm("input.resource")}
+			input := ast.MustParseTerm(fmt.Sprintf(`{"subject": "s%d", "action": "read"}`, n/2))
+			store := inmem.New()
+			ctx := b.Context()
+
+			for b.Loop() {
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+					queries, _, err := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn).
+						WithInput(input).WithUnknowns(unknowns).PartialRun(ctx)
+					if err == nil && len(queries) != 1 {
+						b.Fatalf("expected one query, got %v", queries)
+					}
+					return err
+				})
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
 		})
 	}
 }

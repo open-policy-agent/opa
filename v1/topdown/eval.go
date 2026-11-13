@@ -254,7 +254,7 @@ func (e *eval) unknown(x any, b *bindings) bool {
 		x = term
 	}
 
-	return e.saveRequired(true, e.saveSet, b, x, false)
+	return e.saveRequired(e.saveSet, b, x, false)
 }
 
 // exactly like `unknown` above` but without the cost of `any` boxing when arg is known to be a ref
@@ -266,14 +266,14 @@ func (e *eval) unknownRef(ref ast.Ref, b *bindings) bool {
 	term.Value = ref
 	defer ast.TermPtrPool.Put(term)
 
-	return e.saveRequired(true, e.saveSet, b, term, false)
+	return e.saveRequired(e.saveSet, b, term, false)
 }
 
 // similarly, avoid Body -> any boxing by iterating over the body's expressions.
 func (e *eval) unknownBody(body ast.Body, b *bindings) bool {
 	if e.partial() {
 		for _, ex := range body {
-			if e.saveRequired(true, e.saveSet, b, ex, false) {
+			if e.saveRequired(e.saveSet, b, ex, false) {
 				return true
 			}
 		}
@@ -282,10 +282,10 @@ func (e *eval) unknownBody(body ast.Body, b *bindings) bool {
 	return false
 }
 
-func (e *eval) saveRequired(icIgnoreInternal bool, saveSet *saveSet, b *bindings, x any, rec bool) bool {
+func (e *eval) saveRequired(saveSet *saveSet, b *bindings, x any, rec bool) bool {
 	return saveRequired(
 		e.compiler.RuleTree, e.externalTreeStack, e.inliningControl,
-		icIgnoreInternal, saveSet, b, x, rec,
+		true, saveSet, b, x, rec,
 	)
 }
 
@@ -4078,7 +4078,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		return nil
 	}
 
-	if !e.e.unknownRef(e.ref, e.bindings) {
+	if !e.unknownCandidates() {
 		return e.evalValue(iter, e.ir.EarlyExit)
 	}
 
@@ -4103,6 +4103,37 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 	}
 
 	return e.partialEval(iter)
+}
+
+// unknownCandidates is unknownRef for the rules the index returned, rather than
+// for every rule at the ref: the index keeps the rules testing an unknown, so
+// the others test a known value they don't match, and can't contribute.
+func (e evalVirtualComplete) unknownCandidates() bool {
+	if !e.e.partial() {
+		return false
+	}
+	if !e.ref.IsGround() || e.ref.HasPrefix(ast.DefaultRootRef.Append(ast.StringTerm("system"))) ||
+		e.e.externalTreeStack != nil && len(e.e.externalTreeStack.entries) > 0 {
+		return e.e.unknownRef(e.ref, e.bindings)
+	}
+	term := ast.TermPtrPool.Get()
+	term.Value = e.ref
+	defer ast.TermPtrPool.Put(term)
+	if e.e.saveSet.ContainsOverlapping(term, e.bindings) || e.e.inliningControl.Disabled(e.ref.ConstantPrefix(), true) {
+		return true
+	}
+	saves := func(rule *ast.Rule) bool {
+		return rule != nil && e.e.saveRequired(e.e.saveSet, e.bindings, rule, true)
+	}
+	if saves(e.ir.Default) {
+		return true
+	}
+	for _, rule := range e.ir.Rules {
+		if saves(rule) || slices.ContainsFunc(e.ir.Else[rule], saves) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
