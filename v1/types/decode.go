@@ -80,9 +80,14 @@ func unmarshalType(x any) (Type, error) {
 		}
 		return NewObject(static, dynamic), nil
 	case typeSet:
-		of, err := unmarshalRequiredType(m, "of")
-		if err != nil {
-			return nil, err
+		// A set of unknown elements, like the type of set(), is written
+		// without "of".
+		var of Type
+		if x, ok := m["of"]; ok {
+			var err error
+			if of, err = unmarshalType(x); err != nil {
+				return nil, err
+			}
 		}
 		return NewSet(of), nil
 	case typeAny:

@@ -107,6 +107,70 @@ rules qualify, and when OPA falls back to compiling everything.
 
 Authored by @srenatus
 
+
+## 1.22.3
+
+This is a bugfix release for a type checker regression in v1.22.0.
+
+It also includes a dependency bump for github.com/klauspost/compress.
+
+> [!NOTE]
+> The [security advisory in question is GHSA-fpmh-frq8-7rj8](https://github.com/klauspost/compress/security/advisories/GHSA-fpmh-frq8-7rj8).
+> Note that OPA does not support `zstd` compression in its handlers, but
+> automated vulnerability checkers still flag this as an issue, which is
+> why we bump this version in a patch release.
+
+### Allow keys of empty collections in rules replaced by `with`
+
+A rule like `default x := {}` is typed as an empty collection, so any
+constant key on it is rejected, even though tests replace it using `with`.
+Empty collections in the types of rules that a with modifier targets are
+now typed as any.
+
+### Dependency Updates
+
+  - build(deps): Bump github.com/agnivade/levenshtein from 1.2.1 to 1.2.2
+  - build(deps): Bump github.com/foxcpp/go-mockdns from 1.2.0 to 1.3.0
+  - build(deps): Bump github.com/gobwas/glob from 1.0.0 to 1.1.0
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.43.0 to 1.44.1
+  - build(deps): Bump github.com/klauspost/compress from 1.20.0 to 1.20.3
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.3.0 to 3.4.0
+  - build(deps): Bump github.com/prometheus/client_golang from 1.24.1 to 1.25.0
+  - build(deps): Bump github.com/spf13/pflag from 1.0.10 to 1.1.0
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.58 to 2.5.64
+  - build(deps): Bump go.opentelemetry.io/contrib/bridges/prometheus from 0.71.0 to 0.72.0
+  - build(deps): Bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.71.0 to 0.72.0
+  - build(deps): Bump go.opentelemetry.io/otel from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk/metric from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/trace from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/proto/otlp from 1.11.0 to 1.11.1
+  - build(deps): Bump go.yaml.in/yaml/v3 from 3.0.5 to 3.0.6
+  - build(deps): Bump golang.org/x/sync from 0.23.0 to 0.24.0
+  - build(deps): Bump golang.org/x/term from 0.46.0 to 0.47.0
+  - build(deps): Bump golang.org/x/text from 0.42.0 to 0.43.0
+  - build(deps): Bump google.golang.org/grpc from 1.84.0 to 1.85.0
+  - build(deps): Bump oras.land/oras-go/v2 from 2.6.2 to 2.7.0
+
+
+## 1.22.2
+
+This is a bugfix release for a type checker regression in v1.21.0.
+
+### Iterating an empty collection is rejected by the type checker
+
+Policies that iterate a collection known to be empty, such as `some x in []` or `m[_]` where `m := {}`,
+were rejected with `rego_type_error: undefined ref`. Iteration with a non-constant key is valid again, and simply
+yields nothing. Comparing or unifying the elements of such a collection with a value is accepted as well.
+Constant keys, like `[][0]`, are still reported as undefined.
+
+Reported by @kholia.
+
 ## 1.22.1
 
 This is a bugfix release for a rule indexer regression in v1.21.0.

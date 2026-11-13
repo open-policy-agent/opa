@@ -19,8 +19,7 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 		return walkNoPath(ast.ArrayTerm(ast.InternedEmptyArray, input), iter)
 	}
 
-	filter := getOutputPath(operands)
-	return walk(filter, nil, input, iter)
+	return walk(getOutputPath(operands), nil, input, iter)
 }
 
 func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
@@ -30,15 +29,14 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 				return err
 			}
 		} else {
-			// Shallow copy, as while the array is modified, the elements are not
-			pathCopy := copyShallow(path)
-
 			// TODO(ae): I'd *really* like these terms to be retrieved from a sync.Pool, and
 			// returned after iter is called. However, all my atttempts to do this have failed
 			// as there seems to be something holding on to these references after the call,
 			// leading to modifications that entirely alter the results. Perhaps this is not
 			// possible to do, but if it is,it would be a huge performance win.
-			if err := iter(ast.ArrayTerm(ast.NewTerm(pathCopy), input)); err != nil {
+
+			// The child paths are built from path after this call, so iter must not modify it.
+			if err := iter(ast.ArrayTerm(ast.NewTerm(path), input)); err != nil {
 				return err
 			}
 		}
@@ -94,7 +92,7 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 	}
 
 	inputArray := input.Value.(*ast.Array)
-	value := inputArray.Get(ast.InternedTerm(1)).Value
+	value := inputArray.Elem(1).Value
 
 	switch v := value.(type) {
 	case ast.Object:
@@ -127,12 +125,18 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 	return nil
 }
 
+// pathAppend copies into an exactly sized slice, so sibling paths never share spare capacity.
 func pathAppend(path *ast.Array, key *ast.Term) *ast.Array {
 	if path == nil {
 		return ast.NewArray(key)
 	}
 
-	return path.Append(key)
+	elems := make([]*ast.Term, path.Len(), path.Len()+1)
+	for i := range elems {
+		elems[i] = path.Elem(i)
+	}
+
+	return ast.NewArray(append(elems, key)...)
 }
 
 func getOutputPath(operands []*ast.Term) *ast.Array {
@@ -155,15 +159,6 @@ func pathIsWildcard(operands []*ast.Term) bool {
 		}
 	}
 	return false
-}
-
-func copyShallow(arr *ast.Array) *ast.Array {
-	cpy := make([]*ast.Term, arr.Len())
-	for i := range arr.Len() {
-		cpy[i] = arr.Elem(i)
-	}
-
-	return ast.NewArray(cpy...)
 }
 
 func init() {

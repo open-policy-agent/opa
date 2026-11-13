@@ -94,6 +94,11 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
                 <button>Evaluate</button>
                 <a href="#edit">Edit</a>
                 {playgroundLink && <a target="_blank" href={playgroundLink}>Open in Playground</a>}
+                {command && (
+                  <span className={styles.evalContext}>
+                    query <code>{command}</code>
+                  </span>
+                )}
                 <div className={styles.codeApiHider}>
                   <codapi-status done={`${icon} Done in $DURATION`}></codapi-status>
                 </div>

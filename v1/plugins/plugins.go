@@ -13,6 +13,7 @@ import (
 	"maps"
 	mr "math/rand"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -864,8 +865,15 @@ func (m *Manager) GetWasmResolvers() []*wasm.Resolver {
 
 func (m *Manager) setWasmResolvers(rs []*wasm.Resolver) {
 	m.wasmResolversMtx.Lock()
-	defer m.wasmResolversMtx.Unlock()
+	old := m.wasmResolvers
 	m.wasmResolvers = rs
+	m.wasmResolversMtx.Unlock()
+
+	for _, o := range old {
+		if !slices.Contains(rs, o) {
+			o.Close()
+		}
+	}
 }
 
 // RegisterExternalSource registers an external rule source with the manager.

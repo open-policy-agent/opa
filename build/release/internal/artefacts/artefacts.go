@@ -124,13 +124,28 @@ func Prepare(opts Options) (*Result, error) {
 		logf("would regenerate %s, %s and %s", CapabilitiesFile, MetadataFile, VersionIndexFile)
 		return res, nil
 	}
+	generated, err := Regenerate(opts.RepoRoot, logf)
+	if err != nil {
+		return nil, err
+	}
+	res.Generated = append(res.Generated, generated...)
+	return res, nil
+}
+
+// Regenerate rebuilds builtin_metadata.json and version_index.json from the
+// capabilities/ snapshots on disk, returning the files it regenerated.
+func Regenerate(root string, logf func(string, ...any)) ([]string, error) {
+	if logf == nil {
+		logf = func(string, ...any) {}
+	}
+	var generated []string
 	for _, g := range []generator{genBuiltinMetadata, genVersionIndex} {
-		if err := runGenerator(opts.RepoRoot, g, logf); err != nil {
+		if err := runGenerator(root, g, logf); err != nil {
 			return nil, err
 		}
-		res.Generated = append(res.Generated, g.out)
+		generated = append(generated, g.out)
 	}
-	return res, nil
+	return generated, nil
 }
 
 // BumpVersion writes version into version.go, returning the version it replaced

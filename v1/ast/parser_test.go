@@ -6907,6 +6907,9 @@ func TestRuleFromExprGeneratedBody(t *testing.T) {
 		`a[0] := 1`,
 		`a["foo"] = "bar"`,
 		`p.q.r := 1`,
+		`f(x) := 1`,
+		`f(x) = 1`,
+		`f(x) := x`,
 	}
 
 	mod := MustParseModule("package test")
@@ -7307,6 +7310,8 @@ f(x) if {
 } else = false if {
 	true
 }
+
+default d := false
 `
 
 	module := module(input)
@@ -7317,6 +7322,12 @@ f(x) if {
 		expectedRow  int
 		expectedText string
 	}{
+		{
+			note:         "default rule",
+			location:     module.Rules[3].Location,
+			expectedRow:  15,
+			expectedText: `default d := false`,
+		},
 		{
 			note:        "partial rule",
 			location:    module.Rules[0].Location,

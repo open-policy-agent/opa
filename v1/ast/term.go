@@ -3298,6 +3298,23 @@ func unmarshalExpr(expr *Expr, v map[string]any) error {
 			}
 			expr.Terms = o
 		default:
+			// Every and SomeDecl are written without a type field.
+			if _, ok := ts["domain"]; ok {
+				q := &Every{}
+				if err := unmarshalEvery(q, ts); err != nil {
+					return err
+				}
+				expr.Terms = q
+				break
+			}
+			if _, ok := ts["symbols"]; ok {
+				d := &SomeDecl{}
+				if err := unmarshalSomeDecl(d, ts); err != nil {
+					return err
+				}
+				expr.Terms = d
+				break
+			}
 			t, err := unmarshalTerm(ts)
 			if err != nil {
 				return err
@@ -3599,6 +3616,67 @@ func unmarshalValue(d map[string]any) (Value, error) {
 	}
 unmarshal_error:
 	return nil, errors.New("ast: unable to unmarshal term")
+}
+
+func unmarshalEvery(q *Every, v map[string]any) error {
+	for _, f := range []struct {
+		name string
+		dst  **Term
+	}{{"key", &q.Key}, {"value", &q.Value}, {"domain", &q.Domain}} {
+		switch x := v[f.name].(type) {
+		case nil:
+		case map[string]any:
+			t, err := unmarshalTerm(x)
+			if err != nil {
+				return fmt.Errorf("ast: unable to unmarshal every %s: %w", f.name, err)
+			}
+			*f.dst = t
+		default:
+			return fmt.Errorf("ast: unable to unmarshal every, invalid %s field type: %T (expected object or null)", f.name, x)
+		}
+	}
+
+	b, ok := v["body"].([]any)
+	if !ok {
+		return fmt.Errorf("ast: unable to unmarshal every, invalid body field type: %T (expected list)", v["body"])
+	}
+	body, err := unmarshalBody(b)
+	if err != nil {
+		return fmt.Errorf("ast: unable to unmarshal every body: %w", err)
+	}
+	q.Body = body
+
+	if loc, ok := v["location"].(map[string]any); ok {
+		q.Location = &Location{}
+		if err := unmarshalLocation(q.Location, loc); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func unmarshalSomeDecl(d *SomeDecl, v map[string]any) error {
+	switch x := v["symbols"].(type) {
+	case nil:
+	case []any:
+		symbols, err := unmarshalTermSlice(x)
+		if err != nil {
+			return fmt.Errorf("ast: unable to unmarshal some symbols: %w", err)
+		}
+		d.Symbols = symbols
+	default:
+		return fmt.Errorf("ast: unable to unmarshal some, invalid symbols field type: %T (expected list or null)", x)
+	}
+
+	if loc, ok := v["location"].(map[string]any); ok {
+		d.Location = &Location{}
+		if err := unmarshalLocation(d.Location, loc); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func unmarshalNot(n *Not, v map[string]any) error {

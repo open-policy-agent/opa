@@ -1122,6 +1122,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		}
 	}
 	dt := time.Since(t0)
+	pq.Close()
 
 	var trace []*topdown.Event
 	if bufferTracer != nil {
@@ -1269,6 +1270,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			tr.Fail = true
 			b.Fatalf("Unexpected error: %s", err)
 		}
+		defer pq.Close()
 
 		m := metrics.New()
 

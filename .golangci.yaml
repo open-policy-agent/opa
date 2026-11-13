@@ -215,6 +215,7 @@ linters:
           - prealloc
           - errcheck
           - revive
+          - unparam
         path: _test\.go
       - linters: revive
         path: v1/plugins/rest

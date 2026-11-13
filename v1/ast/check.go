@@ -35,6 +35,8 @@ type typeChecker struct {
 	schemaTypes         map[string]types.Type
 	dependentsResolver  dependentsResolver
 	withTrees           map[string]*typeTreeNode
+	replacedRules       func() map[*Rule]struct{}
+	replaced            map[*Rule]struct{}
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -109,6 +111,26 @@ func (tc *typeChecker) WithAllowNet(hosts []string) *typeChecker {
 func (tc *typeChecker) WithVarRewriter(f varRewriter) *typeChecker {
 	tc.varRewriter = f
 	return tc
+}
+
+// WithReplacedRules sets the function returning the rules that a with modifier
+// replaces somewhere. Their values are not known statically, so empty collections
+// in their types are typed as any. It is called at most once, and only if a rule
+// has such a type.
+func (tc *typeChecker) WithReplacedRules(f func() map[*Rule]struct{}) *typeChecker {
+	tc.replacedRules = f
+	return tc
+}
+
+func (tc *typeChecker) isReplaced(rule *Rule) bool {
+	if tc.replacedRules == nil {
+		return false
+	}
+	if tc.replaced == nil {
+		tc.replaced = tc.replacedRules()
+	}
+	_, ok := tc.replaced[rule]
+	return ok
 }
 
 // WithDependentsResolver sets the function used to look up the rules that depend
@@ -369,6 +391,10 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	}
 
 	if tpe != nil {
+		if hasEmptyCollectionType(tpe) && tc.isReplaced(rule) {
+			// e.g. `default x := {}`, which tests replace with another value.
+			tpe = relaxEmptyCollections(tpe)
+		}
 		env.tree.Insert(path, tpe, env)
 	}
 }
@@ -723,6 +749,12 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 			return unify2Array(env, b, a)
 		case *object:
 			return unify2Object(env, b, a)
+		case Ref:
+			return unify1(env, a, types.A, false)
+		}
+	case Ref:
+		if _, ok := b.Value.(Var); ok {
+			return unify1(env, b, types.A, false)
 		}
 	}
 
@@ -1044,10 +1076,23 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	head := ref[idx]
 
 	if isEmptyCollectionType(tpe) {
-		// The collection has no members at all, so nothing can be selected from
-		// it. Report that like any other missing key rather than as a value that
-		// can't be dereferenced at all.
-		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+		// The collection has no members at all, so a constant key can never
+		// match and is reported like any other missing key. Iterating with a
+		// non-constant key is valid and simply yields nothing, as is common for
+		// collections that are empty at the moment.
+		if IsScalar(head.Value) {
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, nil, nil)
+		}
+		if v, ok := head.Value.(Var); ok {
+			exist := rc.env.GetByValue(v)
+			if exist == nil {
+				rc.env.vars.PutOne(v, types.A)
+			} else if keys := types.Keys(tpe); keys != nil && !unifies(exist, keys) {
+				// Only arrays constrain their keys: objects and sets accept any.
+				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, keys, nil)
+			}
+		}
+		return nil
 	}
 
 	keys := types.Keys(tpe)
@@ -1109,6 +1154,75 @@ func isEmptyCollectionType(tpe types.Type) bool {
 		return tpe.Of() == nil
 	}
 	return false
+}
+
+// hasEmptyCollectionType returns true if tpe is, or contains, an empty collection type.
+func hasEmptyCollectionType(tpe types.Type) bool {
+	if isEmptyCollectionType(tpe) {
+		return true
+	}
+	switch tpe := tpe.(type) {
+	case *types.Object:
+		for _, p := range tpe.StaticProperties() {
+			if hasEmptyCollectionType(p.Value) {
+				return true
+			}
+		}
+		if dp := tpe.DynamicProperties(); dp != nil {
+			return hasEmptyCollectionType(dp.Value)
+		}
+	case *types.Array:
+		for i := range tpe.Len() {
+			if hasEmptyCollectionType(tpe.Select(i)) {
+				return true
+			}
+		}
+		return tpe.Dynamic() != nil && hasEmptyCollectionType(tpe.Dynamic())
+	case *types.Set:
+		return tpe.Of() != nil && hasEmptyCollectionType(tpe.Of())
+	case types.Any:
+		return slices.ContainsFunc(tpe, hasEmptyCollectionType)
+	}
+	return false
+}
+
+// relaxEmptyCollections returns tpe with every empty collection type, however
+// deeply nested, replaced by any.
+func relaxEmptyCollections(tpe types.Type) types.Type {
+	if isEmptyCollectionType(tpe) {
+		return types.A
+	}
+	switch tpe := tpe.(type) {
+	case *types.Object:
+		static := make([]*types.StaticProperty, 0, len(tpe.StaticProperties()))
+		for _, p := range tpe.StaticProperties() {
+			static = append(static, types.NewStaticProperty(p.Key, relaxEmptyCollections(p.Value)))
+		}
+		var dynamic *types.DynamicProperty
+		if dp := tpe.DynamicProperties(); dp != nil {
+			dynamic = types.NewDynamicProperty(dp.Key, relaxEmptyCollections(dp.Value))
+		}
+		return types.NewObject(static, dynamic)
+	case *types.Array:
+		static := make([]types.Type, tpe.Len())
+		for i := range static {
+			static[i] = relaxEmptyCollections(tpe.Select(i))
+		}
+		var dynamic types.Type
+		if tpe.Dynamic() != nil {
+			dynamic = relaxEmptyCollections(tpe.Dynamic())
+		}
+		return types.NewArray(static, dynamic)
+	case *types.Set:
+		return types.NewSet(relaxEmptyCollections(tpe.Of()))
+	case types.Any:
+		members := make([]types.Type, len(tpe))
+		for i, m := range tpe {
+			members[i] = relaxEmptyCollections(m)
+		}
+		return types.NewAny(members...)
+	}
+	return tpe
 }
 
 func unwrapCollectionType(tpe types.Type) types.Type {

@@ -152,6 +152,7 @@ var (
 	arraysRecPool     = util.NewSyncPool[biunifyArraysRecParams]()
 	evalFuncPool      = util.NewResettablePool[evalFunc]()
 	evalBuiltinPool   = util.NewResettablePool[evalBuiltin]()
+	evalTermNextPool  = util.NewResettablePool[evalTermNext]()
 	bodyContainerPool = util.NewSyncPoolWithConstructor(newBodyContainer)
 	stepContPool      = util.NewResettablePool[stepCont]()
 )
@@ -3208,7 +3209,6 @@ func (e evalTree) extent() (*ast.Term, error) {
 // leaves builds a tree from evaluating the full rule tree extent, by recursing into all
 // branches, and building up objects as it goes.
 func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error) {
-
 	if e.node == nil {
 		return nil, nil
 	}
@@ -3977,19 +3977,15 @@ func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Locat
 }
 
 func hasCollisions(path ast.Ref, visitedRefs *[]ast.Ref, b *bindings) bool {
-	// Avoid allocating a new term just for the sake of a lookup
-	term := ast.TermPtrPool.Get()
-	term.Value = path
-	collisionPathTerm := b.Plug(term)
-	ast.TermPtrPool.Put(term)
+	collisionPath := ast.Ref(b.plugNamespacedTerms(path, nil))
 
-	collisionPath := collisionPathTerm.Value.(ast.Ref)
 	for _, c := range *visitedRefs {
 		if collisionPath.HasPrefix(c) && !collisionPath.Equal(c) {
 			return true
 		}
 	}
 	*visitedRefs = append(*visitedRefs, collisionPath)
+
 	return false
 }
 
@@ -4476,6 +4472,12 @@ func (en *evalTermNext) call() error {
 	return en.e.next(en.iter, en.e.termbindings.Plug(en.key))
 }
 
+func (en *evalTermNext) Reset() {
+	en.e = evalTerm{}
+	en.iter = nil
+	en.key = nil
+}
+
 func (e evalTerm) enumerate(iter unifyIterator) error {
 	var deferredEe *deferredEarlyExitError
 	handleErr := func(err error) error {
@@ -4520,10 +4522,14 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			}
 		}
 	case ast.Object:
+		en := evalTermNextPool.Get()
+		en.e, en.iter = e, iter
+		call := en.call
+
+		defer evalTermNextPool.Put(en)
+
 		// Bind the method value once, outside the loop: a func literal — or a method
 		// value materialized per iteration — escapes to the heap on every key.
-		en := evalTermNext{iter: iter, e: e}
-		call := en.call
 		ki := v.KeysIterator()
 		for k, more := ki.Next(); more; k, more = ki.Next() {
 			en.key = k
@@ -4535,8 +4541,11 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			}
 		}
 	case ast.Set:
-		en := evalTermNext{iter: iter, e: e}
+		en := evalTermNextPool.Get()
+		en.e, en.iter = e, iter
 		call := en.call
+
+		defer evalTermNextPool.Put(en)
 
 		// For `x = s[k]` with x is bound to a ground value and s a ground set (e.g. `some x in s`), the only
 		// element that can match is x itself, so look it up rather than scanning the set. Unresolved refs (e.g.

@@ -282,7 +282,11 @@ func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 
 	// Use sink writer for cancellation-aware replacement
-	sink := newSink(ast.RegexReplace.Name, len(base), bctx.Cancel)
+	sink := sinkWriterPool.Get().reset(ast.RegexReplace.Name, bctx.Cancel)
+	sink.Grow(len(base))
+
+	defer sinkWriterPool.Put(sink.(*sinkW))
+
 	src := util.StringToByteSlice(base)
 	repl := util.StringToByteSlice(value)
 

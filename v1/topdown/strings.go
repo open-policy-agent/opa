@@ -307,7 +307,8 @@ func builtinConcat(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return iter(term)
 	}
 
-	sb := newSink(ast.Concat.Name, 0, bctx.Cancel)
+	sw := sinkWriterPool.Get().reset(ast.Concat.Name, bctx.Cancel)
+	defer sinkWriterPool.Put(sw.(*sinkW))
 
 	// NOTE(anderseknert):
 	// More or less Go's strings.Join implementation, but where we avoid
@@ -328,13 +329,13 @@ func builtinConcat(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		}
 		sep := string(join)
 		n += len(sep) * (l - 1)
-		sb.Grow(n)
-		if _, err := sb.WriteString(string(b.Elem(0).Value.(ast.String))); err != nil {
+		sw.Grow(n)
+		if _, err := sw.WriteString(string(b.Elem(0).Value.(ast.String))); err != nil {
 			return err
 		}
 		if sep == "" {
 			for i := 1; i < l; i++ {
-				if _, err := sb.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
+				if _, err := sw.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
 					return err
 				}
 			}
@@ -342,25 +343,25 @@ func builtinConcat(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 			// when the separator is a single byte, sb.WriteByte is substantially faster
 			bsep := sep[0]
 			for i := 1; i < l; i++ {
-				if err := sb.WriteByte(bsep); err != nil {
+				if err := sw.WriteByte(bsep); err != nil {
 					return err
 				}
-				if _, err := sb.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
+				if _, err := sw.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
 					return err
 				}
 			}
 		} else {
 			// for longer separators, there is no such difference between WriteString and Write
 			for i := 1; i < l; i++ {
-				if _, err := sb.WriteString(sep); err != nil {
+				if _, err := sw.WriteString(sep); err != nil {
 					return err
 				}
-				if _, err := sb.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
+				if _, err := sw.WriteString(string(b.Elem(i).Value.(ast.String))); err != nil {
 					return err
 				}
 			}
 		}
-		return iter(ast.InternedTerm(sb.String()))
+		return iter(ast.InternedTerm(sw.String()))
 	case ast.Set:
 		for _, v := range b.Slice() {
 			s, ok := v.Value.(ast.String)
@@ -372,18 +373,18 @@ func builtinConcat(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		sep := string(join)
 		l := b.Len()
 		n += len(sep) * (l - 1)
-		sb.Grow(n)
+		sw.Grow(n)
 		for i, v := range b.Slice() {
-			if _, err := sb.WriteString(string(v.Value.(ast.String))); err != nil {
+			if _, err := sw.WriteString(string(v.Value.(ast.String))); err != nil {
 				return err
 			}
 			if i < l-1 {
-				if _, err := sb.WriteString(sep); err != nil {
+				if _, err := sw.WriteString(sep); err != nil {
 					return err
 				}
 			}
 		}
-		return iter(ast.InternedTerm(sb.String()))
+		return iter(ast.InternedTerm(sw.String()))
 	}
 
 	return builtins.NewOperandTypeErr(2, operands[1].Value, "set", "array")
@@ -750,12 +751,15 @@ func builtinReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
-	sink := newSink(ast.Replace.Name, len(s), bctx.Cancel)
+	sw := sinkWriterPool.Get().reset(ast.Replace.Name, bctx.Cancel)
+	defer sinkWriterPool.Put(sw.(*sinkW))
+
+	sw.Grow(len(s))
 	replacer := strings.NewReplacer(string(old), string(n))
-	if _, err := replacer.WriteString(sink, string(s)); err != nil {
+	if _, err := replacer.WriteString(sw, string(s)); err != nil {
 		return err
 	}
-	replaced := sink.String()
+	replaced := sw.String()
 	if replaced == string(s) {
 		return iter(operands[0])
 	}
@@ -789,12 +793,15 @@ func builtinReplaceN(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		pairs = append(pairs, string(keyVal), string(strVal))
 	}
 
-	sink := newSink(ast.ReplaceN.Name, len(s), bctx.Cancel)
+	sw := sinkWriterPool.Get().reset(ast.ReplaceN.Name, bctx.Cancel)
+	defer sinkWriterPool.Put(sw.(*sinkW))
+	sw.Grow(len(s))
+
 	replacer := strings.NewReplacer(pairs...)
-	if _, err := replacer.WriteString(sink, string(s)); err != nil {
+	if _, err := replacer.WriteString(sw, string(s)); err != nil {
 		return err
 	}
-	return iter(ast.InternedTerm(sink.String()))
+	return iter(ast.InternedTerm(sw.String()))
 }
 
 func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
