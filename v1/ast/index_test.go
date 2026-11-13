@@ -7,7 +7,8 @@ package ast
 import (
 	"errors"
 	"fmt"
-	"math/bits"
+	"maps"
+	"math/rand"
 	"slices"
 	"strconv"
 	"strings"
@@ -1340,15 +1341,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`p if { __local0__ = input.role; __local1__ = input.other; __local2__ = {"admin", __local1__}; internal.member_2(__local0__, __local2__) }`},
 		},
 		{
-			// Regression test: elements of a collection literal in `x in [...]`
-			// used to be inserted into the trie as-is (see updateMemberRefInValue),
-			// without restricting them to scalars/arrays like the equality-based
-			// indexing does (see indexValue). A non-scalar element (object or set)
-			// made the trie panic with "illegal value", since it only knew how to
-			// store scalars and arrays of scalars. Since the ref can't be indexed
-			// precisely here, it falls back to the trie's "any" node (like Var):
-			// the rule remains a candidate for every input, and it's up to body
-			// evaluation (not the index) to determine the actual result.
+			// Elements of a collection literal in `x in [...]` are inserted
+			// as-is; a non-scalar element (object or set) can't be indexed
+			// precisely and falls back to the "any" node: the rule stays a
+			// candidate for every input, and body evaluation decides.
 			note: "internal.member_2: composite (object) element in rhs array (no match, but still a candidate)",
 			module: module(`package test
 			p if {
@@ -2066,7 +2062,6 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatal("Expected index build to succeed")
 			}
 
-			t.Log(index.mermaid())
 			var unknownRefs Set
 
 			if len(tc.unknowns) > 0 {
@@ -2199,153 +2194,54 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	}
 }
 
-func TestRefIndicesInsert(t *testing.T) {
-	// values as they reach insert(): a var stands for "any value" (see anyValue
-	// and the "naked ref" case in Update), anything else for that value. They
-	// all constrain the one reference, which every table numbers 0.
-	anyIndex := func() *refindex { return &refindex{Value: Var("x")} }
-	valIndex := func(v int) *refindex { return &refindex{Value: Number(strconv.Itoa(v))} }
+func TestProjectionInsert(t *testing.T) {
+	ref := MustParseRef("input.x")
+	anyValue := projected{ref: ref, condValue: condValue{value: Var("x")}}
+	val := func(v int) projected { return projected{ref: ref, condValue: condValue{value: InternedTerm(v).Value}} }
 
 	tests := []struct {
 		note   string
-		insert []*refindex
+		insert []projected
 		exp    []Value
 	}{
 		{
 			note:   "value narrows an any-value index",
-			insert: []*refindex{anyIndex(), valIndex(1)},
+			insert: []projected{anyValue, val(1)},
 			exp:    []Value{Number("1")},
 		},
 		{
 			note:   "an any-value index does not widen a value",
-			insert: []*refindex{valIndex(1), anyIndex()},
+			insert: []projected{val(1), anyValue},
 			exp:    []Value{Number("1"), Var("x")},
 		},
 		{
 			note:   "the same value twice is one index",
-			insert: []*refindex{valIndex(1), valIndex(1)},
+			insert: []projected{val(1), val(1)},
 			exp:    []Value{Number("1")},
 		},
 		{
 			note:   "distinct values are both kept",
-			insert: []*refindex{valIndex(1), valIndex(2)},
+			insert: []projected{val(1), val(2)},
 			exp:    []Value{Number("1"), Number("2")},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ri := newrefindices(func(Ref) bool { return false }, newRefTable())
-			rule := MustParseRule(`p if input.x = 1`)
-
-			if id := ri.table.intern(MustParseRef("input.x")); id != 0 {
-				t.Fatalf("expected the first ref interned to be 0, got %d", id)
+			var p projection
+			for _, v := range tc.insert {
+				p.insert(v)
 			}
 
-			for _, index := range tc.insert {
-				ri.insert(rule, index)
+			act := make([]Value, 0, len(p.unconditional))
+			for _, v := range p.unconditional {
+				act = append(act, v.value)
 			}
-
-			act := make([]Value, 0, len(ri.rules[rule]))
-			for _, index := range ri.rules[rule] {
-				act = append(act, index.Value)
-			}
-
-			if len(act) != len(tc.exp) || !slices.EqualFunc(act, tc.exp, ValueEqual) {
+			if !slices.EqualFunc(act, tc.exp, ValueEqual) {
 				t.Errorf("expected values %v, got %v", tc.exp, act)
 			}
 		})
 	}
-}
-
-func TestRefIndicesSorted(t *testing.T) {
-	ri := newrefindices(func(Ref) bool { return false }, newRefTable())
-
-	// Insert refs with distinct frequencies in an order that doesn't match
-	// the expected (frequency-descending) output, so that a sort which
-	// fails to keep each ref paired with its own count would be caught.
-	freqs := map[string]int{
-		"input.a": 1,
-		"input.b": 7,
-		"input.c": 2,
-		"input.d": 6,
-		"input.e": 3,
-		"input.f": 5,
-		"input.g": 4,
-	}
-
-	for ref, n := range freqs {
-		id := ri.table.intern(MustParseRef(ref))
-		for range n {
-			ri.count(id)
-		}
-	}
-
-	sorted := ri.Sorted()
-
-	if len(sorted) != len(freqs) {
-		t.Fatalf("expected %d refs, got %d", len(freqs), len(sorted))
-	}
-
-	prevCount := -1
-	for _, id := range sorted {
-		count := freqs[ri.table.ref(id).String()]
-		if prevCount != -1 && count > prevCount {
-			t.Fatalf("expected refs sorted by descending frequency, but got %v with count %d after count %d", sorted, count, prevCount)
-		}
-		prevCount = count
-	}
-}
-
-func TestRefIndicesCountVarAssignedRefOnce(t *testing.T) {
-	tests := []struct {
-		body string
-		ref  string
-		exp  int32
-	}{
-		{`input.id == "r1"; "p1" in input.perms`, "input.perms", 1},
-		{`x := input.role; x == "admin"`, "input.role", 1},
-		{`x := input.role; y := x; y == "a"`, "input.role", 1},
-		{`x := input.x; y := input.x; x == "a"; y == "a"`, "input.x", 1},
-		{`x := input.role; x in {"a", "b", "c"}`, "input.role", 3},
-		{`input.role in {"a", "b", "c"}`, "input.role", 3},
-		{`strings.any_prefix_match(input.p, ["/a", "/b"])`, "input.p", 2},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.body, func(t *testing.T) {
-			c := NewCompiler()
-			c.Compile(map[string]*Module{"test.rego": MustParseModule("package test\n\np if { " + tc.body + " }")})
-			if c.Failed() {
-				t.Fatal(c.Errors)
-			}
-			rule := c.GetRulesExact(MustParseRef("data.test.p"))[0]
-
-			ri := newrefindices(func(Ref) bool { return false }, newRefTable())
-			values := map[Var]Value{}
-			for _, expr := range rule.Body {
-				ri.Update(rule, expr, values)
-			}
-
-			id := ri.table.intern(MustParseRef(tc.ref))
-			if act := ri.stat(id).count; act != tc.exp {
-				t.Errorf("expected %s to count %d, got %d", tc.ref, tc.exp, act)
-			}
-		})
-	}
-}
-
-// collected returns the rule ids a traversal reached, in the order gather reads
-// them back.
-func collected(tr *trieTraversalResult) []int32 {
-	var ids []int32
-	slices.Sort(tr.touched)
-	for _, w := range tr.touched {
-		for word := tr.hits[w]; word != 0; word &= word - 1 {
-			ids = append(ids, w<<6|int32(bits.TrailingZeros64(word)))
-		}
-	}
-	return ids
 }
 
 func TestSplitStringEscaped(t *testing.T) {
@@ -3027,7 +2923,6 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 		p if input.r == "c"
 		p if input.r == "d"
 		p if input.r == "e"`)
-		t.Log(index.mermaid())
 
 		for _, tc := range []struct {
 			input string
@@ -3068,11 +2963,8 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 		}
 	})
 
-	// An affix's alternatives are leaves of the prefix trie, which cannot point
-	// several of them at one node, so a rule that reaches a reference by several
-	// of them still stops there. Two such references and the second is unindexed,
-	// so the lookup over-approximates -- it must never miss a rule that can hold.
-	t.Run("two references reached by affixes still stop the path", func(t *testing.T) {
+	// Both references reached by affixes are indexed.
+	t.Run("two references reached by affixes", func(t *testing.T) {
 		index := build(t, `package test
 		p if {
 			strings.any_prefix_match(input.path, ["/a", "/b"])
@@ -3085,9 +2977,7 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 		}{
 			{`{"path": "/a/x", "name": "q.go"}`, 1},
 			{`{"path": "/c/x", "name": "q.go"}`, 0},
-			// The suffixes are not indexed below the prefixes, so the rule is
-			// still a candidate. Over-approximating is sound; missing it is not.
-			{`{"path": "/a/x", "name": "q.txt"}`, 1},
+			{`{"path": "/a/x", "name": "q.txt"}`, 0},
 		} {
 			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
 				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
@@ -3100,6 +2990,28 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 	// which is looser than the rule. One end is indexed and the other left to
 	// evaluation -- the end whose shortest base string is longest, since that is
 	// the one admitting least. See oneAffixEnd.
+	t.Run("a collection of arrays and a second reference", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.x in [[1], [2]]
+			input.y == 3
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"x": [1], "y": 3}`, 1},
+			{`{"x": [2], "y": 3}`, 1},
+			{`{"x": [3], "y": 3}`, 0},
+			{`{"x": [1], "y": 4}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
 	t.Run("one reference reached by affixes at both ends indexes one end", func(t *testing.T) {
 		for _, tc := range []struct {
 			note   string
@@ -3267,5 +3179,110 @@ func TestBaseDocEqIndexConstantInRef(t *testing.T) {
 				t.Errorf("expected 1 candidate, got %d: %v", len(res.Rules), res.Rules)
 			}
 		})
+	}
+}
+
+// TestPathSetOperations checks the set operations a lookup uses (at, meets,
+// orIn, removeUnless, postings) against the same operations on plain maps.
+func TestPathSetOperations(t *testing.T) {
+	const universe = 640
+	r := rand.New(rand.NewSource(1))
+	set := func(n int) []int32 {
+		seen := map[int32]bool{}
+		for range n {
+			seen[int32(r.Intn(universe))] = true
+		}
+		ids := slices.Collect(maps.Keys(seen))
+		slices.Sort(ids)
+		return ids
+	}
+	has := func(ids []int32) map[int32]bool {
+		m := map[int32]bool{}
+		for _, id := range ids {
+			m[id] = true
+		}
+		return m
+	}
+	idSetOf := func(ids []int32) *idSet {
+		s := &idSet{}
+		s.grow(universe)
+		for _, id := range ids {
+			s.or(id>>6, 1<<(uint(id)&63))
+		}
+		return s
+	}
+	members := func(s *idSet) map[int32]bool {
+		m := map[int32]bool{}
+		s.each(func(id int32) { m[id] = true })
+		return m
+	}
+
+	// From one id to most of the universe, so that both layouts and both ways of
+	// going through a pair of sets are taken.
+	for _, n := range []int{0, 1, 3, 40, 300, 600} {
+		for _, k := range []int{0, 1, 5, 100, 600} {
+			pIDs, sIDs, kIDs := set(n), set(k), set(k)
+			p, want := newPathSet(pIDs, universe/64), has(pIDs)
+
+			for id := range int32(universe) {
+				if got := p.at(id>>6)&(1<<(uint(id)&63)) != 0; got != want[id] {
+					t.Fatalf("n=%d: at(%d) = %v, want %v", n, id, got, want[id])
+				}
+			}
+
+			s, ss := idSetOf(sIDs), has(sIDs)
+			meets := false
+			for id := range ss {
+				meets = meets || want[id]
+			}
+			if got := s.meets(&p); got != meets {
+				t.Errorf("n=%d k=%d: meets = %v, want %v", n, k, got, meets)
+			}
+
+			in := idSetOf(nil)
+			in.orIn(p, s)
+			exp := map[int32]bool{}
+			for id := range want {
+				if ss[id] {
+					exp[id] = true
+				}
+			}
+			if got := members(in); !maps.Equal(got, exp) {
+				t.Errorf("n=%d k=%d: orIn = %v, want %v", n, k, got, exp)
+			}
+
+			keep, kk := idSetOf(kIDs), has(kIDs)
+			s.removeUnless(p, keep)
+			exp = map[int32]bool{}
+			for id := range ss {
+				if !want[id] || kk[id] {
+					exp[id] = true
+				}
+			}
+			if got := members(s); !maps.Equal(got, exp) {
+				t.Errorf("n=%d k=%d: removeUnless = %v, want %v", n, k, got, exp)
+			}
+
+			// A posting is only made where it takes less room than the ids.
+			var ps postings
+			if len(sIDs) > 0 {
+				ps.add(sIDs, universe/64)
+			}
+			if len(pIDs) == 0 {
+				continue
+			}
+			j := ps.add(pIDs, universe/64)
+			if j < 0 {
+				if len(pIDs) > 64 {
+					t.Errorf("n=%d: no posting for %d ids", n, len(pIDs))
+				}
+				continue
+			}
+			for id := range int32(universe) {
+				if got := ps.get(j).at(id>>6)&(1<<(uint(id)&63)) != 0; got != want[id] {
+					t.Fatalf("n=%d: posting at(%d) = %v, want %v", n, id, got, want[id])
+				}
+			}
+		}
 	}
 }

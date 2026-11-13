@@ -125,6 +125,25 @@ See [Use indexed statements](https://www.openpolicyagent.org/docs/policy-perform
 
 Authored by @srenatus
 
+### A new rule index
+
+The rule index no longer walks a trie of all rules. It follows, per way a rule can hold, whether the input satisfies
+its conditions, one indexed reference at a time, most selective first. Lookups no longer depend on the order the
+trie happened to give its levels, and a reference the remaining rules don't test isn't looked up at all.
+
+This matters most for large rule sets in which many rules list several values for a field, or test a few shared
+fields and one of their own: in benchmarks of 1000 such rules, lookups take 75-99% less time, and indexing them
+uses up to 95% less memory. Every reference a rule constrains is now indexed: a rule testing two references with
+`strings.any_prefix_match` or `strings.any_suffix_match` used to be indexed on only one of them.
+
+Building the index is faster too where many rules test references of their own, or only that a reference is
+defined: 10,000 such rules build in 4-5 ms instead of 280-413 ms. Lookups that test one or two references are up to
+10 ns slower.
+
+See [How a lookup works](https://www.openpolicyagent.org/docs/policy-performance#how-a-lookup-works).
+
+Authored by @srenatus
+
 ## 1.22.3
 
 This is a bugfix release for a type checker regression in v1.22.0.
