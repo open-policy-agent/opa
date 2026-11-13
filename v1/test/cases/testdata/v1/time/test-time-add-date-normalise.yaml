@@ -1,0 +1,17 @@
+---
+cases:
+  - note: "time/add_date: month overflow is normalised like Go"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [time.date(time.add_date(time.parse_rfc3339_ns(t), y, m, 0)) |
+        	[t, y, m] := [
+        		["2023-05-31T00:00:00Z", 0, 1],
+        		["2024-01-31T00:00:00Z", 0, 1],
+        		["2024-02-29T00:00:00Z", 1, 0],
+        	][_]
+        ]
+    want_result:
+      - x: [[2023, 7, 1], [2024, 3, 2], [2025, 3, 1]]
