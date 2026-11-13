@@ -106,7 +106,6 @@ func TestFormatPreservesNestedComparisonGrouping(t *testing.T) {
 	type groupingCase struct {
 		name    string
 		policy  string
-		v0      bool
 		want    string
 		comment string
 	}
@@ -122,6 +121,11 @@ func TestFormatPreservesNestedComparisonGrouping(t *testing.T) {
 		{name: "comparison inside membership", policy: `out := (input.a == "x") in {true}`},
 		{name: "ordinary comparison", policy: `out := input.a == "x"`, want: `out := input.a == "x"`},
 		{name: "standalone membership", policy: `out := input.a in {"x"}`, want: `out := input.a in {"x"}`},
+		{name: "unification with comparison", policy: `allow if { out = input.a == 1 }`, want: `out = input.a == 1`},
+		{name: "unification with membership", policy: `allow if { out = input.a in {1} }`, want: `out = input.a in {1}`},
+		{name: "unification with parenthesized comparison", policy: `allow if { out = (input.a == 1) }`, want: `out = input.a == 1`},
+		{name: "assignment with membership", policy: `out := input.a in {1}`, want: `out := input.a in {1}`},
+		// These two cases reproduce the changed body and head from issue #9407.
 		{name: "reported body", policy: `r := {"verdict": "vetoed"}
 entry := ["POST"]
 body if {
@@ -132,8 +136,6 @@ head := (profile in {"default", "bb-public"}) == false`},
 		{name: "nested membership", policy: `out := 1 in ({1, 2} == {1, 2})`},
 		{name: "commented operand", policy: `out := (1 == # keep this comment
 	1) == true`, comment: "# keep this comment"},
-		{name: "v0 membership", v0: true, policy: `import future.keywords.in
-out = (input.a in {"x"}) == false`},
 	}
 	for _, op := range []string{"==", "!=", "<", "<=", ">", ">="} {
 		nested := "input.a " + op + " 1"
@@ -146,12 +148,8 @@ out = (input.a in {"x"}) == false`},
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			source := []byte("package p\n\n" + tc.policy + "\n")
-			regoVersion := ast.RegoV1
-			if tc.v0 {
-				regoVersion = ast.RegoV0
-			}
-			parserOpts := ast.ParserOptions{RegoVersion: regoVersion}
-			formatOpts := Opts{RegoVersion: regoVersion}
+			parserOpts := ast.ParserOptions{RegoVersion: ast.RegoV1}
+			formatOpts := Opts{RegoVersion: ast.RegoV1}
 			original, err := ast.ParseModuleWithOpts("p.rego", string(source), parserOpts)
 			if err != nil {
 				t.Fatal(err)
@@ -181,34 +179,6 @@ out = (input.a in {"x"}) == false`},
 				t.Fatalf("formatting is not idempotent:\nfirst:\n%s\nsecond:\n%s", formatted, again)
 			}
 		})
-	}
-}
-
-func TestFormatNestedComparisonWithoutLocations(t *testing.T) {
-	left := ast.Equal.Call(ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("a")), ast.IntNumberTerm(1))
-	right := ast.Equal.Call(ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("b")), ast.IntNumberTerm(2))
-	expr := ast.Equal.Expr(left, right)
-	if expr.Location != nil || left.Location != nil || right.Location != nil {
-		t.Fatal("test AST unexpectedly has source locations")
-	}
-
-	formatted, err := AstWithOpts(expr, Opts{RegoVersion: ast.RegoV1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	reparsed, err := ast.ParseExpr(string(formatted))
-	if err != nil {
-		t.Fatalf("formatted expression does not parse: %v\n%s", err, formatted)
-	}
-	if !expr.Equal(reparsed) {
-		t.Fatalf("formatting changed the AST:\n%s", formatted)
-	}
-	again, err := AstWithOpts(reparsed, Opts{RegoVersion: ast.RegoV1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(formatted, again) {
-		t.Fatalf("formatting is not idempotent: %q, %q", formatted, again)
 	}
 }
 

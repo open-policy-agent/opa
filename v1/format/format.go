@@ -1676,6 +1676,11 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*
 			return nil, err
 		}
 		w.write(" " + bi.Infix + " ")
+		if operator == ast.Equality.Name {
+			// The right side of unification already parses as one expression.
+			// Parentheses here add churn to ordinary `x = a == b` cases.
+			return w.writeTerm(terms[2], comments)
+		}
 		return writeOperand(terms[2], comments)
 	case numDeclArgs + 1: // Print infix where result is assigned (e.g., z = x + y)
 		comments, err = w.writeTerm(terms[3], comments)
