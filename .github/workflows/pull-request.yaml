@@ -170,6 +170,12 @@ jobs:
         GOARCH: ${{ matrix.arch }}
       timeout-minutes: 30
 
+    - name: Check working copy is clean
+      # The windows build installs mise, as the release build does, so a file
+      # it leaves behind would mark release binaries as built from a dirty tree.
+      run: ./build/check-working-copy.sh
+      if: matrix.os == 'windows'
+
     - name: Upload binaries - No Go tags
       uses: actions/upload-artifact@v7.0.2
       if: ${{ matrix.go_tags == '' }}
