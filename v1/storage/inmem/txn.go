@@ -352,8 +352,7 @@ func (txn *transaction) isObject(path storage.Path) (exists bool, isObj bool, er
 
 // nonEmpty reports whether path collides with stored data. The path collides
 // when a value exists at the path itself, or when a proper prefix exists and
-// is not an object. A prefix that merely contains a pending write is an object
-// and is not a collision, so this does not copy that prefix.
+// is not an object.
 func (txn *transaction) nonEmpty(path []string) (bool, error) {
 	exists, _, err := txn.isObject(storage.Path(path))
 	if err != nil {
