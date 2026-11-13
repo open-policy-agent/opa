@@ -2760,6 +2760,7 @@ func (p *Parser) parseNumber() *Term {
 		return nil
 	}
 
+	loc.Text = p.s.Text(loc.Offset, p.s.tokEnd)
 	// Note: Use the original string, do *not* round trip from
 	// the big.Float as it can cause precision loss.
 	return NumberTerm(json.Number(s)).SetLocation(loc)
