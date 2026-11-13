@@ -210,25 +210,19 @@ func arithRound(a *big.Float) *big.Float {
 }
 
 func arithCeil(a *big.Float) *big.Float {
-	i, _ := a.Int(nil)
-	f := new(big.Float).SetInt(i)
-
-	if f.Signbit() || a.Cmp(f) == 0 {
-		return f
+	i, acc := a.Int(nil)
+	if acc == big.Below {
+		i.Add(i, big.NewInt(1))
 	}
-
-	return new(big.Float).Add(f, big.NewFloat(1.0))
+	return new(big.Float).SetInt(i)
 }
 
 func arithFloor(a *big.Float) *big.Float {
-	i, _ := a.Int(nil)
-	f := new(big.Float).SetInt(i)
-
-	if !f.Signbit() || a.Cmp(f) == 0 {
-		return f
+	i, acc := a.Int(nil)
+	if acc == big.Above {
+		i.Sub(i, big.NewInt(1))
 	}
-
-	return new(big.Float).Sub(f, big.NewFloat(1.0))
+	return new(big.Float).SetInt(i)
 }
 
 func builtinMinus(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

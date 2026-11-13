@@ -1,0 +1,60 @@
+---
+cases:
+  # Integer-valued results beyond int64 are rendered with sprintf because the
+  # golden-case loader parses expected numbers as float64.
+  - note: "arithmetic/ceil of fractions and integers around zero"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {
+        	"neg_half": ceil(-0.5),
+        	"neg_tenth": ceil(-0.1),
+        	"neg_fraction": ceil(-1.5),
+        	"pos_half": ceil(0.5),
+        	"pos_fraction": ceil(1.5),
+        	"neg_integer": ceil(-2),
+        	"neg_integer_float": ceil(-2.0),
+        	"zero": ceil(0),
+        	"neg_beyond_int64": sprintf("%v", [ceil(-9223372036854775809)]),
+        }
+    want_result:
+      - x:
+          neg_half: 0
+          neg_tenth: 0
+          neg_fraction: -1
+          pos_half: 1
+          pos_fraction: 2
+          neg_integer: -2
+          neg_integer_float: -2
+          zero: 0
+          neg_beyond_int64: "-9223372036854775809"
+  - note: "arithmetic/floor of fractions and integers around zero"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {
+        	"neg_half": floor(-0.5),
+        	"neg_seven_tenths": floor(-0.7),
+        	"neg_fraction": floor(-1.5),
+        	"pos_half": floor(0.5),
+        	"pos_fraction": floor(1.5),
+        	"neg_integer": floor(-2),
+        	"neg_integer_float": floor(-2.0),
+        	"zero": floor(0),
+        	"neg_beyond_int64": sprintf("%v", [floor(-9223372036854775809)]),
+        }
+    want_result:
+      - x:
+          neg_half: -1
+          neg_seven_tenths: -1
+          neg_fraction: -2
+          pos_half: 0
+          pos_fraction: 1
+          neg_integer: -2
+          neg_integer_float: -2
+          zero: 0
+          neg_beyond_int64: "-9223372036854775809"
