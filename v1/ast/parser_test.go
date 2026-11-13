@@ -61,6 +61,7 @@ func TestNumberTerms(t *testing.T) {
 		{"0", "0"},
 		{"100", "100"},
 		{"-1", "-1"},
+		{"-1000", "-1000"},
 		{"1e6", "1e6"},
 		{"1.1e6", "1.1e6"},
 		{"-1e-6", "-1e-6"},
@@ -90,6 +91,7 @@ func TestNumberTerms(t *testing.T) {
 				if !result.Equal(e) {
 					t.Errorf("Expected %v for %v but got: %v", e, tc.input, result)
 				}
+				assertLocationText(t, tc.input, result.Location)
 			}
 		})
 	}
