@@ -483,7 +483,7 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 	mod, err := parseModule(filename, stmts, comments, popts.RegoVersion)
 	// Without annotations, a compile may still attach some, changing the keys.
 	if err == nil && popts.ProcessAnnotation {
-		setReuseKeys(mod)
+		setSourceKeys(mod, popts.DropLocations)
 	}
 	if err == nil && popts.DropLocations {
 		if len(mod.Annotations) == 0 { // attached later, by the statements recorded now
