@@ -42,6 +42,10 @@ docs/website/data/versions
 # generated when building windows binary to add icon and product version
 resource.syso
 
+# written by jdx/mise-action in CI; an untracked file in the checkout makes
+# Go stamp release binaries with vcs.modified=true ("-dirty")
+mise.toml
+
 # generated when building proto codegen plugin (see Makefile generate-proto)
 build/tools/bin/
 
