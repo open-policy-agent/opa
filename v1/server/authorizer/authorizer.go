@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/server/identifier"
@@ -28,6 +29,7 @@ type Basic struct {
 	compiler               func() *ast.Compiler
 	store                  storage.Store
 	runtime                *ast.Term
+	v2Compatible           bool
 	decision               func() ast.Ref
 	printHook              print.Hook
 	enablePrintStatements  bool
@@ -40,6 +42,14 @@ type Basic struct {
 func Runtime(term *ast.Term) func(*Basic) {
 	return func(b *Basic) {
 		b.runtime = term
+	}
+}
+
+// V2Compatible enables v2-compatible request-body error responses on the authorizer.
+// Oversized request bodies return HTTP 413 instead of HTTP 400.
+func V2Compatible(yes bool) func(*Basic) {
+	return func(b *Basic) {
+		b.v2Compatible = yes
 	}
 }
 
@@ -109,7 +119,7 @@ func (b *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// conversions.
 	r, input, err := makeInput(r, b.urlPathExpectsBodyFunc)
 	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, bodylimit.ErrorStatus(b.v2Compatible, err), types.CodeInvalidParameter, err)
 		return
 	}
 
