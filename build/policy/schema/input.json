@@ -1,8 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "files",
-  "$ref": "#/$defs/files",
+  "$id": "input",
+  "$ref": "#/$defs/input",
   "$defs": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "string",
+          "example": "pull_request"
+        },
+        "pr": {
+          "type": "object"
+        },
+        "issue": {
+          "type": "object"
+        },
+        "files": {
+          "$ref": "#/$defs/files"
+        }
+      }
+    },
     "files": {
       "type": "array",
       "items": {

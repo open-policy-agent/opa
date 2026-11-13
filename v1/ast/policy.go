@@ -231,6 +231,10 @@ type (
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
 		regoVersion RegoVersionSpan
+		reusable    bool    // compiled by Compiler.WithRuleReuse, its rules reusable
+		reuseKey    RuleKey // set by the parser, see moduleKey
+		// unparsed holds annotations recorded before locations were dropped; nil means use the rows.
+		unparsed []unparsedAnnotation
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -273,6 +277,7 @@ type (
 
 		Default       bool `json:"default,omitempty"`
 		generatedBody bool
+		reuseKey      RuleKey // set by the parser, see reuseKey
 	}
 
 	// Head represents the head of a rule.
@@ -414,6 +419,11 @@ func (mod *Module) Copy() *Module {
 	cpy.Comments = make([]*Comment, len(mod.Comments))
 	for i := range mod.Comments {
 		cpy.Comments[i] = mod.Comments[i].Copy()
+	}
+
+	cpy.unparsed = slices.Clone(mod.unparsed)
+	for i := range cpy.unparsed {
+		cpy.unparsed[i].node = nodes[cpy.unparsed[i].node]
 	}
 
 	return &cpy
@@ -1347,11 +1357,11 @@ func (expr *Expr) OperatorTerm() *Term {
 // at least pos+1 terms, this function returns nil.
 func (expr *Expr) Operand(pos int) *Term {
 	terms, ok := expr.Terms.([]*Term)
-	if !ok {
+	if !ok || pos < 0 {
 		return nil
 	}
-	idx := pos + 1
-	if idx < len(terms) {
+	idx, len := uint(pos+1), uint(len(terms))
+	if idx < len {
 		return terms[idx]
 	}
 	return nil
@@ -1360,7 +1370,7 @@ func (expr *Expr) Operand(pos int) *Term {
 // Operands returns the built-in function operands.
 func (expr *Expr) Operands() []*Term {
 	terms, ok := expr.Terms.([]*Term)
-	if !ok {
+	if !ok || len(terms) == 0 {
 		return nil
 	}
 	return terms[1:]
@@ -1897,7 +1907,7 @@ func validEqAssignArgCount(expr *Expr) bool {
 // function like eq, gt, plus, etc.
 func isGlobalBuiltin(expr *Expr, name Var) bool {
 	terms, ok := expr.Terms.([]*Term)
-	if !ok {
+	if !ok || len(terms) == 0 {
 		return false
 	}
 

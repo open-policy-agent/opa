@@ -117,6 +117,8 @@ Sources define how OCP pulls Rego and data from external systems, local files, o
     - Example: `refs/head/main`
   - Commit (Optional): Commit sha of the commit you want the bundle built from
     - Example: `d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3`
+  - Depth (Optional): Limit the clone and later fetches to this many commits, to save time and disk space for large repositories. Defaults to `0` (full history). Ignored when `commit` is set.
+    - Example: `1`
   - Path (Optional): Git path to the files to be included in the policy
     - Example: `policies/authz`
   - Include Files (Optional): Files to explicitly include in the bundle

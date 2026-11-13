@@ -22,6 +22,7 @@ type dirLoaderFS struct {
 	idx               int
 	filter            filter.LoaderFilter
 	root              string
+	offset            string
 	pathFormat        PathFormat
 	maxSizeLimitBytes int64
 	followSymlinks    bool
@@ -38,7 +39,7 @@ func NewFSLoader(filesystem fs.FS) (DirectoryLoader, error) {
 func NewFSLoaderWithRoot(filesystem fs.FS, root string) DirectoryLoader {
 	return &dirLoaderFS{
 		filesystem: filesystem,
-		root:       normalizeRootDirectory(root),
+		root:       cleanRoot(root, path.Clean),
 		pathFormat: Chrooted,
 	}
 }
@@ -108,6 +109,15 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 		if err := fs.WalkDir(d.filesystem, d.root, d.walkDir); err != nil {
 			return nil, fmt.Errorf("failed to list files: %w", err)
 		}
+		kept, offset, err := rerootAtManifest(d.root, d.files)
+		if err != nil {
+			return nil, err
+		}
+		if offset != "" {
+			d.files = kept
+			d.root = path.Join(d.root, offset)
+			d.offset = offset
+		}
 	}
 
 	// If done reading files then just return io.EOF
@@ -124,7 +134,7 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 		return nil, fmt.Errorf("failed to open file %s: %w", fileName, err)
 	}
 
-	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
+	cleanedPath := formatFSPath(fileName, d.root, d.pathFormat)
 
 	return NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh), nil
 }
@@ -135,4 +145,10 @@ func getdepthFS(fsPath string, isDir bool) int {
 	}
 
 	return strings.Count(strings.Trim(fsPath, "/"), "/") + 1
+}
+
+// RootOffset returns the manifest directory relative to the loader's root.
+// The offset is only known after the first NextFile call and is empty before.
+func (d *dirLoaderFS) RootOffset() string {
+	return d.offset
 }

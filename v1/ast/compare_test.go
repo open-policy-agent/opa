@@ -807,3 +807,32 @@ func TestCompareAnnotations(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkValueEqualScalars(b *testing.B) {
+	x, y := InternedTerm(499), InternedTerm(499)
+	s1, s2 := InternedTerm("some string not too short"), InternedTerm("some string not too short")
+	var v1 Value = Var("__local2304__")
+	var v2 Value = Var("__local2304__")
+	for b.Loop() {
+		_ = ValueEqual(x.Value, y.Value)
+		_ = ValueEqual(s1.Value, s2.Value)
+		_ = ValueEqual(s1.Value, y.Value)
+		_ = ValueEqual(v1, v2)
+		_ = ValueEqual(v1, x.Value)
+	}
+}
+
+func TestNumberCompareBeyondFloat64Precision(t *testing.T) {
+	a := Number("0.1000000000000000000001000")
+	b := Number("0.1000000000000000000002000")
+	c := Number("0.1000000000000000000002")
+
+	for _, tc := range []struct {
+		x, y Number
+		want int
+	}{{a, b, -1}, {b, a, 1}, {a, c, -1}, {c, b, 0}} {
+		if got := NumberCompare(tc.x, tc.y); got != tc.want {
+			t.Errorf("NumberCompare(%s, %s) = %d, want %d", tc.x, tc.y, got, tc.want)
+		}
+	}
+}

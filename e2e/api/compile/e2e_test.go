@@ -27,8 +27,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"github.com/open-policy-agent/opa/v1/test/e2e"
 )
 
 type DBType string
@@ -46,15 +44,6 @@ type TestConfig struct {
 	dbName string
 	dbType DBType
 	dbURL  string
-}
-
-// containerConfig holds database-specific container configuration
-type containerConfig struct {
-	image       string
-	port        string
-	env         map[string]string
-	waitFor     wait.Strategy
-	urlTemplate string
 }
 
 var dbConfigs = map[DBType]containerConfig{
@@ -106,33 +95,11 @@ func setupTestContainer(ctx context.Context, dbType DBType) (testcontainers.Cont
 
 	config := dbConfigs[dbType]
 
-	containerReq := testcontainers.ContainerRequest{
-		Image:        config.image,
-		ExposedPorts: []string{config.port},
-		WaitingFor:   config.waitFor,
-		Env:          config.env,
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: containerReq,
-		Started:          true,
-	})
+	container, host, port, err := startContainer(ctx, config)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to start container: %v", err)
+		return nil, "", err
 	}
-
-	port, err := container.MappedPort(ctx, config.port)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to get container port: %v", err)
-	}
-
-	host, err := container.Host(ctx)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to get container host: %v", err)
-	}
-
-	dbURL := fmt.Sprintf(config.urlTemplate, host, port.Port())
-	return container, dbURL, nil
+	return container, fmt.Sprintf(config.urlTemplate, host, port), nil
 }
 
 // getCreateTableSQL returns database-specific CREATE TABLE SQL
@@ -301,30 +268,7 @@ func TestCompileHappyPathE2E(t *testing.T) {
 	if os.Getenv("DOCKER_RUNNING") != "1" {
 		t.Skip("docker-dependant tests are not runnable")
 	}
-	ctx, cancel := context.WithCancel(t.Context())
-
-	params := e2e.NewAPIServerTestParams()
-	params.Addrs = &[]string{"0.0.0.0:0"}
-	testRuntime, err := e2e.NewTestRuntime(params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	done := make(chan bool)
-	go func() {
-		err := testRuntime.Runtime.Serve(ctx)
-		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		done <- true
-	}()
-	t.Cleanup(cancel)
-
-	if err := testRuntime.WaitForServer(); err != nil {
-		t.Fatal(err)
-	}
-	opaURL := testRuntime.URL()
-	t.Log(opaURL)
+	opaURL := startOPA(t)
 
 	dbTypes := []DBType{Postgres, MySQL, MSSQL, SQLite}
 
@@ -481,13 +425,7 @@ func TestCompileHappyPathE2E(t *testing.T) {
 			for i, tt := range tests {
 				// first, we override the policy with the current test case
 				policy := fmt.Sprintf("package filters%d\n%s", i, tt.policy)
-				req, err := http.NewRequest("PUT", fmt.Sprintf("%s/v1/policies/policy%d.rego", opaURL, i), strings.NewReader(policy))
-				if err != nil {
-					t.Fatalf("failed to create request: %v", err)
-				}
-				if _, err := http.DefaultClient.Do(req); err != nil {
-					t.Fatalf("post policy: %v", err)
-				}
+				putPolicy(t, opaURL, fmt.Sprintf("policy%d.rego", i), policy)
 
 				path := fmt.Sprintf(path, i)
 
@@ -549,28 +487,7 @@ func TestCompileHappyPathE2E(t *testing.T) {
 // execution added something to the exposed prometheus metrics at /v1/metrics.
 // Also, it checks that the cache hit/miss metrics have been exposed accordingly.
 func TestPrometheusMetrics(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-
-	params := e2e.NewAPIServerTestParams()
-	params.Addrs = &[]string{"0.0.0.0:0"}
-	testRuntime, err := e2e.NewTestRuntime(params)
-	if err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan bool)
-	go func() {
-		err := testRuntime.Runtime.Serve(ctx)
-		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		done <- true
-	}()
-	t.Cleanup(cancel)
-	if err := testRuntime.WaitForServer(); err != nil {
-		t.Fatal(err)
-	}
-
-	opaURL := testRuntime.URL()
+	opaURL := startOPA(t)
 
 	input := map[string]any{"fav_colour": "yellow"}
 	path := `filters/include`
@@ -583,45 +500,21 @@ include if input.fruits.name == "banana"
 `
 
 	{ // exercise the Compile API
-		req, err := http.NewRequest("PUT", opaURL+"/v1/policies/policy.rego", strings.NewReader(policy))
-		if err != nil {
-			t.Fatalf("failed to create request: %v", err)
-		}
-		if _, err := http.DefaultClient.Do(req); err != nil {
-			t.Fatalf("post policy: %v", err)
-		}
+		putPolicy(t, opaURL, "policy.rego", policy)
 
 		// query the compile API
 		payload := map[string]any{
 			"input": input,
 		}
 
-		queryBytes, err := json.Marshal(payload)
-		if err != nil {
-			t.Fatalf("Failed to marshal JSON: %v", err)
-		}
-
 		for range 3 {
-			// POST to Compile API
-			req, err = http.NewRequest("POST",
-				opaURL+"/v1/compile/"+path,
-				strings.NewReader(string(queryBytes)))
-			if err != nil {
-				t.Fatalf("failed to create request: %v", err)
-			}
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Accept", "application/vnd.opa.sql.postgresql+json")
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				t.Fatalf("failed to execute request: %v", err)
-			}
-			defer resp.Body.Close()
+			_, body := postCompile(t, opaURL, path, "application/vnd.opa.sql.postgresql+json", payload)
 			var respPayload struct {
 				Result struct {
 					Query any `json:"query"`
 				} `json:"result"`
 			}
-			if err := json.NewDecoder(resp.Body).Decode(&respPayload); err != nil {
+			if err := json.Unmarshal(body, &respPayload); err != nil {
 				t.Fatalf("failed to decode response: %v", err)
 			}
 			if exp, act := "WHERE fruits.name = E'banana'", respPayload.Result.Query; exp != act {
@@ -665,27 +558,8 @@ func findMetrics(t *testing.T, eopaURL string, needles ...string) []string {
 
 func getSQLAndRunQuery(t *testing.T, path string, payload map[string]any, config *TestConfig, opaURL string) []fruitRow {
 	t.Helper()
-	queryBytes, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	req, err := http.NewRequest("POST",
-		opaURL+"/v1/compile/"+path,
-		strings.NewReader(string(queryBytes)))
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", fmt.Sprintf("application/vnd.opa.sql.%s+json", config.dbType))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("failed to execute request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if status := resp.StatusCode; status != http.StatusOK {
+	status, body := postCompile(t, opaURL, path, fmt.Sprintf("application/vnd.opa.sql.%s+json", config.dbType), payload)
+	if status != http.StatusOK {
 		t.Errorf("expected status %v, got %v", http.StatusOK, status)
 	}
 
@@ -694,7 +568,7 @@ func getSQLAndRunQuery(t *testing.T, path string, payload map[string]any, config
 			Query any `json:"query"`
 		} `json:"result"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&respPayload); err != nil {
+	if err := json.Unmarshal(body, &respPayload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
@@ -728,28 +602,10 @@ func getSQLAndRunQuery(t *testing.T, path string, payload map[string]any, config
 
 func getUCASTAndRunPrisma(t *testing.T, path string, payload map[string]any, config *TestConfig, opaURL string) []fruitRow {
 	t.Helper()
-	queryBytes, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
 
 	// Query EOPA for UCAST IR
-	req, err := http.NewRequest("POST",
-		opaURL+"/v1/compile/"+path,
-		strings.NewReader(string(queryBytes)))
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/vnd.opa.ucast.prisma+json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("failed to execute request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if status := resp.StatusCode; status != http.StatusOK {
+	status, body := postCompile(t, opaURL, path, "application/vnd.opa.ucast.prisma+json", payload)
+	if status != http.StatusOK {
 		t.Errorf("expected status %v, got %v", http.StatusOK, status)
 	}
 
@@ -758,7 +614,7 @@ func getUCASTAndRunPrisma(t *testing.T, path string, payload map[string]any, con
 			Query map[string]any `json:"query"`
 		} `json:"result"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&respPayload); err != nil {
+	if err := json.Unmarshal(body, &respPayload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 	t.Log("ucast IR:", respPayload.Result.Query)

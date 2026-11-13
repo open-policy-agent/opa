@@ -277,6 +277,7 @@ Zhang
 # Usernames
 aavarghese
 anderseknert
+andreatp
 ashumania
 frankiecerk
 irodzik
@@ -290,3 +291,6 @@ that_tech_tea
 timhinrichs
 tsandall
 vgramer
+Lucene
+Solr
+Solr's

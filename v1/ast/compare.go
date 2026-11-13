@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"strings"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -264,21 +263,31 @@ func TermValueCompare(a, b *Term) int {
 }
 
 func ValueEqual(a, b Value) bool {
-	switch v := a.(type) {
-	case Null, Boolean, String, Var:
-		return v == b
+	switch av := a.(type) {
+	case Null:
+		_, ok := b.(Null)
+		return ok
+	case Boolean:
+		bv, ok := b.(Boolean)
+		return ok && av == bv
+	case String:
+		bv, ok := b.(String)
+		return ok && av == bv
+	case Var:
+		bv, ok := b.(Var)
+		return ok && av == bv
 	case Number:
-		return v.Equal(b)
+		return av.Equal(b)
 	case Ref:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *Array:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *object:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *Not:
-		return v.Equal(b)
+		return av.Equal(b)
 	case *TemplateString:
-		return v.Equal(b)
+		return av.Equal(b)
 	}
 
 	return a.Compare(b) == 0
@@ -299,7 +308,7 @@ func NumberCompare(x, y Number) int {
 	}
 
 	var xi, yi int64
-	var xiOK, yiOK, xfOK, yfOK bool
+	var xiOK, yiOK bool
 
 	if xi, xiOK = util.Atoi64(xs); xiOK {
 		if yi, yiOK = util.Atoi64(ys); yiOK {
@@ -310,40 +319,6 @@ func NumberCompare(x, y Number) int {
 	if xd, ok := parseDecimal(xs); ok {
 		if yd, ok := parseDecimal(ys); ok {
 			return xd.compare(yd)
-		}
-	}
-
-	var xf, yf float64
-	var xIsF, yIsF bool
-
-	// Treat "1" and "1.0", "1.00", etc as "1" for the purpose of deciding
-	// whether each side is a non-integral value.
-	//
-	// The trimmed forms must not be assigned back over xs and ys. TrimRight
-	// takes a cutset rather than a suffix, so ".0" strips every trailing '.'
-	// and '0' character: "0.0" trims to the empty string and "-0.0" to "-".
-	// Those are then handed to big.Float.SetString below, which fails, and the
-	// failure path is a panic.
-	if strings.IndexByte(xs, '.') != -1 {
-		if tx := strings.TrimRight(xs, ".0"); tx != xs {
-			// Still a float after trimming?
-			xIsF = strings.IndexByte(tx, '.') != -1
-		}
-	}
-	if strings.IndexByte(ys, '.') != -1 {
-		if ty := strings.TrimRight(ys, ".0"); ty != ys {
-			yIsF = strings.IndexByte(ty, '.') != -1
-		}
-	}
-
-	if xIsF && yIsF {
-		if xf, xfOK = x.Float64(); xfOK {
-			if yf, yfOK = y.Float64(); yfOK {
-				if xf == yf {
-					return 0
-				}
-				// could still be "equal" depending on precision, so we continue?
-			}
 		}
 	}
 

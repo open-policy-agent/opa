@@ -2134,6 +2134,23 @@ func TestOneShot_RegoVersion(t *testing.T) {
 	}
 }
 
+func TestOneShot_FunctionImplicitBody(t *testing.T) {
+	ctx := t.Context()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	if err := repl.OneShot(ctx, "f(x) := 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "f(1)"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "1\n")
+}
+
 func TestStoredModule_RegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string

@@ -637,3 +637,95 @@ func TestRoundtripJSONVariadicFunction(t *testing.T) {
 		t.Fatalf("Got: %v\n\nExpected: %v", result, tpe)
 	}
 }
+
+func TestRoundtripJSONSetOfUnknown(t *testing.T) {
+	tpe := NewSet(NewSet(nil))
+	bs, err := json.Marshal(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Unmarshal(bs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if Compare(result, tpe) != 0 {
+		t.Fatalf("Got: %v\n\nExpected: %v", result, tpe)
+	}
+}
+
+func TestUnmarshalNested(t *testing.T) {
+	nested := func(n int) []byte {
+		return []byte(strings.Repeat(`{"type":"set","of":`, n) + `{"type":"string"}` + strings.Repeat("}", n))
+	}
+
+	result, err := Unmarshal(nested(5000))
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := S
+	for range 5000 {
+		exp = NewSet(exp)
+	}
+	if Compare(result, exp) != 0 {
+		t.Fatal("unexpected result for deeply nested set")
+	}
+
+	// The whole input is decoded at once, so the JSON decoder's depth limit applies.
+	if _, err := Unmarshal(nested(20000)); err == nil {
+		t.Fatal("expected error for input exceeding max depth")
+	}
+}
+
+func TestUnmarshalErrors(t *testing.T) {
+	for _, tc := range []string{
+		`null`,
+		`[]`,
+		`{"type":1}`,
+		`{"type":"unknown"}`,
+		`{"type":"array","static":"x"}`,
+		`{"type":"array","static":[1]}`,
+		`{"type":"array","dynamic":null}`,
+		`{"type":"object","static":{}}`,
+		`{"type":"object","static":[{"key":"a"}]}`,
+		`{"type":"object","dynamic":1}`,
+		`{"type":"object","dynamic":{"key":{"type":"string"}}}`,
+		`{"type":"set","of":null}`,
+		`{"type":"any","of":{}}`,
+		`{"type":"function","args":"x"}`,
+		`{"type":"function","result":null}`,
+		`{"type":"string"} x`,
+	} {
+		t.Run(tc, func(t *testing.T) {
+			if result, err := Unmarshal([]byte(tc)); err == nil {
+				t.Fatalf("expected error, got %v", result)
+			}
+		})
+	}
+}
+
+func TestUnmarshalOptionalFields(t *testing.T) {
+	for in, exp := range map[string]Type{
+		`{"type":"array"}`:                    NewArray(nil, nil),
+		`{"type":"set"}`:                      NewSet(nil),
+		`{"type":"object"}`:                   NewObject(nil, nil),
+		`{"type":"object","dynamic":null}`:    NewObject(nil, nil),
+		`{"type":"object","dynamic":{}}`:      NewObject(nil, nil),
+		`{"type":"any"}`:                      NewAny(),
+		`{"type":"function"}`:                 NewFunction(nil, nil),
+		`{"type":"string","ignored":[1,2,3]}`: S,
+		`{"type":"object","static":[{"key":1,"value":{"type":"null"}}]}`: NewObject(
+			[]*StaticProperty{NewStaticProperty(json.Number("1"), Nl)}, nil),
+	} {
+		t.Run(in, func(t *testing.T) {
+			result, err := Unmarshal([]byte(in))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if Compare(result, exp) != 0 {
+				t.Fatalf("expected %v, got %v", exp, result)
+			}
+		})
+	}
+}

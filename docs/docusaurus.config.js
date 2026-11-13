@@ -1,5 +1,17 @@
 const { themes } = require("prism-react-renderer");
-const lightCodeTheme = themes.github;
+// Both themes leave JSON keys the same colour as values (github) or uncoloured
+// (dracula), so objects read as a single colour.
+const lightCodeTheme = {
+  ...themes.github,
+  styles: [
+    ...themes.github.styles,
+    {
+      types: ["property"],
+      languages: ["json"],
+      style: { color: "#00a4db" },
+    },
+  ],
+};
 const darkCodeTheme = {
   ...themes.dracula,
   styles: [
@@ -7,6 +19,16 @@ const darkCodeTheme = {
     {
       types: ["atrule"],
       style: { color: "rgb(139, 233, 253)" },
+    },
+    {
+      types: ["property"],
+      languages: ["json"],
+      style: { color: "rgb(139, 233, 253)" },
+    },
+    {
+      types: ["number", "boolean"],
+      languages: ["json"],
+      style: { color: "rgb(189, 147, 249)" },
     },
   ],
 };

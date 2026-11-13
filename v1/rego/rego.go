@@ -29,6 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/resolver"
+	wasmresolver "github.com/open-policy-agent/opa/v1/resolver/wasm"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
@@ -579,6 +580,26 @@ type PreparedEvalQuery struct {
 	preparedQuery
 }
 
+// Close releases the resources held by the prepared query: the Wasm engine
+// created for the "wasm" target, and the Wasm resolvers loaded from the store.
+// The query, and any other query prepared from the same Rego object, must not
+// be evaluated afterwards.
+func (pq PreparedEvalQuery) Close() {
+	if pq.r == nil {
+		return
+	}
+	if pq.r.opa != nil {
+		pq.r.opa.Close()
+	}
+	if len(pq.r.loadedResolvers) > 0 {
+		for _, rslvr := range pq.r.loadedResolvers {
+			rslvr.Close()
+		}
+		pq.r.loadedResolvers = nil
+		pq.r.resolvers = nil
+	}
+}
+
 // Eval evaluates this PartialResult's Rego object with additional eval options
 // and returns a ResultSet.
 // If options are provided they will override the original Rego options respective value.
@@ -724,6 +745,7 @@ type Rego struct {
 	stackTraces                 bool
 	builtinErrorList            *[]topdown.Error
 	resolvers                   []refResolver
+	loadedResolvers             []*wasmresolver.Resolver
 	externalSources             []ast.ExternalRuleSource
 	schemaSet                   *ast.SchemaSet
 	target                      string // target type (wasm, rego, etc.)
@@ -1574,6 +1596,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 	}
 
 	rs, err := pq.Eval(ctx, evalArgs...)
+	pq.Close()
 	txnErr := txnClose(ctx, err) // Always call closer
 	if err == nil {
 		err = txnErr
@@ -2236,6 +2259,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 			return err
 		}
 
+		r.loadedResolvers = resolvers
 		for _, rslvr := range resolvers {
 			for _, ep := range rslvr.Entrypoints() {
 				r.resolvers = append(r.resolvers, refResolver{ep, rslvr})
@@ -2457,26 +2481,27 @@ func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, 
 		return nil, nil
 	}
 
-	var rs ResultSet
-	err := resultSet.Iter(func(term *ast.Term) error {
+	rs := make(ResultSet, 0, resultSet.Len())
+
+	for _, term := range resultSet.Slice() {
 		obj, ok := term.Value.(ast.Object)
 		if !ok {
-			return errors.New("illegal result type")
+			return rs, errors.New("illegal result type")
 		}
+
 		qr := topdown.QueryResult{}
 		obj.Foreach(func(k, v *ast.Term) {
-			kvt := ast.VarTerm(string(k.Value.(ast.String)))
-			qr[kvt.Value.(ast.Var)] = v
+			kvt := ast.Var(string(k.Value.(ast.String)))
+			qr[kvt] = v
 		})
 		result, err := r.generateResult(qr, ectx)
 		if err != nil {
-			return err
+			return rs, err
 		}
 		rs = append(rs, result)
-		return nil
-	})
+	}
 
-	return rs, err
+	return rs, nil
 }
 
 func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {

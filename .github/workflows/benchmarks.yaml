@@ -21,14 +21,14 @@ jobs:
       bench: ${{ steps.changes.outputs.bench }}
     steps:
       - name: Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none # full history, but only fetch the blobs we read
           persist-credentials: false
 
       - name: Download OPA
-        uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
+        uses: open-policy-agent/setup-opa@v2.4.0
         with:
           version: edge
 
@@ -37,24 +37,28 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_SHA: ${{ github.event.after }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -e
 
           echo "Comparing $BEFORE_SHA with $CURRENT_SHA"
+          # There is no pull request here, so the input has no "pr" key. The
+          # policies that need it do nothing in that case.
           git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" \
-            | jq -R '{filename: .}' | jq -s '.' > changed_files.json
+            | jq -R '{filename: .}' \
+            | jq -s --arg event "$EVENT_NAME" '{event: $event, files: .}' > checks_input.json
 
-          if [ ! -s changed_files.json ] || [ "$(cat changed_files.json)" = "[]" ]; then
+          if jq -e '.files | length == 0' checks_input.json >/dev/null; then
             echo "Warning: No changed files found"
             exit 0
           fi
 
           echo "Changed files:"
-          jq -r '.[].filename' changed_files.json
+          jq -r '.files[].filename' checks_input.json
 
           opa eval \
           --data build/policy/pr-check/pr_check.rego \
-          --input changed_files.json \
+          --input checks_input.json \
           --format pretty \
           'data.policy["pr-check"]' > opa_result.json
 
@@ -75,7 +79,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.bench != '' && needs.check-changes.outputs.bench != '[]' }}
     steps:
       - name: Check out code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -83,7 +87,7 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: git fetch --depth=1 origin "$BEFORE_SHA"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: .go-version
       - name: Install tools

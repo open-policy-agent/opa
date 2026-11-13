@@ -40,7 +40,7 @@ Print statements will be shown in the debug console.
 
 [Zed](https://zed.dev) is a modern open-source code editor with focus on performance and simplicity.
 
-Zed supports Rego via Regal and the [zed-rego](https://github.com/StyraInc/zed-rego) extension developed by the Styra
+Zed supports Rego via Regal and the [zed-rego](https://github.com/open-policy-agent/zed-rego) extension developed by the Styra
 community. The extension provides syntax highlighting, linting, and most of the other language server features provided
 by Regal.
 

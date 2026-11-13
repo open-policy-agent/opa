@@ -43,6 +43,8 @@ func run(args []string) error {
 		return artefactsCmd(args[1:])
 	case "dev":
 		return devCmd(args[1:])
+	case "integrate":
+		return integrateCmd(args[1:])
 	case "-h", "--help", "help":
 		usage(os.Stdout)
 		return nil
@@ -61,6 +63,7 @@ Usage:
   release artefacts --version <X.Y.Z> [--repo-root <path>] [--dry-run] [--skip-generate]
   release dev --version <X.Y.Z> [--repo-root <path>] [--dry-run]
               [--allow-existing-unreleased]
+  release integrate --version <X.Y.Z> [--ref <ref>] [--repo-root <path>]
 
 Subcommands:
   changelog   Render the CHANGELOG section for a commit range.
@@ -68,6 +71,11 @@ Subcommands:
               builtin_metadata.json and v1/ast/version_index.json.
   dev         Reopen development after a release: set version.go to
               '<X.Y.Z>-dev' and add an '## Unreleased' CHANGELOG heading.
+  integrate   Bring a patch release tagged off a release branch into this
+              checkout: copy its CHANGELOG section and capabilities snapshot
+              from --ref (default 'v<X.Y.Z>'), drop the '## Unreleased'
+              subsections it shipped, then regenerate builtin_metadata.json
+              and v1/ast/version_index.json.
 
 Output modes:
   --out <path>     Write the rendered section standalone; '-' (default) is stdout.
@@ -359,6 +367,76 @@ func devCmd(args []string) error {
 		fmt.Fprintf(os.Stderr, "- CHANGELOG.md: unchanged, '## %s' heading was already there\n", unreleasedHeading)
 	}
 	return nil
+}
+
+func integrateCmd(args []string) error {
+	fs := flag.NewFlagSet("integrate", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	version := fs.String("version", "", "patch release to integrate, e.g. 1.19.1 (a leading 'v' is stripped)")
+	ref := fs.String("ref", "", "git ref of the release; defaults to the tag 'v<version>'")
+	repoRoot := fs.String("repo-root", "", "OPA checkout to operate on; defaults to the enclosing repository's top level")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *version == "" {
+		return errors.New("--version is required")
+	}
+	ver, err := artefacts.ParseVersion(*version)
+	if err != nil {
+		return err
+	}
+	if *ref == "" {
+		*ref = "v" + ver
+	}
+	if *repoRoot == "" {
+		root, err := git.RepoRoot()
+		if err != nil {
+			return fmt.Errorf("--repo-root not given and could not discover the repository root: %w", err)
+		}
+		*repoRoot = root
+	}
+	logf := func(format string, args ...any) {
+		fmt.Fprintf(os.Stderr, "release: "+format+"\n", args...)
+	}
+
+	// Everything that can fail on input runs before the first write.
+	released, err := git.FileAt(*ref, "CHANGELOG.md")
+	if err != nil {
+		return err
+	}
+	section, err := changelog.ExtractSection(released, ver)
+	if err != nil {
+		return fmt.Errorf("CHANGELOG.md at %s: %w", *ref, err)
+	}
+	snapshot := artefacts.SnapshotName(ver)
+	capabilities, err := git.FileAt(*ref, snapshot)
+	if err != nil {
+		return err
+	}
+	changelogPath := filepath.Join(*repoRoot, "CHANGELOG.md")
+	existing, err := os.ReadFile(changelogPath)
+	if err != nil {
+		return fmt.Errorf("read CHANGELOG.md: %w", err)
+	}
+	pruned, dropped := changelog.DropReleased(string(existing), section)
+	updated, err := changelog.InsertSection(pruned, ver, section)
+	if err != nil {
+		return fmt.Errorf("CHANGELOG.md: %w", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(*repoRoot, filepath.FromSlash(snapshot)), []byte(capabilities), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", snapshot, err)
+	}
+	logf("wrote %s from %s", snapshot, *ref)
+	if err := os.WriteFile(changelogPath, []byte(updated), 0o644); err != nil {
+		return fmt.Errorf("write CHANGELOG.md: %w", err)
+	}
+	logf("added '## %s' from %s to CHANGELOG.md", ver, *ref)
+	for _, d := range dropped {
+		logf("removed '### %s' from '## %s', it shipped in %s", d, unreleasedHeading, ver)
+	}
+	_, err = artefacts.Regenerate(*repoRoot, logf)
+	return err
 }
 
 func artefactsCmd(args []string) error {

@@ -5,6 +5,7 @@ package ast
 
 import (
 	"encoding"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -109,4 +110,26 @@ func AppendDelimeted[T encoding.TextAppender](buf []byte, appenders []T, delim s
 		}
 	}
 	return buf, nil
+}
+
+// objectFromObject returns the underlying *object implementation of an Object,
+// or `force`s one from a [*lazyObj] should that be the underlying implementation.
+// Should only be used in cases where a method called on the Object interface
+// provably results in a heap allocation whereas the same method called on the
+// underlying *object does not. A "common" case of this happening is a
+// function literal escaping to the heap:
+//
+// obj.Map(func(k, v *Term) ...
+//
+// In this case the anonymous function almost always escapes in case obj is
+// an Object but not an *object. But don't use this to replace existing code
+// unless escape analysis confirms that this is the case.
+func objectFromObject(obj Object) (imp *object) {
+	switch t := obj.(type) {
+	case *object:
+		return t
+	case *lazyObj:
+		return t.force().(*object)
+	}
+	panic(fmt.Sprintf("objectFromObject: unknown ast.Object implementation %T", obj))
 }

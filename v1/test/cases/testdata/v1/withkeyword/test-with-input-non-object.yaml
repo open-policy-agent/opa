@@ -1,0 +1,52 @@
+---
+cases:
+  - note: "withkeyword/input: path replaces non-object input, number"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input.foo with input.foo as input
+        }
+    input_term: "123"
+    want_result:
+      - x: 123
+  - note: "withkeyword/input: path replaces non-object input, string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input.foo with input.foo as input
+        }
+    input_term: '"foo"'
+    want_result:
+      - x: foo
+  - note: "withkeyword/input: path replaces non-object input, array"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input.x as 1
+        }
+    input_term: "[1, 2]"
+    want_result:
+      - x:
+          x: 1
+  - note: "withkeyword/input: path on object input, value is input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input.foo with input.foo as input
+        }
+    input_term: '{"y": "foo"}'
+    want_result:
+      - x:
+          y: foo

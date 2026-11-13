@@ -1,0 +1,5 @@
+Contact: mailto:open-policy-agent-security@googlegroups.com
+Expires: 2026-12-31T11:59:00.000Z
+Preferred-Languages: en
+Canonical: https://www.openpolicyagent.org/.well-known/security.txt
+Policy: https://www.openpolicyagent.org/security

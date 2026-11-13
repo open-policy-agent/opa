@@ -113,7 +113,7 @@ func TestBindingsArrayHashmapDynamicGrowth(t *testing.T) {
 		expectedCap  int // Expected final capacity
 		shouldUseMap bool
 	}{
-		{"1_binding", 1, 2, false},     // Should allocate cap=2
+		{"1_binding", 1, 1, false},     // Should allocate cap=1
 		{"2_bindings", 2, 2, false},    // Should use cap=2
 		{"3_bindings", 3, 4, false},    // Should grow to cap=4
 		{"4_bindings", 4, 4, false},    // Should use cap=4

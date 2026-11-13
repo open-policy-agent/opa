@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -112,6 +113,12 @@ func (d *Descriptor) Close() error {
 	return err
 }
 
+// PathFormat controls how a loader formats Descriptor paths. The Reader
+// expects paths relative to the bundle root, so `.manifest`,
+// `.signatures.json`, and `patch.json` must have paths like "/.manifest".
+// Directory loaders produce these with Chrooted (the default). With
+// SlashRooted or Passthrough their paths include the loader's root
+// directory, and the Reader rejects those metadata files.
 type PathFormat int64
 
 const (
@@ -134,6 +141,8 @@ type DirectoryLoader interface {
 
 type dirLoader struct {
 	root              string
+	walkRoot          string
+	offset            string
 	files             []string
 	idx               int
 	filter            filter.LoaderFilter
@@ -142,27 +151,14 @@ type dirLoader struct {
 	followSymlinks    bool
 }
 
-// Normalize root directory, ex "./src/bundle" -> "src/bundle"
-// We don't need an absolute path, but this makes the joined/trimmed
-// paths more uniform.
-func normalizeRootDirectory(root string) string {
-	if len(root) > 1 {
-		if root[0] == '.' && root[1] == filepath.Separator {
-			if len(root) == 2 {
-				root = root[:1] // "./" -> "."
-			} else {
-				root = root[2:] // remove leading "./"
-			}
-		}
-	}
-	return root
-}
-
 // NewDirectoryLoader returns a basic DirectoryLoader implementation
 // that will load files from a given root directory path.
 func NewDirectoryLoader(root string) DirectoryLoader {
+	// Walk the root as given, as a trailing separator makes filepath.Walk
+	// follow a symlinked root. Walked child paths are cleaned regardless.
 	d := dirLoader{
-		root:       normalizeRootDirectory(root),
+		root:       cleanRoot(root, filepath.Clean),
+		walkRoot:   root,
 		pathFormat: Chrooted,
 	}
 	return &d
@@ -192,20 +188,39 @@ func (d *dirLoader) WithFollowSymlinks(followSymlinks bool) DirectoryLoader {
 	return d
 }
 
+// cleanRoot cleans a loader root so it matches the cleaned paths that walks
+// yield (ex "./src//bundle/" -> "src/bundle"). Empty roots are left alone.
+func cleanRoot(root string, clean func(string) string) string {
+	if root == "" {
+		return root
+	}
+	return clean(root)
+}
+
 func formatPath(fileName string, root string, pathFormat PathFormat) string {
+	return formatPathSep(fileName, root, filepath.FromSlash(root), pathFormat, string(filepath.Separator))
+}
+
+// formatFSPath is formatPath for fs.FS paths, which are always
+// slash-separated, so descriptor paths are the same on every OS.
+func formatFSPath(fileName string, root string, pathFormat PathFormat) string {
+	return formatPathSep(fileName, root, root, pathFormat, "/")
+}
+
+// formatPathSep formats fileName per pathFormat using sep as the separator.
+// trimRoot is root in the separator's form.
+func formatPathSep(fileName, root, trimRoot string, pathFormat PathFormat, sep string) string {
 	switch pathFormat {
 	case SlashRooted:
-		return util.WithPrefix(fileName, string(filepath.Separator))
+		return util.WithPrefix(fileName, sep)
 	case Chrooted:
-		// Trim off the root directory and return path as if chrooted
-		result := strings.TrimPrefix(fileName, filepath.FromSlash(root))
-		// TrimPrefix at root="." strips the leading dot from dotfile manifests
-		// (".manifest" → "manifest"), which then misses the Reader's HasSuffix
-		// check. Restore the original name for both manifest forms.
-		if root == "." && (filepath.Base(fileName) == ManifestExt || filepath.Base(fileName) == ManifestProtoExt) {
-			result = fileName
+		// Trim off the root directory and return path as if chrooted. Walked
+		// paths have no "./" prefix at root ".", so trimming there would strip
+		// the dot from dotfiles like ".signatures.json".
+		if root != "." {
+			fileName = strings.TrimPrefix(fileName, trimRoot)
 		}
-		return util.WithPrefix(result, string(filepath.Separator))
+		return util.WithPrefix(fileName, sep)
 	case Passthrough:
 		fallthrough
 	default:
@@ -219,7 +234,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 	// build a list of all files we will iterate over and read, but only one time
 	if d.files == nil {
 		d.files = []string{}
-		err := filepath.Walk(d.root, func(path string, info os.FileInfo, _ error) error {
+		err := filepath.Walk(d.walkRoot, func(path string, info os.FileInfo, _ error) error {
 			if info == nil {
 				return nil
 			}
@@ -241,6 +256,9 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to list files: %w", err)
+		}
+		if err := d.rootAtManifest(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -488,6 +506,82 @@ func getdepth(path string, isDir bool) int {
 // segmentCount avoids the []string allocation of len(strings.Split(path, "/")).
 func segmentCount(path string) int {
 	return strings.Count(path, "/") + 1
+}
+
+// manifestDir returns the slash-separated directory holding the manifest
+// among the given slash-separated file names, or "" if there is no manifest.
+// Manifests in more than one directory are an error.
+func manifestDir(names []string) (string, error) {
+	var dir, found string
+	for _, name := range names {
+		if base := path.Base(name); base != ManifestExt && base != ManifestProtoExt {
+			continue
+		}
+		if found != "" && path.Dir(name) != dir {
+			return "", fmt.Errorf("bundle contains manifest files in multiple directories: %q and %q", found, name)
+		}
+		dir, found = path.Dir(name), name
+	}
+	return dir, nil
+}
+
+// inDir reports whether the slash-separated name is inside dir.
+func inDir(name, dir string) bool {
+	return dir == "." || strings.HasPrefix(name, dir+"/")
+}
+
+// rerootAtManifest finds the manifest directory among files under root, and
+// returns the files inside it along with that directory's path relative to
+// root. All paths are slash-separated. The offset is "" when the manifest is
+// missing or already at root.
+func rerootAtManifest(root string, files []string) (kept []string, offset string, err error) {
+	dir, err := manifestDir(files)
+	if err != nil || dir == "" || dir == path.Clean(root) {
+		return files, "", err
+	}
+	for _, f := range files {
+		if inDir(f, dir) {
+			kept = append(kept, f)
+		}
+	}
+	if root = path.Clean(root); root != "." {
+		dir = strings.TrimPrefix(strings.TrimPrefix(dir, root), "/")
+	}
+	return kept, dir, nil
+}
+
+// rootAtManifest moves the loader root to the manifest directory, dropping
+// files outside of it.
+func (d *dirLoader) rootAtManifest() error {
+	files := make([]string, len(d.files))
+	for i, f := range d.files {
+		files[i] = filepath.ToSlash(f)
+	}
+	kept, offset, err := rerootAtManifest(filepath.ToSlash(d.root), files)
+	if err != nil || offset == "" {
+		return err
+	}
+	d.files = d.files[:0]
+	for _, f := range kept {
+		d.files = append(d.files, filepath.FromSlash(f))
+	}
+	d.root = filepath.Join(d.root, filepath.FromSlash(offset))
+	d.offset = offset
+	return nil
+}
+
+// RootOffset returns the manifest directory relative to the loader's root.
+// The offset is only known after the first NextFile call and is empty before.
+func (d *dirLoader) RootOffset() string {
+	return d.offset
+}
+
+// rootOffsetter is implemented by loaders that moved their root to the
+// manifest directory. The offset is slash-separated and relative to the
+// original root, and is only known after the first NextFile call. Loaders
+// wrapping a directory loader should forward it.
+type rootOffsetter interface {
+	RootOffset() string
 }
 
 func getFileStoragePath(path string) (storage.Path, error) {

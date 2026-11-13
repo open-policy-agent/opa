@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -77,6 +78,10 @@ func metadataPath(name string) storage.Path {
 
 func moduleRegoVersionPath(id string) storage.Path {
 	return append(ModulesInfoBasePath, strings.Trim(id, "/"), "rego_version")
+}
+
+func moduleGeneratedPath(id string) storage.Path {
+	return append(ModulesInfoBasePath, strings.Trim(id, "/"), "generated")
 }
 
 func moduleInfoPath(id string) storage.Path {
@@ -362,6 +367,7 @@ type ActivateOpts struct {
 	Bundles                  map[string]*Bundle                               // Optional
 	ExtraModules             map[string]*ast.Module                           // Optional
 	ExternalSources          *util.HasherMap[ast.Ref, ast.ExternalRuleSource] // Optional
+	RuleReuseCompiler        func() *ast.Compiler                             // Optional; for generated policies read back from the store, see Reader.WithRuleReuse
 	AuthorizationDecisionRef ast.Ref
 	ParserOptions            ast.ParserOptions
 	Plugin                   string
@@ -420,7 +426,7 @@ func Deactivate(opts *DeactivateOpts) error {
 			erase[root] = struct{}{}
 		}
 	}
-	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, opts.BundleNames, erase)
+	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, nil, opts.BundleNames, erase)
 	return err
 }
 
@@ -467,9 +473,14 @@ func activateBundles(opts *ActivateOpts) error {
 		}
 	}
 
+	var reuse moduleParser
+	if opts.RuleReuseCompiler != nil {
+		reuse = reuseModuleParser(opts.RuleReuseCompiler)
+	}
+
 	// Erase data and policies at new + old roots, and remove the old
 	// manifests before activating a new snapshot bundle.
-	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, names, erase)
+	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.ParserOptions, reuse, names, erase)
 	if err != nil {
 		return err
 	}
@@ -530,10 +541,12 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Compile the modules all at once to avoid having to re-do work.
 	remainingAndExtra := make(map[string]*ast.Module, len(remaining)+len(opts.ExtraModules))
-	maps.Copy(remainingAndExtra, remaining)
+	for id, p := range remaining {
+		remainingAndExtra[id] = p.module
+	}
 	maps.Copy(remainingAndExtra, opts.ExtraModules)
 
-	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef, opts.ExternalSources)
+	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, remaining, opts.legacy, opts.AuthorizationDecisionRef, opts.ExternalSources, opts.ParserOptions)
 	if err != nil {
 		return err
 	}
@@ -681,12 +694,12 @@ func valueToManifest(v any) (Manifest, error) {
 
 // erase bundles by name and roots. This will clear all policies and data at its roots and remove its
 // manifest from storage.
-func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
+func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, reuse moduleParser, names map[string]struct{}, roots map[string]struct{}) (map[string]storedPolicy, error) {
 	if err := eraseData(ctx, store, txn, roots); err != nil {
 		return nil, err
 	}
 
-	remaining, removed, err := erasePolicies(ctx, store, txn, parserOpts, roots)
+	remaining, removed, err := erasePolicies(ctx, store, txn, parserOpts, reuse, roots)
 	if err != nil {
 		return nil, err
 	}
@@ -735,6 +748,7 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 
 type moduleInfo struct {
 	RegoVersion ast.RegoVersion `json:"rego_version"`
+	Generated   bool            `json:"generated"`
 }
 
 func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (map[string]moduleInfo, error) {
@@ -751,20 +765,27 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 		versions := make(map[string]moduleInfo, len(m))
 
 		for k, v := range m {
-			if m0, ok := v.(map[string]any); ok {
-				if ver, ok := m0["rego_version"]; ok {
-					if vs, ok := ver.(json.Number); ok {
-						i, err := vs.Int64()
-						if err != nil {
-							return nil, errors.New("corrupt rego version")
-						}
-						rv, err := ast.RegoVersionFromIntStrict(int(i))
-						if err != nil {
-							return nil, fmt.Errorf("corrupt rego version: %w", err)
-						}
-						versions[k] = moduleInfo{RegoVersion: rv}
+			m0, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			var info moduleInfo
+			if ver, ok := m0["rego_version"]; ok {
+				if vs, ok := ver.(json.Number); ok {
+					i, err := vs.Int64()
+					if err != nil {
+						return nil, errors.New("corrupt rego version")
 					}
+					rv, err := ast.RegoVersionFromIntStrict(int(i))
+					if err != nil {
+						return nil, fmt.Errorf("corrupt rego version: %w", err)
+					}
+					info.RegoVersion = rv
 				}
+			}
+			info.Generated, _ = m0["generated"].(bool)
+			if info != (moduleInfo{}) {
+				versions[k] = info
 			}
 		}
 		return versions, nil
@@ -773,7 +794,15 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 	return nil, errors.New("corrupt rego version")
 }
 
-func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
+// storedPolicy is a policy read back from the store, with what parsed it.
+type storedPolicy struct {
+	module *ast.Module
+	raw    []byte
+	opts   ast.ParserOptions
+}
+
+// reuse, if not nil, parses the kept policies of generated bundles.
+func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, reuse moduleParser, roots map[string]struct{}) (map[string]storedPolicy, []string, error) {
 	ids, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, nil, err
@@ -785,16 +814,18 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 	}
 
 	parserOptsFor := func(modID string) ast.ParserOptions {
-		info, ok := modulesInfo[strings.TrimPrefix(modID, "/")]
-		if !ok || info.RegoVersion == parserOpts.RegoVersion {
-			return parserOpts
-		}
+		info := modulesInfo[strings.TrimPrefix(modID, "/")]
 		opts := parserOpts
-		opts.RegoVersion = info.RegoVersion
+		if info.RegoVersion != ast.RegoUndefined {
+			opts.RegoVersion = info.RegoVersion
+		}
+		if info.Generated {
+			opts = generatedParserOptions(opts)
+		}
 		return opts
 	}
 
-	remaining := map[string]*ast.Module{}
+	remaining := map[string]storedPolicy{}
 	var removed []string
 
 	for _, id := range ids {
@@ -809,8 +840,14 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 			return nil, nil, err
 		}
 		var module *ast.Module
+		var opts ast.ParserOptions
 		if !erase {
-			if module, err = ast.ParseModuleWithOpts(id, util.ByteSliceToString(bs), parserOptsFor(id)); err != nil {
+			opts = parserOptsFor(id)
+			parse := parseModule
+			if reuse != nil && modulesInfo[strings.TrimPrefix(id, "/")].Generated {
+				parse = reuse
+			}
+			if module, err = parse(id, bs, opts); err != nil {
 				return nil, nil, err
 			}
 			if erase, err = underRoots(module.Package, roots); err != nil {
@@ -825,7 +862,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 			removed = append(removed, id)
 			continue
 		}
-		remaining[id] = module
+		remaining[id] = storedPolicy{module, bs, opts}
 	}
 
 	return remaining, removed, nil
@@ -883,7 +920,7 @@ func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
 	return WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag)
 }
 
-func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
+func writeModuleInfoToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
 	mf ModuleFile, storagePath string, runtimeRegoVersion ast.RegoVersion,
 ) error {
 	var regoVersion ast.RegoVersion
@@ -892,8 +929,10 @@ func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn
 	}
 
 	if regoVersion == ast.RegoUndefined {
+		// file_rego_versions keys are relative to the bundle root.
+		path := cmp.Or(mf.RelativePath, mf.Path)
 		var err error
-		regoVersion, err = b.RegoVersionForFile(mf.Path, runtimeRegoVersion)
+		regoVersion, err = b.RegoVersionForFile(path, runtimeRegoVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get rego version for module '%s' in bundle: %w", mf.Path, err)
 		}
@@ -904,6 +943,11 @@ func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn
 	if regoVersion != ast.RegoUndefined && (runtimeRegoVersion == ast.RegoUndefined || regoVersion.Int() != runtimeRegoVersion.Int()) {
 		if err := write(ctx, store, txn, moduleRegoVersionPath(storagePath), regoVersion.Int()); err != nil {
 			return fmt.Errorf("failed to write rego version for module '%s': %w", storagePath, err)
+		}
+	}
+	if b.Manifest.Generated {
+		if err := write(ctx, store, txn, moduleGeneratedPath(storagePath), true); err != nil {
+			return fmt.Errorf("failed to write generated flag for module '%s': %w", storagePath, err)
 		}
 	}
 	return nil
@@ -936,7 +980,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					return err
 				}
 
-				if err := writeModuleRegoVersionToStore(ctx, store, txn, b, mf, path, runtimeRegoVersion); err != nil {
+				if err := writeModuleInfoToStore(ctx, store, txn, b, mf, path, runtimeRegoVersion); err != nil {
 					return err
 				}
 			}
@@ -958,7 +1002,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					if m := f.module; m != nil {
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
-						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.PolicyID(), runtimeRegoVersion); err != nil {
+						if err := writeModuleInfoToStore(ctx, store, txn, b, *m, p.PolicyID(), runtimeRegoVersion); err != nil {
 							return err
 						}
 					}
@@ -990,7 +1034,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, stored map[string]storedPolicy, legacy bool, authorizationDecisionRef ast.Ref, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource], parserOpts ast.ParserOptions) error {
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
@@ -1011,18 +1055,53 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	maps.Copy(modules, extraModules)
 
 	// include all the new bundle modules
+	type bundleModule struct {
+		ModuleFile
+		generated bool
+	}
+	n := 0
+	for _, b := range bundles {
+		n += len(b.Modules)
+	}
+	files := make(map[string]bundleModule, n)
 	for bundleName, b := range bundles {
-		if legacy {
-			for _, mf := range b.Modules {
-				modules[mf.Path] = mf.Parsed
+		for _, mf := range b.Modules {
+			name := mf.Path
+			if !legacy {
+				name = modulePathWithPrefix(bundleName, mf.Path)
 			}
-		} else {
-			maps.Copy(modules, b.ParsedModules(bundleName))
+			modules[name] = mf.Parsed
+			files[name] = bundleModule{mf, b.Manifest.Generated}
 		}
 	}
 
+	// Rule reuse may have put compiled rules in place of parsing them. Such
+	// modules are parsed again if the compile falls back to compiling everything.
+	compiler = compiler.WithReparser(func(name string) (*ast.Module, error) {
+		if p, ok := stored[name]; ok {
+			return parseModule(name, p.raw, p.opts)
+		}
+		mf, ok := files[name]
+		if !ok {
+			return nil, errors.New("not a bundle module")
+		}
+		popts := parserOpts
+		popts.RegoVersion = mf.Parsed.RegoVersionSpan().Min()
+		if mf.generated {
+			popts = generatedParserOptions(popts)
+		}
+		return parseModule(mf.Path, mf.Raw, popts)
+	})
+
 	if compiler.Compile(modules); compiler.Failed() {
 		return compiler.Errors
+	}
+	if s := compiler.RuleReuseStats(); s.Enabled {
+		m.Counter(metrics.RegoModuleCompileReusedRules).Add(uint64(s.Reused))
+		m.Counter(metrics.RegoModuleParseSkippedRules).Add(uint64(s.ParseSkipped))
+		if !s.Incremental {
+			m.Counter(metrics.RegoModuleCompileFull).Incr()
+		}
 	}
 
 	if authorizationDecisionRef.Equal(ast.InternedEmptyRefValue) {

@@ -10,7 +10,7 @@ sidebar_label: Language Server
 # Language Server
 
 In order to support Rego policy development in editors like
-[VS Code](https://github.com/open-policy-agent/vscode-opa) or [Zed](https://github.com/StyraInc/zed-rego),
+[VS Code](https://github.com/open-policy-agent/vscode-opa) or [Zed](https://github.com/open-policy-agent/zed-rego),
 Regal provides an implementation of the
 [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP) for Rego.
 
@@ -252,7 +252,7 @@ evaluation, so Regal will handle that on its own, and differently depending on w
   [nvim-dap-rego](https://github.com/rinx/nvim-dap-rego/) provides handlers to support them.
   Please follow [the instructions](https://github.com/rinx/nvim-dap-rego/blob/main/README.md#lsp-handlers) in
   nvim-dap-rego README.
-- [Zed](https://github.com/StyraInc/zed-rego) does not support the code lens feature at all at this point in time. As
+- [Zed](https://github.com/open-policy-agent/zed-rego) does not support the code lens feature at all at this point in time. As
   soon as it does, Regal will provide them.
 - Displaying the result of evaluation requires customized code in the client. Currently only VS Code and Neovim
   has the required modifications to handle this, and is thus the only editor to currently support "inline display"

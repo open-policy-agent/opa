@@ -243,7 +243,14 @@ Once the Pull Request has merged fetch the latest changes and tag the commit to
 prepare for publishing. Use the same instructions as defined above in normal
 release [publishing](#publishing) guide (being careful to tag the appropriate commit).
 
-Last step is to copy the CHANGELOG snippet and generated files
-(builtin_metadata.json and capabilities.json) for the version to `main`. Create
-a new PR with the version information added below the `Unreleased` section.
-Remove any `Unreleased` notes if they were included in the bugfix release.
+Last step is to bring the CHANGELOG section and generated files for the version
+to `main`. Once the tag's [Post Tag](../../.github/workflows/post-tag.yaml)
+workflow has published the release, it opens a PR that does this, made with:
+
+```bash
+make release-integrate VERSION=0.14.1
+```
+
+The version's section goes below `Unreleased`, above the releases before it.
+Notes under `Unreleased` that the bugfix release already included are removed;
+the `Unreleased` section itself stays.

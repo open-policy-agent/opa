@@ -189,9 +189,10 @@ Both directions of membership are supported:
 | `input.role in {"admin", "user"}`         | yes     |                                         |
 | `"admin" in input.roles`                  | yes     |                                         |
 | `input.roles[_] == "admin"`               | yes     | treated as `"admin" in input.roles`     |
+| `some r in input.roles; r == "admin"`     | yes     | treated as `"admin" in input.roles`     |
 | `x := input.role; x in {"admin", "user"}` | yes     | variable resolved to ref via assignment |
+| `some k, v in input.obj; v == "admin"`    | yes     | the values, as `"admin" in input.obj`   |
 | `{"nested": "obj"} in input.items`        | no      | non-scalar membership value             |
-| `some k, v in input.obj; v == "admin"`    | no      | three-operand `in` not indexed          |
 
 A lookup for `"admin" in input.roles` walks `input.roles`, so its cost grows with the collection. For large collections, prefer an object and `input.roles["admin"]`; see [Use objects over arrays](#use-objects-over-arrays).
 
@@ -215,27 +216,69 @@ The collection's keys are not known when the index is built, so the index asks t
 
 Only an object is indexed this way. A set would answer the same question, but base data comes from JSON and holds none; the only thing an array can be asked for is a position, which tells a ruleset's rules apart only where their lengths differ. Nor is `input.subject in data.groups.admins.members` indexed — `in` asks after the collection's _values_, which is a walk for either.
 
+The key can also come from an element of a collection in the input or base data, as in `data.groups.admins.members[input.subjects[_]]`. Here `input.subjects` is a list of names, and `members` is an object whose keys are names, so the rule can match only if at least one name in `input.subjects` is a key of `members`. The index checks this before evaluating the rule, and skips the rule if no name matches.
+
 The collection is only asked about where every candidate is going to be evaluated anyway. A ruleset whose definitions all produce the same value lets evaluation stop at the first that holds, and asking about all of them to exclude any would be the work evaluation was about to do. Partial evaluation always asks, since its residual is built from every candidate, and so does a ruleset that cannot stop early — a partial set or object, or definitions that disagree on the value.
 
-| Expression                                    | Indexed | Notes                          |
-| --------------------------------------------- | ------- | ------------------------------ |
-| `data.groups.devs.members[input.subject]`     | yes     | asks the collection for a key  |
-| `data.groups[input.g].members[input.subject]` | no      | prefix contains a variable     |
-| `data.groups.devs.members[input.subject[i]]`  | no      | key contains a variable        |
-| `input.groups.devs.members[input.subject]`    | no      | collection is not in base data |
+| Expression                                    | Indexed | Notes                                 |
+| --------------------------------------------- | ------- | ------------------------------------- |
+| `data.groups.devs.members[input.subject]`     | yes     | asks the collection for a key         |
+| `data.groups.devs.members[input.subjects[_]]` | yes     | asks the collection for each element  |
+| `data.groups[input.g].members[input.subject]` | no      | prefix contains a variable            |
+| `data.groups.devs.members[input.s[i].ids[j]]` | no      | key is in a collection of collections |
+| `input.groups.devs.members[input.subject]`    | no      | collection is not in base data        |
 
 #### Logical (`and`/`or`) statements
 
 Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/logical) are indexed on the indexable statements found inside their operands, following the rules above. An `and` requires both of its operands, so each is indexed on its own and an operand with nothing indexable in it still leaves the other to narrow the rule. An `or` requires only one of its operands, so it is indexed only when every operand has something indexable: an operand that doesn't could be satisfied by any input, leaving nothing the rule can be excluded on. Combining the two multiplies the ways a rule can be reached, as in `{input.a == 1 or input.a == 2} and {input.b == 1 or input.b == 2}`, which has four; past 32 for a single rule only the conditions common to every combination are indexed.
 
-| Expression                             | Indexed | Notes                                 |
-| -------------------------------------- | ------- | ------------------------------------- |
-| `input.x == 1 and input.y == 2`        | yes     | both operands narrow the rule         |
-| `input.x == 1 and count(input.y) == 3` | yes     | indexed on `input.x` only             |
-| `input.x == 1 or input.x == 2`         | yes     | either value of `input.x` matches     |
-| `input.x == 1 or input.y == 2`         | yes     | both operands are indexed             |
-| `input.x == 1 or count(input.y) == 3`  | no      | `count(...)` is not indexable         |
-| `not (input.x == 1 and input.y == 2)`  | no      | negated expressions are never indexed |
+A [collection lookup](#bare-reference-statements) works differently from the other statements. An indexed statement, such as `input.x == 1`, is a way to reach a rule, because its value is known when the index is built. A lookup, such as `data.g.a[input.u]`, is not, because the keys of the collection are not known then. The index checks a lookup at query time, on each rule that it has already reached.
+
+Inside an `and`, the index checks the lookups of both operands. In `{input.x == 1} and {data.g.a[input.u]}`, the index finds the rule when `input.x` is 1. It then checks that `input.u` is a key of `data.g.a`. If it is not, the index skips the rule. Inside an `or`, the index checks a lookup only if every operand looks up the same key. It then makes one lookup that holds if the key is in the collection of any operand. Lookups do not count towards the limit of 32.
+
+An `or` that mixes a lookup with an indexed statement gets neither, because the lookup gives no way to reach the rule and the indexed statement gives no lookup to check. So the index does not use `{data.g.a[input.u]} or {input.u == "a"}`, even though both operands use `input.u`.
+
+| Expression                                   | Indexed | Notes                                   |
+| -------------------------------------------- | ------- | --------------------------------------- |
+| `input.x == 1 and input.y == 2`              | yes     | both operands narrow the rule           |
+| `input.x == 1 and count(input.y) == 3`       | yes     | indexed on `input.x` only               |
+| `input.x == 1 or input.x == 2`               | yes     | either value of `input.x` matches       |
+| `input.x == 1 or input.y == 2`               | yes     | both operands are indexed               |
+| `{data.g.a[input.u]} or {data.g.b[input.u]}` | yes     | `input.u` is a key of either collection |
+| `input.x == 1 or count(input.y) == 3`        | no      | `count(...)` is not indexable           |
+| `not (input.x == 1 and input.y == 2)`        | no      | negated expressions are never indexed   |
+| `{data.g.a[input.u]} or {data.g.b[input.v]}` | no      | the operands look up different keys     |
+| `{data.g.a[input.u]} or {input.u == "a"}`    | no      | mixes a lookup with a value check       |
+
+#### Statements over a local iterating a literal
+
+A statement that uses a local iterating a literal set, array or object of scalars is indexed as the `or` of the statement with each element in place of the local, following the rules above:
+
+```rego
+allow if {
+    some r in {"viewer", "editor"}
+    input.role == r
+    # indexed as: {input.role == "viewer"} or {input.role == "editor"}
+}
+```
+
+A local assigned such a local, as in `y := x`, ranges over the same literal. A key and a value iterated together, as in `some k, v in {"a": 1, "b": 2}` or `some i, x in ["a", "b"]`, are substituted in pairs. A statement using several such locals is indexed over every combination of their elements, up to 4096 of them.
+
+As with `or`, each element of a value or reference is a way to reach the rule, so past 32 the rule is not indexed on the statement. Collection lookups are not ways to reach the rule, so there is no such limit on them. Where only a value varies, `input.role in {"viewer", "editor"}` says the same and has no such limit either: its values share one level of the index.
+
+Each statement is indexed on its own: in `some k in {"a", "b"}; input.k == k; data.p[k].on`, the index requires `input.k` to be one of the elements and `data.p[e].on` to hold for one of them, not necessarily the same one; evaluation checks that they agree.
+
+| Expression                                                                             | Indexed | Notes                                                                                          |
+| -------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `some r in {"viewer", "editor"}`<br/>`input.role == r`                                 | yes     | either value of `input.role` matches                                                           |
+| `some k in ["a", "b"]`<br/>`input.x[k] == 1`                                           | yes     | arrays work the same as sets                                                                   |
+| `some g in {"devs", "ops"}`<br/>`data.groups[g].members[input.subject]`                | yes     | `input.subject` is a key of either                                                             |
+| `some g in {"devs", "ops"}`<br/>`h := g`<br/>`data.groups[h].members[input.subject]`   | yes     | `h` ranges over the literal too                                                                |
+| `gs := {"devs", "ops"}`<br/>`some g in gs`<br/>`data.groups[g].members[input.subject]` | yes     | the literal can be assigned to a local first                                                   |
+| `some g, p in {"users": "read"}`<br/>`data.groups[g].perms[p][input.subject]`          | yes     | `g` and `p` are substituted in pairs                                                           |
+| `some r in input.roles`<br/>`input.role == r`                                          | no      | not a literal                                                                                  |
+| `some r in data.policy.roles`<br/>`input.role == r`                                    | no      | not a literal, even if a rule produces one                                                     |
+| `some r in {"a", ["b"]}`<br/>`input.role == r`                                         | no      | the literal holds a <GlossaryTooltip term="composite-values">composite value</GlossaryTooltip> |
 
 #### Several values for one reference
 

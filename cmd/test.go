@@ -41,34 +41,36 @@ import (
 )
 
 type testCommandParams struct {
-	verbose      bool
-	explain      *util.EnumFlag
-	errLimit     int
-	outputFormat *util.EnumFlag
-	coverage     bool
-	coverageRuns []string
-	threshold    float64
-	timeout      time.Duration
-	ignore       []string
-	bundleMode   bool
-	benchmark    bool
-	benchMem     bool
-	runRegex     string
-	sortTests    *util.EnumFlag
-	count        int
-	target       *util.EnumFlag
-	skipExitZero bool
-	capabilities *capabilitiesFlag
-	schema       *schemaFlags
-	watch        bool
-	stopChan     chan os.Signal
-	output       io.Writer
-	errOutput    io.Writer
-	v0Compatible bool
-	v1Compatible bool
-	varValues    bool
-	parallel     int
-	failOnEmpty  bool
+	verbose             bool
+	explain             *util.EnumFlag
+	errLimit            int
+	outputFormat        *util.EnumFlag
+	coverage            bool
+	coverageRuns        []string
+	threshold           float64
+	timeout             time.Duration
+	ignore              []string
+	bundleMode          bool
+	benchmark           bool
+	benchMem            bool
+	runRegex            string
+	sortTests           *util.EnumFlag
+	count               int
+	target              *util.EnumFlag
+	skipExitZero        bool
+	capabilities        *capabilitiesFlag
+	schema              *schemaFlags
+	watch               bool
+	stopChan            chan os.Signal
+	output              io.Writer
+	errOutput           io.Writer
+	v0Compatible        bool
+	v1Compatible        bool
+	v2Compatible        bool
+	varValues           bool
+	parallel            int
+	failOnEmpty         bool
+	strictBuiltinErrors bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -88,14 +90,7 @@ func newTestCommandParams() testCommandParams {
 }
 
 func (p *testCommandParams) RegoVersion() ast.RegoVersion {
-	// v0 takes precedence over v1
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func opaTest(args []string, testParams testCommandParams) int {
@@ -427,6 +422,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose || testParams.varValues).
 		StackTraces(true).
+		StrictBuiltinErrors(testParams.strictBuiltinErrors).
 		SetCoverageRuns(coverageRuns).
 		SetCoverageQueryTracer(coverTracer).
 		SetRuntime(runtimeInfo).
@@ -608,6 +604,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
 	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.NumCPU(), "the number of tests that can run in parallel, defaulting to the number of CPUs (explicitly set with 0). Benchmarks are always run sequentially.")
 	testCommand.Flags().BoolVar(&testParams.failOnEmpty, "fail-on-empty", false, "Whether to fail the test when no test was run")
+	testCommand.Flags().BoolVar(&testParams.strictBuiltinErrors, "strict-builtin-errors", false, "treat the first built-in function error encountered in a test as fatal and report the test as an error")
 	testCommand.Flags().Var(testParams.sortTests, "sort", "sort the JSON formatted test output")
 
 	// Shared flags
@@ -621,8 +618,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
-	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible)
-	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible)
+	addCompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, &testParams.v1Compatible, &testParams.v2Compatible)
 
 	root.AddCommand(testCommand)
 }

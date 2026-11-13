@@ -65,6 +65,12 @@ Finally, you can also sign your bundle with `opa build`.
 opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo/
 ```
 
+When multiple bundles are provided (e.g., `opa build -b foo/ -b bar/`), they are merged into
+a single bundle. The files of each input bundle are placed under the path it was provided with
+(e.g., `/foo/...` and `/bar/...`), and a new `.manifest` is written at the root of the result.
+Leading `..` segments are replaced with the name of the directory they refer to, so
+`opa build -b ../foo/ -b bar/` run from `/src/app` places files under `/src/foo/...` and `/bar/...`.
+
 For more information, see the [`opa build` command documentation.](./cli/#build)
 
 ## Bundle Service API
@@ -298,7 +304,38 @@ $ opa eval -b bundle.tar.gz data --format=raw
 ```
 
 Bundle files may contain an optional `.manifest` file that stores bundle
-metadata. The file should contain a JSON serialized object, with the following
+metadata.
+
+The directory containing the `.manifest` file is the root of the bundle. All
+paths in the bundle are relative to it, including the file names in
+`.signatures.json` and the paths in the manifest's `file_rego_versions` and
+`wasm` fields. If there is no `.manifest`, the top-level directory is the
+bundle root. The `.manifest`, `.signatures.json`, and `patch.json` files must
+be at the bundle root.
+
+When OPA loads a bundle directory (e.g., `opa build -b foo/` or `opa run -b foo/`),
+it uses the directory containing the `.manifest` file as the bundle root, even
+when that directory is nested below the provided path. Files outside of that
+directory are not part of the bundle. `opa build` and `opa sign` warn about any
+policy or data files they leave out, but other commands (e.g., `opa eval`,
+`opa run`, `opa test`) do not. A bundle directory must not contain manifests in
+more than one directory, so keep other `.manifest` files (e.g., in test
+fixtures) out of directories that you load as bundles.
+
+Bundle tarballs must have the `.manifest` file at the root of the archive, which
+is where `opa build` writes it. Tarballs loaded from disk with a nested manifest
+are rejected.
+
+:::warning
+For compatibility, bundles that the bundle plugin downloads over HTTP or from
+an OCI registry (including their persisted copies) are still loaded as they were before when a `.manifest`,
+`.signatures.json`, or `patch.json` file is not at the root of the archive,
+and OPA logs a warning each time such a bundle is loaded. These bundles will
+fail to load in a future OPA release. Rebuild them with `opa build` to place
+the manifest at the root.
+:::
+
+The `.manifest` file should contain a JSON serialized object, with the following
 fields:
 
 - `revision` - If the bundle service is capable of serving different revisions of the same
@@ -319,6 +356,12 @@ fields:
   Glob patterns are accepted, to allow for a single entry to apply to multiple files. The behaviour is undefined
   for overlapping patterns. If a file is not matched by any pattern, the `rego_version` field is used.
   Existing bundle `rego_version` and `file_rego_versions` fields takes precedence to the `--v0-compatible` flag.
+
+- `generated` - An optional `boolean` marking the bundle's policies as generated code, such
+  as rules generated from a policy database. OPA then parses them without source locations,
+  which lowers the memory their compiled form takes. Annotations are kept, but errors, traces
+  and coverage reports no longer point at files and lines, and `opa build` optimizations write
+  the modules back without their comments. See [Generated Bundles](#generated-bundles).
 
 - `roots` - If you expect to load additional data into OPA from outside the
   bundle (e.g., via OPA's HTTP API) you should include a top-level
@@ -555,7 +598,7 @@ following form:
 
 | Field                | Type     | Required | Description                                                                         |
 | -------------------- | -------- | -------- | ----------------------------------------------------------------------------------- |
-| `files[_].name`      | `string` | Yes      | Path of a file in the bundle.                                                       |
+| `files[_].name`      | `string` | Yes      | Path of a file, relative to the bundle root.                                        |
 | `files[_].hash`      | `string` | Yes      | Output of the hashing algorithm applied to the file.                                |
 | `files[_].algorithm` | `string` | Yes      | Name of the hashing algorithm.                                                      |
 | `scope`              | `string` | No       | Represents the fragment of signings.                                                |
@@ -787,6 +830,68 @@ assigning an Etag value to each bundle revision. Hence, it can figure out the ri
 
 No. OPA will activate a _delta_ bundle if all the patch operations in it were successfully applied. Note that a _snapshot_
 bundle would erase and overwrite policy and data under the manifest `roots`.
+
+## Generated Bundles
+
+When a bundle's policies are generated, as with rules generated from a policy
+database, mark the bundle as generated in its manifest:
+
+```json
+{
+  "revision": "7864d60dd78d748dbce54b569e939f5b0dc07486",
+  "roots": ["authz"],
+  "generated": true
+}
+```
+
+The bundle plugin then activates new revisions incrementally. That pays off
+when a bundle holds many plain rules that are regenerated in full while only a
+few of them change from one revision to the next.
+
+OPA keys every rule of a generated bundle by its package and the exact source
+text of the rule and its METADATA comment. When a new revision is downloaded,
+rules whose key the active compiler has compiled are not parsed again, and the
+compiled rules are carried over; only new and changed rules are parsed and
+compiled. Rules may move between files and lines from one revision to the next.
+
+Incremental activation applies to snapshot bundles from HTTP services and
+`file://` URLs, and to rules in _reusable_ modules of generated bundles: modules
+holding only plain rules, without functions, `default` rules or `else` chains,
+whose METADATA comments belong to their rules. All reusable modules of a
+package must have the same imports. Other modules, including all modules of
+bundles that aren't generated, are compiled as usual, and must be unchanged for
+an activation to be incremental.
+
+:::info
+Under these conditions, OPA still compiles everything, as for a bundle that
+isn't generated:
+
+- it is the first activation of a generated bundle,
+- a module that isn't reusable changed, or a package of reusable modules was
+  added, removed, or had its imports or Rego version changed,
+- an added rule starts a new rule set, or a removed rule leaves one empty,
+- a rule is removed from a rule set whose rules produce values of different
+  types,
+- a package holds the same rule, with the same METADATA, more than once,
+- an added rule refers to a package of reusable modules, directly or through
+  rules and functions of other modules, or calls `rego.metadata.chain` or
+  `rego.metadata.rule`,
+- an added rule's value has a different type than those of its rule set's
+  other rules, like `allow := "maybe"` next to boolean `allow` rules,
+- the compiler options or the external rule sources changed.
+
+Modules with `scope: document` annotations aren't reusable: they are parsed in
+full, and must be unchanged for an activation to be incremental.
+:::
+
+Activations of other bundles reuse the rules of generated bundles as well, so a
+data bundle's new revision doesn't compile the generated rules again.
+
+The metrics of the bundle's [status](./management-status) show what an
+activation did: `counter_rego_module_compile_reused_rules` counts the compiled
+rules carried over, `counter_rego_module_parse_skipped_rules` those not parsed
+again, and `counter_rego_module_compile_full` is `1` when everything was
+compiled.
 
 ## Implementations
 

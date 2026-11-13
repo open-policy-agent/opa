@@ -49,17 +49,19 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 		return err
 	}
 
-	for idx, k := range marshalOpts.Keys() {
+	ki := ast.BorrowKeysIterator(marshalOpts)
+	defer ast.ReturnKeysIterator(ki)
 
-		val := marshalOpts.Get(k)
-
+	idx := 0
+	for k, more := ki.Next(); more; k, more = ki.Next() {
 		key, err := builtins.StringOperand(k.Value, idx)
 		if err != nil {
 			return builtins.NewOperandErr(2, "failed to stringify key %v at index %d: %v", k, idx, err)
 		}
 
-		switch key {
+		val := marshalOpts.Get(k)
 
+		switch key {
 		case "prefix":
 			prefixOpt, err := builtins.StringOperand(val.Value, idx)
 			if err != nil {
@@ -90,6 +92,7 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 			return builtins.NewOperandErr(2, "object contained unknown key %s", key)
 		}
 
+		idx++
 	}
 
 	if !userDeclaredExplicitPrettyPrint {

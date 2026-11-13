@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
+	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/compile"
@@ -49,6 +50,7 @@ type (
 		ns                 string
 		v0Compatible       bool
 		v1Compatible       bool
+		v2Compatible       bool
 		followSymlinks     bool
 		wasmIncludePrint   bool
 		planAddons         []string
@@ -82,14 +84,7 @@ func newBuildParams() buildParams {
 }
 
 func (p *buildParams) regoVersion() ast.RegoVersion {
-	if p.v0Compatible {
-		// v0 takes precedence over v1
-		return ast.RegoV0
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func initBuild(root *cobra.Command, brand string) {
@@ -302,8 +297,7 @@ against ` + brand + ` v0.22.0:
 	addSigningPluginFlag(buildCommand.Flags(), &buildParams.plugin)
 	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
 
-	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible)
-	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible)
+	addCompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible, &buildParams.v1Compatible, &buildParams.v2Compatible)
 
 	root.AddCommand(buildCommand)
 }
@@ -342,6 +336,10 @@ func dobuild(params buildParams, args []string) error {
 				}
 			}
 		}
+	}
+
+	if params.bundleMode {
+		bundleUtils.WarnSourcesAboveManifest(params.stderr, args, buildCommandLoaderFilter(true, params.ignore))
 	}
 
 	out := &deferredFileWriter{path: params.outputFile}

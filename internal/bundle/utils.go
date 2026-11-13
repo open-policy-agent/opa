@@ -89,11 +89,15 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 }
 
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
+//
+// Deprecated: Use LoadBundleFromDiskForRegoVersion, which supports the legacy manifest placement of downloaded bundles.
 func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
-	return LoadBundleFromDiskForRegoVersion(ast.RegoV0, path, name, bvc)
+	return LoadBundleFromDiskForRegoVersion(ast.RegoV0, path, name, bvc, nil)
 }
 
-func LoadBundleFromDiskForRegoVersion(regoVersion ast.RegoVersion, path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
+// LoadBundleFromDiskForRegoVersion loads a persisted bundle. A non-nil
+// legacyWarn accepts the legacy manifest placement of downloaded bundles.
+func LoadBundleFromDiskForRegoVersion(regoVersion ast.RegoVersion, path, name string, bvc *bundle.VerificationConfig, legacyWarn func(string, ...any)) (*bundle.Bundle, error) {
 	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
 
 	_, err := os.Stat(bundlePath)
@@ -109,6 +113,9 @@ func LoadBundleFromDiskForRegoVersion(regoVersion ast.RegoVersion, path, name st
 
 		if bvc != nil {
 			r = r.WithBundleVerificationConfig(bvc)
+		}
+		if legacyWarn != nil {
+			r = r.WithLegacyManifestPlacement(legacyWarn)
 		}
 
 		b, err := r.Read()

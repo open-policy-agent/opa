@@ -3516,7 +3516,7 @@ func TestCompilerExprExpansion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			gen := newLocalVarGenerator("", NullTerm())
+			gen := newLocalVarGenerator("", NewBody())
 			expr := MustParseExpr(tc.input)
 			result := expandExpr(gen, expr.Copy())
 			if len(result) != len(tc.expected) {

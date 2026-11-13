@@ -1278,9 +1278,15 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   1,
 		},
 		{
-			note:  "missing key of empty object, var operand",
-			query: `obj = {}; obj[i]`,
-			ref:   `obj[i]`,
+			note:  "missing key of empty object, null operand",
+			query: `obj = {}; obj[null]`,
+			ref:   `obj[null]`,
+			pos:   1,
+		},
+		{
+			note:  "missing key of empty object, boolean operand",
+			query: `obj = {}; obj[true]`,
+			ref:   `obj[true]`,
 			pos:   1,
 		},
 		{
@@ -1290,21 +1296,9 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   1,
 		},
 		{
-			note:  "out of range index of empty array, var operand",
-			query: `arr = []; arr[i]`,
-			ref:   `arr[i]`,
-			pos:   1,
-		},
-		{
 			note:  "member of empty set",
 			query: `s = set(); s.foo`,
 			ref:   `s.foo`,
-			pos:   1,
-		},
-		{
-			note:  "member of empty set, var operand",
-			query: `s = set(); s[x]`,
-			ref:   `s[x]`,
 			pos:   1,
 		},
 	}
@@ -1544,6 +1538,84 @@ func TestCheckValidErrors(t *testing.T) {
 	}
 }
 
+func TestCheckRefErrIndexOutOfBounds(t *testing.T) {
+	tests := []struct {
+		note   string
+		data   types.Type
+		query  string
+		ref    string
+		pos    int
+		index  int
+		length int
+	}{
+		{
+			note:   "array var",
+			query:  `arr = [1, 2, 3]; arr[3]`,
+			ref:    `arr[3]`,
+			pos:    1,
+			index:  3,
+			length: 3,
+		},
+		{
+			note:   "negative index",
+			query:  `arr = [1, 2, 3]; arr[-1]`,
+			ref:    `arr[-1]`,
+			pos:    1,
+			index:  -1,
+			length: 3,
+		},
+		{
+			note:   "recursive array type",
+			data:   types.NewRecursive("#/$defs/pair", types.NewArray([]types.Type{types.S, types.S}, nil)),
+			query:  `data.pair[2]`,
+			ref:    `data.pair[2]`,
+			pos:    2,
+			index:  2,
+			length: 2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			env := newTestEnv(nil, BuiltinMap)
+			if tc.data != nil {
+				env.tree.Put(MustParseRef("data.pair"), tc.data)
+			}
+
+			_, errs := newTypeChecker().CheckBody(env, MustParseBody(tc.query))
+			if len(errs) != 1 {
+				t.Fatalf("Expected exactly one error but got: %v", errs)
+			}
+
+			details, ok := errs[0].Details.(*RefErrIndexOutOfBoundsDetail)
+			if !ok {
+				t.Fatalf("Expected index out of bounds error but got: %v", errs)
+			}
+
+			if !details.Ref.Equal(MustParseRef(tc.ref)) || details.Pos != tc.pos || details.Index != tc.index || details.Length != tc.length {
+				t.Fatalf("Expected (%v, %v, %v, %v) but got: (%v, %v, %v, %v)", tc.ref, tc.pos, tc.index, tc.length, details.Ref, details.Pos, details.Index, details.Length)
+			}
+		})
+	}
+
+	t.Run("array literal query", func(t *testing.T) {
+		_, err := NewCompiler().QueryCompiler().Compile(MustParseBody(`[1][1]`))
+		errs, ok := err.(Errors)
+		if !ok || len(errs) != 1 {
+			t.Fatalf("Expected exactly one error but got: %v", err)
+		}
+
+		details, ok := errs[0].Details.(*RefErrIndexOutOfBoundsDetail)
+		if !ok {
+			t.Fatalf("Expected index out of bounds error but got: %v", errs)
+		}
+
+		if !details.Ref.Equal(MustParseRef(`[1][1]`)) || details.Index != 1 || details.Length != 1 {
+			t.Fatalf("Expected ([1][1], 1, 1) but got: (%v, %v, %v)", details.Ref, details.Index, details.Length)
+		}
+	})
+}
+
 func TestCheckErrorDetails(t *testing.T) {
 
 	tests := []struct {
@@ -1603,6 +1675,19 @@ func TestCheckErrorDetails(t *testing.T) {
 				"    ^",
 				`    have: "foo"`,
 				"    want (one of): []",
+			},
+		},
+		{
+			detail: &RefErrIndexOutOfBoundsDetail{
+				Ref:    MustParseRef("arr[3]"),
+				Pos:    1,
+				Index:  3,
+				Length: 3,
+			},
+			expected: []string{
+				"arr[3]",
+				"    ^",
+				"    index 3 out of bounds for array of length 3",
 			},
 		},
 		{
@@ -2862,7 +2947,6 @@ p if {
 p contains v if {
 	some v in {}
 }`,
-			expectedError: "policy.rego:4: rego_type_error: undefined ref: {}[__local2__]",
 		},
 		{
 			name: "iterating an empty array literal",
@@ -2871,7 +2955,6 @@ p contains v if {
 p contains v if {
 	some v in []
 }`,
-			expectedError: "policy.rego:4: rego_type_error: undefined ref: [][__local2__]",
 		},
 		{
 			name: "iterating an empty set literal",
@@ -2880,7 +2963,110 @@ p contains v if {
 p contains v if {
 	some v in set()
 }`,
-			expectedError: "policy.rego:4: rego_type_error: undefined ref: set()[__local2__]",
+		},
+		{
+			name: "iterating an empty array bound to a variable",
+			policy: `package p
+
+f := out if {
+	responses := []
+	out := [x | some x in responses; x.required]
+}`,
+		},
+		{
+			name: "iterating an empty object bound to a variable",
+			policy: `package p
+
+g := out if {
+	m := {}
+	out := [v | some v in m]
+}`,
+		},
+		{
+			name: "iterating an empty array with a bound variable key",
+			policy: `package p
+
+p if {
+	arr := []
+	i := 0
+	arr[i]
+}`,
+		},
+		{
+			name: "iterating an empty array with a string variable key",
+			policy: `package p
+
+p if {
+	arr := []
+	i := "a"
+	arr[i]
+}`,
+			expectedError: "policy.rego:6: rego_type_error: undefined ref: arr[i]",
+		},
+		{
+			name: "iterating an empty object with a number variable key",
+			policy: `package p
+
+p if {
+	obj := {}
+	i := 1
+	obj[i]
+}`,
+		},
+		{
+			name: "comparing an element of an empty array to a constant",
+			policy: `package p
+
+p if {
+	roles := []
+	roles[_] == "admin"
+}`,
+		},
+		{
+			name: "unifying a constant with an element of an empty array",
+			policy: `package p
+
+p if {
+	roles := []
+	"admin" = roles[_]
+}`,
+		},
+		{
+			name: "comparing an element of an empty object to a constant",
+			policy: `package p
+
+p if {
+	m := {}
+	m[_] == "admin"
+}`,
+		},
+		{
+			name: "comparing an element of an empty set to a constant",
+			policy: `package p
+
+p if {
+	s := set()
+	s[_] == 1
+}`,
+		},
+		{
+			name: "comparing a member of an empty array to a constant",
+			policy: `package p
+
+p if {
+	roles := []
+	some x in roles
+	x == "admin"
+}`,
+		},
+		{
+			name: "selecting a field of an element of an empty array",
+			policy: `package p
+
+p if {
+	roles := []
+	roles[_].name == "admin"
+}`,
 		},
 		{
 			name: "key of object literal with dynamic properties",
@@ -3181,6 +3367,103 @@ func TestCheckWithModifiers(t *testing.T) {
 				a := f(1)
 				q if { lower(data.p.a) == "foo" with data.p.f as "foo" }`,
 			},
+		},
+		{
+			note: "key of a replaced empty default object",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a contains x if { some x in allowed.k }
+				test_a if { count(a) == 1 with data.p.allowed as {"k": [1]} }`,
+			},
+		},
+		{
+			note: "key of a replaced empty default array",
+			modules: []string{
+				`package p
+				default allowed := []
+				a := allowed[0]
+				test_a if { a == 1 with data.p.allowed as [1] }`,
+			},
+		},
+		{
+			note: "key of a replaced empty default set",
+			modules: []string{
+				`package p
+				default s := set()
+				a := s[1]
+				test_a if { a == 1 with data.p.s as {1} }`,
+			},
+		},
+		{
+			note: "key of a replaced rule with an empty default and another definition",
+			modules: []string{
+				`package p
+				default allowed := {}
+				allowed := {"z": 1} if { input.x }
+				a := allowed.k
+				test_a if { a == 1 with data.p.allowed as {"k": 1} }`,
+			},
+		},
+		{
+			note: "key of a nested empty collection in a replaced default",
+			modules: []string{
+				`package p
+				default cfg := {"a": {}, "b": [[]], "c": {"d": set()}}
+				r := [cfg.a.x, cfg.b[0][0], cfg.c.d[1]]
+				test_r if { r == [1, 2, 3] with data.p.cfg as {"a": {"x": 1}, "b": [[2]], "c": {"d": {3}}} }`,
+			},
+		},
+		{
+			note: "empty default replaced through an import alias",
+			modules: []string{
+				`package p
+				import data.p as pp
+				default allowed := {}
+				a := allowed.k
+				test_a if { a == 1 with pp.allowed as {"k": 1} }`,
+			},
+		},
+		{
+			note: "empty default replaced from another package",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a := allowed.k`,
+				`package q
+				test_a if { data.p.a == 1 with data.p.allowed as {"k": 1} }`,
+			},
+		},
+		{
+			note: "empty default replaced by its package",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a := allowed.k`,
+				`package q
+				test_a if { data.p.a == 1 with data.p as {"allowed": {"k": 1}} }`,
+			},
+		},
+		{
+			note: "key of an unreplaced empty default next to a replaced one",
+			modules: []string{
+				`package p
+				default replaced := {}
+				default other := {}
+				a := replaced.k
+				b := other.k
+				test_a if { a == 1 with data.p.replaced as {"k": 1} }`,
+			},
+			err: "rego_type_error: undefined ref: data.p.other.k",
+		},
+		{
+			note: "key of an empty default object that is never replaced",
+			modules: []string{
+				`package p
+				default allowed := {}
+				a contains x if { some x in allowed.k }`,
+			},
+			err: "rego_type_error: undefined ref: data.p.allowed.k[__local",
 		},
 		{
 			note: "function replacement arity is still checked",

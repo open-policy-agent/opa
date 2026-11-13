@@ -20,16 +20,18 @@ func builtinArrayConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		return err
 	}
 
-	if arrA.Len() == 0 {
+	alen := arrA.Len()
+	if alen == 0 {
 		return iter(operands[1])
 	}
-	if arrB.Len() == 0 {
+
+	blen := arrB.Len()
+	if blen == 0 {
 		return iter(operands[0])
 	}
 
-	arrC := make([]*ast.Term, arrA.Len()+arrB.Len())
+	arrC, i := make([]*ast.Term, alen+blen), 0
 
-	i := 0
 	arrA.Foreach(func(elemA *ast.Term) {
 		arrC[i] = elemA
 		i++
@@ -80,6 +82,8 @@ func builtinArrayFlatten(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 }
 
 func builtinArraySlice(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	_ = operands[2] // 1 bounds check instead of 3
+
 	arr, err := builtins.ArrayOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -90,12 +94,15 @@ func builtinArraySlice(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
+	l := arr.Len()
+	if startIndex >= l {
+		return iter(ast.InternedEmptyArray)
+	}
+
 	stopIndex, err := builtins.IntOperand(operands[2].Value, 3)
 	if err != nil {
 		return err
 	}
-
-	l := arr.Len()
 
 	// Clamp stopIndex to avoid out-of-range errors. If negative, clamp to zero.
 	// Otherwise, clamp to length of array.

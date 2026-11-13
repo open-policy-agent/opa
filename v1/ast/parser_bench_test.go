@@ -7,6 +7,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -330,6 +331,62 @@ func BenchmarkParseRuleAnnotations(b *testing.B) {
 			for b.Loop() {
 				MustParseModuleWithOpts(policy, opts)
 			}
+		})
+	}
+}
+
+// generatedSources returns n generated rules of one package, 500 to a file,
+// each with METADATA labels.
+func generatedSources(n int, changed int) map[string]string {
+	files := map[string]string{}
+	for f := range (n + 499) / 500 {
+		var b strings.Builder
+		b.WriteString("package gen\n\n")
+		for r := f * 500; r < min(n, (f+1)*500); r++ {
+			version := 1
+			if r == changed {
+				version = 2
+			}
+			fmt.Fprintf(&b, "# METADATA\n# labels:\n#   id: \"r%d\"\n#   version: \"%d\"\nallow if {\n\tinput.action == \"read%d\"\n\tinput.role == \"viewer%d\"\n\tinput.resource.id == \"res-%d-%d\"\n}\n\n",
+				r, version, r%17, r%101, r, version)
+		}
+		files[fmt.Sprintf("gen/rules_%d.rego", f)] = b.String()
+	}
+	return files
+}
+
+// retainedBytes reports the heap that keep holds on to after the benchmark.
+func retainedBytes(b *testing.B, keep *any) {
+	b.Helper()
+	var ms runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&ms)
+	with := ms.HeapAlloc
+	*keep = nil
+	runtime.GC()
+	runtime.ReadMemStats(&ms)
+	b.ReportMetric(float64(with-ms.HeapAlloc), "retained-B")
+}
+
+func BenchmarkCompileGeneratedRules(b *testing.B) {
+	files := generatedSources(20000, -1)
+	for _, skip := range []bool{false, true} {
+		b.Run(fmt.Sprintf("DropLocations=%v", skip), func(b *testing.B) {
+			popts := ParserOptions{RegoVersion: RegoV1, ProcessAnnotation: true, DropLocations: skip}
+			var keep any
+			b.ReportAllocs()
+			for b.Loop() {
+				mods := make(map[string]*Module, len(files))
+				for name, src := range files {
+					mods[name] = MustParseModuleWithOpts(src, popts)
+				}
+				c := NewCompiler()
+				if c.Compile(mods); c.Failed() {
+					b.Fatal(c.Errors)
+				}
+				keep = c
+			}
+			retainedBytes(b, &keep)
 		})
 	}
 }

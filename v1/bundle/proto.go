@@ -44,6 +44,9 @@ func ManifestToProto(m *Manifest) (*pb.Manifest, error) {
 	if m.RegoVersion != nil {
 		out.RegoVersion = new(int32(*m.RegoVersion))
 	}
+	if m.Generated {
+		out.Generated = new(true)
+	}
 	if len(m.FileRegoVersions) > 0 {
 		out.FileRegoVersions = make(map[string]int32, len(m.FileRegoVersions))
 		for k, v := range m.FileRegoVersions {
@@ -229,6 +232,7 @@ func ManifestFromProto(m *pb.Manifest) (*Manifest, error) {
 		v := int(*m.RegoVersion)
 		out.RegoVersion = &v
 	}
+	out.Generated = m.GetGenerated()
 	if len(m.FileRegoVersions) > 0 {
 		out.FileRegoVersions = make(map[string]int, len(m.FileRegoVersions))
 		for k, v := range m.FileRegoVersions {

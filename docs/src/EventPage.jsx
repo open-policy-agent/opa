@@ -3,6 +3,7 @@ import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React, { useEffect, useState } from "react";
 
+import Callout from "./components/Callout";
 import AgendaItem from "./components/Event/AgendaItem";
 import Countdown from "./components/Event/Countdown";
 
@@ -98,9 +99,9 @@ const EventPage = (props) => {
 
         <div className={styles.mainContent}>
           {event.callout && (
-            <div className={styles.eventCallout}>
+            <Callout>
               {event.callout.text} <a href={event.callout.url}>{event.callout.linkText}</a>
-            </div>
+            </Callout>
           )}
 
           <div className={styles.section}>

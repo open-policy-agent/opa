@@ -1250,7 +1250,7 @@ p contains 2 if {
 	input.x == 1 or input.y == 2
 }`,
 			},
-			expManifest: `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"%ROOT%/test2.rego":2}}`,
+			expManifest: `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"/test2.rego":2}}`,
 		},
 		{
 			note: "v0 bundle rego-version, v1 per-file override",
@@ -1272,7 +1272,7 @@ p contains 2 if {
 	input.x == 1
 }`,
 			},
-			expManifest: `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"%ROOT%/test2.rego":1}}`,
+			expManifest: `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"/test2.rego":1}}`,
 		},
 		{
 			note: "v0 bundle rego-version, v1 per-file override, missing v1 keywords in v1 file",
@@ -1619,7 +1619,7 @@ p := input.x == 1
 `,
 				"/.manifest": `{"revision":"","roots":[""],"rego_version":%DEFAULT_REGO_VERSION%}
 `,
-				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+				"/policy.rego": `package test
 
 p := input.x == 1
 `,
@@ -1641,7 +1641,7 @@ p if {
 `,
 				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
 `,
-				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+				"/policy.rego": `package test
 
 p if {
 	input.x == 1
@@ -1665,7 +1665,7 @@ p {
 `,
 				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
 `,
-				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+				"/policy.rego": `package test
 
 p {
 	input.x == 1
@@ -1691,7 +1691,7 @@ p {
 `,
 				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
 `,
-				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+				"/policy.rego": `package test
 
 p {
 	input.x == 1
@@ -1717,7 +1717,7 @@ p if {
 `,
 				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
 `,
-				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+				"/policy.rego": `package test
 
 p if {
 	input.x == 1
@@ -1748,15 +1748,15 @@ q contains 1 if {
 			expBundle: bundleInfo{
 				"/data.json": `{}
 `,
-				"/.manifest": `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_1.rego":1}}
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"/policy_1.rego":1}}
 `,
-				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+				"/policy_0.rego": `package test
 
 p {
 	input.x == 1
 }
 `,
-				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+				"/policy_1.rego": `package test
 
 q contains 1 if {
 	input.x == 1
@@ -1788,15 +1788,15 @@ q contains 1 if {
 			expBundle: bundleInfo{
 				"/data.json": `{}
 `,
-				"/.manifest": `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_1.rego":1}}
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"/policy_1.rego":1}}
 `,
-				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+				"/policy_0.rego": `package test
 
 p {
 	input.x == 1
 }
 `,
-				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+				"/policy_1.rego": `package test
 
 q contains 1 if {
 	input.x == 1
@@ -1827,15 +1827,15 @@ q contains 1 if {
 			expBundle: bundleInfo{
 				"/data.json": `{}
 `,
-				"/.manifest": `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_0.rego":0}}
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"/policy_0.rego":0}}
 `,
-				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+				"/policy_0.rego": `package test
 
 p {
 	input.x == 1
 }
 `,
-				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+				"/policy_1.rego": `package test
 
 q contains 1 if {
 	input.x == 1
@@ -1867,15 +1867,15 @@ q contains 1 if {
 			expBundle: bundleInfo{
 				"/data.json": `{}
 `,
-				"/.manifest": `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_0.rego":0}}
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"/policy_0.rego":0}}
 `,
-				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+				"/policy_0.rego": `package test
 
 p {
 	input.x == 1
 }
 `,
-				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+				"/policy_1.rego": `package test
 
 q contains 1 if {
 	input.x == 1
@@ -3383,10 +3383,10 @@ func TestBuildWithFollowSymlinks(t *testing.T) {
 
 	// map of file name -> file content
 	expectedFiles := map[string]string{
-		bundleDir + "/foo.rego": "package foo\n\none := 1",
-		bundleDir + "/bar.rego": "package foo\n\ntwo := 2",
-		"/.manifest":            `{"revision":"","roots":[""],"rego_version":1}`,
-		"/data.json":            "{}",
+		"/foo.rego":  "package foo\n\none := 1",
+		"/bar.rego":  "package foo\n\ntwo := 2",
+		"/.manifest": `{"revision":"","roots":[""],"rego_version":1}`,
+		"/data.json": "{}",
 	}
 
 	foundFiles := make(map[string]string, 4)
@@ -3493,7 +3493,7 @@ func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
 
 	// map of file name -> file content
 	expectedFiles := map[string]string{
-		path.Join(symlinkDir, "linked", "foo.rego"): "package foo\n\none := 1",
+		"/foo.rego":  "package foo\n\none := 1",
 		"/.manifest": `{"revision":"","roots":[""],"rego_version":1}`,
 		"/data.json": "{}",
 	}
@@ -3697,4 +3697,47 @@ func TestBuildPlanJSONOutputBytes(t *testing.T) {
 			t.Errorf("unexpected result (-want, +got):\n%s", diff)
 		}
 	})
+}
+
+func TestBuildWarnsOnSourcesAboveManifest(t *testing.T) {
+	files := map[string]string{
+		"dir/top.rego":      "package top\n\np := 1\n",
+		"dir/sub/.manifest": `{"roots":["x"]}`,
+		"dir/sub/x.rego":    "package x\n\nq := 1\n",
+	}
+
+	tests := []struct {
+		note    string
+		ignore  []string
+		expWarn bool
+	}{
+		{note: "warns", expWarn: true},
+		{note: "ignored source does not warn", ignore: []string{"top.rego"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(files, func(root string) {
+				var stderr bytes.Buffer
+				params := newBuildParams()
+				params.bundleMode = true
+				params.ignore = tc.ignore
+				params.stderr = &stderr
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+
+				if err := dobuild(params, []string{path.Join(root, "dir")}); err != nil {
+					t.Fatal(err)
+				}
+
+				out := stderr.String()
+				if tc.expWarn {
+					if !strings.Contains(out, "Warning:") || !strings.Contains(out, "top.rego") {
+						t.Fatalf("expected warning naming top.rego, got %q", out)
+					}
+				} else if out != "" {
+					t.Fatalf("expected no stderr output, got %q", out)
+				}
+			})
+		})
+	}
 }

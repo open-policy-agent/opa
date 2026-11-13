@@ -181,6 +181,8 @@ type Compiler struct {
 	plan                       *executionPlan       // computed execution plan (cached)
 	unusedImports              []*Import            // imports found unused during ref resolution, reported by CheckUnusedImports
 	unrecoverableErr           bool                 // at least one recorded error prevents the remaining stages from running
+
+	reuse ruleReuseState
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -692,6 +694,15 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 
 	c.init()
 
+	if c.reuse.enabled {
+		c.compileWithReuse(modules)
+	} else {
+		c.compileModules(modules)
+	}
+	c.reuse.prev, c.reuse.reparse = nil, nil // don't keep these alive with the compiler
+}
+
+func (c *Compiler) compileModules(modules map[string]*Module) {
 	c.Modules = make(map[string]*Module, len(modules))
 	c.sorted = util.KeysSorted(modules)
 
@@ -1168,6 +1179,9 @@ func (c *Compiler) buildRuleIndices() {
 		if node.External != nil {
 			// Skip external sources - they build indices dynamically
 			return true
+		}
+		if node.Index != nil {
+			return false // carried over by Compiler.WithRuleReuse
 		}
 		rules := node.Values // must be len > 0 here
 		hasNonGroundRef := false
@@ -2264,6 +2278,7 @@ func (c *Compiler) checkTypes() {
 		WithRequiredCapabilities(c.Required).
 		WithVarRewriter(rewriteRefErrVars(c.localvargen.subjects, c.RewrittenVars)).
 		WithDependentsResolver(c.dependentRuleRefs).
+		WithReplacedRules(c.replacedRules).
 		WithAllowUndefinedFunctionCalls(c.allowUndefinedFuncCalls)
 	var as *AnnotationSet
 	if c.useTypeCheckAnnotations {
@@ -2272,6 +2287,25 @@ func (c *Compiler) checkTypes() {
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted, as)
 	c.errRecoverable(errs...)
 	c.TypeEnv = env
+}
+
+// replacedRules returns the rules that the with modifier of any module could replace.
+func (c *Compiler) replacedRules() map[*Rule]struct{} {
+	var rules map[*Rule]struct{}
+	for _, module := range c.Modules {
+		WalkWiths(module, func(w *With) bool {
+			if ref, ok := w.Target.Value.(Ref); ok && ref.HasPrefix(DefaultRootRef) {
+				for _, rule := range c.GetRulesDynamicWithOpts(ref, RulesOptions{IncludeHiddenModules: true}) {
+					if rules == nil {
+						rules = map[*Rule]struct{}{}
+					}
+					rules[rule] = struct{}{}
+				}
+			}
+			return false
+		})
+	}
+	return rules
 }
 
 // dependentRuleRefs returns the refs of the rules that ref could refer to,
@@ -2687,6 +2721,9 @@ func (c *Compiler) removeImports() {
 
 func (c *Compiler) initLocalVarGen() {
 	c.localvargen = newLocalVarGeneratorForModuleSet(c.sorted, c.Modules)
+	for v := range c.reuse.reserved {
+		c.localvargen.exclude.Add(v)
+	}
 }
 
 func (c *Compiler) rewriteComprehensionTerms() {
@@ -3492,9 +3529,12 @@ func (c *Compiler) parseMetadataBlocks() {
 		for _, name := range c.sorted {
 			mod := c.Modules[name]
 			if len(mod.Annotations) == 0 {
+				if mod.unparsed == nil { // rows still known
+					recordMetadata(mod)
+				}
 				var errs Errors
-				mod.Annotations, errs = parseAnnotations(mod.Comments)
-				if !c.err(errs...) || !c.err(attachAnnotationsNodes(mod)...) {
+				mod.Annotations, errs = parseMetadataBlocks(len(mod.unparsed), slices.Values(mod.unparsed))
+				if !c.err(errs...) || !c.err(checkAnnotationScopes(mod)...) {
 					return
 				}
 
@@ -6622,9 +6662,9 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 	return &localVarGenerator{exclude: vis.vars, suffix: LocalVarPrefix}
 }
 
-func newLocalVarGenerator(suffix string, node any) *localVarGenerator {
+func newLocalVarGenerator(suffix string, node Body) *localVarGenerator {
 	vis := NewVarVisitor()
-	vis.Walk(node)
+	vis.WalkBody(node)
 	return &localVarGenerator{exclude: vis.vars, suffix: LocalVarPrefix + suffix}
 }
 
@@ -6869,7 +6909,7 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		cpy := *term
 		cpy.Value = Call(resolveRefsInTermSlice(globals, ignore, v))
 		return &cpy
-	case Set:
+	case *set:
 		cpy := *term
 		cpy.Value, _ = v.Map(func(e *Term) (*Term, error) {
 			return resolveRefsInTerm(globals, ignore, e), nil
@@ -7251,7 +7291,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		}
 		return result, term
 	case *object:
-		cpy := NewObject()
+		cpy := NewObjectWithCapacity(v.Len())
 		v.Foreach(func(key, value *Term) {
 			result, key = rewriteDynamicsOne(original, f, key, result)
 			result, value = rewriteDynamicsOne(original, f, value, result)
@@ -7465,7 +7505,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 			return expandedKey, expandedValue, nil
 		})
 		output = NewTerm(cpy).SetLocation(term.Location)
-	case Set:
+	case *set:
 		cpy, _ := v.Map(func(x *Term) (*Term, error) {
 			extras, expanded := expandExprTerm(gen, x)
 			support = append(support, extras...)

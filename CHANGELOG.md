@@ -5,6 +5,207 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Bundles are rooted at their `.manifest` file ([#9459](https://github.com/open-policy-agent/opa/pull/9459))
+
+Breaking change: OPA now treats the directory containing a bundle's `.manifest` file as the bundle root, as the
+[bundle documentation](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format) describes.
+Previously, the root depended on the path a bundle was loaded from, which made bundle contents, data placement,
+and signatures depend on how a path was typed.
+
+- **Bundle directories** (`opa build -b`, `opa run -b`, `opa eval -b`, `opa sign --bundle`, ...) are rooted at
+  the directory containing `.manifest`, even when it is nested below the provided path. Files above it are not
+  part of the bundle. `opa build` and `opa sign` warn about policy and data files they leave out, but other
+  commands do not, so keep other `.manifest` files (e.g., test fixtures) out of directories loaded as bundles.
+- **Bundle tarballs** loaded from disk must have `.manifest` at the root of the archive. `opa build` always writes
+  it there.
+- **Signatures**: file names in `.signatures.json` are relative to the bundle root, with `/` separators on every
+  platform. Bundles signed by `opa sign <dir>` or `opa build -b <dir>` with older OPA versions must be re-signed,
+  and `--exclude-files-verify` patterns may need updating.
+- **`opa build` with multiple bundles** places each bundle's files under the path it was given with `-b`, with a
+  new `.manifest` at the root. Leading `..` segments are replaced with the name of the directory they refer to.
+  Merging fails when two bundles would be placed under the same path. `opa sign` with multiple bundle paths
+  names files under each bundle's path, like `opa build` does when merging. A merged `opa build` output has its
+  own new `.manifest`, so signatures from multiple separate source bundles cannot be used to verify a merged build.
+- **`opa build -t plan` and `-t wasm`** replace any plan, or wasm resolvers that were carried in from the input bundles.
+- `.manifest`, `.signatures.json`, and `patch.json` must be at the bundle root, and only files named exactly
+  `.manifest` are treated as manifests.
+
+For example, consider this tarball, built without `opa build`:
+
+```console
+$ tar tzf bundle.tar.gz
+bundle/.manifest
+bundle/data.json
+bundle/authz.rego
+```
+
+Previously, `opa run -b bundle.tar.gz` loaded it with `bundle/data.json` placed under `data.bundle`. It is now
+rejected because `.manifest` is not at the root of the archive. Running `opa build -b bundle/` on the extracted
+directory produces a bundle rooted at `bundle/`, with `data.json` placed at the root of `data`.
+
+To avoid breaking existing deployments, bundles that the bundle plugin downloads over HTTP or from an OCI registry
+(and their persisted copies) are still loaded as before, and OPA logs a warning each time a bundle with a misplaced `.manifest`, `.signatures.json`,
+or `patch.json` is loaded. **These bundles will fail to load in a future OPA release.** Rebuild them with
+`opa build` to place the manifest at the root.
+
+Go API: the `bundle.Reader` expects bundle-relative descriptor paths, so directory loaders configured with the
+`SlashRooted` or `Passthrough` path formats now have their manifests rejected. When `Reader.WithBaseDir` is used,
+module paths include the manifest's directory, which directory loaders report through a `RootOffset() string`
+method. Custom loaders that wrap a directory loader should forward `RootOffset`.
+
+Authored by @philipaconrad
+
+### Lucene (Solr) target for the Compile API
+
+The Compile API can now translate a policy into a Lucene query for Solr's `fq` or `q`, with
+`Accept: application/vnd.opa.lucene.solr+json`. The one unknown is the document searched:
+
+```rego
+# METADATA
+# scope: package
+# compile:
+#   unknowns: [input.doc]
+package filters
+
+include if {
+    input.doc.owner == input.user
+    input.doc.level >= 3
+    not input.doc.status == "draft"
+}
+```
+
+For the user `alice`, this compiles to `(owner:"alice" AND level:[3 TO *] AND NOT status:"draft")`.
+Multi-valued fields are compared by their elements, as in `"a" in input.doc.tags`; `schemas`
+annotations declare which fields are, and
+[`solr_schema.rego`](https://www.openpolicyagent.org/filtering/solr_schema.rego) generates them from
+Solr's Schema API. The target can't be combined with others in a multitarget request.
+
+See [Lucene filters](https://www.openpolicyagent.org/docs/filtering/lucene).
+
+Authored by @srenatus
+
+### Generated bundles
+
+A bundle whose policies are generated, for example from a policy database, can say so in its manifest:
+
+```json
+{
+  "revision": "...",
+  "roots": ["authz"],
+  "generated": true
+}
+```
+
+OPA then parses its policies without source locations. In a benchmark of 20000 generated rules, that cut
+the memory the compiled policies hold by 40%. Annotations are kept.
+
+The bundle plugin also activates generated bundles incrementally, reusing the parsed and compiled form of
+every rule whose source is unchanged. In a benchmark of 20000 such rules, switching to a revision with one
+rule changed took 88% less time and allocated 93% less memory. See
+[Generated Bundles](https://www.openpolicyagent.org/docs/management-bundles#generated-bundles) for which
+rules qualify, and when OPA falls back to compiling everything.
+
+Authored by @srenatus
+
+### Rule indexing covers more ways of saying "any of these"
+
+The rule index now narrows down rules written with:
+
+- a local iterating a literal set, array or object, in any indexable statement:
+  `some g in {"devs", "ops"}; data.groups[g].members[input.subject]`;
+- collection lookups in the operands of `and` and `or`:
+  `{data.groups.devs.members[input.subject]} or {data.groups.ops.members[input.subject]}`;
+- a collection lookup keyed by any element of a collection: `data.groups.devs.members[input.subjects[_]]`.
+
+Looking up a key in a collection in base data also no longer converts the store's data on every query:
+in benchmarks of 500 rules gated by group membership, that takes 40-55% off evaluation and partial
+evaluation where every candidate is evaluated.
+
+See [Use indexed statements](https://www.openpolicyagent.org/docs/policy-performance#use-indexed-statements).
+
+Authored by @srenatus
+
+## 1.22.3
+
+This is a bugfix release for a type checker regression in v1.22.0.
+
+It also includes a dependency bump for github.com/klauspost/compress.
+
+> [!NOTE]
+> The [security advisory in question is GHSA-fpmh-frq8-7rj8](https://github.com/klauspost/compress/security/advisories/GHSA-fpmh-frq8-7rj8).
+> Note that OPA does not support `zstd` compression in its handlers, but
+> automated vulnerability checkers still flag this as an issue, which is
+> why we bump this version in a patch release.
+
+### Allow keys of empty collections in rules replaced by `with`
+
+A rule like `default x := {}` is typed as an empty collection, so any
+constant key on it is rejected, even though tests replace it using `with`.
+Empty collections in the types of rules that a with modifier targets are
+now typed as any.
+
+### Dependency Updates
+
+  - build(deps): Bump github.com/agnivade/levenshtein from 1.2.1 to 1.2.2
+  - build(deps): Bump github.com/foxcpp/go-mockdns from 1.2.0 to 1.3.0
+  - build(deps): Bump github.com/gobwas/glob from 1.0.0 to 1.1.0
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.43.0 to 1.44.1
+  - build(deps): Bump github.com/klauspost/compress from 1.20.0 to 1.20.3
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.3.0 to 3.4.0
+  - build(deps): Bump github.com/prometheus/client_golang from 1.24.1 to 1.25.0
+  - build(deps): Bump github.com/spf13/pflag from 1.0.10 to 1.1.0
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.58 to 2.5.64
+  - build(deps): Bump go.opentelemetry.io/contrib/bridges/prometheus from 0.71.0 to 0.72.0
+  - build(deps): Bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.71.0 to 0.72.0
+  - build(deps): Bump go.opentelemetry.io/otel from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk/metric from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/otel/trace from 1.46.0 to 1.47.0
+  - build(deps): Bump go.opentelemetry.io/proto/otlp from 1.11.0 to 1.11.1
+  - build(deps): Bump go.yaml.in/yaml/v3 from 3.0.5 to 3.0.6
+  - build(deps): Bump golang.org/x/sync from 0.23.0 to 0.24.0
+  - build(deps): Bump golang.org/x/term from 0.46.0 to 0.47.0
+  - build(deps): Bump golang.org/x/text from 0.42.0 to 0.43.0
+  - build(deps): Bump google.golang.org/grpc from 1.84.0 to 1.85.0
+  - build(deps): Bump oras.land/oras-go/v2 from 2.6.2 to 2.7.0
+
+
+## 1.22.2
+
+This is a bugfix release for a type checker regression in v1.21.0.
+
+### Iterating an empty collection is rejected by the type checker
+
+Policies that iterate a collection known to be empty, such as `some x in []` or `m[_]` where `m := {}`,
+were rejected with `rego_type_error: undefined ref`. Iteration with a non-constant key is valid again, and simply
+yields nothing. Comparing or unifying the elements of such a collection with a value is accepted as well.
+Constant keys, like `[][0]`, are still reported as undefined.
+
+Reported by @kholia.
+
+## 1.22.1
+
+This is a bugfix release for a rule indexer regression in v1.21.0.
+
+### `x in {"a", input.y}` never matches for a ref x
+
+```rego
+allow if {
+	input.x in {"a", input.y}
+}
+```
+
+For an input of `{"x": "b", "y": "b"}`, this should evaluate to true. Due to a bug in the
+rule indexer, the rule body hadn't been returned, and `allow` thus evaluated to `undefined`.
+
+Reported by @kholia.
+
+
 ## 1.22.0
 
 This release contains a mix of new features, performance improvements and bug fixes. Notably:
@@ -42,7 +243,7 @@ See [Importing `rego.v2`](https://www.openpolicyagent.org/docs/policy-reference/
 
 Additionally: bundles can be declared as Rego v2 by setting the `rego_version` manifest attribute to `2` (individua 
 bundle modules by setting `file_rego_versions`); and the Go API accepts the new `ast.RegoV2` rego-version when parsing,
-compiling, and formatting Rego modules. 
+compiling, and formatting Rego modules.
 The `rego.v2` import is a redundant no-op for modules loaded these ways.
 
 See [bundle file format](https://www.openpolicyagent.org/docs/management-bundles#bundle-file-format).
@@ -101,7 +302,7 @@ Authored by @srenatus
 - sdk: Convert ND builtins cache so decision log mask rules apply ([#9355](https://github.com/open-policy-agent/opa/issues/9355)) reported and authored by @girishkvs
 - server/types: Skip the extras decode when all top-level keys are known ([#9378](https://github.com/open-policy-agent/opa/pull/9378)) authored by @sspaink
 - server: Create TLS file watcher before returning listeners ([#9420](https://github.com/open-policy-agent/opa/pull/9420)) authored by @sspaink
-- server: Expose compile request body to the authorizer ([#9427](https://github.com/open-policy-agent/opa/pull/9427)) authored by @srenatus
+- server: Expose compile request body to the authorizer ([#9427](https://github.com/open-policy-agent/opa/pull/9427)) authored by @srenatus reported by @dpfkdlemtp
 - server: Expose query API request body to the authorizer ([#9427](https://github.com/open-policy-agent/opa/pull/9427)) authored by @srenatus
 - server: Name not activated bundles in /health?bundles error ([#6713](https://github.com/open-policy-agent/opa/issues/6713)) authored by @sspaink, reported by @ahd3r
 - server: Report size and limit when request body is too large ([#3310](https://github.com/open-policy-agent/opa/issues/3310)) authored by @sspaink, reported by @grosser

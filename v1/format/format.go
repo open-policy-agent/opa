@@ -336,6 +336,10 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 			}
 		}
 
+		// Comments without a location have no place to be written at, see writeModule.
+		if c, ok := x.(*ast.Comment); ok && c.Location == nil {
+			return false
+		}
 		if opts.IgnoreLocations || x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
 		}
@@ -548,7 +552,9 @@ func (w *writer) writeModule(module *ast.Module) error {
 	visitor := ast.NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
 		case *ast.Comment:
-			comments = append(comments, x)
+			if x.Location != nil {
+				comments = append(comments, x)
+			}
 			return true
 		case *ast.Import, *ast.Rule:
 			others = append(others, x)
@@ -2211,11 +2217,15 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 	w.write("{")
 	defer w.write("}")
 
-	s := make([]any, 0, obj.Len())
-	obj.Foreach(func(k, v *ast.Term) {
-		s = append(s, ast.Item(k, v))
-	})
-	return w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.objectWriter())
+	sl := make([]any, 0, obj.Len())
+	ki := ast.BorrowKeysIterator(obj)
+
+	for k, more := ki.Next(); more; k, more = ki.Next() {
+		sl = append(sl, ast.Item(k, obj.Get(k)))
+	}
+
+	ast.ReturnKeysIterator(ki)
+	return w.writeIterable(sl, loc, closingLoc(0, 0, '{', '}', loc), comments, w.objectWriter())
 }
 
 func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -2223,9 +2233,9 @@ func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.C
 	defer w.write("]")
 
 	s := make([]any, 0, arr.Len())
-	arr.Foreach(func(t *ast.Term) {
-		s = append(s, t)
-	})
+	for i := range arr.Len() {
+		s = append(s, arr.Elem(i))
+	}
 	var err error
 	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter(true))
 	if err != nil {
@@ -2685,19 +2695,14 @@ func (w *writer) groupIterable(elements []any, last *ast.Location) ([][]any, err
 	def := false // default location found?
 	for _, elem := range elements {
 		ast.WalkTerms(elem, func(t *ast.Term) bool {
-			if t.Location.File == defaultLocationFile {
-				def = true
-				return true
-			}
-			return false
+			def = def || t.Location.File == defaultLocationFile
+			return def
 		})
 		ast.WalkVars(elem, func(v ast.Var) bool {
-			if v.IsGenerated() {
-				def = true
-				return true
-			}
-			return false
+			def = def || v.IsGenerated()
+			return def
 		})
+
 		if def { // return as-is
 			return [][]any{elements}, nil
 		}

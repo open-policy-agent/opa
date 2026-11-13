@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -39,16 +41,11 @@ type inspectCommandParams struct {
 	listAnnotations bool
 	v0Compatible    bool
 	v1Compatible    bool
+	v2Compatible    bool
 }
 
 func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func newInspectCommandParams() inspectCommandParams {
@@ -110,8 +107,7 @@ will load that file and summarize its structure and contents.
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
-	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible)
-	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible)
+	addCompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, &params.v1Compatible, &params.v2Compatible)
 	root.AddCommand(inspectCommand)
 }
 
@@ -332,6 +328,16 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 						l = append(l, listEntry{removeNewLines(res.Ref.String()), res.Description})
 					}
 					printList(out, l, " ")
+					fmt.Fprintln(out)
+				}
+				if len(a.Labels) > 0 {
+					fmt.Fprintln(out, "Labels:")
+					l := make([]listEntry, 0, len(a.Labels))
+					for _, k := range slices.Sorted(maps.Keys(a.Labels)) {
+						b, _ := json.Marshal(a.Labels[k])
+						l = append(l, listEntry{k, string(b)})
+					}
+					printList(out, l, ": ")
 					fmt.Fprintln(out)
 				}
 				if len(a.Custom) > 0 {

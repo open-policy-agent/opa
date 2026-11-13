@@ -6907,6 +6907,9 @@ func TestRuleFromExprGeneratedBody(t *testing.T) {
 		`a[0] := 1`,
 		`a["foo"] = "bar"`,
 		`p.q.r := 1`,
+		`f(x) := 1`,
+		`f(x) = 1`,
+		`f(x) := x`,
 	}
 
 	mod := MustParseModule("package test")
@@ -7307,6 +7310,8 @@ f(x) if {
 } else = false if {
 	true
 }
+
+default d := false
 `
 
 	module := module(input)
@@ -7317,6 +7322,12 @@ f(x) if {
 		expectedRow  int
 		expectedText string
 	}{
+		{
+			note:         "default rule",
+			location:     module.Rules[3].Location,
+			expectedRow:  15,
+			expectedText: `default d := false`,
+		},
 		{
 			note:        "partial rule",
 			location:    module.Rules[0].Location,
@@ -10165,7 +10176,7 @@ func TestTemplateStringError(t *testing.T) {
 		{
 			note:     "empty template expression",
 			expr:     `$"{}"`,
-			expError: "rego_parse_error: invalid template-string expression",
+			expError: "rego_parse_error: empty template-string expression",
 		},
 		{
 			note:     "unification in template expression",
@@ -10208,6 +10219,36 @@ func TestTemplateStringError(t *testing.T) {
 			expr:     "$`{x}\"",
 			expError: "rego_parse_error: non-terminated string",
 		},
+		{
+			note:     "unterminated template expression",
+			expr:     `$"{x"`,
+			expError: "rego_parse_error: non-terminated string",
+		},
+		{
+			note:     "incomplete template expression",
+			expr:     `$"{x +}"`,
+			expError: "rego_parse_error: unexpected } token",
+		},
+		{
+			note:     "empty template expression in call argument",
+			expr:     `f($"{}")`,
+			expError: "rego_parse_error: empty template-string expression",
+		},
+		{
+			note:     "empty template expression in comprehension",
+			expr:     `[y | y := $"{}"]`,
+			expError: "rego_parse_error: empty template-string expression",
+		},
+		{
+			note:     "empty template expression in nested template string",
+			expr:     `$"a {$"{}"}"`,
+			expError: "rego_parse_error: empty template-string expression",
+		},
+		{
+			note:     "empty template expression after another expression",
+			expr:     `$"{input.b}: {}"`,
+			expError: "rego_parse_error: empty template-string expression",
+		},
 	}
 
 	for _, tc := range tests {
@@ -10219,6 +10260,15 @@ func TestTemplateStringError(t *testing.T) {
 
 			if !strings.Contains(err.Error(), tc.expError) {
 				t.Fatalf("Expected error to contain %q, but got: %v", tc.expError, err)
+			}
+
+			// One mistake in a template string must be reported once, both
+			// standalone and as the value of a rule.
+			for _, src := range []string{tc.expr, "package p\n\nx := " + tc.expr + "\n"} {
+				_, _, err := ParseStatements("", src)
+				if errs, ok := err.(Errors); !ok || len(errs) != 1 {
+					t.Fatalf("Expected exactly one error for %q, got: %v", src, err)
+				}
 			}
 		})
 	}

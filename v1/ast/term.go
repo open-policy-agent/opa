@@ -879,6 +879,12 @@ func NumberChecked(s string) (Number, error) {
 	return Number(s), nil
 }
 
+// NumberInRange reports whether s is within the magnitude bound enforced by
+// NumberChecked. Invalid numbers are reported as in range.
+func NumberInRange(s string) bool {
+	return validateNumber(s) != errNumberTooBig
+}
+
 func checkExponent(s string, i int) error {
 	if !smallExponent(s, i) {
 		if err := validateNumber(s); err != nil {
@@ -2281,15 +2287,14 @@ func (lob *lazyObj) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return lob, nil
 	}
-	// Asking for something that is not there converts nothing.
-	if len(path) > 1 {
-		if _, found, ok := lob.nativeAt(path); ok && !found {
-			return nil, errFindNotFound
-		}
-	}
 	if p0, ok := path[0].Value.(String); ok {
 		if v, ok := lob.cache[string(p0)]; ok {
 			return v.Find(path[1:])
+		}
+
+		// don't convert what doesn't exist
+		if _, found, ok := lob.nativeAt(path); ok && !found {
+			return nil, errFindNotFound
 		}
 
 		if v, ok := lob.native[string(p0)]; ok {
@@ -2586,11 +2591,11 @@ func (obj *object) Diff(other Object) Object {
 // as the last two terms in the triplet (respectively).
 func (obj *object) Intersect(other Object) [][3]*Term {
 	r := [][3]*Term{}
-	obj.Foreach(func(k, v *Term) {
-		if v2 := other.Get(k); v2 != nil {
-			r = append(r, [3]*Term{k, v, v2})
+	for _, node := range obj.sortedKeys() {
+		if v2 := other.Get(node.key); v2 != nil {
+			r = append(r, [3]*Term{node.key, node.value, v2})
 		}
-	})
+	}
 	return r
 }
 
@@ -2704,12 +2709,17 @@ func (obj *object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (
 		return nil, false
 	}
 
+	// Forcing concrete type here avoids function
+	// literal escaping to heap in Foreach call below.
+	otherImp := objectFromObject(other)
+
 	// Copy in any values from other for keys that don't exist in obj
-	other.Foreach(func(k, v *Term) {
+	otherImp.Foreach(func(k, v *Term) {
 		if v2 := obj.Get(k); v2 == nil {
 			result.insert(k, v, false)
 		}
 	})
+
 	return result, true
 }
 
@@ -2757,8 +2767,8 @@ func (obj *object) insert(k, v *Term, resetSortGuard bool) {
 			curr.value = v
 			obj.elems[hash] = curr
 			obj.hash = 0
-			for ehash := range obj.elems {
-				obj.hash += ehash + obj.elems[ehash].value.Hash()
+			for ehash, elem := range obj.elems {
+				obj.hash += ehash + elem.value.Hash()
 			}
 
 			return
@@ -2814,11 +2824,11 @@ func filterObject(o Value, filter Value) (Value, error) {
 			}
 		}
 		return NewArray(values...), nil
-	case Set:
+	case *set:
 		terms := make([]*Term, 0, v.Len())
 		for _, t := range v.Slice() {
-			if filteredObj.Get(t) != nil {
-				filteredValue, err := filterObject(t.Value, filteredObj.Get(t).Value)
+			if vt := filteredObj.Get(t); vt != nil {
+				filteredValue, err := filterObject(t.Value, vt.Value)
 				if err != nil {
 					return nil, err
 				}
@@ -2867,11 +2877,7 @@ type objectKeysIterator struct {
 }
 
 func newobjectKeysIterator(o *object) ObjectKeysIterator {
-	return &objectKeysIterator{
-		obj:     o,
-		numKeys: o.Len(),
-		index:   0,
-	}
+	return &objectKeysIterator{obj: o, numKeys: o.Len()}
 }
 
 func (oki *objectKeysIterator) Next() (*Term, bool) {
@@ -2882,6 +2888,10 @@ func (oki *objectKeysIterator) Next() (*Term, bool) {
 	return oki.obj.sortedKeys()[oki.index-1].key, true
 }
 
+func (oki *objectKeysIterator) Reset() {
+	oki.obj, oki.numKeys, oki.index = nil, 0, 0
+}
+
 // ArrayComprehension represents an array comprehension as defined in the language.
 type ArrayComprehension struct {
 	Term *Term `json:"term"`
@@ -2890,12 +2900,10 @@ type ArrayComprehension struct {
 
 // ArrayComprehensionTerm creates a new Term with an ArrayComprehension value.
 func ArrayComprehensionTerm(term *Term, body Body) *Term {
-	return &Term{
-		Value: &ArrayComprehension{
-			Term: term,
-			Body: body,
-		},
-	}
+	return &Term{Value: &ArrayComprehension{
+		Term: term,
+		Body: body,
+	}}
 }
 
 // Copy returns a deep copy of ac.
@@ -3290,6 +3298,23 @@ func unmarshalExpr(expr *Expr, v map[string]any) error {
 			}
 			expr.Terms = o
 		default:
+			// Every and SomeDecl are written without a type field.
+			if _, ok := ts["domain"]; ok {
+				q := &Every{}
+				if err := unmarshalEvery(q, ts); err != nil {
+					return err
+				}
+				expr.Terms = q
+				break
+			}
+			if _, ok := ts["symbols"]; ok {
+				d := &SomeDecl{}
+				if err := unmarshalSomeDecl(d, ts); err != nil {
+					return err
+				}
+				expr.Terms = d
+				break
+			}
 			t, err := unmarshalTerm(ts)
 			if err != nil {
 				return err
@@ -3591,6 +3616,67 @@ func unmarshalValue(d map[string]any) (Value, error) {
 	}
 unmarshal_error:
 	return nil, errors.New("ast: unable to unmarshal term")
+}
+
+func unmarshalEvery(q *Every, v map[string]any) error {
+	for _, f := range []struct {
+		name string
+		dst  **Term
+	}{{"key", &q.Key}, {"value", &q.Value}, {"domain", &q.Domain}} {
+		switch x := v[f.name].(type) {
+		case nil:
+		case map[string]any:
+			t, err := unmarshalTerm(x)
+			if err != nil {
+				return fmt.Errorf("ast: unable to unmarshal every %s: %w", f.name, err)
+			}
+			*f.dst = t
+		default:
+			return fmt.Errorf("ast: unable to unmarshal every, invalid %s field type: %T (expected object or null)", f.name, x)
+		}
+	}
+
+	b, ok := v["body"].([]any)
+	if !ok {
+		return fmt.Errorf("ast: unable to unmarshal every, invalid body field type: %T (expected list)", v["body"])
+	}
+	body, err := unmarshalBody(b)
+	if err != nil {
+		return fmt.Errorf("ast: unable to unmarshal every body: %w", err)
+	}
+	q.Body = body
+
+	if loc, ok := v["location"].(map[string]any); ok {
+		q.Location = &Location{}
+		if err := unmarshalLocation(q.Location, loc); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func unmarshalSomeDecl(d *SomeDecl, v map[string]any) error {
+	switch x := v["symbols"].(type) {
+	case nil:
+	case []any:
+		symbols, err := unmarshalTermSlice(x)
+		if err != nil {
+			return fmt.Errorf("ast: unable to unmarshal some symbols: %w", err)
+		}
+		d.Symbols = symbols
+	default:
+		return fmt.Errorf("ast: unable to unmarshal some, invalid symbols field type: %T (expected list or null)", x)
+	}
+
+	if loc, ok := v["location"].(map[string]any); ok {
+		d.Location = &Location{}
+		if err := unmarshalLocation(d.Location, loc); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func unmarshalNot(n *Not, v map[string]any) error {

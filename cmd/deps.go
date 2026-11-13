@@ -31,17 +31,11 @@ type depsCommandParams struct {
 	bundlePaths  repeatedStringFlag
 	v0Compatible bool
 	v1Compatible bool
+	v2Compatible bool
 }
 
 func (p *depsCommandParams) regoVersion() ast.RegoVersion {
-	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
-	if p.v0Compatible {
-		return ast.RegoV0
-	}
-	if p.v1Compatible {
-		return ast.RegoV1
-	}
-	return ast.DefaultRegoVersion
+	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
 func newDepsCommandParams() depsCommandParams {
@@ -109,7 +103,7 @@ data.policy.is_admin.
 	addDataFlag(depsCommand.Flags(), &params.dataPaths)
 	addBundleFlag(depsCommand.Flags(), &params.bundlePaths)
 	addOutputFormat(depsCommand.Flags(), params.outputFormat)
-	addV1CompatibleFlag(depsCommand.Flags(), &params.v1Compatible)
+	addCompatibleFlag(depsCommand.Flags(), &params.v0Compatible, &params.v1Compatible, &params.v2Compatible)
 
 	root.AddCommand(depsCommand)
 }

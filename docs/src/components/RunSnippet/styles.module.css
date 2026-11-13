@@ -34,6 +34,15 @@
 	margin-top: 0.5rem;
 }
 
+.evalContext {
+	color: var(--ifm-color-emphasis-700);
+	font-size: 0.85em;
+}
+
+.evalContext code {
+	font-size: 0.9em;
+}
+
 .dn {
 	display: none;
 }

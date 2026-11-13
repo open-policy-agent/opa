@@ -134,7 +134,7 @@ func (e *eval) currentExpr() *ast.Expr {
 	if len(e.query) == 0 {
 		return nil
 	}
-	return e.query[min(e.index, len(e.query)-1)]
+	return e.query[min(e.index, uint64(len(e.query)-1))]
 }
 
 // resolvedText renders the source of expr with the values its variables are

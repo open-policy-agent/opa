@@ -9,9 +9,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,8 +33,10 @@ import (
 	"github.com/open-policy-agent/opa/v1/download"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
+	testLog "github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
+	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/disk"
@@ -5324,6 +5328,51 @@ func TestLoadBundleFromDisk(t *testing.T) {
 	}
 }
 
+func TestLoadBundleFromDiskLegacyManifestPlacement(t *testing.T) {
+	t.Parallel()
+
+	logger := testLog.New()
+	manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.Logger(logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugin := New(&Config{}, manager)
+
+	dir := t.TempDir()
+	bundleDir := filepath.Join(dir, "foo")
+	if err := os.MkdirAll(bundleDir, os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	tarball := archive.MustWriteTarGz([][2]string{
+		{"bundle/.manifest", `{"revision":"legacy"}`},
+		{"bundle/data.json", `{"a":1}`},
+	})
+	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), tarball.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := plugin.loadBundleFromDisk(dir, "foo", nil)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	exp := map[string]any{"bundle": map[string]any{"a": json.Number("1")}}
+	if !reflect.DeepEqual(exp, result.Data) {
+		t.Fatalf("expected data %v, got %v", exp, result.Data)
+	}
+
+	var warned bool
+	for _, e := range logger.Entries() {
+		if e.Level == logging.Warn && strings.Contains(e.Message, "is expected at the bundle root") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Fatal("expected deprecation warning to be logged")
+	}
+}
+
 func TestLoadBundleFromDiskV1Compatible(t *testing.T) {
 	t.Parallel()
 
@@ -8631,6 +8680,195 @@ func TestPluginSupersededETags(t *testing.T) {
 			defer mtx.Unlock()
 			if !slices.Equal(conditions, tc.expConditions) {
 				t.Fatalf("expected If-None-Match headers %q, got %q", tc.expConditions, conditions)
+			}
+		})
+	}
+}
+
+func newStartedTestPlugin(tb testing.TB, manager *plugins.Manager, names ...string) *Plugin {
+	tb.Helper()
+	if err := manager.Start(tb.Context()); err != nil {
+		tb.Fatal(err)
+	}
+	tb.Cleanup(func() { manager.Stop(context.WithoutCancel(tb.Context())) })
+	p := New(&Config{Bundles: map[string]*Source{}}, manager)
+	for _, name := range names {
+		p.config.Bundles[name] = &Source{}
+		p.status[name] = &Status{Name: name, Metrics: metrics.New()}
+		p.downloaders[name] = download.New(download.Config{}, manager.Client(""), name)
+	}
+	return p
+}
+
+// activateTarball reads a bundle like the plugin's downloader does, and activates it.
+func activateTarball(tb testing.TB, p *Plugin, name string, tarball io.Reader) map[string]any {
+	tb.Helper()
+	b, err := bundle.NewCustomReader(bundle.NewTarballLoaderWithBaseURL(tarball, "")).
+		WithProcessAnnotations(true).
+		WithLazyLoadingMode(true).
+		WithBundleName(name).
+		WithRuleReuse(p.manager.GetCompiler).
+		Read()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	m := metrics.New()
+	if err := p.oneShot(tb.Context(), name, download.Update{Bundle: &b, Metrics: m}); err != nil {
+		tb.Fatal(err)
+	}
+	return m.All()
+}
+
+func TestPluginRuleReuse(t *testing.T) {
+	t.Parallel()
+	plugin := newStartedTestPlugin(t, getTestManager(), "gen", "other")
+	rule := func(id, value string) string {
+		return "# METADATA\n# labels:\n#   id: \"" + id + "\"\nallow if input.x == \"" + value + "\"\n\n"
+	}
+	gen := func(rev string, rules ...string) *bytes.Buffer {
+		return archive.MustWriteTarGz([][2]string{
+			{"/.manifest", `{"revision": "` + rev + `", "roots": ["gen", "main"], "generated": true}`},
+			{"/main/main.rego", "package main\n\nallowed if data.gen.allow\n"},
+			{"/gen/a.rego", "package gen\n\n" + strings.Join(rules, "")},
+		})
+	}
+	other := func(rev, src string) *bytes.Buffer {
+		return archive.MustWriteTarGz([][2]string{{"/.manifest", `{"revision": "` + rev + `", "roots": ["o"]}`}, {"/o/o.rego", src}})
+	}
+
+	activateTarball(t, plugin, "other", other("1", "package o\n\nx if input.o\n"))
+	if plugin.manager.GetCompiler().RuleReuseStats().Enabled {
+		t.Fatal("rule reuse without a generated bundle")
+	}
+
+	got := activateTarball(t, plugin, "gen", gen("1", rule("r1", "a"), rule("r2", "b")))
+	if got["counter_rego_module_compile_full"] != uint64(1) {
+		t.Fatalf("first activation: %v", got)
+	}
+	got = activateTarball(t, plugin, "gen", gen("2", rule("r0", "z"), rule("r1", "a"), rule("r2", "b")))
+	if _, full := got["counter_rego_module_compile_full"]; full ||
+		got["counter_rego_module_compile_reused_rules"] != uint64(3) || got["counter_rego_module_parse_skipped_rules"] != uint64(3) {
+		t.Fatalf("second activation: %v", got)
+	}
+
+	// The other bundle's activations read the generated policies back from the store.
+	got = activateTarball(t, plugin, "other", other("2", "package o\n\nx if input.o\n"))
+	if _, full := got["counter_rego_module_compile_full"]; full || got["counter_rego_module_parse_skipped_rules"] != uint64(4) {
+		t.Fatalf("other bundle's switch: %v", got)
+	}
+	// Its policy isn't generated, so changing it compiles everything.
+	got = activateTarball(t, plugin, "other", other("3", "package o\n\nx if input.o\n\nx if input.p\n"))
+	if got["counter_rego_module_compile_full"] != uint64(1) {
+		t.Fatalf("other bundle's change: %v", got)
+	}
+
+	c := plugin.manager.GetCompiler()
+	if names := slices.Sorted(maps.Keys(c.Modules)); !slices.Equal(names, []string{"gen/gen/a.rego", "gen/main/main.rego", "other/o/o.rego"}) {
+		t.Fatalf("modules: %v", names)
+	}
+	rules := c.GetRulesExact(ast.MustParseRef("data.gen.allow"))
+	values := make([]string, 0, len(rules))
+	for _, r := range rules {
+		values = append(values, r.Body[0].Operand(1).String())
+	}
+	if !slices.Equal(values, []string{`"z"`, `"a"`, `"b"`}) {
+		t.Fatalf("rules: %v", values)
+	}
+}
+
+// Queries keep evaluating on the compiler that rule reuse reads from while
+// another activation compiles, so run them concurrently, also under -race.
+func TestPluginRuleReuseConcurrentQueries(t *testing.T) {
+	t.Parallel()
+	plugin := newStartedTestPlugin(t, getTestManager(), "gen", "other")
+	// Several modules, so that a full compile parses them again concurrently.
+	generated := func(n int) *bytes.Buffer {
+		files := [][2]string{
+			{"/.manifest", `{"roots": ["gen", "main"], "generated": true}`},
+			{"/main/main.rego", "package main\n\nallowed if data.gen.allow\n"},
+		}
+		for f := range 4 {
+			var sb strings.Builder
+			sb.WriteString("package gen\n\n")
+			for i := f; i < n; i += 4 {
+				fmt.Fprintf(&sb, "# METADATA\n# labels:\n#   id: \"r%d\"\nallow if input.x == %d\n\n", i, i)
+			}
+			files = append(files, [2]string{fmt.Sprintf("/gen/%d.rego", f), sb.String()})
+		}
+		return archive.MustWriteTarGz(files)
+	}
+	other := func(v int) *bytes.Buffer {
+		return archive.MustWriteTarGz([][2]string{{"/.manifest", `{"roots": ["o"]}`}, {"/o/o.rego", fmt.Sprintf("package o\n\nv := %d\n", v)}})
+	}
+
+	activateTarball(t, plugin, "gen", generated(50))
+	activateTarball(t, plugin, "other", other(0))
+
+	ctx := t.Context()
+	qctx, stop := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			for qctx.Err() == nil {
+				r := rego.New(rego.Query("data.main.allowed"), rego.Compiler(plugin.manager.GetCompiler()), rego.Store(plugin.manager.Store),
+					rego.Input(map[string]any{"x": 3}))
+				if _, err := r.Eval(ctx); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		})
+	}
+	for i := range 21 { // ends with a switch of the generated bundle
+		if i%2 == 0 {
+			activateTarball(t, plugin, "gen", generated(50+i))
+		} else {
+			activateTarball(t, plugin, "other", other(i))
+		}
+	}
+	stop()
+	wg.Wait()
+
+	if s := plugin.manager.GetCompiler().RuleReuseStats(); !s.Incremental {
+		t.Fatalf("last activation: %+v", s)
+	}
+}
+
+func BenchmarkPluginSwitchGeneratedBundle(b *testing.B) {
+	tarball := func(generated bool, changed int) []byte {
+		files := [][2]string{
+			{"/.manifest", fmt.Sprintf(`{"roots": ["gen", "main"], "rego_version": 1, "generated": %v}`, generated)},
+			{"/main/main.rego", "package main\n\nallowed if data.gen.allow\n"},
+		}
+		for f := range 40 {
+			var sb strings.Builder
+			sb.WriteString("package gen\n\n")
+			for r := f * 500; r < (f+1)*500; r++ {
+				version := 1
+				if r == changed {
+					version = 2
+				}
+				fmt.Fprintf(&sb, "# METADATA\n# labels:\n#   id: \"r%d\"\n#   version: \"%d\"\nallow if {\n\tinput.action == \"read%d\"\n\tinput.role == \"viewer%d\"\n\tinput.resource.id == \"res-%d-%d\"\n}\n\n",
+					r, version, r%17, r%101, r, version)
+			}
+			files = append(files, [2]string{fmt.Sprintf("/gen/rules_%d.rego", f), sb.String()})
+		}
+		return archive.MustWriteTarGz(files).Bytes()
+	}
+
+	for _, generated := range []bool{false, true} {
+		b.Run(fmt.Sprintf("generated=%v", generated), func(b *testing.B) {
+			manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.Logger(logging.NewNoOpLogger()))
+			if err != nil {
+				b.Fatal(err)
+			}
+			plugin := newStartedTestPlugin(b, manager, "gen")
+			next, prev := tarball(generated, 10000), tarball(generated, -1)
+			activateTarball(b, plugin, "gen", bytes.NewReader(prev))
+			b.ReportAllocs()
+			for b.Loop() {
+				activateTarball(b, plugin, "gen", bytes.NewReader(next))
+				next, prev = prev, next
 			}
 		})
 	}
