@@ -1,0 +1,11 @@
+---
+cases:
+  - note: "regexfind/find_n: computed count"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := regex.find_n("a.", "aaaa", 1 + 1)
+    want_result:
+      - x: ["aa", "aa"]
