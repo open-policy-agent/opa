@@ -5,7 +5,6 @@
 package inmem_test
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -140,7 +139,7 @@ func (p *readerPool) finish() ([]time.Duration, error) {
 // call: that is where the writer waits for in-flight readers to drain.
 func measureCommits(b *testing.B, store storage.Store) []time.Duration {
 	b.Helper()
-	ctx := context.Background()
+	ctx := b.Context()
 	writePath := storage.Path{"users", "0", "attrs", "updated"}
 	commits := make([]time.Duration, 0, b.N)
 
@@ -201,7 +200,7 @@ func BenchmarkPutUnderReaders(b *testing.B) {
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
 			store, sizeMB := newContentionStore(b, tc.nUsers, tc.ast)
-			ctx := context.Background()
+			ctx := b.Context()
 
 			pool := startReaders(tc.readers, func(rng *rand.Rand) error {
 				txn, err := store.NewTransaction(ctx)
@@ -275,7 +274,7 @@ func BenchmarkPutUnderEval(b *testing.B) {
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
 			store, sizeMB := newContentionStore(b, tc.nUsers, tc.ast)
-			ctx := context.Background()
+			ctx := b.Context()
 
 			pq, err := rego.New(
 				rego.Query("data.authz.allow"),
@@ -362,7 +361,7 @@ func BenchmarkConflictCheck(b *testing.B) {
 			} else {
 				store = inmem.NewFromObjectWithOpts(data, inmem.OptRoundTripOnWrite(false))
 			}
-			ctx := context.Background()
+			ctx := b.Context()
 			writePath := storage.Path{"rootapp", "users", "0", "attrs", "updated"}
 			var checks []time.Duration
 
