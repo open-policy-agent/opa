@@ -354,15 +354,16 @@ func (txn *transaction) isObject(path storage.Path) (exists bool, isObj bool, er
 // when a value exists at the path itself, or when a proper prefix exists and
 // is not an object.
 func (txn *transaction) nonEmpty(path []string) (bool, error) {
-	exists, _, err := txn.isObject(storage.Path(path))
+	s := storage.Path(path)
+	exists, _, err := txn.isObject(s)
 	if err != nil {
 		return false, err
 	}
 	if exists {
 		return true, nil
 	}
-	for i := len(path) - 1; i > 0; i-- {
-		exists, isObj, err := txn.isObject(storage.Path(path[:i]))
+	for i := len(s) - 1; i > 0; i-- {
+		exists, isObj, err := txn.isObject(s[:i])
 		if err != nil {
 			return false, err
 		}
