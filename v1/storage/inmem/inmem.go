@@ -332,6 +332,8 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 	return underlying.Read(path)
 }
 
+var _ storage.NonEmptyer = (*store)(nil)
+
 // NonEmpty implements storage.NonEmptyer. It answers the same question as
 // storage.NonEmpty without reading values back through transaction.Read, which
 // deep-copies any node that has a pending write underneath it.
