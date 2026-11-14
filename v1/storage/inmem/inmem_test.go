@@ -1662,3 +1662,62 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestNonEmpty(t *testing.T) {
+	ctx := t.Context()
+	data := map[string]any{
+		"dcdp": map[string]any{
+			"appTenants": map[string]any{"t": map[string]any{"role": "keep"}},
+			"keep":       "x",
+			"nums":       []any{json.Number("1")},
+		},
+	}
+
+	for _, astValues := range []bool{false, true} {
+		t.Run(fmt.Sprintf("ast=%v", astValues), func(t *testing.T) {
+			var db storage.Store
+			if astValues {
+				db = NewFromObjectWithOpts(data, OptReturnASTValuesOnRead(true))
+			} else {
+				db = NewFromObjectWithOpts(data, OptRoundTripOnWrite(false))
+			}
+
+			txn, err := db.NewTransaction(ctx, storage.WriteParams)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Write(ctx, txn, storage.AddOp, storage.Path{"dcdp", "appTenants", "t", "updated"}, "v"); err != nil {
+				t.Fatal(err)
+			}
+
+			// A rule path beside the write shares the dcdp object. That object
+			// is not a conflict, and answering the question must not depend on
+			// copying it.
+			assertNonEmpty(t, ctx, db, txn, []string{"dcdp", "authz", "allow"}, false)
+			// The pending write occupies its own path.
+			assertNonEmpty(t, ctx, db, txn, []string{"dcdp", "appTenants", "t", "updated"}, true)
+			// A string prefix cannot contain a rule.
+			assertNonEmpty(t, ctx, db, txn, []string{"dcdp", "keep", "child"}, true)
+			// An array prefix cannot contain a rule.
+			assertNonEmpty(t, ctx, db, txn, []string{"dcdp", "nums", "child"}, true)
+			// A missing path under an object prefix is not a conflict.
+			assertNonEmpty(t, ctx, db, txn, []string{"dcdp", "missing", "child"}, false)
+
+			db.Abort(ctx, txn)
+			if _, err := storage.NonEmpty(ctx, db, txn)([]string{"dcdp"}); !storage.IsInvalidTransaction(err) {
+				t.Fatalf("stale transaction: got %v, want InvalidTransactionErr", err)
+			}
+		})
+	}
+}
+
+func assertNonEmpty(t *testing.T, ctx context.Context, db storage.Store, txn storage.Transaction, path []string, want bool) {
+	t.Helper()
+	got, err := storage.NonEmpty(ctx, db, txn)(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("NonEmpty(%v) = %v, want %v", path, got, want)
+	}
+}
