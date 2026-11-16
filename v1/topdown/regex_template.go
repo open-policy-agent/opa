@@ -35,9 +35,10 @@ package topdown
 // This file was forked from https://github.com/gorilla/mux/commit/eac83ba2c004bb75
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
+	"regexp/syntax"
+	"strings"
 )
 
 // delimiterIndices returns the first level delimiter indices from a string.
@@ -75,32 +76,32 @@ func generateRegexTemplate(tpl string, delimiterStart, delimiterEnd byte) (strin
 	if errBraces != nil {
 		return "", errBraces
 	}
-	varsR := make([]*regexp.Regexp, len(idxs)/2)
-	pattern := bytes.NewBufferString("^")
+	var pattern strings.Builder
+	pattern.WriteByte('^')
 
 	var end int
-	var err error
 	for i := 0; i < len(idxs); i += 2 {
 		// Set all values we are interested in.
 		raw := tpl[end:idxs[i]]
 		end = idxs[i+1]
 		patt := tpl[idxs[i]+1 : end-1]
-		// Build the regexp pattern.
-		varIdx := i / 2
-		fmt.Fprintf(pattern, "%s(%s)", regexp.QuoteMeta(raw), patt)
-		varsR[varIdx], err = regexp.Compile(fmt.Sprintf("^%s$", patt))
-		if err != nil {
+
+		// Each variable pattern must be a valid regular expression on its own.
+		// Only parse it to validate: compiling it would be wasted work, as just
+		// the full pattern below is used for matching.
+		if _, err := syntax.Parse("^"+patt+"$", syntax.Perl); err != nil {
 			return "", err
 		}
+
+		// Build the regexp pattern.
+		pattern.WriteString(regexp.QuoteMeta(raw))
+		pattern.WriteByte('(')
+		pattern.WriteString(patt)
+		pattern.WriteByte(')')
 	}
 
 	// Add the remaining.
-	raw := tpl[end:]
-
-	// WriteString's error value is always nil for bytes.Buffer, no need to check it.
-	pattern.WriteString(regexp.QuoteMeta(raw))
-
-	// WriteByte's error value is always nil for bytes.Buffer, no need to check it.
+	pattern.WriteString(regexp.QuoteMeta(tpl[end:]))
 	pattern.WriteByte('$')
 
 	return pattern.String(), nil

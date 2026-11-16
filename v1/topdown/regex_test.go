@@ -205,3 +205,75 @@ func TestRegexBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 		t.Fatalf("Expected value \"bar\" but got %v", actual)
 	}
 }
+
+func TestGenerateRegexTemplate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note    string
+		tpl     string
+		exp     string
+		wantErr string
+	}{
+		{
+			note: "no variables",
+			tpl:  "urn:foo.bar",
+			exp:  `^urn:foo\.bar$`,
+		},
+		{
+			note: "single variable",
+			tpl:  "urn:foo:{.*}",
+			exp:  `^urn:foo:(.*)$`,
+		},
+		{
+			note: "multiple variables with literal text in between",
+			tpl:  "urn:{[a-z]+}.{[0-9]{2,10}}:{.*}",
+			exp:  `^urn:([a-z]+)\.([0-9]{2,10}):(.*)$`,
+		},
+		{
+			note: "nested delimiters in variable",
+			tpl:  "a{b{1,2}}c",
+			exp:  `^a(b{1,2})c$`,
+		},
+		{
+			note:    "unbalanced delimiters",
+			tpl:     "urn:{.*",
+			wantErr: `unbalanced braces in "urn:{.*"`,
+		},
+		{
+			note:    "invalid variable pattern",
+			tpl:     "urn:{[a-}",
+			wantErr: "error parsing regexp: invalid character class range: `a-$`",
+		},
+		{
+			// The variable pattern would be valid once wrapped in the
+			// group of the generated pattern, but not on its own.
+			note:    "variable pattern only valid as part of generated pattern",
+			tpl:     "urn:{a)(b}",
+			wantErr: "error parsing regexp: unexpected ): `^a)(b$`",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			act, err := generateRegexTemplate(tc.tpl, '{', '}')
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got pattern %q", tc.wantErr, act)
+				}
+				if err.Error() != tc.wantErr {
+					t.Fatalf("expected error %q, got %q", tc.wantErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if act != tc.exp {
+				t.Fatalf("expected pattern %q, got %q", tc.exp, act)
+			}
+		})
+	}
+}
