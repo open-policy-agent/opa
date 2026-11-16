@@ -1,9 +1,12 @@
 package logs
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -152,6 +155,60 @@ func BenchmarkEventAST(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+// BenchmarkChunkEncoderEncode exercises chunkEncoder.Encode() with the default upload size limit,
+// one event per iteration. A chunk that grows past the limit is split again, and the
+// time of the slowest call is reported as max-ns/op.
+//
+// With the chunk decoded and re-encoded when it grows past the limit:
+//
+//	small input:           3,300 ns/op    4,162 B/op       2 allocs/op
+//	50000 element input: 970,000 ns/op  943,790 B/op  15,608 allocs/op   1,300,000,000 max-ns/op
+//
+// With the events of the chunk kept in memory:
+//
+//	small input:           3,300 ns/op    5,240 B/op       2 allocs/op
+//	50000 element input: 153,000 ns/op   35,618 B/op       3 allocs/op      32,000,000 max-ns/op
+//
+// The max-ns/op of the small input is the first call, which sets up the encoder.
+func BenchmarkChunkEncoderEncode(b *testing.B) {
+	b.Run("small input", func(b *testing.B) {
+		var event EventV1
+		if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkChunkEncoderEncode(b, event)
+	})
+
+	b.Run("50000 element input", func(b *testing.B) {
+		items := make([]any, 50000)
+		for i := range items {
+			items[i] = json.Number(strconv.Itoa(i % 100))
+		}
+		var input any = map[string]any{"items": items}
+		benchmarkChunkEncoderEncode(b, EventV1{DecisionID: "abc", Path: "bench/sumlist", Input: &input})
+	})
+}
+
+func benchmarkChunkEncoderEncode(b *testing.B, event EventV1) {
+	eventBytes, err := json.Marshal(&event)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	enc := newChunkEncoder(defaultUploadSizeLimitBytes)
+
+	var slowest time.Duration
+	b.ReportAllocs()
+	for b.Loop() {
+		start := time.Now()
+		if _, err := enc.Encode(event, eventBytes); err != nil {
+			b.Fatal(err)
+		}
+		slowest = max(slowest, time.Since(start))
+	}
+	b.ReportMetric(float64(slowest.Nanoseconds()), "max-ns/op")
 }
 
 func BenchmarkMaskingNop(b *testing.B) {

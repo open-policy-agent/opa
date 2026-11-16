@@ -6,6 +6,8 @@ package logs
 
 import (
 	"encoding/json"
+	"math/rand/v2"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -528,4 +530,61 @@ func decodeChunks(t *testing.T, bs [][]byte) []EventV1 {
 		events = append(events, e...)
 	}
 	return events
+}
+
+func TestChunkEncoderScaleDownKeepsEvents(t *testing.T) {
+	t.Parallel()
+
+	const limit = 4096
+
+	enc := newChunkEncoder(limit)
+
+	// random payloads barely compress, so chunks overshoot the guessed
+	// uncompressed limit and have to be split again
+	rnd := rand.New(rand.NewPCG(1, 2))
+	var chunks [][]byte
+	var want []string
+	for i := range 200 {
+		buf := make([]byte, 600+rnd.IntN(1500))
+		for j := range buf {
+			buf[j] = byte('a' + rnd.IntN(26))
+		}
+		var input any = map[string]any{"payload": string(buf)}
+		event := EventV1{DecisionID: strconv.Itoa(i), Path: "foo/bar", Input: &input}
+		want = append(want, event.DecisionID)
+
+		eventBytes, err := json.Marshal(&event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cs, err := enc.Encode(event, eventBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		chunks = append(chunks, cs...)
+	}
+
+	cs, err := enc.Flush()
+	if err != nil {
+		t.Fatal(err)
+	}
+	chunks = append(chunks, cs...)
+
+	var got []string
+	for _, chunk := range chunks {
+		if len(chunk) > limit {
+			t.Errorf("chunk of %d bytes exceeds the limit of %d", len(chunk), limit)
+		}
+		events, err := newChunkDecoder(chunk).decode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range events {
+			got = append(got, e.DecisionID)
+		}
+	}
+
+	if !slices.Equal(want, got) {
+		t.Fatalf("expected all events in order, got %d of %d", len(got), len(want))
+	}
 }
