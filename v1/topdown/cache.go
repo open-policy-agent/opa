@@ -280,7 +280,7 @@ func (c *comprehensionCache) Set(t *ast.Term, elem *comprehensionCacheElem) {
 }
 
 func newComprehensionCacheElem() *comprehensionCacheElem {
-	return &comprehensionCacheElem{children: newComprehensionCacheHashMap()}
+	return &comprehensionCacheElem{}
 }
 
 func (c *comprehensionCacheElem) Get(key []*ast.Term) *ast.Term {
@@ -303,6 +303,9 @@ func (c *comprehensionCacheElem) Put(key []*ast.Term, value *ast.Term) {
 			node = x
 		} else {
 			next := newComprehensionCacheElem()
+			if node.children == nil {
+				node.children = newComprehensionCacheHashMap()
+			}
 			node.children.Put(key[i], next)
 			node = next
 		}
