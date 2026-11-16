@@ -29,12 +29,6 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 				return err
 			}
 		} else {
-			// TODO(ae): I'd *really* like these terms to be retrieved from a sync.Pool, and
-			// returned after iter is called. However, all my atttempts to do this have failed
-			// as there seems to be something holding on to these references after the call,
-			// leading to modifications that entirely alter the results. Perhaps this is not
-			// possible to do, but if it is,it would be a huge performance win.
-
 			// The child paths are built from path after this call, so iter must not modify it.
 			if err := iter(ast.ArrayTerm(ast.NewTerm(path), input)); err != nil {
 				return err
