@@ -1,4 +1,3 @@
-import Head from "@docusaurus/Head";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import React, { useEffect, useState } from "react";
@@ -49,11 +48,6 @@ const EventPage = (props) => {
 
   return (
     <Layout title={event.title}>
-      {event.callout && (
-        <Head>
-          <body className="hide-announcement-bar" />
-        </Head>
-      )}
       {eventStatus === "after"
         ? (
           <div className={styles.eventWarningBanner}>
