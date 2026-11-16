@@ -92,6 +92,14 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 	}
 }
 
+// Matching a template whose regex is already cached.
+//
+//	                    before                             after
+//	vars=1     3959 ns     2505 B/op    43 allocs     1255 ns    840 B/op   15 allocs
+//	vars=3    16229 ns    13895 B/op   187 allocs     3383 ns   2640 B/op   43 allocs
+//
+// The before column is what this recorded while generating the pattern also compiled
+// every variable's regex into a slice that was never read.
 func BenchmarkBuiltinRegexMatchTemplate(b *testing.B) {
 	iter := func(*ast.Term) error { return nil }
 	ctx := BuiltinContext{}
