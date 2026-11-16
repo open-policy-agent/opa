@@ -4768,6 +4768,45 @@ func TestNotBraceByRegoVersion(t *testing.T) {
 	}
 }
 
+func TestNotBraceRefIsTermInV2(t *testing.T) {
+	// A `{...}` directly followed by a ref operator is a value being referenced,
+	// not a body, so it must parse the same everywhere `not` can appear.
+	exp := NewExpr(&Not{Body: NewBody(NewExpr(RefTerm(SetTerm(StringTerm("foo")), StringTerm("bar"))))})
+	expDot := NewExpr(&Not{Body: NewBody(NewExpr(RefTerm(SetTerm(StringTerm("foo")), StringTerm("a"))))})
+
+	tests := []struct {
+		note   string
+		module string
+		exp    *Expr
+	}{
+		{"brackets, one-liner", "package test\nimport rego.v1\np if not {\"foo\"}[\"bar\"]", exp},
+		{"brackets, body", "package test\nimport rego.v1\np if {\n\tnot {\"foo\"}[\"bar\"]\n}", exp},
+		{"dot", "package test\nimport rego.v1\np if not {\"foo\"}.a", expDot},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{RegoVersion: RegoV2})
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+			if act := mod.Rules[0].Body[0]; !act.Equal(tc.exp) {
+				t.Fatalf("expected %v but got %v", tc.exp, act)
+			}
+		})
+	}
+
+	t.Run("query", func(t *testing.T) {
+		q, err := ParseBodyWithOpts(`not {"foo"}["bar"]`, ParserOptions{RegoVersion: RegoV2})
+		if err != nil {
+			t.Fatal("unexpected error:", err)
+		}
+		if !q[0].Equal(exp) {
+			t.Fatalf("expected %v but got %v", exp, q[0])
+		}
+	})
+}
+
 func TestIsValidImportPath(t *testing.T) {
 	tests := []struct {
 		path     string
