@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	TermPtrPool      = util.NewSyncPool[Term]()
-	BytesReaderPool  = util.NewSyncPool[bytes.Reader]()
-	StringReaderPool = util.NewSyncPool[strings.Reader]()
-	IndexResultPool  = util.NewSyncPool[IndexResult]()
+	TermPtrPool           = util.NewSyncPool[Term]()
+	BytesReaderPool       = util.NewSyncPool[bytes.Reader]()
+	StringReaderPool      = util.NewSyncPool[strings.Reader]()
+	IndexResultPool       = util.NewSyncPool[IndexResult]()
+	localDeclaredVarsPool = util.NewSyncPoolWithConstructor(newLocalDeclaredVars)
 
 	// keysIteratorPool accessed via BorrowKeysIterator and ReturnKeysIterator functions.
 	keysIteratorPool = util.NewResettablePool[objectKeysIterator]()
@@ -54,9 +55,11 @@ func (p *vvPool) Get() *VarVisitor {
 	return p.pool.Get().(*VarVisitor)
 }
 
-func (p *vvPool) Put(vv *VarVisitor) {
-	if vv != nil {
-		vv.Clear()
-		p.pool.Put(vv)
+func (p *vvPool) Put(vv ...*VarVisitor) {
+	for _, v := range vv {
+		if v != nil {
+			v.Clear()
+			p.pool.Put(v)
+		}
 	}
 }

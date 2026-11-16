@@ -923,9 +923,11 @@ func (head *Head) stringWithOpts(opts toStringOpts) string {
 }
 
 // Vars returns a set of vars found in the head.
+// Prefer to use [*VarVisitor] to collect variables
+// from the head as that is pooled and reusable without allocating
+// per each call.
 func (head *Head) Vars() VarSet {
 	vis := NewVarVisitor()
-	// TODO: improve test coverage for this.
 	if head.Args != nil {
 		vis.WalkArgs(head.Args)
 	}
