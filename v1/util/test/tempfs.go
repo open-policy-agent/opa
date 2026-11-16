@@ -63,12 +63,15 @@ func WithTempFS(files map[string]string, f func(string)) {
 // If the creation fails, cleanup is nil and the caller does not have to invoke it. If
 // creation succeeds, the caller should invoke cleanup when they are done.
 func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, cleanup func(), err error) {
-	if rootDir, err = os.MkdirTemp(root, prefix); err != nil {
+	dir, err := os.MkdirTemp(root, prefix)
+	if err != nil {
 		return "", nil, err
 	}
 
-	cleanup = func() {
-		_ = os.RemoveAll(rootDir)
+	// Use locals rather than the named results: returning an error resets those,
+	// which would leave the deferred cleanup nil and pointed at the wrong dir.
+	remove := func() {
+		_ = os.RemoveAll(dir)
 	}
 
 	skipCleanup := false
@@ -76,30 +79,25 @@ func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, c
 	// Cleanup unless flag is unset. It will be unset if we succeed.
 	defer func() {
 		if !skipCleanup {
-			cleanup()
+			remove()
 		}
 	}()
 
 	for path, content := range files {
 		dirname, filename := filepath.Split(path)
-		dirPath := filepath.Join(rootDir, dirname)
+		dirPath := filepath.Join(dir, dirname)
 		if err := os.MkdirAll(dirPath, 0777); err != nil {
 			return "", nil, err
 		}
 
-		f, err := os.Create(filepath.Join(dirPath, filename))
-		if err != nil {
-			return "", nil, err
-		}
-
-		if _, err := f.WriteString(content); err != nil {
+		if err := os.WriteFile(filepath.Join(dirPath, filename), []byte(content), 0666); err != nil {
 			return "", nil, err
 		}
 	}
 
 	skipCleanup = true
 
-	return rootDir, cleanup, nil
+	return dir, remove, nil
 }
 
 // WithTestFS creates a temporary file system of `files` in memory
