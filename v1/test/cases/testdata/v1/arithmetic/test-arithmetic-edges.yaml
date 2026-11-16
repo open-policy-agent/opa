@@ -106,3 +106,35 @@ cases:
           negative_dividend: "-2"
           negative_divisor: "2"
           integral_float: "1"
+  - note: "arithmetic/abs beyond int64 and ceil and floor at the int32 edges"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {
+        	"abs_beyond_int64": sprintf("%v", [abs(-9223372036854775809)]),
+        	"ceil_int32_edge": sprintf("%v", [ceil(2147483647.5)]),
+        	"floor_int32_edge": sprintf("%v", [floor(-2147483648.5)]),
+        }
+    want_result:
+      - x:
+          abs_beyond_int64: "9223372036854775809"
+          ceil_int32_edge: "2147483648"
+          floor_int32_edge: "-2147483649"
+  - note: "arithmetic/ceil, floor and round of 1e20"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {
+        	"ceil_big": sprintf("%v", [ceil(1e20)]),
+        	"floor_big": sprintf("%v", [floor(-1e20)]),
+        	"round_big": sprintf("%v", [round(1e20)]),
+        }
+    want_result:
+      - x:
+          ceil_big: "100000000000000000000"
+          floor_big: "-100000000000000000000"
+          round_big: "100000000000000000000"

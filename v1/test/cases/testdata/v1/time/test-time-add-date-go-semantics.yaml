@@ -1,0 +1,59 @@
+---
+cases:
+  # Results are rendered with sprintf because the golden-case loader parses expected
+  # numbers as float64, which cannot represent nanosecond timestamps.
+  - note: "time/add_date: month and day overflow roll over like Go's AddDate"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        jan31 := time.parse_rfc3339_ns("2023-01-31T10:20:30.123456789Z")
+
+        feb29 := time.parse_rfc3339_ns("2024-02-29T10:20:30.123456789Z")
+
+        may31 := time.parse_rfc3339_ns("2023-05-31T10:20:30.123456789Z")
+
+        p := {
+        	"jan31_plus_month": sprintf("%v", [time.add_date(jan31, 0, 1, 0)]),
+        	"jan31_plus_month_and_day": sprintf("%v", [time.add_date(jan31, 0, 1, 1)]),
+        	"feb29_plus_year": sprintf("%v", [time.add_date(feb29, 1, 0, 0)]),
+        	"feb29_minus_year": sprintf("%v", [time.add_date(feb29, -1, 0, 0)]),
+        	"mixed_signs": sprintf("%v", [time.add_date(may31, 1, -3, -45)]),
+        }
+    want_result:
+      - x:
+          jan31_plus_month: "1677838830123456789"
+          jan31_plus_month_and_day: "1677925230123456789"
+          feb29_plus_year: "1740824430123456789"
+          feb29_minus_year: "1677666030123456789"
+          mixed_signs: "1705486830123456789"
+  - note: "time/add_date: whole-valued float counts are accepted"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := sprintf("%v", [time.add_date(0, 1.0, 0, 0)])
+    want_result:
+      - x: "31536000000000000"
+  - note: "time/add_date: fractional years are an error"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.add_date(0, 1.5, 0, 0)
+    want_error_code: eval_type_error
+    want_error: "operand 2 must be integer number but got floating-point number"
+    strict_error: true
+  - note: "time/add_date: fractional days are an error"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.add_date(0, 0, 0, 0.5)
+    want_error_code: eval_type_error
+    want_error: "operand 4 must be integer number but got floating-point number"
+    strict_error: true

@@ -1,0 +1,32 @@
+---
+cases:
+  - note: "netcidrintersects/bare ipv4 address in both operands"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := net.cidr_intersects("10.1.2.3", "10.1.2.3")
+    want_error_code: eval_builtin_error
+    want_error: "invalid CIDR address: 10.1.2.3"
+    strict_error: true
+  - note: "netcidrintersects/bare ipv4 address as the second operand"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := net.cidr_intersects("10.1.2.0/24", "10.1.2.3")
+    want_error_code: eval_builtin_error
+    want_error: "invalid CIDR address: 10.1.2.3"
+    strict_error: true
+  - note: "netcidrintersects/bare ipv6 address as the second operand"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := net.cidr_intersects("10.1.2.0/24", "::1")
+    want_error_code: eval_builtin_error
+    want_error: "invalid CIDR address: ::1"
+    strict_error: true

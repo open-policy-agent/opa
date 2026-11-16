@@ -1,0 +1,29 @@
+---
+cases:
+  - note: "sprintf/%x precision counts bytes of a multibyte string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [
+        	sprintf("%x", ["日"]),
+        	sprintf("%.1x", ["日"]),
+        	sprintf("%.2x", ["é日"]),
+        	sprintf("%.2X", ["éa"]),
+        ]
+    want_result:
+      - x: ["e697a5", "e6", "c3a9", "C3A9"]
+  - note: "sprintf/%s precision and width count code points"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [
+        	sprintf("%.3s", ["日本語日"]),
+        	sprintf("%5.1s|", ["日本"]),
+        	sprintf("%3s|", ["日"]),
+        ]
+    want_result:
+      - x: ["日本語", "    日|", "  日|"]

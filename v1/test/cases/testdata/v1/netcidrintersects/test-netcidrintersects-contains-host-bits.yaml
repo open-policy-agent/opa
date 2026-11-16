@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "netcidrintersects/host bits set: intersects and contains differ"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [net.cidr_intersects("10.1.2.3/24", "10.1.0.0/16"), net.cidr_contains("10.1.2.3/24", "10.1.0.0/16")]
+    want_result:
+      - x: [true, false]
+  - note: "netcidrintersects/host bits set: same prefix"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [net.cidr_intersects("192.168.1.77/25", "192.168.1.1/25"), net.cidr_intersects("192.168.1.77/25", "192.168.1.200/25")]
+    want_result:
+      - x: [true, false]
