@@ -4610,3 +4610,38 @@ func TestLogEvaluatedRules(t *testing.T) {
 		t.Fatalf("expected %d evaluated rules in event 1, got %d", exp, act)
 	}
 }
+
+func TestRoundTripAnyNativeValues(t *testing.T) {
+	t.Parallel()
+
+	orig := map[string]any{
+		"a": []any{json.Number("1"), "x", nil, true},
+		"b": map[string]any{"c": json.Number("2.5")},
+	}
+
+	got, err := roundTripAny(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(got, orig) {
+		t.Fatalf("expected %v, got %v", orig, got)
+	}
+
+	// the copy must not alias the original
+	got.(map[string]any)["a"].([]any)[1] = "changed"
+	if orig["a"].([]any)[1] != "x" {
+		t.Fatal("round trip aliased the original value")
+	}
+
+	type s struct {
+		N int `json:"n"`
+	}
+	got, err = roundTripAny(s{N: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := map[string]any{"n": json.Number("1")}; !reflect.DeepEqual(got, exp) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+}

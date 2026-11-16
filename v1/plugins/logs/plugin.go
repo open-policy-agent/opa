@@ -1349,6 +1349,13 @@ func roundTripAny(x any) (v any, err error) {
 	if !util.NeedsRoundTrip(x) {
 		return x, nil
 	}
+	switch x.(type) {
+	case map[string]any, []any:
+		// Values that are already JSON-shaped, like a decoded request input,
+		// are copied natively rather than serialized and parsed again.
+		err = util.RoundTripFast(&x)
+		return x, err
+	}
 	var bs []byte
 	if bs, err = json.Marshal(x); err == nil {
 		err = util.UnmarshalJSON(bs, &v)
