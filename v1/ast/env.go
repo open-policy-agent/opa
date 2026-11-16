@@ -246,10 +246,17 @@ type typeTreeNode struct {
 
 func newTypeTree() *typeTreeNode {
 	return &typeTreeNode{
-		key:      nil,
-		value:    nil,
-		children: util.NewHasherMap[Value, *typeTreeNode](ValueEqual),
+		key:   nil,
+		value: nil,
 	}
+}
+
+// putChild allocates children on first use, as most nodes are leaves.
+func (n *typeTreeNode) putChild(child *typeTreeNode) {
+	if n.children == nil {
+		n.children = util.NewHasherMap[Value, *typeTreeNode](ValueEqual)
+	}
+	n.children.Put(child.key, child)
 }
 
 func (n *typeTreeNode) Child(key Value) *typeTreeNode {
@@ -287,7 +294,7 @@ func (n *typeTreeNode) PutOne(key Value, tpe types.Type) {
 	if !ok {
 		child = newTypeTree()
 		child.key = key
-		n.children.Put(key, child)
+		n.putChild(child)
 	} else {
 		child = c
 	}
@@ -302,7 +309,7 @@ func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 		if !ok {
 			child = newTypeTree()
 			child.key = term.Value
-			curr.children.Put(child.key, child)
+			curr.putChild(child)
 		}
 
 		curr = child
@@ -320,7 +327,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 		if !ok {
 			child = newTypeTree()
 			child.key = term.Value
-			curr.children.Put(child.key, child)
+			curr.putChild(child)
 		} else if child.value != nil && i+1 < len(path) {
 			// If child has an object value, merge the new value into it.
 			cv := child.value
