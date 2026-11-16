@@ -34,6 +34,8 @@ func CompressHandler(handler http.Handler, gzipMinLength int, gzipCompressionLev
 // decompressed size limit is enforced later, in `util.ReadMaybeCompressedBody`.
 // The handler passes the gzip size limits down to that function through the
 // request context whenever gzip encoding is present.
+//
+// Deprecated: Configure request-body limits through the server decoding configuration instead.
 func DecodingLimitsHandler(handler http.Handler, maxLength, gzipMaxLength int64) http.Handler {
 	return v1.DecodingLimitsHandler(handler, maxLength, gzipMaxLength)
 }
