@@ -106,6 +106,8 @@ type parsedTermCacheItem struct {
 	post   *state // post is the post-state that's restored on a cache-hit
 	offset int
 	next   *parsedTermCacheItem
+	st     state           // backing storage for post, so the entry is one allocation
+	sc     scanner.Scanner // backing storage for post.s
 }
 
 type parsedTermCache struct {
@@ -245,9 +247,10 @@ func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
 }
 
 func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
-	s1 := p.save()
 	o0 := s0.loc.Offset
-	entry := parsedTermCacheItem{t: t, post: s1, offset: o0}
+	entry := &parsedTermCacheItem{t: t, offset: o0, st: *p.s, sc: *p.s.s}
+	entry.st.s = &entry.sc
+	entry.post = &entry.st
 
 	// find the first one whose offset is smaller than ours
 	var e *parsedTermCacheItem
@@ -257,7 +260,7 @@ func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
 		}
 	}
 	entry.next = e
-	p.cache.m = &entry
+	p.cache.m = entry
 }
 
 // futureParser returns a shallow copy of `p` with an empty
