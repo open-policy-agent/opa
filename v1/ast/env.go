@@ -305,16 +305,19 @@ func (n *typeTreeNode) PutOne(key Value, tpe types.Type) {
 func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 	curr := n
 	for _, term := range path {
-		child, ok := curr.children.Get(term.Value)
-		if !ok {
-			child = newTypeTree()
-			child.key = term.Value
-			curr.putChild(child)
-		}
-
-		curr = child
+		curr = curr.childOrNew(term.Value)
 	}
 	curr.value = tpe
+}
+
+func (n *typeTreeNode) childOrNew(key Value) *typeTreeNode {
+	child, ok := n.children.Get(key)
+	if !ok {
+		child = newTypeTree()
+		child.key = key
+		n.putChild(child)
+	}
+	return child
 }
 
 // Insert inserts tpe at path in the tree, but also merges the value into any types.Object present along that path.

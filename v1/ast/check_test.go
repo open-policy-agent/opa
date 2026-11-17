@@ -3541,3 +3541,12 @@ func TestCheckWithModifiers(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeCheckerEnvResolvesBuiltins(t *testing.T) {
+	env := newTypeChecker().Env(BuiltinMap)
+	for _, bi := range BuiltinMap {
+		if tpe := env.GetByRef(bi.Ref()); tpe == nil || types.Compare(tpe, bi.Decl) != 0 {
+			t.Errorf("builtin %v: got %v, want %v", bi.Name, tpe, bi.Decl)
+		}
+	}
+}
