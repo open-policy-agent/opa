@@ -7045,6 +7045,19 @@ func TestParseMultiValueRuleGeneratedBodyLocationText(t *testing.T) {
 	}
 }
 
+func TestParseFunctionWithoutBodyLocationText(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := ParseModule("test.rego", "package test\n\nf(1, \"a\")\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc := parsed.Rules[0].Location
+	if text := string(loc.Text); text != `f(1, "a")` || loc.Row != 3 || loc.Col != 1 {
+		t.Errorf("expected the location of f(1, \"a\") at 3:1, got %q at %d:%d", text, loc.Row, loc.Col)
+	}
+}
+
 func TestRuleModulePtr(t *testing.T) {
 	mod := `package test
 
