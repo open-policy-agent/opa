@@ -184,3 +184,37 @@ func makeQueriesForRewriteDynamicsBenchmark(sizes []int, body Body) [][]Body {
 
 	return queries
 }
+
+// Layered helper rules: the recursion check must not rescan what each rule reaches.
+func BenchmarkCompileRuleLayers(b *testing.B) {
+	const depth = 10
+	for _, width := range []int{50, 200} {
+		var sb strings.Builder
+		sb.WriteString("package bench\n\n")
+		for d := range depth - 1 {
+			for w := range width {
+				for k := range 3 {
+					fmt.Fprintf(&sb, "l%d_%d if l%d_%d\n", d, w, d+1, (w+k)%width)
+				}
+			}
+		}
+		for w := range width {
+			fmt.Fprintf(&sb, "l%d_%d if input.x == %d\n", depth-1, w, w)
+		}
+		base := MustParseModule(sb.String())
+
+		b.Run(strconv.Itoa(width*depth), func(b *testing.B) {
+			for b.Loop() {
+				// Compile rewrites modules in place, so each iteration needs a copy.
+				b.StopTimer()
+				mod := base.Copy()
+				b.StartTimer()
+
+				c := NewCompiler()
+				if c.Compile(map[string]*Module{"a.rego": mod}); c.Failed() {
+					b.Fatal(c.Errors)
+				}
+			}
+		})
+	}
+}

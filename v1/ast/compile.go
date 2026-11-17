@@ -1309,6 +1309,11 @@ func (c *Compiler) buildRequiredCapabilities() {
 // checkRecursion ensures that there are no recursive definitions, i.e., there are
 // no cycles in the Graph.
 func (c *Compiler) checkRecursion() {
+	// A successful sort means there is no cycle. This avoids a DFS per rule.
+	if _, ok := c.Graph.Sort(); ok {
+		return
+	}
+
 	eq := func(a, b util.T) bool {
 		return a.(*Rule) == b.(*Rule)
 	}
