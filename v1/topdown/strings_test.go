@@ -255,6 +255,108 @@ func TestBuiltinAnyAffixMatchMatchesBruteForce(t *testing.T) {
 	}
 }
 
+func TestBuiltinReplaceMatchesReplacer(t *testing.T) {
+	inputs := []string{"", "a", "abcabc", "a/b/c", "héllo wörld", "\xff\xfe a\xffb", "aaaa"}
+	olds := []string{"", "a", "/", "ö", "aa", "\xff", "abc", "zzz"}
+	news := []string{"", "x", "->", "é"}
+
+	for _, s := range inputs {
+		for _, old := range olds {
+			for _, n := range news {
+				var got *ast.Term
+				operands := []*ast.Term{ast.StringTerm(s), ast.StringTerm(old), ast.StringTerm(n)}
+				err := builtinReplace(BuiltinContext{}, operands, func(term *ast.Term) error {
+					got = term
+					return nil
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if exp := strings.NewReplacer(old, n).Replace(s); string(got.Value.(ast.String)) != exp {
+					t.Errorf("replace(%q, %q, %q): got %q, want %q", s, old, n, got, exp)
+				}
+			}
+		}
+	}
+}
+
+func TestBuiltinReplaceCancelled(t *testing.T) {
+	for _, old := range []string{"/", ""} {
+		c := NewCancel()
+		c.Cancel()
+
+		operands := []*ast.Term{ast.StringTerm("a/b/c"), ast.StringTerm(old), ast.StringTerm("_")}
+		err := builtinReplace(BuiltinContext{Cancel: c}, operands, func(*ast.Term) error { return nil })
+
+		if _, ok := errors.AsType[Halt](err); !ok {
+			t.Errorf("replace(%q): expected a Halt error, got %v", old, err)
+		}
+	}
+}
+
+func TestBuiltinReplaceNMatchesReplacer(t *testing.T) {
+	inputs := []string{"", "a", "abcabc", "a/b/c", "héllo wörld", "\xff\xfe a\xffb", "aaaa"}
+	// old, new pairs, with the keys in sorted order, as replace_n applies them
+	patterns := [][]string{
+		{"a", "x"}, {"/", "->"}, {"ö", "é"}, {"\xff", ""}, {"zzz", "x"}, {"", "x"},
+		{"a", "x", "b", "y"}, {"a", "y", "aa", "x"}, {"", "x", "a", "y"},
+	}
+
+	for _, s := range inputs {
+		for _, pairs := range patterns {
+			var got *ast.Term
+			err := builtinReplaceN(BuiltinContext{}, replaceNOperands(s, pairs), func(term *ast.Term) error {
+				got = term
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if exp := strings.NewReplacer(pairs...).Replace(s); string(got.Value.(ast.String)) != exp {
+				t.Errorf("replace_n(%q, %q): got %q, want %q", s, pairs, got, exp)
+			}
+		}
+	}
+}
+
+func TestBuiltinReplaceNUnchanged(t *testing.T) {
+	for _, pairs := range [][]string{{"@", "x"}, {"@", "x", "#", "y"}} {
+		operands := replaceNOperands("a/b/c", pairs)
+		var got *ast.Term
+		err := builtinReplaceN(BuiltinContext{}, operands, func(term *ast.Term) error {
+			got = term
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != operands[1] {
+			t.Errorf("replace_n(%q): expected the input term back", pairs)
+		}
+	}
+}
+
+func TestBuiltinReplaceNCancelled(t *testing.T) {
+	for _, pairs := range [][]string{{"/", "_"}, {"/", "_", "b", "x"}} {
+		c := NewCancel()
+		c.Cancel()
+
+		err := builtinReplaceN(BuiltinContext{Cancel: c}, replaceNOperands("a/b/c", pairs), func(*ast.Term) error { return nil })
+
+		if _, ok := errors.AsType[Halt](err); !ok {
+			t.Errorf("replace_n(%q): expected a Halt error, got %v", pairs, err)
+		}
+	}
+}
+
+func replaceNOperands(s string, pairs []string) []*ast.Term {
+	items := make([][2]*ast.Term, 0, len(pairs)/2)
+	for i := 0; i < len(pairs); i += 2 {
+		items = append(items, [2]*ast.Term{ast.StringTerm(pairs[i]), ast.StringTerm(pairs[i+1])})
+	}
+	return []*ast.Term{ast.ObjectTerm(items...), ast.StringTerm(s)}
+}
+
 func TestBuiltinReverse(t *testing.T) {
 	long := strings.Repeat("ab\xffé", 100) // past the 255-byte stack buffer
 	tests := []struct {
