@@ -8049,8 +8049,7 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 	}
 }
 
-func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
-	e := expr.Copy()
+func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, e *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	every := e.Terms.(*Every)
 
 	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Domain, errs, strict)
@@ -8086,8 +8085,7 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 }
 
-func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
-	e := expr.Copy()
+func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, e *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	decl := e.Terms.(*SomeDecl)
 
 	for i := range decl.Symbols {
@@ -8158,18 +8156,17 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 	return nil, errs
 }
 
-func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
-	if not := expr.Terms.(*Not); !not.ExplicitBody {
+func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, e *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	if not := e.Terms.(*Not); !not.ExplicitBody {
 		// Only explicit not bodies are allowed to declare vars.
 		numErrsBefore := len(errs)
 		errs = rewriteDeclaredVarsInImplicitBody(g, stack, not.Body, errAssignInNegated, errs, strict)
 		if len(errs) > numErrsBefore {
-			return expr, errs
+			return e, errs
 		}
-		return rewriteDeclaredVarsInExpr(g, stack, expr, errs, strict)
+		return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 	}
 
-	e := expr.Copy()
 	not := e.Terms.(*Not)
 
 	stack.Push()
@@ -8181,9 +8178,7 @@ func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *E
 	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 }
 
-func rewriteLogicalStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
-	e := expr.Copy()
-
+func rewriteLogicalStatement(g *localVarGenerator, stack *localDeclaredVars, e *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	numErrsBefore := len(errs)
 
 	switch t := e.Terms.(type) {
