@@ -158,7 +158,15 @@ func (tc *typeChecker) WithAllowUndefinedFunctionCalls(allow bool) *typeChecker 
 func (tc *typeChecker) Env(builtins map[string]*Builtin) *TypeEnv {
 	env := tc.newEnv(nil)
 	for _, bi := range builtins {
-		env.tree.Put(bi.Ref(), bi.Decl)
+		// The tree only keeps the Values, so skip building a Ref and its Terms
+		// (bi.Ref()) for every builtin on every compile.
+		part, rest, dotted := strings.Cut(bi.Name, ".")
+		node := env.tree.childOrNew(InternedVarValue(part))
+		for dotted {
+			part, rest, dotted = strings.Cut(rest, ".")
+			node = node.childOrNew(InternedValue(part))
+		}
+		node.value = bi.Decl
 	}
 	return env
 }
