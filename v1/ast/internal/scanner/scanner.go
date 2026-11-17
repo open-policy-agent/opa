@@ -171,9 +171,14 @@ func ContinueTemplateString(raw bool) ScanOption {
 // returned. A token will always be returned, the caller must check
 // for any errors before using the other values.
 func (s *Scanner) Scan(opts ...ScanOption) (tokens.Token, Position, string, []Error) {
-	scanOpts := &ScanOptions{}
-	for _, opt := range opts {
-		opt(scanOpts)
+	// Func-value options force a heap alloc. Skip it when there are none.
+	var scanOpts ScanOptions
+	if len(opts) > 0 {
+		o := &ScanOptions{}
+		for _, opt := range opts {
+			opt(o)
+		}
+		scanOpts = *o
 	}
 
 	pos := Position{Offset: s.offset - s.width, Row: s.row, Col: s.col, Tabs: s.tabs}
