@@ -26,6 +26,31 @@ functions that are not, and probably won't be natively supported in Wasm (e.g.,
 `http.send`). Built-in functions that are not natively supported can be
 implemented in the host environment (e.g., JavaScript).
 
+### Numbers
+
+Wasm modules and OPA's Go interpreter, which `opa eval` uses by default, do
+arithmetic in different ways:
+
+- Both compute integer addition, subtraction, multiplication, and modulo
+  exactly.
+- Wasm modules use decimal arithmetic, and round the result of a division to 18
+  significant digits.
+- The Go interpreter uses binary floating-point numbers with a 64-bit mantissa
+  for division, and for arithmetic on numbers that are not integers.
+
+As a result, the same expression can return numbers that differ in their last
+digits or in their format. An expression that compares such numbers can also
+return a different result:
+
+| Expression                         | `opa eval -t wasm`     | `opa eval -t rego`         |
+| ---------------------------------- | ---------------------- | -------------------------- |
+| `1 / 3`                            | `0.333333333333333333` | `0.33333333333333333334`   |
+| `1763371234567891234 / 1000000000` | `1763371234.56789123`  | `1.763371234567891234e+09` |
+| `1 - 0.9`                          | `0.1`                  | `0.10000000000000000002`   |
+| `1.15 + 1.15`                      | `2.30`                 | `2.3`                      |
+| `1e20 * 1`                         | `1e+20`                | `100000000000000000000`    |
+| `1 - 0.9 == 0.1`                   | `true`                 | `false`                    |
+
 ## Compiling Policies
 
 You can compile Rego policies into Wasm modules using the `opa build` subcommand.
