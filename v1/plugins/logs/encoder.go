@@ -58,6 +58,17 @@ type chunkEncoder struct {
 	// scalingDown records that a scaleDown is already in progress further up the
 	// stack, so a nested one that cannot lower the limit knows it would cycle
 	scalingDown bool
+
+	// pending holds the events written to the current chunk, so that a chunk
+	// that turns out too large can be split without decompressing and decoding it.
+	pending []pendingEvent
+}
+
+// pendingEvent is an event along with its already serialized form. The
+// serialized form is empty for events decoded from an existing chunk.
+type pendingEvent struct {
+	event EventV1
+	bytes []byte
 }
 
 func newChunkEncoder(limit int64) *chunkEncoder {
@@ -132,7 +143,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 	}
 
 	if int64(len(eventBytes)+enc.bytesWritten+1) < enc.uncompressedLimit {
-		return nil, enc.appendEvent(eventBytes)
+		return nil, enc.appendEvent(event, eventBytes)
 	}
 
 	// Adjust the encoder's uncompressed limit based on the current amount of
@@ -153,7 +164,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 	if enc.bytesWritten == 0 {
 		// If an event is too large, there are multiple things to try before dropping the event:
 		// 1. Try to fit the incoming event into the next chunk without losing ND cache
-		if err := enc.appendEvent(eventBytes); err != nil {
+		if err := enc.appendEvent(event, eventBytes); err != nil {
 			return nil, err
 		}
 
@@ -193,7 +204,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 		if err != nil {
 			return nil, err
 		}
-		err = enc.appendEvent(eventBytes)
+		err = enc.appendEvent(event, eventBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +225,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 		}
 
 		// success! the incoming event without its ND cache fits into the current chunk
-		err = enc.appendEvent(eventBytes)
+		err = enc.appendEvent(event, eventBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -232,6 +243,7 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 	}
 
 	enc.updateMetric(encNumberOfEventsInChunkHistogramName, enc.eventsWritten)
+	pending := enc.pending
 	result, err := enc.reset()
 	if err != nil {
 		return nil, err
@@ -279,18 +291,15 @@ func (enc *chunkEncoder) Encode(event EventV1, eventBytes []byte) ([][]byte, err
 
 	// 2) Scale Down: If the current chunk size exceeds the compressed limit, decrease the uncompressed limit and re-encode the
 	// decisions in the last chunk.
-	events, err := newChunkDecoder(result).decode()
-	if err != nil {
-		return nil, err
-	}
+	// The events written to the chunk are still held in memory, which spares
+	// decompressing and decoding the chunk. Add the current event so that it
+	// can be reorganized as needed.
+	pending = append(pending, pendingEvent{event: event, bytes: eventBytes})
 
-	// add the current event so that it can be reorganized as needed
-	events = append(events, event)
-
-	return enc.scaleDown(events)
+	return enc.scaleDown(pending)
 }
 
-func (enc *chunkEncoder) scaleDown(events []EventV1) ([][]byte, error) {
+func (enc *chunkEncoder) scaleDown(events []pendingEvent) ([][]byte, error) {
 	reduced := false
 
 	if enc.uncompressedLimit > enc.limit {
@@ -327,13 +336,17 @@ func (enc *chunkEncoder) scaleDown(events []EventV1) ([][]byte, error) {
 	// split the events into multiple chunks
 	var result [][]byte
 	for i := range events {
-		eventBytes, err := json.Marshal(&events[i])
-		if err != nil {
-			return nil, err
+		eventBytes := events[i].bytes
+		if eventBytes == nil {
+			var err error
+			eventBytes, err = json.Marshal(&events[i].event)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// recursive call to make sure the chunk created adheres to the uncompressed size limit
-		chunks, err := enc.Encode(events[i], eventBytes)
+		chunks, err := enc.Encode(events[i].event, eventBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -356,8 +369,8 @@ func (enc *chunkEncoder) scaleDown(events []EventV1) ([][]byte, error) {
 	return result, nil
 }
 
-func (enc *chunkEncoder) appendEvent(event []byte) error {
-	if len(event) == 0 {
+func (enc *chunkEncoder) appendEvent(event EventV1, eventBytes []byte) error {
+	if len(eventBytes) == 0 {
 		return nil
 	}
 
@@ -375,12 +388,13 @@ func (enc *chunkEncoder) appendEvent(event []byte) error {
 		enc.bytesWritten += n
 	}
 
-	n, err := enc.w.Write(event)
+	n, err := enc.w.Write(eventBytes)
 	if err != nil {
 		return err
 	}
 	enc.bytesWritten += n
 	enc.eventsWritten++
+	enc.pending = append(enc.pending, pendingEvent{event: event, bytes: eventBytes})
 
 	return nil
 }
@@ -419,7 +433,11 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		chunk, err := enc.scaleDown(events)
+		pending := make([]pendingEvent, len(events))
+		for i := range events {
+			pending[i].event = events[i]
+		}
+		chunk, err := enc.scaleDown(pending)
 		if err != nil {
 			return nil, err
 		}
@@ -447,6 +465,7 @@ func (enc *chunkEncoder) initialize() {
 	enc.buf = new(bytes.Buffer)
 	enc.bytesWritten = 0
 	enc.eventsWritten = 0
+	enc.pending = nil
 	enc.w = gzip.NewWriter(enc.buf)
 }
 
