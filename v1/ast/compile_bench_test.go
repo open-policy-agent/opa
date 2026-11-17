@@ -185,35 +185,34 @@ func makeQueriesForRewriteDynamicsBenchmark(sizes []int, body Body) [][]Body {
 	return queries
 }
 
-func BenchmarkCompileRuleReuse(b *testing.B) {
-	popts := ParserOptions{RegoVersion: RegoV1, ProcessAnnotation: true, DropLocations: true}
-	parse := func(changed int) map[string]*Module {
-		mods := map[string]*Module{}
-		for name, src := range generatedSources(20000, changed) {
-			mods[name] = MustParseModuleWithOpts(src, popts)
+// Layered helper rules: the recursion check must not rescan what each rule reaches.
+func BenchmarkCompileRuleLayers(b *testing.B) {
+	const depth = 10
+	for _, width := range []int{50, 200} {
+		var sb strings.Builder
+		sb.WriteString("package bench\n\n")
+		for d := range depth - 1 {
+			for w := range width {
+				for k := range 3 {
+					fmt.Fprintf(&sb, "l%d_%d if l%d_%d\n", d, w, d+1, (w+k)%width)
+				}
+			}
 		}
-		return mods
-	}
-	prev := NewCompiler().WithRuleReuse(nil)
-	if prev.Compile(parse(-1)); prev.Failed() {
-		b.Fatal(prev.Errors)
-	}
-	// One rule changed.
-	next := parse(10000)
+		for w := range width {
+			fmt.Fprintf(&sb, "l%d_%d if input.x == %d\n", depth-1, w, w)
+		}
+		base := MustParseModule(sb.String())
 
-	for _, reuse := range []bool{false, true} {
-		b.Run(fmt.Sprintf("reuse=%v", reuse), func(b *testing.B) {
-			b.ReportAllocs()
+		b.Run(strconv.Itoa(width*depth), func(b *testing.B) {
 			for b.Loop() {
+				// Compile rewrites modules in place, so each iteration needs a copy.
+				b.StopTimer()
+				mod := base.Copy()
+				b.StartTimer()
+
 				c := NewCompiler()
-				if reuse {
-					c = c.WithRuleReuse(prev)
-				}
-				if c.Compile(next); c.Failed() {
+				if c.Compile(map[string]*Module{"a.rego": mod}); c.Failed() {
 					b.Fatal(c.Errors)
-				}
-				if reuse && !c.RuleReuseStats().Incremental {
-					b.Fatal("not incremental")
 				}
 			}
 		})

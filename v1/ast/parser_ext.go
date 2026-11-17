@@ -218,7 +218,13 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return nil, errors.New("rule name conflicts with built-in function")
 	}
 
-	return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+	rule, err := ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+	if err != nil {
+		return nil, err
+	}
+	// The rule's location is the call's, not just its operator's.
+	rule.Location = expr.Location
+	return rule, nil
 }
 
 func parseCompleteRuleFromEq(module *Module, expr *Expr) (rule *Rule, err error) {
@@ -483,7 +489,7 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 	mod, err := parseModule(filename, stmts, comments, popts.RegoVersion)
 	// Without annotations, a compile may still attach some, changing the keys.
 	if err == nil && popts.ProcessAnnotation {
-		setReuseKeys(mod)
+		setSourceKeys(mod, popts.DropLocations)
 	}
 	if err == nil && popts.DropLocations {
 		if len(mod.Annotations) == 0 { // attached later, by the statements recorded now

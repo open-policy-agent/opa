@@ -1,0 +1,46 @@
+---
+cases:
+  - note: "time/parse_duration_ns: compound, fractional, signed and extended (d, w, y) units"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {
+        	"compound": time.parse_duration_ns("1h30m"),
+        	"fraction": time.parse_duration_ns("1.5h"),
+        	"day": time.parse_duration_ns("1d"),
+        	"week": time.parse_duration_ns("1w"),
+        	"day_hours": time.parse_duration_ns("1d2h"),
+        	"year": sprintf("%v", [time.parse_duration_ns("1y")]),
+        	"negative": time.parse_duration_ns("-1h"),
+        	"plain_zero": time.parse_duration_ns("0"),
+        	"max_int64": sprintf("%v", [time.parse_duration_ns("9223372036854775807ns")]),
+        }
+    want_result:
+      - x:
+          compound: 5400000000000
+          fraction: 5400000000000
+          day: 86400000000000
+          week: 604800000000000
+          day_hours: 93600000000000
+          year: "31536000000000000"
+          negative: -3600000000000
+          plain_zero: 0
+          max_int64: "9223372036854775807"
+  - note: "time/parse_duration_ns: overflow is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.parse_duration_ns("9223372036854775808ns")
+    want_result: []
+  - note: "time/parse_duration_ns: missing unit is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := time.parse_duration_ns("1")
+    want_result: []

@@ -1827,7 +1827,7 @@ func (s *set) Copy() Set {
 		i := 0
 		for hash, elem := range s.elems {
 			buf[i] = *elem
-			deepCopyTermValue(&buf[i])
+			buf[i].Value = CopyValue(buf[i].Value)
 			cpy.elems[hash] = &buf[i]
 			cpy.keys[i] = &buf[i]
 			i++
@@ -2558,9 +2558,9 @@ func (obj *object) Copy() Object {
 
 	for i, srcElem := range obj.keys {
 		keys[i] = *srcElem.key
-		deepCopyTermValue(&keys[i])
+		keys[i].Value = CopyValue(keys[i].Value)
 		vals[i] = *srcElem.value
-		deepCopyTermValue(&vals[i])
+		vals[i].Value = CopyValue(vals[i].Value)
 
 		elems[i] = objectElem{key: &keys[i], value: &vals[i]}
 		cpy.keys[i] = &elems[i]
@@ -3153,34 +3153,6 @@ func (c Call) String() string {
 	return util.ByteSliceToString(buf)
 }
 
-// deepCopyTermValue deep copies the Value of term in-place.
-// Scalar values (Null, Boolean, Number, String, Var) are already
-// copied by struct assignment, so only container types need work.
-func deepCopyTermValue(term *Term) {
-	switch v := term.Value.(type) {
-	case Null, Boolean, Number, String, Var:
-		// Already copied by *term = *src struct assignment.
-	case Ref:
-		term.Value = v.Copy()
-	case *Array:
-		term.Value = v.Copy()
-	case Set:
-		term.Value = v.Copy()
-	case *object:
-		term.Value = v.Copy()
-	case *ArrayComprehension:
-		term.Value = v.Copy()
-	case *ObjectComprehension:
-		term.Value = v.Copy()
-	case *SetComprehension:
-		term.Value = v.Copy()
-	case *TemplateString:
-		term.Value = v.Copy()
-	case Call:
-		term.Value = v.Copy()
-	}
-}
-
 func termSliceCopy(a []*Term) []*Term {
 	n := len(a)
 	if n == 0 {
@@ -3190,8 +3162,8 @@ func termSliceCopy(a []*Term) []*Term {
 	// instead of N+1) using the same pattern as util.NewPtrSlice.
 	cpy := util.NewPtrSlice[Term](n)
 	for i := range n {
-		*cpy[i] = *a[i]           // copy Term struct (Value + Location)
-		deepCopyTermValue(cpy[i]) // deep copy container Values in-place
+		*cpy[i] = *a[i]                        // copy Term struct (Value + Location)
+		cpy[i].Value = CopyValue(cpy[i].Value) // deep copy container Values in-place
 	}
 	return cpy
 }

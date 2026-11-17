@@ -106,6 +106,8 @@ type parsedTermCacheItem struct {
 	post   *state // post is the post-state that's restored on a cache-hit
 	offset int
 	next   *parsedTermCacheItem
+	st     state           // backing storage for post, so the entry is one allocation
+	sc     scanner.Scanner // backing storage for post.s
 }
 
 type parsedTermCache struct {
@@ -245,9 +247,10 @@ func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
 }
 
 func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
-	s1 := p.save()
 	o0 := s0.loc.Offset
-	entry := parsedTermCacheItem{t: t, post: s1, offset: o0}
+	entry := &parsedTermCacheItem{t: t, offset: o0, st: *p.s, sc: *p.s.s}
+	entry.st.s = &entry.sc
+	entry.post = &entry.st
 
 	// find the first one whose offset is smaller than ours
 	var e *parsedTermCacheItem
@@ -257,7 +260,7 @@ func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
 		}
 	}
 	entry.next = e
-	p.cache.m = &entry
+	p.cache.m = entry
 }
 
 // futureParser returns a shallow copy of `p` with an empty
@@ -1376,13 +1379,14 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}
 
 	if negated && p.notBodies && p.s.tok == tokens.LBrace {
-		nb := p.parseNotBody(notLoc)
-		if nb == nil {
-			return nil
+		if nb, committed := p.parseNotBody(notLoc); committed {
+			if nb == nil {
+				return nil
+			}
+			// A not-body is a complete operand, so it may lead an and/or chain:
+			// `not { x } and y`.
+			return p.foldLogicalTail(NewBody(nb), false, nb.Location)
 		}
-		// A not-body is a complete operand, so it may lead an and/or chain:
-		// `not { x } and y`.
-		return p.foldLogicalTail(NewBody(nb), false, nb.Location)
 	}
 
 	switch p.s.tok {
@@ -1720,7 +1724,11 @@ func (p *Parser) parseSome() *Expr {
 	return NewExpr(decl).SetLocation(decl.Location)
 }
 
-func (p *Parser) parseNotBody(notLoc *Location) *Expr {
+// parseNotBody parses `{...}` after `not` as a body. If a ref operator follows
+// the closing brace, the braces are a term instead: the parser is restored to
+// the opening brace and committed is false. Otherwise committed is true, and a
+// nil expression means an error was reported.
+func (p *Parser) parseNotBody(notLoc *Location) (expr *Expr, committed bool) {
 	braceOffset := p.s.loc.Offset
 	braceLoc := p.s.Loc()
 	s := p.save()
@@ -1733,7 +1741,7 @@ func (p *Parser) parseNotBody(notLoc *Location) *Expr {
 	body := p.parseBody(tokens.RBrace)
 	if body == nil {
 		if empty {
-			return nil
+			return nil, true
 		}
 
 		// The braces may hold a value rather than a body. If so, report the
@@ -1745,24 +1753,29 @@ func (p *Parser) parseNotBody(notLoc *Location) *Expr {
 		// and parens group rather than delimit, so it is the whole operand that has to be wrapped.
 		if term := p.parseTermInfixCall(); term != nil {
 			p.errorOperandBraceNeedsBody(braceLoc, p.s.Text(braceOffset, p.s.lastEnd), term, "not ")
-			return nil
+			return nil, true
 		}
 
 		p.restore(failed)
 
-		return nil
+		return nil, true
 	}
 	p.scan() // consume `}`
 
+	if p.s.tok == tokens.LBrack || p.s.tok == tokens.Dot {
+		p.restore(s)
+		return nil, false
+	}
+
 	if isAmbiguousUnionBody(body) {
 		p.errorAmbiguousUnionBody(braceLoc, braceOffset, body, "not ")
-		return nil
+		return nil, true
 	}
 
 	// Extend the location to also include the 'not ' prefix
 	spanned := p.extendLoc(notLoc)
 	not := &Not{Body: body, ExplicitBody: true, Location: spanned}
-	return NewExpr(not).SetLocation(spanned)
+	return NewExpr(not).SetLocation(spanned), true
 }
 
 // logicalKeywordsActive reports whether the scanner currently treats `and` or
@@ -1947,11 +1960,12 @@ func (p *Parser) parseLogicalOperand(op string) (Body, bool, *Location) {
 	}
 
 	if negated && p.notBodies && p.s.tok == tokens.LBrace {
-		nb := p.parseNotBody(notLoc)
-		if nb == nil {
-			return nil, false, nil
+		if nb, committed := p.parseNotBody(notLoc); committed {
+			if nb == nil {
+				return nil, false, nil
+			}
+			return NewBody(nb), false, nb.Location
 		}
-		return NewBody(nb), false, nb.Location
 	}
 
 	// Parenthesized logical group operand: `(a or b)` or, when negated,

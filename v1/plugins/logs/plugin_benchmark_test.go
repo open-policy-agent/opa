@@ -211,6 +211,45 @@ func benchmarkChunkEncoderEncode(b *testing.B, event EventV1) {
 	b.ReportMetric(float64(slowest.Nanoseconds()), "max-ns/op")
 }
 
+// BenchmarkEventToFields exercises eventToFields(), which prepares an event for the console decision logger.
+//
+// With JSON marshal and unmarshal:
+//
+//	small input:           20300 ns/op      19629 B/op      316 allocs/op
+//	50000 element input: 7400000 ns/op    8128000 B/op   195095 allocs/op
+//
+// With util.RoundTripFast:
+//
+//	small input:            3480 ns/op       8544 B/op       71 allocs/op
+//	50000 element input:  231000 ns/op     803600 B/op       11 allocs/op
+func BenchmarkEventToFields(b *testing.B) {
+	b.Run("small input", func(b *testing.B) {
+		var event EventV1
+		if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+			b.Fatal(err)
+		}
+		benchmarkEventToFields(b, event)
+	})
+
+	b.Run("50000 element input", func(b *testing.B) {
+		items := make([]any, 50000)
+		for i := range items {
+			items[i] = json.Number(strconv.Itoa(i % 100))
+		}
+		var input any = map[string]any{"items": items}
+		benchmarkEventToFields(b, EventV1{DecisionID: "abc", Path: "bench/sumlist", Input: &input})
+	})
+}
+
+func benchmarkEventToFields(b *testing.B, event EventV1) {
+	b.ReportAllocs()
+	for b.Loop() {
+		if fields := eventToFields(event); len(fields) == 0 {
+			b.Fatal("expected fields")
+		}
+	}
+}
+
 func BenchmarkMaskingNop(b *testing.B) {
 
 	ctx := b.Context()

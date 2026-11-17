@@ -1,0 +1,28 @@
+---
+cases:
+  - note: "strings/substring: computed offset and length"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := substring("abc", 0, 1 + 1)
+    want_result:
+      - x: "ab"
+  - note: "strings/substring: fractional length is undefined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := substring("abc", 0, 1.5)
+    want_result: []
+  - note: "strings/format_int: computed base"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := format_int(255, 8 + 8)
+    want_result:
+      - x: "ff"

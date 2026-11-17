@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/compile"
+	"github.com/open-policy-agent/opa/internal/server/bodylimit"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/rego"
@@ -151,7 +152,7 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoQueryParse).Start()
 	req, err := readRequest(r, compileFiltersRequestFromMap)
 	if err != nil && !isEmptyBody(err) {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
+		writer.Error(w, bodylimit.ErrorStatus(s.v2Compatible, err), types.NewErrorV1(types.CodeInvalidParameter, "%v", err))
 		return
 	}
 

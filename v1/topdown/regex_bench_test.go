@@ -91,3 +91,43 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 		}
 	}
 }
+
+// Matching a template whose regex is already cached.
+//
+//	                    before                             after
+//	vars=1     3959 ns     2505 B/op    43 allocs     1255 ns    840 B/op   15 allocs
+//	vars=3    16229 ns    13895 B/op   187 allocs     3383 ns   2640 B/op   43 allocs
+//
+// The before column is what this recorded while generating the pattern also compiled
+// every variable's regex into a slice that was never read.
+func BenchmarkBuiltinRegexMatchTemplate(b *testing.B) {
+	iter := func(*ast.Term) error { return nil }
+	ctx := BuiltinContext{}
+
+	tests := []struct {
+		name     string
+		template string
+		match    string
+	}{
+		{"vars=1", "urn:foo:{.*}", "urn:foo:bar:baz"},
+		{"vars=3", "urn:{[a-z]+}:{[0-9]{2,10}}:{.*}", "urn:foo:12345:bar"},
+	}
+
+	for _, tc := range tests {
+		b.Run(tc.name, func(b *testing.B) {
+			operands := []*ast.Term{
+				ast.StringTerm(tc.template),
+				ast.StringTerm(tc.match),
+				ast.StringTerm("{"),
+				ast.StringTerm("}"),
+			}
+
+			b.ReportAllocs()
+			for b.Loop() {
+				if err := builtinRegexMatchTemplate(ctx, operands, iter); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}

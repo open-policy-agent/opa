@@ -289,9 +289,9 @@ func WalkBodies(x any, f func(Body) bool) {
 func WalkRules(x any, f func(*Rule) bool) {
 	switch x := x.(type) {
 	case *Module:
-		for i := range x.Rules {
-			if !f(x.Rules[i]) && x.Rules[i].Else != nil {
-				WalkRules(x.Rules[i].Else, f)
+		for _, rule := range x.Rules {
+			if !f(rule) && rule.Else != nil {
+				WalkRules(rule.Else, f)
 			}
 		}
 	case *Rule:
@@ -470,7 +470,7 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 			tv.walk(x.Parts[i], visit)
 		}
 	case *Not:
-		tv.walk(x.Body, visit)
+		tv.walkBody(x.Body, visit)
 	case *LogicalAnd:
 		tv.walkBody(x.Lhs, visit)
 		tv.walkBody(x.Rhs, visit)
@@ -522,7 +522,7 @@ func (vis *GenericVisitor) Walk(x any) {
 		vis.Walk(x.Head)
 		vis.Walk(x.Body)
 		if x.Else != nil {
-			vis.Walk(x.Else)
+			vis.walkElse(x.Else)
 		}
 	case *Head:
 		if x.Name != "" {
@@ -618,6 +618,20 @@ func (vis *GenericVisitor) Walk(x any) {
 	case *LogicalOr:
 		vis.Walk(x.Lhs)
 		vis.Walk(x.Rhs)
+	}
+}
+
+// skip reference, args, key
+func (vis *GenericVisitor) walkElse(x *Rule) {
+	if vis.f(x) {
+		return
+	}
+	if x.Head.Value != nil {
+		vis.Walk(x.Head.Value)
+	}
+	vis.Walk(x.Body)
+	if x.Else != nil {
+		vis.walkElse(x.Else)
 	}
 }
 
@@ -758,9 +772,7 @@ func (vis *BeforeAfterVisitor) Walk(x any) {
 
 // NewVarVisitor returns a new [VarVisitor] object.
 func NewVarVisitor() *VarVisitor {
-	return &VarVisitor{
-		vars: NewVarSet(),
-	}
+	return &VarVisitor{vars: NewVarSet()}
 }
 
 // ClearOrNewVarVisitor clears a non-nil [VarVisitor] or returns a new one.
@@ -814,17 +826,14 @@ func (vis *VarVisitor) visit(v any) bool {
 		if oi, ok := v.(Object); ok {
 			obj := objectFromObject(oi)
 			for _, e := range obj.sortedKeys() {
-				vis.Walk(e.value)
+				vis.walkTerm(e.value)
 			}
 			return true
 		}
 	}
 	if vis.params.SkipRefHead {
 		if r, ok := v.(Ref); ok {
-			rSlice := r[1:]
-			for i := range rSlice {
-				vis.Walk(rSlice[i])
-			}
+			vis.walkTerms(r[1:])
 			return true
 		}
 	}
@@ -834,7 +843,7 @@ func (vis *VarVisitor) visit(v any) bool {
 			return true
 		case *Expr:
 			if ev, ok := v.Terms.(*Every); ok {
-				vis.Walk(ev.Domain)
+				vis.walkTerm(ev.Domain)
 				// We're _not_ walking ev.Body -- that's the closure here
 				return true
 			}
@@ -855,13 +864,8 @@ func (vis *VarVisitor) visit(v any) bool {
 		switch v := v.(type) {
 		case *Expr:
 			if terms, ok := v.Terms.([]*Term); ok {
-				termSlice := terms[0].Value.(Ref)[1:]
-				for i := range termSlice {
-					vis.Walk(termSlice[i])
-				}
-				for i := 1; i < len(terms); i++ {
-					vis.Walk(terms[i])
-				}
+				vis.walkTerms(terms[0].Value.(Ref)[1:])
+				vis.walkTerms(terms[1:])
 				for i := range v.With {
 					vis.Walk(v.With[i])
 				}
@@ -869,27 +873,17 @@ func (vis *VarVisitor) visit(v any) bool {
 			}
 		case Call:
 			operator := v[0].Value.(Ref)
-			for i := 1; i < len(operator); i++ {
-				vis.Walk(operator[i])
-			}
-			for i := 1; i < len(v); i++ {
-				vis.Walk(v[i])
-			}
+			vis.walkTerms(operator[1:])
+			vis.walkTerms(v[1:])
 			return true
 		case *With:
 			if ref, ok := v.Target.Value.(Ref); ok {
-				refSlice := ref[1:]
-				for i := range refSlice {
-					vis.Walk(refSlice[i])
-				}
+				vis.walkTerms(ref[1:])
 			}
 			if ref, ok := v.Value.Value.(Ref); ok {
-				refSlice := ref[1:]
-				for i := range refSlice {
-					vis.Walk(refSlice[i])
-				}
+				vis.walkTerms(ref[1:])
 			} else {
-				vis.Walk(v.Value)
+				vis.walkTerm(v.Value)
 			}
 			return true
 		}
@@ -938,20 +932,22 @@ func (vis *VarVisitor) Walk(x any) {
 		vis.Walk(x.Head)
 		vis.WalkBody(x.Body)
 		if x.Else != nil {
-			vis.Walk(x.Else)
+			vis.walkElse(x.Else)
 		}
 	case *Head:
 		if len(x.Reference) > 0 {
 			vis.WalkRef(x.Reference)
-		} else {
+		} else if x.Name != "" {
 			vis.Add(x.Name)
-			if x.Key != nil {
-				vis.Walk(x.Key)
-			}
 		}
-		vis.WalkArgs(x.Args)
+		if len(x.Args) > 0 {
+			vis.WalkArgs(x.Args)
+		}
+		if x.Key != nil {
+			vis.walkTerm(x.Key)
+		}
 		if x.Value != nil {
-			vis.Walk(x.Value)
+			vis.walkTerm(x.Value)
 		}
 	case Body:
 		vis.WalkBody(x)
@@ -962,9 +958,7 @@ func (vis *VarVisitor) Walk(x any) {
 		case *Term, *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr:
 			vis.Walk(ts)
 		case []*Term:
-			for i := range ts {
-				vis.Walk(ts[i].Value)
-			}
+			vis.walkTerms(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -1035,12 +1029,21 @@ func (vis *VarVisitor) Walk(x any) {
 	}
 }
 
+func (vis *VarVisitor) walkElse(x *Rule) {
+	// skip reference, args, key
+	if x.Head.Value != nil {
+		vis.walkTerm(x.Head.Value)
+	}
+	vis.WalkBody(x.Body)
+	if x.Else != nil {
+		vis.walkElse(x.Else)
+	}
+}
+
 // WalkArgs exists only to avoid the allocation cost of boxing Args to `any` in the VarVisitor.
 // Use it when you know beforehand that the type to walk is Args.
 func (vis *VarVisitor) WalkArgs(x Args) {
-	for i := range x {
-		vis.Walk(x[i].Value)
-	}
+	vis.walkTerms(x)
 }
 
 // WalkRef exists only to avoid the allocation cost of boxing Ref to `any` in the VarVisitor.
@@ -1049,12 +1052,7 @@ func (vis *VarVisitor) WalkRef(ref Ref) {
 	if vis.params.SkipRefHead {
 		ref = ref[1:]
 	}
-	for _, term := range ref {
-		vis.Walk(term.Value)
-		if vVar, ok := term.Value.(Var); ok {
-			vis.vars.AddLocation(vVar, term.Location)
-		}
-	}
+	vis.walkTerms(ref)
 }
 
 // WalkBody exists only to avoid the allocation cost of boxing Body to `any` in the VarVisitor.
@@ -1062,5 +1060,29 @@ func (vis *VarVisitor) WalkRef(ref Ref) {
 func (vis *VarVisitor) WalkBody(body Body) {
 	for _, expr := range body {
 		vis.Walk(expr)
+	}
+}
+
+func (vis *VarVisitor) walkTerm(t *Term) {
+	if vis.params.customVisit == nil {
+		switch v := t.Value.(type) {
+		case Boolean, Number, String, Null:
+			return
+		case Var:
+			if !(vis.params.SkipWildcardVars && v.IsWildcard()) {
+				vis.vars.Add(v)
+			}
+			if t.Location != nil {
+				vis.vars.AddLocation(v, t.Location)
+			}
+			return
+		}
+	}
+	vis.Walk(t)
+}
+
+func (vis *VarVisitor) walkTerms(terms []*Term) {
+	for _, term := range terms {
+		vis.walkTerm(term)
 	}
 }
