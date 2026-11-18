@@ -255,6 +255,30 @@ func TestBuiltinAnyAffixMatchMatchesBruteForce(t *testing.T) {
 	}
 }
 
+func TestBuiltinReplaceExamples(t *testing.T) {
+	for _, tc := range []struct{ s, old, n, want string }{
+		{"a/b/c", "/", "_", "a_b_c"},
+		{"aaaa", "aa", "b", "bb"},
+		{"abc", "x", "_", "abc"},
+		{"abc", "", "-", "-a-b-c-"},
+		{"", "", "-", "-"},
+		{"aé", "", "-", "-a-\xc3-\xa9-"},
+	} {
+		var got *ast.Term
+		operands := []*ast.Term{ast.StringTerm(tc.s), ast.StringTerm(tc.old), ast.StringTerm(tc.n)}
+		err := builtinReplace(BuiltinContext{}, operands, func(term *ast.Term) error {
+			got = term
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got.Value.(ast.String)) != tc.want {
+			t.Errorf("replace(%q, %q, %q): got %q, want %q", tc.s, tc.old, tc.n, got, tc.want)
+		}
+	}
+}
+
 func TestBuiltinReplaceMatchesReplacer(t *testing.T) {
 	inputs := []string{"", "a", "abcabc", "a/b/c", "héllo wörld", "\xff\xfe a\xffb", "aaaa"}
 	olds := []string{"", "a", "/", "ö", "aa", "\xff", "abc", "zzz"}
@@ -263,17 +287,18 @@ func TestBuiltinReplaceMatchesReplacer(t *testing.T) {
 	for _, s := range inputs {
 		for _, old := range olds {
 			for _, n := range news {
-				var got *ast.Term
+				var result *ast.Term
 				operands := []*ast.Term{ast.StringTerm(s), ast.StringTerm(old), ast.StringTerm(n)}
 				err := builtinReplace(BuiltinContext{}, operands, func(term *ast.Term) error {
-					got = term
+					result = term
 					return nil
 				})
 				if err != nil {
 					t.Fatal(err)
 				}
-				if exp := strings.NewReplacer(old, n).Replace(s); string(got.Value.(ast.String)) != exp {
-					t.Errorf("replace(%q, %q, %q): got %q, want %q", s, old, n, got, exp)
+				want := strings.NewReplacer(old, n).Replace(s)
+				if got := string(result.Value.(ast.String)); got != want {
+					t.Errorf("replace(%q, %q, %q): got %q, want %q", s, old, n, got, want)
 				}
 			}
 		}
@@ -304,16 +329,17 @@ func TestBuiltinReplaceNMatchesReplacer(t *testing.T) {
 
 	for _, s := range inputs {
 		for _, pairs := range patterns {
-			var got *ast.Term
+			var result *ast.Term
 			err := builtinReplaceN(BuiltinContext{}, replaceNOperands(s, pairs), func(term *ast.Term) error {
-				got = term
+				result = term
 				return nil
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if exp := strings.NewReplacer(pairs...).Replace(s); string(got.Value.(ast.String)) != exp {
-				t.Errorf("replace_n(%q, %q): got %q, want %q", s, pairs, got, exp)
+			want := strings.NewReplacer(pairs...).Replace(s)
+			if got := string(result.Value.(ast.String)); got != want {
+				t.Errorf("replace_n(%q, %q): got %q, want %q", s, pairs, got, want)
 			}
 		}
 	}

@@ -760,6 +760,7 @@ func builtinReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 
 	sw.Grow(len(s))
 	if old == "" {
+		// An empty old matches before every byte, as strings.Replacer did.
 		_, err = strings.NewReplacer("", string(n)).WriteString(sw, string(s))
 	} else {
 		err = writeReplaced(sw, string(s), string(old), string(n))
