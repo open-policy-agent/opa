@@ -237,7 +237,7 @@ on template string nodes is only present when `true`.
 ### Module comments represented as arrays of location strings
 
 Since a comment is simply text at a given location, they are simply represented as location strings. OPA's AST format
-adds a redundant extra text atttribute only to strip off the leading `#` from the comment text, and is additionally
+adds a redundant extra text attribute only to strip off the leading `#` from the comment text, and is additionally
 inconsistent with the rest if its format, as both the `text` and `location` attributes are title-cased.
 
 ## Performance

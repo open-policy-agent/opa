@@ -75,7 +75,7 @@ if err != nil {
 
 ## Stepping Through Policy Evaluation
 
-When evaluation execution is paused, either immidiately after launching a session or when a breakpoint is hit, the session can be stepped through.
+When evaluation execution is paused, either immediately after launching a session or when a breakpoint is hit, the session can be stepped through.
 
 ### Step Over
 

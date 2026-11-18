@@ -32,7 +32,7 @@ The unification operator (`=`) can be used for both assignment and equality comp
 powerful feature where appropriate, but when the intent is to perform either assignment (`:=`) **or** an equality
 comparison (`==`), using the operators designed for those specific purposes helps communicate that intent much more
 clearly, and avoid some behaviors of the unification operator that may potentially be surprising (like in which order
-expresions are evaluated). This is not a general recommendation against using the unification operator, mind you! But to
+expressions are evaluated). This is not a general recommendation against using the unification operator, mind you! But to
 use the operators specifically for what they are designed for: `:=` for assignment, `==` for equality comparison, and
 `=` for unification.
 

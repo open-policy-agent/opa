@@ -3431,7 +3431,7 @@ organized into many sub-packages, it is useful to declare schemas recursively
 for them using the `subpackages` scope. For example:
 
 ```rego
-# METADTA
+# METADATA
 # scope: subpackages
 # schemas:
 # - input: schema.input

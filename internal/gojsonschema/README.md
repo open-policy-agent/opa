@@ -212,7 +212,7 @@ schema, err := sl.Compile(gojsonschema.NewReferenceLoader("http://some_host.com/
 Schemas added by `AddSchema` and `AddSchemas` are only validated when the entire schema is compiled, unless meta-schema validation is used.
 
 ## Using a specific draft
-By default `gojsonschema` will try to detect the draft of a schema by using the `$schema` keyword and parse it in a strict draft-04, draft-06 or draft-07 mode. If `$schema` is missing, or the draft version is not explicitely set, a hybrid mode is used which merges together functionality of all drafts into one mode.
+By default `gojsonschema` will try to detect the draft of a schema by using the `$schema` keyword and parse it in a strict draft-04, draft-06 or draft-07 mode. If `$schema` is missing, or the draft version is not explicitly set, a hybrid mode is used which merges together functionality of all drafts into one mode.
 
 Autodectection can be turned off with the `AutoDetect` property. Specific draft versions can be specified with the `Draft` property.
 
@@ -222,7 +222,7 @@ sl.Draft = gojsonschema.Draft7
 sl.AutoDetect = false
 ```
 
-If autodetection is on (default), a draft-07 schema can savely reference draft-04 schemas and vice-versa, as long as `$schema` is specified in all schemas.
+If autodetection is on (default), a draft-07 schema can safely reference draft-04 schemas and vice-versa, as long as `$schema` is specified in all schemas.
 
 ## Meta-schema validation
 Schemas that are added using the `AddSchema`, `AddSchemas` and `Compile` can be validated against their meta-schema by setting the `Validate` property.
