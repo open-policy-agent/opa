@@ -2450,6 +2450,20 @@
       }
     },
     {
+      "name": "json.pointer_escape",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.remove",
       "decl": {
         "args": [
