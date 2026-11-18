@@ -31,8 +31,6 @@ implemented in the host environment (e.g., JavaScript).
 Wasm modules and OPA's Go interpreter, which `opa eval` uses by default, do
 arithmetic in different ways:
 
-- Both compute integer addition, subtraction, multiplication, and modulo
-  exactly.
 - Wasm modules use decimal arithmetic, and round the result of a division to 18
   significant digits.
 - The Go interpreter uses binary floating-point numbers with a 64-bit mantissa
