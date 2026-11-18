@@ -505,6 +505,48 @@ func BenchmarkAnyAffixMatchOneString(b *testing.B) {
 	}
 }
 
+func BenchmarkReplace(b *testing.B) {
+	bctx := BuiltinContext{}
+	for _, tc := range []struct{ name, s, old, new string }{
+		{"match", "registry.example.com/team/app:latest", "/", "_"},
+		{"nomatch", "registry.example.com/team/app:latest", "@", "_"},
+		{"longer", "registry.example.com/team/app:latest", "example.com", "internal.local"},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			operands := []*ast.Term{ast.StringTerm(tc.s), ast.StringTerm(tc.old), ast.StringTerm(tc.new)}
+			for b.Loop() {
+				if err := builtinReplace(bctx, operands, func(*ast.Term) error { return nil }); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkReplaceN(b *testing.B) {
+	bctx := BuiltinContext{}
+	str := ast.StringTerm("registry.example.com/team/app:latest")
+	pair := func(k, v string) [2]*ast.Term { return [2]*ast.Term{ast.StringTerm(k), ast.StringTerm(v)} }
+	for _, tc := range []struct {
+		name  string
+		pairs [][2]*ast.Term
+	}{
+		{"one-match", [][2]*ast.Term{pair("/", "_")}},
+		{"one-nomatch", [][2]*ast.Term{pair("@", "_")}},
+		{"three-match", [][2]*ast.Term{pair("/", "_"), pair(":", "-"), pair(".", "_")}},
+		{"three-nomatch", [][2]*ast.Term{pair("@", "_"), pair("#", "-"), pair("!", "_")}},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			operands := []*ast.Term{ast.ObjectTerm(tc.pairs...), str}
+			for b.Loop() {
+				if err := builtinReplaceN(bctx, operands, func(*ast.Term) error { return nil }); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkIndexOfN(b *testing.B) {
 	operands := []*ast.Term{
 		ast.StringTerm("The quick brown fox jumps over the lazy dog, the end"),

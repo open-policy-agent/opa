@@ -751,12 +751,21 @@ func builtinReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
+	if old != "" && !strings.Contains(string(s), string(old)) {
+		return iter(operands[0])
+	}
+
 	sw := sinkWriterPool.Get().reset(ast.Replace.Name, bctx.Cancel)
 	defer sinkWriterPool.Put(sw.(*sinkW))
 
 	sw.Grow(len(s))
-	replacer := strings.NewReplacer(string(old), string(n))
-	if _, err := replacer.WriteString(sw, string(s)); err != nil {
+	if old == "" {
+		// An empty old matches before every byte, as strings.Replacer did.
+		_, err = strings.NewReplacer("", string(n)).WriteString(sw, string(s))
+	} else {
+		err = writeReplaced(sw, string(s), string(old), string(n))
+	}
+	if err != nil {
 		return err
 	}
 	replaced := sw.String()
@@ -765,6 +774,26 @@ func builtinReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	}
 
 	return iter(ast.InternedTerm(replaced))
+}
+
+// writeReplaced writes s to sw with every old replaced by n, piece by piece so
+// the sink can stop on cancellation. old must not be empty.
+func writeReplaced(sw sinkWriter, s, old, n string) error {
+	for {
+		i := strings.Index(s, old)
+		if i < 0 {
+			break
+		}
+		if _, err := sw.WriteString(s[:i]); err != nil {
+			return err
+		}
+		if _, err := sw.WriteString(n); err != nil {
+			return err
+		}
+		s = s[i+len(old):]
+	}
+	_, err := sw.WriteString(s)
+	return err
 }
 
 func builtinReplaceN(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -793,15 +822,27 @@ func builtinReplaceN(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		pairs = append(pairs, string(keyVal), string(strVal))
 	}
 
+	single := len(pairs) == 2 && pairs[0] != ""
+	if single && !strings.Contains(string(s), pairs[0]) {
+		return iter(operands[1])
+	}
+
 	sw := sinkWriterPool.Get().reset(ast.ReplaceN.Name, bctx.Cancel)
 	defer sinkWriterPool.Put(sw.(*sinkW))
 	sw.Grow(len(s))
 
-	replacer := strings.NewReplacer(pairs...)
-	if _, err := replacer.WriteString(sw, string(s)); err != nil {
+	if single {
+		if err := writeReplaced(sw, string(s), pairs[0], pairs[1]); err != nil {
+			return err
+		}
+	} else if _, err := strings.NewReplacer(pairs...).WriteString(sw, string(s)); err != nil {
 		return err
 	}
-	return iter(ast.InternedTerm(sw.String()))
+	replaced := sw.String()
+	if replaced == string(s) {
+		return iter(operands[1])
+	}
+	return iter(ast.InternedTerm(replaced))
 }
 
 func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
