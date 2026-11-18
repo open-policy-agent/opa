@@ -39,8 +39,7 @@ arithmetic in different ways:
   for division, and for arithmetic on numbers that are not integers.
 
 As a result, the same expression can return numbers that differ in their last
-digits or in their format. An expression that compares such numbers can also
-return a different result:
+digits or in their format:
 
 | Expression                         | `opa eval -t wasm`     | `opa eval -t rego`         |
 | ---------------------------------- | ---------------------- | -------------------------- |
@@ -49,7 +48,6 @@ return a different result:
 | `1 - 0.9`                          | `0.1`                  | `0.10000000000000000002`   |
 | `1.15 + 1.15`                      | `2.30`                 | `2.3`                      |
 | `1e20 * 1`                         | `1e+20`                | `100000000000000000000`    |
-| `1 - 0.9 == 0.1`                   | `true`                 | `false`                    |
 
 ## Compiling Policies
 
