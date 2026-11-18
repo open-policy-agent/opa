@@ -43,7 +43,7 @@ resources contains resource if {
 
 ## Rationale
 
-Imported identifers like `bar` in `import data.foo.bar` has higher precedence than a rule named `bar` in the same
+Imported identifiers like `bar` in `import data.foo.bar` has higher precedence than a rule named `bar` in the same
 package. This means that any rule that is shadowed by an import is effectively unreachable inside of the module.
 Avoid shadowing either by renaming your rule or by using an alias for the imported identifier.
 
