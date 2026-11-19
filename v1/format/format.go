@@ -2294,7 +2294,7 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 	valueLoc.Row = loc.Row
 	object.Value.Location = &valueLoc
 
-	paren := isUnionCall(object.Key)
+	paren := isInfixCall(object.Key)
 	if paren {
 		w.write("(")
 	}
@@ -2320,7 +2320,9 @@ func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, bo
 
 	parens := false
 	if _, ok := term.Value.(ast.Call); ok {
-		parens = isUnionCall(term) || term.Location.Text[0] == 40 // Starts with "("
+		// Infix calls need parens as the parser would otherwise take the "|" separating the
+		// term from the body as an operator, e.g. `[x + 1 | ...]` is not valid.
+		parens = isInfixCall(term) || term.Location.Text[0] == 40 // Starts with "("
 	}
 	var err error
 	comments, err = w.writeTermParens(parens, term, comments)
@@ -2632,6 +2634,15 @@ func termRendersBraceLead(t *ast.Term) bool {
 // isUnionCall returns true if the term is a call to the union built-in, whose
 // infix form (`|`) is comprehension syntax when used inside a collection
 // literal or as a comprehension term, and must be parenthesized there.
+func isInfixCall(t *ast.Term) bool {
+	call, ok := t.Value.(ast.Call)
+	if !ok {
+		return false
+	}
+	bi, ok := ast.BuiltinMap[call[0].String()]
+	return ok && bi.Infix != "" && bi.Infix != "in" // "in" has its own paren handling
+}
+
 func isUnionCall(t *ast.Term) bool {
 	call, ok := t.Value.(ast.Call)
 	return ok && ast.Interned.Refs.Or.Equal(call[0].Value)
