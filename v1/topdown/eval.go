@@ -4392,6 +4392,11 @@ type evalTerm struct {
 
 func (e evalTerm) eval(iter unifyIterator) error {
 	if len(e.ref) == e.pos {
+		// The concrete document holds stand-ins for the unknowns below it, so
+		// unifying with it would drop them: save the reference instead.
+		if e.e.partial() && e.e.saveSet.Below(e.ref, e.bindings) {
+			return e.e.saveUnify(ast.NewTerm(e.pluggedPrefix()), e.rterm, e.bindings, e.rbindings, iter)
+		}
 		return e.e.biunify(e.term, e.rterm, e.termbindings, e.rbindings, iter)
 	}
 
