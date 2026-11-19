@@ -6715,6 +6715,9 @@ func (l *localVarGenerator) Generate() Var {
 func storeGlobals(pkg *Package, rules []Ref, imports []*Import, globals map[Var]*usedRef) {
 	for _, ref := range rules {
 		v := ref[0].Value.(Var)
+		if _, ok := globals[v]; ok {
+			continue
+		}
 		globals[v] = &usedRef{ref: pkg.Path.Append(StringTerm(string(v)))}
 	}
 
