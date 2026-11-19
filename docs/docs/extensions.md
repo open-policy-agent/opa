@@ -268,11 +268,11 @@ own `package` declaration.
 The policy is evaluated with `input.config` set to the plugin's raw configuration
 and defines these rules in its package:
 
-| Rule        | Description                                                              |
-| ----------- | ------------------------------------------------------------------------ |
-| `processed` | Required. The configuration with defaults injected.                      |
+| Rule        | Description                                                               |
+| ----------- | ------------------------------------------------------------------------- |
+| `processed` | Required. The configuration with defaults injected.                       |
 | `errors`    | Optional. A set of messages; if non-empty, they are returned as an error. |
-| `warnings`  | Optional. A set of messages, returned for the plugin to log.             |
+| `warnings`  | Optional. A set of messages, returned for the plugin to log.              |
 
 The module can import `data.opa.config.util` for the helpers OPA's own validation
 policies use (`value`, `absent`, `not_object` and `not_positive_number`).
@@ -443,13 +443,13 @@ package println_decision_logger.config
 processed := object.union({"stderr": false}, input.config)
 
 errors contains "stderr must be a boolean" if {
-	stderr := input.config.stderr
-	not is_boolean(stderr)
+    stderr := input.config.stderr
+    not is_boolean(stderr)
 }
 
 warnings contains $"unknown configuration option \"{key}\"" if {
-	some key, _ in input.config
-	key != "stderr"
+    some key, _ in input.config
+    key != "stderr"
 }
 ```
 
