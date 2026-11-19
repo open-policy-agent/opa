@@ -803,8 +803,8 @@ func TestRuleIndices(t *testing.T) {
 				index := i.(*baseDocEqIndex)
 				for _, expRef := range expIndex {
 					found := false
-					for _, id := range index.root.rules {
-						if index.rules[id].Head.Ref().Equal(expRef) {
+					for _, rule := range index.rules {
+						if rule.Head.Ref().Equal(expRef) {
 							found = true
 							break
 						}
