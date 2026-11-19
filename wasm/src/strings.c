@@ -481,6 +481,28 @@ opa_value *opa_strings_replace(opa_value *a, opa_value *b, opa_value *c)
     opa_string_t *old = opa_cast_string(b);
     opa_string_t *new = opa_cast_string(c);
 
+    // An empty "old" matches before every byte and at the end, like topdown.
+    // Without this special case the loop below never advances.
+    if (old->len == 0)
+    {
+        int rlen = s->len + (s->len + 1) * new->len;
+        char *out = opa_malloc(rlen + 1);
+        int k = 0;
+
+        for (int i = 0; i <= s->len; i++)
+        {
+            memcpy(&out[k], new->v, new->len);
+            k += new->len;
+            if (i < s->len)
+            {
+                out[k++] = s->v[i];
+            }
+        }
+
+        out[k] = '\0';
+        return opa_string_allocated(out, k);
+    }
+
     int cap = s->len + 1;
     char *r = opa_malloc(cap);
 
