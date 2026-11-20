@@ -3417,8 +3417,22 @@ func TestCompilerDuplicateModuleURLIsNormalized(t *testing.T) {
 		{URL: "a.rego", Parsed: mod},
 		{URL: "/a.rego", Parsed: mod},
 	}}
-	if _, err := compile(ast.CapabilitiesForThisVersion(), b, debug.Discard(), false); err == nil || !strings.Contains(err.Error(), "duplicate module URL") {
+	if _, err := compile(ast.CapabilitiesForThisVersion(), b, debug.Discard(), false, ast.EvalModeTopdown); err == nil || !strings.Contains(err.Error(), "duplicate module URL") {
 		t.Fatalf("expected duplicate module URL error, got %v", err)
+	}
+}
+
+func TestCompileIRBuildsNoIndices(t *testing.T) {
+	mod := ast.MustParseModule("package a\n\np if input.x == 1\np if input.x == 2\n")
+	b := &bundle.Bundle{Modules: []bundle.ModuleFile{{URL: "a.rego", Parsed: mod}}}
+	for _, mode := range []ast.CompilerEvalMode{ast.EvalModeTopdown, ast.EvalModeIR} {
+		c, err := compile(ast.CapabilitiesForThisVersion(), b, debug.Discard(), false, mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if indexed := c.RuleIndex(ast.MustParseRef("data.a.p")) != nil; indexed != (mode == ast.EvalModeTopdown) {
+			t.Errorf("eval mode %v: expected a rule index: %v", mode, mode == ast.EvalModeTopdown)
+		}
 	}
 }
 
