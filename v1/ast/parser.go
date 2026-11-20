@@ -33,6 +33,14 @@ const (
 	DefaultMaxParsingRecursionDepth = 100000
 )
 
+type ruleHeadKeyword uint8
+
+const (
+	ruleHeadKeywordNone ruleHeadKeyword = 0
+	ruleHeadKeywordIf                   = 1 << iota
+	ruleHeadKeywordContains
+)
+
 var (
 	// ErrMaxParsingRecursionDepthExceeded is returned when the parser
 	// recursion exceeds the maximum allowed depth
@@ -906,7 +914,7 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if usesContains {
-		rule.Head.keywords = append(rule.Head.keywords, tokens.Contains)
+		rule.Head.keywords |= ruleHeadKeywordContains
 	}
 
 	if rule.Default {
@@ -966,7 +974,7 @@ func (p *Parser) parseRules() []*Rule {
 
 	switch {
 	case hasIf:
-		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
+		rule.Head.keywords |= ruleHeadKeywordIf
 		p.scan()
 		s := p.save()
 
@@ -1079,7 +1087,6 @@ func (p *Parser) parseRules() []*Rule {
 }
 
 func (p *Parser) parseElse(head *Head) *Rule {
-
 	var rule Rule
 	rule.SetLoc(p.s.Loc())
 
@@ -1125,7 +1132,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	}
 
 	if hasIf {
-		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
+		rule.Head.keywords |= ruleHeadKeywordIf
 		p.scan()
 	}
 
@@ -2664,7 +2671,7 @@ func (p *Parser) parseTerm() *Term {
 
 	term = p.parseTermFinish(term, false)
 	if unaryMinusLoc != nil && term != nil {
-		zero := NewTerm(IntNumberTerm(0).Value).SetLocation(unaryMinusLoc)
+		zero := NewTerm(internedIntNumberValue(0)).SetLocation(unaryMinusLoc)
 		term = p.setLoc(Minus.Call(zero, term), unaryMinusLoc, unaryMinusLoc.Offset, p.s.lastEnd)
 	}
 	p.parsedTermCachePush(term, s0)
@@ -2775,6 +2782,13 @@ func (p *Parser) parseNumber() *Term {
 	}
 
 	loc.Text = p.s.Text(loc.Offset, p.s.tokEnd)
+
+	if prefix == "" && len(s) < 4 {
+		if term := InternedIntNumberTermFromString(s); term != nil {
+			return &Term{Value: term.Value, Location: loc}
+		}
+	}
+
 	// Note: Use the original string, do *not* round trip from
 	// the big.Float as it can cause precision loss.
 	return NumberTerm(json.Number(s)).SetLocation(loc)
@@ -2782,7 +2796,7 @@ func (p *Parser) parseNumber() *Term {
 
 func (p *Parser) parseString() *Term {
 	if p.s.lit[0] == '"' {
-		if p.s.lit == "\"\"" {
+		if p.s.lit == `""` {
 			return NewTerm(InternedEmptyStringValue).SetLocation(p.s.Loc())
 		}
 
