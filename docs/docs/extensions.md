@@ -245,6 +245,38 @@ Maps and slices of other types accept any keys.
 Unrecognized options are warnings only. Return an error from `Validate` to reject
 a configuration.
 
+#### Validating with Rego
+
+Like OPA does for its own configuration, a plugin can validate its configuration
+and inject defaults with a Rego policy. Create one with
+[`config.NewPolicy`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/config#NewPolicy)
+and evaluate it in `Validate` with
+[`config.EvalPolicyInto`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/config#EvalPolicyInto),
+which decodes the processed configuration into your config struct. Keep the
+policy in a `.rego` file in your plugin's package directory, next to the Go
+file that embeds it with
+[`go:embed`](https://pkg.go.dev/embed), so it is compiled into your binary.
+See [Validating the Example with Rego](#validating-the-example-with-rego) for
+a complete example.
+
+The first argument to `config.NewPolicy` is only a label for the module: it
+appears in error messages, such as a Rego compile error. It isn't a path and
+isn't looked up anywhere, so a descriptive name for your plugin's policy works.
+The package path that the policy's rules live under is taken from the module's
+own `package` declaration.
+
+The policy is evaluated with `input.config` set to the plugin's raw configuration
+and defines these rules in its package:
+
+| Rule        | Description                                                               |
+| ----------- | ------------------------------------------------------------------------- |
+| `processed` | Required. The configuration with defaults injected.                       |
+| `errors`    | Optional. A set of messages; if non-empty, they are returned as an error. |
+| `warnings`  | Optional. A set of messages, returned for the plugin to log.              |
+
+The module can import `data.opa.config.util` for the helpers OPA's own validation
+policies use (`value`, `absent`, `not_object` and `not_positive_number`).
+
 ### Putting It Together
 
 The example below shows how you can implement a custom [Decision Logger](./management-decision-logs)
@@ -393,6 +425,94 @@ If there is a mask policy set (see [Decision Logger](./management-decision-logs)
 for details) the `Event` received by the demo plugin will potentially be different
 than the example documented.
 :::
+
+### Validating the Example with Rego
+
+The `Validate` function above only decodes the configuration, so
+`stderr: "yes"` fails with a generic decoding error and a misspelled option such
+as `stdrr` is silently ignored. The same plugin can instead validate its
+configuration with a Rego policy, as described in
+[Validating with Rego](#validating-with-rego).
+
+**validate.rego**:
+
+```rego
+package println_decision_logger.config
+
+# Default to stdout when "stderr" is not set.
+processed := object.union({"stderr": false}, input.config)
+
+errors contains "stderr must be a boolean" if {
+    stderr := input.config.stderr
+    not is_boolean(stderr)
+}
+
+warnings contains $"unknown configuration option \"{key}\"" if {
+    some key, _ in input.config
+    key != "stderr"
+}
+```
+
+Embed the policy and evaluate it in `Validate`, in place of the plain decode:
+
+```golang
+import (
+    "context"
+    _ "embed"
+
+    "github.com/open-policy-agent/opa/v1/config"
+    "github.com/open-policy-agent/opa/v1/plugins"
+)
+
+//go:embed validate.rego
+var validationModule string
+
+var validationPolicy *config.Policy
+
+func init() {
+    p, err := config.NewPolicy("println_decision_logger_config_validation", validationModule)
+    if err != nil {
+        panic(err)
+    }
+    validationPolicy = p
+}
+
+func (Factory) Validate(m *plugins.Manager, bs []byte) (any, error) {
+    var parsedConfig Config
+    warnings, err := config.EvalPolicyInto(context.TODO(), validationPolicy, bs, &parsedConfig)
+    if err != nil {
+        return nil, err
+    }
+    for _, w := range warnings {
+        m.Logger().Warn("println_decision_logger: %s", w)
+    }
+    return parsedConfig, nil
+}
+```
+
+With this in place, an invalid value is rejected at startup:
+
+```yaml
+plugins:
+  println_decision_logger:
+    stderr: "yes"
+```
+
+```
+error: stderr must be a boolean
+```
+
+and an unrecognized option is logged as a warning while the plugin still starts:
+
+```yaml
+plugins:
+  println_decision_logger:
+    stdrr: true
+```
+
+```
+{"level":"warning","msg":"println_decision_logger: unknown configuration option \"stdrr\""}
+```
 
 ## Custom Storage Backends
 
