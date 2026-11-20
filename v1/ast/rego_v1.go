@@ -2,8 +2,6 @@ package ast
 
 import (
 	"fmt"
-
-	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 )
 
 func checkDuplicateImports(modules []*Module) (errors Errors) {
@@ -186,13 +184,11 @@ func checkRegoV1Module(module *Module, opts RegoCheckOptions) Errors {
 	return errors
 }
 
-func checkRegoV1Rule(rule *Rule, opts RegoCheckOptions) Errors {
+func checkRegoV1Rule(rule *Rule, opts RegoCheckOptions) (errs Errors) {
 	t := "rule"
 	if rule.isFunction() {
 		t = "function"
 	}
-
-	var errs Errors
 
 	if opts.NoKeywordsAsRuleNames && len(rule.Head.Reference) < 2 && IsKeywordInRegoVersion(rule.Head.Name.String(), RegoV1) {
 		errs = append(errs, NewError(ParseErr, rule.Location, "%s keyword cannot be used for rule name", rule.Head.Name.String()))
@@ -200,10 +196,10 @@ func checkRegoV1Rule(rule *Rule, opts RegoCheckOptions) Errors {
 	if opts.RequireRuleBodyOrValue && rule.generatedBody && rule.Head.generatedValue {
 		errs = append(errs, NewError(ParseErr, rule.Location, "%s must have value assignment and/or body declaration", t))
 	}
-	if opts.RequireIfKeyword && rule.Body != nil && !rule.generatedBody && !ruleDeclarationHasKeyword(rule, tokens.If) && !rule.Default {
+	if opts.RequireIfKeyword && rule.Body != nil && !rule.generatedBody && rule.Head.keywords&ruleHeadKeywordIf == 0 && !rule.Default {
 		errs = append(errs, NewError(ParseErr, rule.Location, "`if` keyword is required before %s body", t))
 	}
-	if opts.RequireContainsKeyword && rule.Head.RuleKind() == MultiValue && !ruleDeclarationHasKeyword(rule, tokens.Contains) {
+	if opts.RequireContainsKeyword && rule.Head.RuleKind() == MultiValue && rule.Head.keywords&ruleHeadKeywordContains == 0 {
 		errs = append(errs, NewError(ParseErr, rule.Location, "`contains` keyword is required for partial set rules"))
 	}
 

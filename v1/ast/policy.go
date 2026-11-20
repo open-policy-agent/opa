@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -286,10 +285,10 @@ type (
 		Args      Args      `json:"args,omitempty"`
 		Key       *Term     `json:"key,omitempty"`
 		Value     *Term     `json:"value,omitempty"`
-		Assign    bool      `json:"assign,omitempty"`
 		Location  *Location `json:"location,omitempty"`
+		Assign    bool      `json:"assign,omitempty"`
 
-		keywords       []tokens.Token
+		keywords       ruleHeadKeyword
 		generatedValue bool
 	}
 
@@ -903,8 +902,7 @@ func (head *Head) Copy() *Head {
 	cpy.Args = head.Args.Copy()
 	cpy.Key = head.Key.Copy()
 	cpy.Value = head.Value.Copy()
-	cpy.keywords = nil
-	cpy.Assign = head.Assign
+	cpy.keywords = 0
 	return &cpy
 }
 

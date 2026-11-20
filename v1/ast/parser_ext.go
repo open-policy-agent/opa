@@ -13,11 +13,8 @@ package ast
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"unicode"
-
-	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 )
 
 // MustParseBody returns a parsed body.
@@ -907,10 +904,6 @@ func statementHeadKeyword(stmt Statement) (string, bool) {
 	return string(name), ok
 }
 
-func ruleDeclarationHasKeyword(rule *Rule, keyword tokens.Token) bool {
-	return slices.Contains(rule.Head.keywords, keyword)
-}
-
 func newScopeAttachmentErr(a *Annotations, want string) *Error {
 	var have string
 	if a.node != nil {
@@ -933,7 +926,6 @@ type ParserErrorDetail struct {
 }
 
 func newParserErrorDetail(bs []byte, offset int) *ParserErrorDetail {
-
 	// Find first non-space character at or before offset position.
 	if offset >= len(bs) {
 		offset = len(bs) - 1
