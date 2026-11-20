@@ -1,6 +1,7 @@
 package topdown
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 
@@ -17,6 +18,27 @@ var noDelimiters = []rune{}
 var dotDelimiters = []rune{'.'}
 var globCacheLock = sync.RWMutex{}
 var globCache = map[string]*glob.Pattern{}
+
+// globCacheKey builds the cache key that identifies a compiled glob.
+//
+// The key must map (pattern, delimiters) pairs injectively. Joining the two
+// with a single separator rune is not enough: that rune (the previous code used
+// '-') is a legal glob character and a legal delimiter, so distinct inputs such
+// as ("qux", ['-','x']) and ("qux-", ['x']) collapsed to the same key and
+// shared a cached pattern, returning the wrong match result. Prefixing the
+// pattern with its byte length makes the pattern/delimiters boundary
+// unambiguous, so no two different inputs produce the same key.
+func globCacheKey(pattern string, delimiters []rune) string {
+	var builder strings.Builder
+	builder.Grow(len(pattern) + len(delimiters) + 8)
+	builder.WriteString(strconv.Itoa(len(pattern)))
+	builder.WriteByte(':')
+	builder.WriteString(pattern)
+	for _, v := range delimiters {
+		builder.WriteRune(v)
+	}
+	return builder.String()
+}
 
 func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	pattern, err := builtins.StringOperand(operands[0].Value, 1)
@@ -45,13 +67,7 @@ func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 		return err
 	}
 
-	builder := strings.Builder{}
-	builder.WriteString(string(pattern))
-	builder.WriteRune('-')
-	for _, v := range delimiters {
-		builder.WriteRune(v)
-	}
-	id := builder.String()
+	id := globCacheKey(string(pattern), delimiters)
 
 	m, err := globCompileAndMatch(bctx, id, string(pattern), string(match), delimiters)
 	if err != nil {

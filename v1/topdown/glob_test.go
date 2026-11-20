@@ -30,8 +30,7 @@ func TestGlobBuiltinCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// the glob id will have a trailing '-' rune.
-	if _, ok := globCache[glob1+"-"]; !ok {
+	if _, ok := globCache[globCacheKey(glob1, nil)]; !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob1)
 	}
 
@@ -68,8 +67,45 @@ func TestGlobBuiltinCache(t *testing.T) {
 		t.Fatalf("Expected cache be capped at %d, was %d", regexCacheMaxSize, len(globCache))
 	}
 
-	if _, ok := globCache[glob2+"-"]; !ok {
+	if _, ok := globCache[globCacheKey(glob2, nil)]; !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob2)
+	}
+}
+
+// TestGlobMatchCacheKeyCollision pins that two different (pattern, delimiters)
+// inputs do not share a cache entry. Before the key carried the pattern length,
+// glob.match("qux", ["-","x"], ...) and glob.match("qux-", ["x"], ...) produced
+// the same key ("qux--x"), so the second call reused the first call's compiled
+// pattern and returned the wrong result.
+func TestGlobMatchCacheKeyCollision(t *testing.T) {
+	t.Parallel()
+
+	call := func(pattern string, delimiters []*ast.Term, match string) bool {
+		var got bool
+		iter := func(tm *ast.Term) error {
+			got = bool(tm.Value.(ast.Boolean))
+			return nil
+		}
+		operands := []*ast.Term{
+			ast.NewTerm(ast.String(pattern)),
+			ast.ArrayTerm(delimiters...),
+			ast.NewTerm(ast.String(match)),
+		}
+		if err := builtinGlobMatch(BuiltinContext{}, operands, iter); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		return got
+	}
+
+	// Pattern "qux" with delimiters '-' and 'x' matches the literal "qux".
+	if got := call("qux", []*ast.Term{ast.StringTerm("-"), ast.StringTerm("x")}, "qux"); !got {
+		t.Fatalf(`glob.match("qux", ["-","x"], "qux") = false, want true`)
+	}
+
+	// Pattern "qux-" with delimiter 'x' must not match "qux": the trailing '-'
+	// is a required literal. This previously collided with the entry above.
+	if got := call("qux-", []*ast.Term{ast.StringTerm("x")}, "qux"); got {
+		t.Fatalf(`glob.match("qux-", ["x"], "qux") = true, want false (cache key collision)`)
 	}
 }
 
@@ -167,8 +203,7 @@ func TestGlobBuiltinInterQueryValueCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// the glob id will have a trailing '-' rune.
-	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(glob1 + "-").Value); !ok {
+	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.String(globCacheKey(glob1, nil))); !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob1)
 	}
 
@@ -197,7 +232,7 @@ func TestGlobBuiltinInterQueryValueCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(glob2 + "-").Value); !ok {
+	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.String(globCacheKey(glob2, nil))); !ok {
 		t.Fatalf("Expected glob to be cached: %v", glob2)
 	}
 }
@@ -213,6 +248,7 @@ func TestGlobBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 	iter := func(*ast.Term) error { return nil }
 
 	key := "foo.*"
+	cacheKey := ast.String(globCacheKey(key, nil))
 
 	operands := []*ast.Term{
 		ast.NewTerm(ast.String(key)),
@@ -224,13 +260,12 @@ func TestGlobBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// the glob id will have a trailing '-' rune.
-	if _, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key + "-").Value); !ok {
+	if _, ok := ctx.InterQueryBuiltinValueCache.Get(cacheKey); !ok {
 		t.Fatalf("Expected glob to be cached: %v", key)
 	}
 
 	// update the cache entry
-	ctx.InterQueryBuiltinValueCache.Insert(ast.StringTerm(key+"-").Value, "bar")
+	ctx.InterQueryBuiltinValueCache.Insert(cacheKey, "bar")
 
 	err = builtinGlobMatch(ctx, operands, iter)
 	if err != nil {
@@ -238,9 +273,9 @@ func TestGlobBuiltinInterQueryValueCacheTypeMismatch(t *testing.T) {
 	}
 
 	// verify the cache entry is unchanged
-	value, ok := ctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(key + "-").Value)
+	value, ok := ctx.InterQueryBuiltinValueCache.Get(cacheKey)
 	if !ok {
-		t.Fatal("Expected key \"foo.*-\" in cache")
+		t.Fatalf("Expected key %q in cache", string(cacheKey))
 	}
 
 	actual, ok := value.(string)
