@@ -458,7 +458,8 @@ func (c *Compiler) Build(ctx context.Context) error {
 			Raw:  bs,
 		}}
 	case TargetRego:
-		// nop
+		// Only planning reads the compiler, so it needn't outlive the build.
+		c.compiler = nil
 	}
 
 	if c.revision != nil {
