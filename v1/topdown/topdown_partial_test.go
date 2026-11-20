@@ -5156,6 +5156,57 @@ q if { input.x = 7 }`},
 				`,
 			},
 		},
+		{
+			note:     "unknown sub-path: enumerated array element with an unknown field",
+			query:    `data.test.p = true`,
+			input:    `{"rs": [{"name": null}, {"name": "b"}]}`,
+			unknowns: []string{`input.rs[0].name`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some r in input.rs
+				  r.name == "a"
+				}
+				`,
+			},
+			wantQueries: []string{`input.rs[0].name = "a"`},
+		},
+		{
+			note:     "unknown sub-path: enumerated object value with an unknown field, negated",
+			query:    `data.test.p = true`,
+			input:    `{"rs": {"x": {"name": null}, "y": {"name": "b"}}}`,
+			unknowns: []string{`input.rs.x.name`},
+			modules: []string{
+				`package test
+
+				has_a if {
+				  some r in input.rs
+				  r.name == "a"
+				}
+
+				p if not has_a
+				`,
+			},
+			wantQueries: []string{`not input.rs.x.name = "a"`},
+		},
+		{
+			// The sibling element holds no unknown: its concrete value is used.
+			note:     "unknown sub-path: enumerated element without an unknown is unified",
+			query:    `data.test.p = true`,
+			input:    `{"rs": [{"name": null}, {"name": "b"}]}`,
+			unknowns: []string{`input.rs[0].name`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some r in input.rs
+				  r.name == "b"
+				}
+				`,
+			},
+			wantQueries: []string{``, `input.rs[0].name = "b"`},
+		},
 	}
 
 	runPartialEvalTests(t, tests)
