@@ -1,0 +1,84 @@
+---
+cases:
+  - note: jsonpointerescape/empty
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("")
+    want_result:
+      - x: ""
+  - note: jsonpointerescape/nothing to escape
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("abc")
+    want_result:
+      - x: abc
+  - note: jsonpointerescape/slash
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("a/b")
+    want_result:
+      - x: a~1b
+  - note: jsonpointerescape/tilde
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("a~b")
+    want_result:
+      - x: a~0b
+  - note: jsonpointerescape/tilde and slash are not escaped twice
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("~/")
+    want_result:
+      - x: ~0~1
+  - note: jsonpointerescape/already escaped text is escaped again
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("~1")
+    want_result:
+      - x: ~01
+  - note: jsonpointerescape/unicode
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.pointer_escape("é/日本")
+    want_result:
+      - x: é~1日本
+  - note: jsonpointerescape/matches nested replace
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if json.pointer_escape("a/b~c/~1~0") == replace(replace("a/b~c/~1~0", "~", "~0"), "/", "~1")
+    want_result:
+      - x: true
+  - note: jsonpointerescape/round trip with json.patch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := json.patch({}, [{"op": "add", "path": concat("/", ["", json.pointer_escape("a/b~c")]), "value": 1}])
+    want_result:
+      - x:
+          a/b~c: 1
