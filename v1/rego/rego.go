@@ -2641,6 +2641,27 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	return result, nil
 }
 
+// validateUnknowns rejects unknowns that partial evaluation cannot honor.
+// Only vars and refs reach the save set, and ref positions must be ground: a
+// wildcard or variable in an unknown (input.x[_]) never matches anything
+// there, so the unknown used to be silently dropped and the query evaluated
+// as if no unknowns were set. Non-var/ref values went further and panicked
+// the save set outright.
+func validateUnknowns(unknowns []*ast.Term) error {
+	for _, u := range unknowns {
+		switch v := u.Value.(type) {
+		case ast.Var:
+		case ast.Ref:
+			if !v.IsGround() {
+				return fmt.Errorf("illegal unknown %v: refs containing wildcards or variables are not supported", u)
+			}
+		default:
+			return fmt.Errorf("illegal unknown %v: expected var or ref", u)
+		}
+	}
+	return nil
+}
+
 func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries, error) {
 	var unknowns []*ast.Term
 
@@ -2659,6 +2680,10 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	default:
 		// Use input document as unknown if caller has not specified any.
 		unknowns = []*ast.Term{ast.NewTerm(ast.InputRootRef)}
+	}
+
+	if err := validateUnknowns(unknowns); err != nil {
+		return nil, err
 	}
 
 	q := topdown.NewQuery(ectx.compiledQuery.query).

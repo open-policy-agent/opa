@@ -1450,7 +1450,7 @@ Compile API requests contain the following fields:
 | `query`    | `string`              | Yes      | The query to partially evaluate and compile.                                                                                                |
 | `input`    | `any`                 | No       | The input document to use during partial evaluation (default: undefined).                                                                   |
 | `options`  | `object[string, any]` | No       | Additional options to use during partial evaluation: `disableInlining` (default: undefined) and `nondeterminsticBuiltins` (default: false). |
-| `unknowns` | `array[string]`       | No       | The terms to treat as unknown during partial evaluation (default: `["input"]`]).                                                            |
+| `unknowns` | `array[string]`       | No       | The terms to treat as unknown during partial evaluation (default: `["input"]`]). Refs must be ground; wildcards and variables are rejected. |
 
 #### Request Headers
 
@@ -1727,7 +1727,7 @@ OPA uses the `Accept` header to denote the target response format.
 | `options.maskRule`               | `string`                                                                                                                           | No                                                             | The rule to evaluate for generating column masks. Overrides any `mask_rule` annotations defined in the policy.                                                                                                      |
 | `options.targetDialects`         | `array[string]`, one of `ucast+all`, `ucast+minimal`, `ucast+prisma`, `ucast+linq`, `sql+sqlserver`, `sql+mysql`, `sql+postgresql` | Yes, if using `multitarget`. **Ignored for all other targets** | The output targets for partial evaluation. Different targets will have different constraints. Use [`Accept` header](#accept-header--controlling-the-target-response-format) to request a single compilation target. |
 | `options.targetSQLTableMappings` | `object[string, object[string, string]]`                                                                                           | No                                                             | A mapping between tables and columns. See the [example](#example-mapping-table-and-column-names) for the schema.                                                                                                    |
-| `unknowns`                       | `array[string]`                                                                                                                    | No                                                             | The terms to treat as unknown during partial evaluation (default: `[]`).                                                                                                                                            |
+| `unknowns`                       | `array[string]`                                                                                                                    | No                                                             | The terms to treat as unknown during partial evaluation (default: `[]`). Refs must be ground; wildcards and variables are rejected.                                                                                 |
 
 #### Example Request
 
