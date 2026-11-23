@@ -163,6 +163,9 @@ Certain built-in functions can be translated with certain restrictions:
 
 These built-in functions can only be used with _unknowns_ on the left-hand side.
 
+`startswith`, `endswith` and `contains` are not supported for the SQLite and MySQL targets:
+their `LIKE` operator is case-insensitive by default, so it does not match Rego's semantics.
+
 :::tip OK
 
 ```rego

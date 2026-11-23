@@ -84,6 +84,15 @@ See [Lucene filters](https://www.openpolicyagent.org/docs/filtering/lucene).
 
 Authored by @srenatus
 
+### Compile API: no `startswith`, `endswith` or `contains` for MySQL
+
+Breaking change: the MySQL target rejects `startswith`, `endswith` and `contains`, as the SQLite target
+already did. They were translated to `LIKE`, which is case- and accent-insensitive in MySQL's default
+collations, so `startswith(input.fruits.name, "APP")` also matched `apple`. Policies using them now fail
+to compile for `application/vnd.opa.sql.mysql+json`, and for multitarget requests that include `mysql`.
+
+Reported by @kianwang0610, authored by @srenatus
+
 ### Generated bundles
 
 A bundle whose policies are generated, for example from a policy database, can say so in its manifest:
