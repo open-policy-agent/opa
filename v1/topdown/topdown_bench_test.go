@@ -706,6 +706,44 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 	}
 }
 
+func BenchmarkPartialObjectRule(b *testing.B) {
+	ctx := b.Context()
+	module := `package test
+
+	p[k] := v if { some k, v in data.items }
+	objects[k] := {"v": v} if { some k, v in data.items }`
+
+	for _, rule := range []string{"p", "objects"} {
+		for _, n := range []int{100, 1000, 4000} {
+			b.Run(fmt.Sprintf("%s_%d", rule, n), func(b *testing.B) {
+				items := make(map[string]any, n)
+				for i := range n {
+					items[fmt.Sprintf("k%d", i)] = i
+				}
+				store := inmem.NewFromObject(map[string]any{"items": items})
+				compiler := ast.MustCompileModules(map[string]string{"test.rego": module})
+				query, err := compiler.QueryCompiler().Compile(ast.MustParseBody("x = data.test." + rule))
+				if err != nil {
+					b.Fatal(err)
+				}
+				b.ReportAllocs()
+				for b.Loop() {
+					err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+						rs, err := NewQuery(query).WithStore(store).WithCompiler(compiler).WithTransaction(txn).Run(ctx)
+						if err != nil || len(rs) != 1 {
+							b.Fatal("Unexpected result:", rs, "err:", err)
+						}
+						return nil
+					})
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkFunctionArgumentIndex(b *testing.B) {
 	ctx := b.Context()
 
