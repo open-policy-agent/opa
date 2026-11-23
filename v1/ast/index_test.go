@@ -3269,3 +3269,35 @@ func TestBaseDocEqIndexConstantInRef(t *testing.T) {
 		})
 	}
 }
+
+func TestRuleIndexMultiValueFirst(t *testing.T) {
+	c := MustCompileModules(map[string]string{"test.rego": `package test
+
+p[k] := {1} if k := "a"
+
+p.a contains 2
+`})
+	index := c.RuleIndex(MustParseRef("data.test.p"))
+	if index == nil {
+		t.Fatal("expected an index for data.test.p")
+	}
+
+	for name, lookup := range map[string]func(ValueResolver) (*IndexResult, error){
+		"lookup":    index.Lookup,
+		"all rules": index.AllRules,
+	} {
+		t.Run(name, func(t *testing.T) {
+			result, err := lookup(testResolver{input: MustParseTerm(`{}`)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var kinds []RuleKind
+			for _, r := range result.Rules {
+				kinds = append(kinds, r.Head.RuleKind())
+			}
+			if exp := []RuleKind{MultiValue, SingleValue}; !slices.Equal(kinds, exp) {
+				t.Errorf("expected rule kinds %v, got %v", exp, kinds)
+			}
+		})
+	}
+}

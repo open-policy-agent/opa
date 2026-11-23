@@ -96,10 +96,33 @@ func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 	}
 }
 
+// multiValueFirst orders multi-value rules before single-value ones when rules
+// has both. Ids follow this order, and lookups return rules in id order, so a
+// single-value rule writing a key multi-value rules add to meets the complete set.
+func multiValueFirst(rules []*Rule) []*Rule {
+	i := slices.IndexFunc(rules, func(r *Rule) bool { return r.Head.RuleKind() == SingleValue })
+	if i < 0 || !slices.ContainsFunc(rules[i+1:], func(r *Rule) bool { return r.Head.RuleKind() == MultiValue }) {
+		return rules
+	}
+	sorted := make([]*Rule, 0, len(rules))
+	for _, r := range rules {
+		if r.Head.RuleKind() == MultiValue {
+			sorted = append(sorted, r)
+		}
+	}
+	for _, r := range rules {
+		if r.Head.RuleKind() == SingleValue {
+			sorted = append(sorted, r)
+		}
+	}
+	return sorted
+}
+
 func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	if len(rules) == 0 {
 		return false
 	}
+	rules = multiValueFirst(rules)
 
 	i.kind = rules[0].Head.RuleKind()
 	indices := newrefindices(i.isVirtual, newRefTable())
