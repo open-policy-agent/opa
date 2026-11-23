@@ -3439,10 +3439,10 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	}
 
 	result := e.empty
-	var visitedRefs []ast.Ref
+	var leaves leafObjects
 
 	for _, rule := range e.ir.Rules {
-		result, err = e.evalOneRulePreUnify(iter, rule, result, unknown, &visitedRefs)
+		result, err = e.evalOneRulePreUnify(iter, rule, result, unknown, &leaves)
 		if err != nil {
 			return err
 		}
@@ -3486,7 +3486,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, error) {
 	result := e.empty
 
-	var visitedRefs []ast.Ref
+	var leaves leafObjects
 
 	child := evalPool.Get()
 	defer evalPool.Put(child)
@@ -3498,7 +3498,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 			child.traceExit(rule)
 			e.e.evaluated.Record(rule)
 
-			result, _, err = e.reduce(rule, child.bindings, result, &visitedRefs)
+			result, _, err = e.reduce(rule, child.bindings, result, &leaves)
 			if err == nil && child.traceEnabled {
 				child.traceRedo(rule)
 			}
@@ -3529,7 +3529,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(
 	rule *ast.Rule,
 	result *ast.Term,
 	unknown bool,
-	visitedRefs *[]ast.Ref,
+	leaves *leafObjects,
 ) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
@@ -3574,7 +3574,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(
 				err = e.evalTerm(iter, e.pos+1, term, termbindings)
 			} else {
 				var dup bool
-				result, dup, err = e.reduce(rule, child.bindings, result, visitedRefs)
+				result, dup, err = e.reduce(rule, child.bindings, result, leaves)
 				if err == nil && !unknown && dup && child.traceEnabled {
 					child.traceDuplicate(rule)
 				}
@@ -3974,16 +3974,16 @@ func (q vcKeyScope) empty() bool {
 	return len(q.Ref) == 0
 }
 
-func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Location) (*ast.Object, error) {
+func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, leaves leafObjects, l *ast.Location) (*ast.Object, error) {
 	current := rootObj
 	for _, term := range ref {
 		key := b.Plug(term)
 		if child := (*current).Get(key); child != nil {
-			if val, ok := child.Value.(ast.Object); ok {
-				current = &val
-			} else {
+			val, ok := child.Value.(ast.Object)
+			if _, leaf := leaves[child]; !ok || leaf {
 				return nil, objectDocKeyConflictErr(l)
 			}
+			current = &val
 		} else {
 			child := ast.NewObject()
 			(*current).Insert(key, ast.NewTerm(child))
@@ -3994,20 +3994,21 @@ func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Locat
 	return current, nil
 }
 
-func hasCollisions(path ast.Ref, visitedRefs *[]ast.Ref, b *bindings) bool {
-	collisionPath := ast.Ref(b.plugNamespacedTerms(path, nil))
+// leafObjects holds the object values rules which wrote into a partial object,
+// so that a rule writing to a child path conflicts and prevents writes.
+type leafObjects map[*ast.Term]struct{}
 
-	for _, c := range *visitedRefs {
-		if collisionPath.HasPrefix(c) && !collisionPath.Equal(c) {
-			return true
-		}
+func (l *leafObjects) add(t *ast.Term) {
+	if _, ok := t.Value.(ast.Object); !ok {
+		return
 	}
-	*visitedRefs = append(*visitedRefs, collisionPath)
-
-	return false
+	if *l == nil {
+		*l = make(leafObjects)
+	}
+	(*l)[t] = struct{}{}
 }
 
-func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term, visitedRefs *[]ast.Ref) (*ast.Term, bool, error) {
+func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term, leaves *leafObjects) (*ast.Term, bool, error) {
 	var exists bool
 	head := rule.Head
 
@@ -4025,15 +4026,10 @@ func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term
 		//          objPath
 		fullPath := rule.Ref()
 
-		collisionPath := fullPath[e.pos+1:]
-		if hasCollisions(collisionPath, visitedRefs, b) {
-			return nil, false, objectDocKeyConflictErr(head.Location)
-		}
-
 		objPath := fullPath[e.pos+1 : len(fullPath)-1] // the portion of the ref that generates nested objects
 		leafKey := b.Plug(fullPath[len(fullPath)-1])   // the portion of the ref that is the deepest nested key for the value
 
-		leafObj, err := getNestedObject(objPath, &v, b, head.Location)
+		leafObj, err := getNestedObject(objPath, &v, b, *leaves, head.Location)
 		if err != nil {
 			return nil, false, err
 		}
@@ -4049,6 +4045,7 @@ func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term
 				exists = true
 			} else {
 				(*leafObj).Insert(leafKey, val)
+				leaves.add(val)
 			}
 		} else {
 			// We're inserting into a set
