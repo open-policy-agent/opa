@@ -1,0 +1,137 @@
+---
+cases:
+  - note: "strings/replace: single replacement"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("a/b/c", "/", "_")
+    want_result:
+      - x: "a_b_c"
+  - note: "strings/replace: replacement longer than the search string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("registry.example.com/team/app:latest", "example.com", "internal.local")
+    want_result:
+      - x: "registry.internal.local/team/app:latest"
+  - note: "strings/replace: empty replacement removes the match"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("a/b/c", "/", "")
+    want_result:
+      - x: "abc"
+  - note: "strings/replace: no match returns the input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("abc", "x", "_")
+    want_result:
+      - x: "abc"
+  - note: "strings/replace: matches do not overlap"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("aaaa", "aa", "b")
+    want_result:
+      - x: "bb"
+  - note: "strings/replace: multi-byte characters"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("héllo wörld", "ö", "o")
+    want_result:
+      - x: "héllo world"
+  - note: "strings/replace: empty search string matches before every character and at the end"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("abc", "", "-")
+    want_result:
+      - x: "-a-b-c-"
+  - note: "strings/replace: empty search string in the empty string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := replace("", "", "-")
+    want_result:
+      - x: "-"
+  - note: "strings/replace_n: single pattern"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"/": "_"}, "a/b/c")
+    want_result:
+      - x: "a_b_c"
+  - note: "strings/replace_n: single pattern, no match returns the input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"@": "x"}, "a/b/c")
+    want_result:
+      - x: "a/b/c"
+  - note: "strings/replace_n: several patterns"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"/": "_", ":": "-", ".": "_"}, "registry.example.com/team/app:latest")
+    want_result:
+      - x: "registry_example_com_team_app-latest"
+  - note: "strings/replace_n: several patterns, no match returns the input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"@": "x", "#": "y"}, "a/b/c")
+    want_result:
+      - x: "a/b/c"
+  - note: "strings/replace_n: patterns are tried in key order"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"a": "y", "aa": "x"}, "aa")
+    want_result:
+      - x: "yy"
+  - note: "strings/replace_n: empty pattern"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"": "x"}, "ab")
+    want_result:
+      - x: "xaxbx"
+  - note: "strings/replace_n: no patterns"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({}, "abc")
+    want_result:
+      - x: "abc"
