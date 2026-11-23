@@ -473,6 +473,8 @@ type stepCont struct {
 	e       *eval
 	iter    evalIterator
 	fn      func() error
+	bareFn  func() error
+	rterm   *ast.Term // set for a bare term expression, which must not be false
 	advance bool
 }
 
@@ -480,8 +482,21 @@ func (c *stepCont) run() error {
 	return c.e.cont(c.iter, c.advance)
 }
 
+func (c *stepCont) runBare() error {
+	e := c.e
+	if e.saveSet != nil && e.saveSet.Contains(c.rterm, e.bindings) {
+		return e.saveExpr(ast.NewExpr(c.rterm), e.bindings, func() error {
+			return e.cont(c.iter, c.advance)
+		})
+	}
+	if e.bindings.Plug(c.rterm).Equal(ast.InternedTerm(false)) {
+		return nil
+	}
+	return e.cont(c.iter, c.advance)
+}
+
 func (c *stepCont) Reset() {
-	c.e, c.iter = nil, nil
+	c.e, c.iter, c.rterm = nil, nil, nil
 }
 
 // cont continues after a successful step: to the next expression if advance is
@@ -532,18 +547,15 @@ func (e *eval) evalStep(iter evalIterator, advance bool) (err error) {
 
 		stepContPool.Put(c)
 	case *ast.Term:
-		rterm := ast.VarTerm(e.fmtVar())
-		err = e.unify(terms, rterm, func() error {
-			if e.saveSet != nil && e.saveSet.Contains(rterm, e.bindings) {
-				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-					return e.cont(iter, advance)
-				})
-			}
-			if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
-				return e.cont(iter, advance)
-			}
-			return nil
-		})
+		c := stepContPool.Get()
+		c.e, c.iter, c.advance, c.rterm = e, iter, advance, ast.VarTerm(e.fmtVar())
+		if c.bareFn == nil {
+			c.bareFn = c.runBare
+		}
+
+		err = e.unify(terms, c.rterm, c.bareFn)
+
+		stepContPool.Put(c)
 	case *ast.Every:
 		eval := evalEvery{
 			e:     e,
