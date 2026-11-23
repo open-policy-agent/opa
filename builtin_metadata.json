@@ -259,13 +259,13 @@
       "id": "swift",
       "label": "Swift",
       "repo": "open-policy-agent/swift-opa",
-      "version": "0.0.11"
+      "version": "0.0.12"
     },
     {
       "id": "java",
       "label": "Java",
       "repo": "open-policy-agent/java-opa-sdk",
-      "version": "0.7.0"
+      "version": "0.8.0"
     }
   ],
   "abs": {
@@ -7082,7 +7082,9 @@
       "edge"
     ],
     "description": "Returns one or more certificates from the given string containing PEM\nor base64 encoded DER certificates after verifying the supplied certificates form a complete\ncertificate chain back to a trusted root.\n\nThe first certificate is treated as the root and the last is treated as the leaf,\nwith all others being treated as intermediates.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.8.0"
+    },
     "introduced": "v0.31.0",
     "result": {
       "description": "array of `[valid, certs]`: if the input certificate chain could be verified then `valid` is `true` and `certs` is an array of X.509 certificates represented as objects; if the input certificate chain could not be verified then `valid` is `false` and `certs` is `[]`",
@@ -7514,7 +7516,9 @@
       "edge"
     ],
     "description": "Returns zero or more certificates from the given encoded string containing\nDER certificate data.\n\nIf the input is empty, the function will return null. The input string should be a list of one or more\nconcatenated PEM blocks. The whole input of concatenated PEM blocks can optionally be Base64 encoded.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.8.0"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "parsed X.509 certificates represented as objects",
