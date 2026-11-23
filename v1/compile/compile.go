@@ -679,7 +679,7 @@ func placeBundle(b *bundle.Bundle, prefix string) {
 func (c *Compiler) optimize(ctx context.Context) error {
 	if c.optimizationLevel <= 0 {
 		var err error
-		c.compiler, err = compile(c.capabilities, c.bundle, c.debug, c.enablePrintStatements)
+		c.compiler, err = compile(c.capabilities, c.bundle, c.debug, c.enablePrintStatements, ast.EvalModeIR)
 		return err
 	}
 
@@ -710,7 +710,7 @@ func (c *Compiler) compilePlan(context.Context) error {
 	// AST compiler will not be set because the default target does not require it.
 	if c.compiler == nil {
 		var err error
-		c.compiler, err = compile(c.capabilities, c.bundle, c.debug, c.enablePrintStatements)
+		c.compiler, err = compile(c.capabilities, c.bundle, c.debug, c.enablePrintStatements, ast.EvalModeIR)
 		if err != nil {
 			return err
 		}
@@ -1114,7 +1114,8 @@ func (o *optimizer) Do(ctx context.Context) error {
 		}
 
 		var err error
-		o.compiler, err = compile(o.capabilities, o.bundle, o.debug, o.enablePrintStatements)
+		// Partial evaluation evaluates with this compiler.
+		o.compiler, err = compile(o.capabilities, o.bundle, o.debug, o.enablePrintStatements, ast.EvalModeTopdown)
 		if err != nil {
 			return err
 		}
@@ -1384,7 +1385,9 @@ func (o *optimizer) moduleExists(name string) bool {
 
 var safePathPattern = regexp.MustCompile(`^[\w-_/]+$`)
 
-func compile(c *ast.Capabilities, b *bundle.Bundle, dbg debug.Debug, enablePrintStatements bool) (*ast.Compiler, error) {
+// compile compiles b's modules. Only a compiler something evaluates with needs
+// evalMode ast.EvalModeTopdown: checking and planning build no indices.
+func compile(c *ast.Capabilities, b *bundle.Bundle, dbg debug.Debug, enablePrintStatements bool, evalMode ast.CompilerEvalMode) (*ast.Compiler, error) {
 
 	modules := map[string]*ast.Module{}
 	seen := map[string]struct{}{}
@@ -1399,7 +1402,11 @@ func compile(c *ast.Capabilities, b *bundle.Bundle, dbg debug.Debug, enablePrint
 		modules[mf.URL] = mf.Parsed
 	}
 
-	compiler := ast.NewCompiler().WithCapabilities(c).WithDebug(dbg.Writer()).WithEnablePrintStatements(enablePrintStatements)
+	compiler := ast.NewCompiler().
+		WithCapabilities(c).
+		WithDebug(dbg.Writer()).
+		WithEnablePrintStatements(enablePrintStatements).
+		WithEvalMode(evalMode)
 	compiler.Compile(modules)
 
 	if compiler.Failed() {
