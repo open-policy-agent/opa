@@ -1683,13 +1683,14 @@ func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
 	cache, ok := e.comprehensionCache.Elem(a)
 	if !ok {
 		var err error
+		var conflicts []*comprehensionCacheElem
 		switch x := a.Value.(type) {
 		case *ast.ArrayComprehension:
 			cache, err = e.buildComprehensionCacheArray(x, index.Keys)
 		case *ast.SetComprehension:
 			cache, err = e.buildComprehensionCacheSet(x, index.Keys)
 		case *ast.ObjectComprehension:
-			cache, err = e.buildComprehensionCacheObject(x, index.Keys)
+			cache, conflicts, err = e.buildComprehensionCacheObject(x, index.Keys)
 		default:
 			err = internalErr(e.query[e.index].Location, "illegal comprehension type")
 		}
@@ -1697,12 +1698,22 @@ func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
 			return nil, err
 		}
 		e.comprehensionCache.Set(a, cache)
+		for _, group := range conflicts {
+			e.comprehensionCache.SetConflict(group)
+		}
 		e.instr.counterIncr(evalOpComprehensionCacheBuild)
 	} else {
 		e.instr.counterIncr(evalOpComprehensionCacheHit)
 	}
 
-	return cache.Get(util.Map(index.Keys, e.bindings.Plug)), nil
+	group := cache.Find(util.Map(index.Keys, e.bindings.Plug))
+	if group == nil {
+		return nil, nil
+	}
+	if e.comprehensionCache.Conflict(group) {
+		return nil, objectDocKeyConflictErr(a.Value.(*ast.ObjectComprehension).Key.Location)
+	}
+	return group.value, nil
 }
 
 func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
@@ -1744,25 +1755,32 @@ func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.T
 	})
 }
 
-func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
+// buildComprehensionCacheObject also returns the groups that produced a key
+// twice with different values: looking one of those up is the conflict error.
+func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []*ast.Term) (*comprehensionCacheElem, []*comprehensionCacheElem, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
 	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
-	return node, child.Run(func(child *eval) error {
+	var conflicts []*comprehensionCacheElem
+	err := child.Run(func(child *eval) error {
 		values := util.Map(keys, child.bindings.Plug)
 		headKey := child.bindings.Plug(x.Key)
 		headValue := child.bindings.Plug(x.Value)
-		cached := node.Get(values)
-		if cached != nil {
-			obj := cached.Value.(ast.Object)
-			obj.Insert(headKey, headValue)
+		if group := node.Find(values); group != nil && group.value != nil {
+			obj := group.value.Value.(ast.Object)
+			if exist := obj.Get(headKey); exist == nil {
+				obj.Insert(headKey, headValue)
+			} else if !exist.Equal(headValue) && !slices.Contains(conflicts, group) {
+				conflicts = append(conflicts, group)
+			}
 		} else {
 			node.Put(values, ast.ObjectTerm(ast.Item(headKey, headValue)))
 		}
 		return nil
 	})
+	return node, conflicts, err
 }
 
 func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {

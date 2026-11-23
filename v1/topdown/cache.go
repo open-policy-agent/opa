@@ -244,7 +244,12 @@ func (s *refStack) Prefixed(ref ast.Ref) bool {
 }
 
 type comprehensionCache struct {
-	stack util.SliceStack[map[*ast.Term]*comprehensionCacheElem]
+	stack util.SliceStack[comprehensionCacheFrame]
+}
+
+type comprehensionCacheFrame struct {
+	elems     map[*ast.Term]*comprehensionCacheElem
+	conflicts map[*comprehensionCacheElem]struct{} // groups with an object key conflict
 }
 
 type comprehensionCacheElem struct {
@@ -259,7 +264,7 @@ func newComprehensionCache() *comprehensionCache {
 }
 
 func (c *comprehensionCache) Push() {
-	c.stack.Push(nil) // allocated by Set, a frame is often never written to
+	c.stack.Push(comprehensionCacheFrame{}) // maps allocated on write, a frame is often never written to
 }
 
 func (c *comprehensionCache) Pop() {
@@ -267,16 +272,31 @@ func (c *comprehensionCache) Pop() {
 }
 
 func (c *comprehensionCache) Elem(t *ast.Term) (*comprehensionCacheElem, bool) {
-	elem, ok := c.stack.Peek()[t]
+	elem, ok := c.stack.Peek().elems[t]
 	return elem, ok
 }
 
 func (c *comprehensionCache) Set(t *ast.Term, elem *comprehensionCacheElem) {
 	top := c.stack.PeekPtr()
-	if *top == nil {
-		*top = map[*ast.Term]*comprehensionCacheElem{}
+	if top.elems == nil {
+		top.elems = map[*ast.Term]*comprehensionCacheElem{}
 	}
-	(*top)[t] = elem
+	top.elems[t] = elem
+}
+
+// SetConflict records that group's object comprehension produced a key twice
+// with different values, which is an error when the group is looked up.
+func (c *comprehensionCache) SetConflict(group *comprehensionCacheElem) {
+	top := c.stack.PeekPtr()
+	if top.conflicts == nil {
+		top.conflicts = map[*comprehensionCacheElem]struct{}{}
+	}
+	top.conflicts[group] = struct{}{}
+}
+
+func (c *comprehensionCache) Conflict(group *comprehensionCacheElem) bool {
+	_, ok := c.stack.Peek().conflicts[group]
+	return ok
 }
 
 func newComprehensionCacheElem() *comprehensionCacheElem {
@@ -284,6 +304,13 @@ func newComprehensionCacheElem() *comprehensionCacheElem {
 }
 
 func (c *comprehensionCacheElem) Get(key []*ast.Term) *ast.Term {
+	if node := c.Find(key); node != nil {
+		return node.value
+	}
+	return nil
+}
+
+func (c *comprehensionCacheElem) Find(key []*ast.Term) *comprehensionCacheElem {
 	node := c
 	for i := range key {
 		x, ok := node.children.Get(key[i])
@@ -292,7 +319,7 @@ func (c *comprehensionCacheElem) Get(key []*ast.Term) *ast.Term {
 		}
 		node = x
 	}
-	return node.value
+	return node
 }
 
 func (c *comprehensionCacheElem) Put(key []*ast.Term, value *ast.Term) {
