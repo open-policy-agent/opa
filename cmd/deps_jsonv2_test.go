@@ -632,3 +632,28 @@ p contains 4 if {
 		}
 	}
 }
+
+func TestDepsMixedDataAndBundle(t *testing.T) {
+	files := map[string]string{
+		"policy.rego":       "package policy\nallow if { input.user; data.other.allow }",
+		"bundle/other.rego": "package other\nallow if input.other",
+	}
+	test.WithTempFS(files, func(root string) {
+		params := newDepsCommandParams()
+		if err := params.dataPaths.Set(filepath.Join(root, "policy.rego")); err != nil {
+			t.Fatal(err)
+		}
+		if err := params.bundlePaths.Set(filepath.Join(root, "bundle")); err != nil {
+			t.Fatal(err)
+		}
+		var output bytes.Buffer
+		if err := deps([]string{"data.policy.allow"}, params, &output); err != nil {
+			t.Fatal(err)
+		}
+		for _, ref := range []string{"input.user", "input.other", "data.policy.allow", "data.other.allow"} {
+			if !strings.Contains(output.String(), ref) {
+				t.Errorf("Expected dependency %s in output:\n%s", ref, output.String())
+			}
+		}
+	})
+}
