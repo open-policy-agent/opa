@@ -2741,3 +2741,41 @@ func newOauth2AzureKVClient(t *testing.T, ts *testServer, ots *oauth2TestServer,
 	client.config.Credentials.OAuth2.AzureSigningPlugin = azureSign
 	return &client
 }
+
+func TestWithHeaderOverridesConfig(t *testing.T) {
+	for _, header := range []string{"If-None-Match", "if-none-match"} {
+		t.Run(header, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if got := r.Header.Values("If-None-Match"); !reflect.DeepEqual(got, []string{"new"}) {
+					t.Errorf("unexpected header: got %q, want [new]", got)
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer ts.Close()
+			cfg, err := json.Marshal(map[string]any{"url": ts.URL, "headers": map[string]string{"If-None-Match": "old"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client, err := New(cfg, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			firstHeader := "if-none-match"
+			if header == firstHeader {
+				firstHeader = "If-None-Match"
+			}
+			client = client.WithHeader(firstHeader, "first").WithHeader(header, "new")
+			if len(client.headers) != 1 {
+				t.Errorf("expected a single explicit header, got %v", client.headers)
+			}
+			resp, err := client.Do(t.Context(), http.MethodGet, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+			if got := client.Config().Headers["If-None-Match"]; got != "old" {
+				t.Errorf("configured header changed: got %q, want old", got)
+			}
+		})
+	}
+}

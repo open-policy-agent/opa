@@ -293,7 +293,7 @@ func (c Client) WithHeader(k, v string) Client {
 	if c.headers == nil {
 		c.headers = map[string]string{}
 	}
-	c.headers[k] = v
+	c.headers[http.CanonicalHeaderKey(k)] = v
 	return c
 }
 
@@ -346,7 +346,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		req.Header.Set(key, value)
 	}
 	for key, value := range c.headers { // Overwrite with headers set directly on client.
-		req.Header.Add(key, value)
+		req.Header.Set(key, value)
 	}
 
 	c.cache.mu.Lock()
