@@ -1255,6 +1255,29 @@ q := all([true, false])
 	}
 }
 
+func TestFmtFormatStdin_DropV0Imports(t *testing.T) {
+	for _, directive := range []string{"rego.v1", "future.keywords", "future.keywords.if"} {
+		for _, drop := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/drop=%t", directive, drop), func(t *testing.T) {
+				input := "package test\n\nimport " + directive + "\n\np if input.x\n"
+				expected := input
+				if drop {
+					expected = "package test\n\np if input.x\n"
+				}
+				params := newFmtCommandParams()
+				params.dropV0Imports = drop
+				var stdout bytes.Buffer
+				if err := formatStdin(params, strings.NewReader(input), &stdout); err != nil {
+					t.Fatal(err)
+				}
+				if actual := stdout.String(); actual != expected {
+					t.Fatalf("Expected:\n%s\nGot:\n%s", expected, actual)
+				}
+			})
+		}
+	}
+}
+
 func TestFmtFormatStdin_KeywordsInRefs(t *testing.T) {
 	cases := []struct {
 		note        string

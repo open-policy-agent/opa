@@ -243,9 +243,10 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 	}
 
 	opts := format.Opts{
-		RegoVersion:   params.regoVersion(),
-		Capabilities:  params.capabilities(),
-		ParserOptions: params.parserOptions(),
+		RegoVersion:                   params.regoVersion(),
+		DropRedundantDirectiveImports: params.dropV0Imports,
+		Capabilities:                  params.capabilities(),
+		ParserOptions:                 params.parserOptions(),
 	}
 
 	formatted, err := format.SourceWithOpts("stdin", contents, opts)
