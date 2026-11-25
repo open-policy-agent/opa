@@ -655,9 +655,9 @@ func TestCompileFiltersLuceneUnsupportedVariant(t *testing.T) {
 	}
 }
 
-// With future.keywords.not, `not` over an unknown becomes a negated body or a
-// support rule, which no target translates (yet). It must be an error, never a
-// filter with the negation dropped.
+// With future.keywords.not, `not` over an unknown becomes a negated body,
+// which the fragment flattens into negated expressions. For a comparison other
+// than equality, the negated body is a support rule's.
 func TestCompileFiltersLuceneFutureNot(t *testing.T) {
 	tests := []struct {
 		note string
@@ -665,12 +665,12 @@ func TestCompileFiltersLuceneFutureNot(t *testing.T) {
 		exp  string // expected query, if any
 		err  string
 	}{
-		{note: "not eq", body: `not input.doc.price == 10`, err: "invalid statement"},
-		{note: "not lt", body: `not input.doc.price < 12`, err: "invalid statement"},
-		{note: "not in", body: `not input.doc.name in {"a", "b"}`, err: "invalid statement"},
-		{note: "not with known call", body: `not input.doc.name == lower(input.user)`, err: "invalid statement"},
-		{note: "explicit not body", body: "not {\n input.doc.a == 1\n input.doc.b == 2\n}", err: "invalid statement"},
-		{note: "not ne", body: `not input.doc.price != 11`, err: "invalid statement"},
+		{note: "not eq", body: `not input.doc.price == 10`, exp: `(*:* AND NOT price:10)`},
+		{note: "not lt", body: `not input.doc.price < 12`, exp: `(*:* AND NOT price:{* TO 12})`},
+		{note: "not in", body: `not input.doc.name in {"a", "b"}`, exp: `(*:* AND NOT name:("a" OR "b"))`},
+		{note: "not with known call", body: `not input.doc.name == lower(input.user)`, exp: `(*:* AND NOT name:"alice")`},
+		{note: "explicit not body", body: "not {\n input.doc.a == 1\n input.doc.b == 2\n}", exp: `((*:* AND NOT a:1) OR (*:* AND NOT b:2))`},
+		{note: "not ne", body: `not input.doc.price != 11`, exp: `(*:* AND NOT (price:[* TO *] AND NOT price:11))`},
 		{note: "ne is unaffected", body: `input.doc.price != 11`, exp: `(price:[* TO *] AND NOT price:11)`},
 		{note: "not on known values is unaffected", body: "not input.user == \"bob\"\ninput.doc.price == 1", exp: `price:1`},
 	}
@@ -707,6 +707,56 @@ func TestCompileFiltersLuceneFutureNot(t *testing.T) {
 				if target[0] == "lucene" && filters.One().Query != tc.exp {
 					t.Errorf("expected %v, got %v", tc.exp, filters.One().Query)
 				}
+			}
+		})
+	}
+}
+
+// The logical keywords of rego.v2 (`and`, `or`, `not` bodies) reach the
+// fragment as logical expressions; the filters are those of the equivalent
+// policies without them.
+func TestCompileFiltersLogicalKeywords(t *testing.T) {
+	tests := []struct {
+		note string
+		body string
+		exp  string // expected query, if any
+		err  string
+	}{
+		{note: "or", body: `input.doc.name == "a" or input.doc.level == 2`, exp: `(name:"a" OR level:2)`},
+		{note: "and", body: `input.doc.name == "a" and input.doc.level == 2`, exp: `(name:"a" AND level:2)`},
+		{note: "or of not", body: `not input.doc.name == "a" or input.doc.level == 2`, exp: `((*:* AND NOT name:"a") OR level:2)`},
+		{note: "not or", body: `not (input.doc.name == "a" or input.doc.level == 2)`, exp: `(*:* AND NOT name:"a" AND NOT level:2)`},
+		{note: "or in conjunction", body: "input.doc.colour == \"blue\"\ninput.doc.name == \"a\" or input.doc.name == \"b\"", exp: `((colour:"blue" AND name:"a") OR (colour:"blue" AND name:"b"))`},
+		{note: "not body over or", body: "not {\n input.doc.name == \"a\" or input.doc.level == 2\n}", exp: `(*:* AND NOT name:"a" AND NOT level:2)`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := "package filters\nimport rego.v2\ninclude if {\n" + tc.body + "\n}\n"
+			prep, err := compile.New(
+				compile.Target("lucene", "solr"),
+				compile.ParsedUnknowns(luceneUnknowns...),
+				compile.ParsedQuery(ast.MustParseBody("data.filters.include")),
+				compile.Rego(
+					rego.Module("filters.rego", module),
+					rego.Input(map[string]any{"user": "alice"}),
+				),
+			).Prepare(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			filters, err := prep.Compile(t.Context())
+			if tc.err != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.err) {
+					t.Fatalf("expected error containing %q, got %v", tc.err, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if act := filters.One().Query; act != tc.exp {
+				t.Errorf("expected %v, got %v", tc.exp, act)
 			}
 		})
 	}

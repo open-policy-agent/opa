@@ -180,6 +180,9 @@ func checkBuiltins(c *checker, e *ast.Expr, _ []*ast.Module) *ast.Error {
 			unknownRefs++
 		}
 	}
+	if unknownRefs == 0 { // what partial evaluation leaves of a comparison names a field
+		return err(loc, "%v: no field operand: %v", cmp.Or(replacements[op0], op0), e)
+	}
 	if unknownRefs == 2 {
 		if err0 := c.constraints.AssertFeature("field-ref"); err0 != nil {
 			return err(loc, "reference to field: %s", err0.Error())

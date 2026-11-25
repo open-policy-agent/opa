@@ -257,4 +257,16 @@ apple_ish if endswith(input.fruits.name, "apple")
 apple_ish if startswith(input.fruits.name, "apple")
 ```
 
+With the [improved negation](../policy-reference/keywords/not#improved-negation-semantics) of Rego v2 or `future.keywords.not`, the second is allowed: `not apple_ish` becomes `WHERE (NOT name LIKE '%apple' AND NOT name LIKE 'apple%')`.
+:::
+
+## Logical expressions
+
+The logical expressions of Rego v2 — [`and`/`or`](../policy-reference/keywords/logical) and [`not` bodies](../policy-reference/keywords/not#explicit-negation-bodies), or the corresponding [future keyword](../policy-reference/keywords/import#importing-future-keywords) imports — are translated like their Rego v1 equivalents: `a or b` becomes the disjunction of the filters of `a` and `b`, as two rules would; `a and b` their conjunction, as one body would; and a negated body the disjunction of the negations of its expressions.
+
+A negated body whose expressions share a variable, like `not { input.fruits.tags[i] == "a"; input.fruits.colours[i] == "red" }`, cannot be taken apart this way, and is not allowed.
+
+:::warning Size of the filter
+The filter is a disjunction of conjunctions, so a body with several `or` expressions becomes one conjunction for every combination of their operands: ten `(a or b)` expressions in one body give 1024 of them.
+That is the limit: a body that would give more is an error. An `or` inside an `every` over the input counts once for every element.
 :::
