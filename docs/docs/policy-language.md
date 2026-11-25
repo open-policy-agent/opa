@@ -1994,6 +1994,18 @@ following syntax:
 The `<target>`s must be references to values in the input document (or the input
 document itself) or data document, or references to functions (built-in or not).
 
+A `<target>` can replace a single element of an array whose length is already
+known, either because the array is part of the document or because an earlier
+`with` in the same expression set it. The index must be an integer within the
+bounds of the array, as `with` cannot change the length of an array:
+
+```rego
+allow if {
+    input.users == ["alice", "alice"] with input.users as ["alice", "bob"]
+        with input.users[1] as "alice"
+}
+```
+
 :::info
 When applied to the `data` document, the `<target>` must not attempt to
 partially define virtual documents. For example, given a virtual document at
