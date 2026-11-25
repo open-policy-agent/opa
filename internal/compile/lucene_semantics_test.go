@@ -121,6 +121,8 @@ type luceneCase struct {
 	// inferred leaves the shapes of the fields to the policy, instead of declaring
 	// them in luceneSchema.
 	inferred bool
+
+	v2 bool // the policy imports rego.v2
 }
 
 // luceneSchema declares the shapes of the fields of the documents of luceneDocs.
@@ -132,7 +134,8 @@ var luceneSchema = map[string]any{"type": "object", "properties": map[string]any
 }}
 
 // translate runs the pipeline the Compile API runs for the Lucene target, up to
-// the tree: partial evaluation, the multi-valued rewrite, the checks.
+// the tree: partial evaluation, the flattening of logical expressions, the
+// multi-valued rewrite, the checks.
 func translate(t *testing.T, c luceneCase) (node *ucast.UCASTNode, all, none bool, err error) {
 	t.Helper()
 	pq, perr := rego.New(
@@ -143,6 +146,10 @@ func translate(t *testing.T, c luceneCase) (node *ucast.UCASTNode, all, none boo
 	).Partial(t.Context())
 	if perr != nil {
 		t.Fatal(perr)
+	}
+	var ferr *ast.Error
+	if pq.Queries, ferr = FlattenLogical(pq.Queries, pq.Support); ferr != nil {
+		return nil, false, false, ferr
 	}
 	if pq.Queries == nil {
 		return nil, false, true, nil
@@ -168,10 +175,14 @@ func translate(t *testing.T, c luceneCase) (node *ucast.UCASTNode, all, none boo
 }
 
 func luceneModule(c luceneCase) string {
-	if strings.HasPrefix(c.rego, "include") {
-		return "package filters\n" + c.rego + "\n"
+	header := "package filters\n"
+	if c.v2 {
+		header += "import rego.v2\n"
 	}
-	return "package filters\ninclude if {\n" + c.rego + "\n}\n"
+	if strings.HasPrefix(c.rego, "include") {
+		return header + c.rego + "\n"
+	}
+	return header + "include if {\n" + c.rego + "\n}\n"
 }
 
 func toAny(xs []string) []any {
@@ -186,7 +197,10 @@ func toAny(xs []string) []any {
 // which a negation holds for an undefined value, as Lucene's does for a missing field.
 func regoHolds(t *testing.T, c luceneCase, doc map[string]any) bool {
 	t.Helper()
-	module := strings.Replace(luceneModule(c), "package filters\n", "package filters\nimport future.keywords.not\n", 1)
+	module := luceneModule(c)
+	if !c.v2 {
+		module = strings.Replace(module, "package filters\n", "package filters\nimport future.keywords.not\n", 1)
+	}
 	rs, err := rego.New(
 		rego.Module("f.rego", module),
 		rego.Query("data.filters.include"),
@@ -338,6 +352,40 @@ func TestLuceneMatchesRego(t *testing.T) {
 		{note: "inferred, every and range", rego: "every p in input.doc.tags { p != \"a\" }\ninput.doc.level > 1", inferred: true},
 		{note: "inferred, one field both ways", rego: "\"a\" in input.doc.tags\ninput.doc.tags != \"b\"", inferred: true, reject: "used both as an array and as a single value"},
 		{note: "inferred, both ways in two rules", rego: "include if \"a\" in input.doc.tags\ninclude if input.doc.tags == \"b\"", inferred: true, reject: "used both"},
+
+		// The logical expressions of rego.v2.
+		{note: "v2, or", rego: `input.doc.name == "a" or "b" in input.doc.tags`, v2: true},
+		{note: "v2, and", rego: `input.doc.name == "a" and input.doc.level >= 2`, v2: true},
+		{note: "v2, or of not", rego: `not input.doc.name == "a" or input.doc.level == 2`, v2: true},
+		{note: "v2, not or", rego: `not (input.doc.name == "a" or "b" in input.doc.tags)`, v2: true},
+		{note: "v2, not and", rego: `not (input.doc.name == "a" and input.doc.level < 3)`, v2: true},
+		{note: "v2, or in conjunction", rego: "\"a\" in input.doc.colors\ninput.doc.name == \"a\" or input.doc.level == 1", v2: true},
+		{note: "v2, not body", rego: "not {\n input.doc.name == \"a\"\n \"b\" in input.doc.tags\n}", v2: true},
+		{note: "v2, not body over or", rego: "not {\n input.doc.name == \"a\" or input.doc.level == 1\n}", v2: true},
+		{note: "v2, not body, some element", rego: "not {\n some p in input.doc.tags\n p == \"a\"\n}", v2: true},
+		{note: "v2, not body, two elements", rego: "not {\n some p in input.doc.tags\n p == \"a\"\n some q in input.doc.colors\n q == \"b\"\n}", v2: true},
+		{note: "v2, not body, one index", rego: "not {\n input.doc.tags[i] == \"a\"\n input.doc.colors[i] == \"c\"\n}", v2: true, reject: "invalid statement"},
+		{note: "v2, not lt", rego: `not input.doc.level < 2`, v2: true},
+		{note: "v2, not in", rego: `not input.doc.name in {"a", "b"}`, v2: true},
+		{note: "v2, not ne", rego: `not input.doc.name != "a"`, v2: true},
+		{note: "v2, not startswith", rego: `not startswith(input.doc.name, "a")`, v2: true},
+		{note: "v2, not known in field", rego: `not "a" in input.doc.tags`, v2: true},
+		{note: "v2, not lt, and member", rego: "not input.doc.level < 2\n\"a\" in input.doc.tags", v2: true},
+		{note: "v2, not body, two comparisons", rego: "not {\n input.doc.level > 1\n input.doc.name in {\"a\", \"b\"}\n}", v2: true},
+		{note: "v2, not (lt or startswith)", rego: `not (input.doc.level < 2 or startswith(input.doc.name, "c"))`, v2: true},
+		{note: "v2, not rule", rego: "include if not r\nr if input.doc.level < 2\nr if startswith(input.doc.name, \"c\")", v2: true},
+		{note: "v2, not function", rego: "include if not f(input.doc.level)\nf(x) if x < 2", v2: true},
+		{note: "v2, and true", rego: `input.doc.level > 1 and true`, v2: true},
+		{note: "v2, or false", rego: `input.doc.level > 1 or false`, v2: true},
+		{note: "v2, or true", rego: `input.doc.level > 1 or true`, v2: true},
+		{note: "v2, not and true", rego: `not (input.doc.level > 1 and true)`, v2: true},
+		{note: "v2, not or false", rego: `not (input.doc.level > 1 or false)`, v2: true},
+		{note: "v2, and known true", rego: `input.doc.level > 1 and input.user == "u"`, v2: true},
+		{note: "v2, and known false", rego: `input.doc.level > 1 and input.user == "x"`, v2: true},
+		{note: "v2, or known false", rego: `input.doc.level > 1 or input.user == "x"`, v2: true},
+		{note: "v2, or known true", rego: `input.doc.level > 1 or input.user == "u"`, v2: true},
+		{note: "v2, not and known true", rego: `not (input.doc.level > 1 and input.user == "u")`, v2: true},
+		{note: "v2, not or known false", rego: `not (input.doc.level > 1 or input.user == "x")`, v2: true},
 	}
 	for _, c := range cases {
 		t.Run(c.note, func(t *testing.T) {

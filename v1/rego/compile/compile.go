@@ -330,6 +330,11 @@ func (p *Prepared) Compile(ctx context.Context, eo ...rego.EvalOption) (*Filters
 	if err != nil {
 		return nil, fmt.Errorf("partial eval: %w", err)
 	}
+	queries, ferr := compile.FlattenLogical(pq.Queries, pq.Support)
+	if ferr != nil {
+		return nil, ast.Errors{ferr}
+	}
+	pq.Queries = queries
 
 	if len(p.compile.targets) > 0 && p.constraintSet.Supports("multi-valued") {
 		queries, errs := compile.NormalizeMultiValued(pq.Queries, p.document(), p.compile.schema)
