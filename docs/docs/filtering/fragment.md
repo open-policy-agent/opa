@@ -130,26 +130,10 @@ For SQL and UCAST/Prisma, it's valid to assert that a field exists by unifying i
 ```rego
 package filters
 
-include if input.fruits.price = _
+include if input.fruits.name = _
 ```
 
 SQL target: `WHERE name IS NOT NULL`
-
-A more common way to do this would be function definition shorthands, like
-
-```rego
-package filters
-
-include if {
-    some pat in data.filter.patterns
-    matches(pat, input.fruit.name)
-}
-
-matches("*", _) # "*" matches everything
-matches(x, x)   # exact match
-```
-
-Here, the first `matches` definition would yield an expression like `_ = input.fruit.name` in the partial evaluation results.
 :::
 
 ## Built-in Functions
@@ -185,7 +169,7 @@ package filters
 include if {
     endswith("apple", input.fruits.name)        # RHS unknown
     1, input.fruits.colour in ["blue", "green"] # k, v in ...
-    regexp.match(input.fruits.name, '^b[an]+$') # unsupported builtin (for unknown values)
+    regex.match('^b[an]+$', input.fruits.name)  # unsupported builtin (for unknown values)
 }
 ```
 
