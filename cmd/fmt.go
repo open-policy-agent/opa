@@ -57,6 +57,15 @@ func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
 	return compatibleRegoVersion(p.v0Compatible, p.v1Compatible, p.v2Compatible)
 }
 
+func (p *fmtCommandParams) formatOptions() format.Opts {
+	return format.Opts{
+		RegoVersion:                   p.regoVersion(),
+		DropRedundantDirectiveImports: p.dropV0Imports,
+		Capabilities:                  p.capabilities(),
+		ParserOptions:                 p.parserOptions(),
+	}
+}
+
 // parserOptions returns the options for parsing the source to format.
 func (p *fmtCommandParams) parserOptions() *ast.ParserOptions {
 	popts := ast.ParserOptions{
@@ -157,13 +166,8 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 	failOnChange := params.fail && !params.list && !params.diff
 
-	opts := format.Opts{
-		RegoVersion:                   params.regoVersion(),
-		DropRedundantDirectiveImports: params.dropV0Imports,
-		Capabilities:                  params.capabilities(),
-		ParserOptions:                 params.parserOptions(),
-		FailFast:                      failOnChange,
-	}
+	opts := params.formatOptions()
+	opts.FailFast = failOnChange
 
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
@@ -242,14 +246,7 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	opts := format.Opts{
-		RegoVersion:                   params.regoVersion(),
-		DropRedundantDirectiveImports: params.dropV0Imports,
-		Capabilities:                  params.capabilities(),
-		ParserOptions:                 params.parserOptions(),
-	}
-
-	formatted, err := format.SourceWithOpts("stdin", contents, opts)
+	formatted, err := format.SourceWithOpts("stdin", contents, params.formatOptions())
 	if err != nil {
 		return err
 	}
