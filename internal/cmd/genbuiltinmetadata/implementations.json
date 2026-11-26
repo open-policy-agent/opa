@@ -4,7 +4,7 @@
       "id": "swift",
       "label": "Swift",
       "repo": "open-policy-agent/swift-opa",
-      "version": "0.0.11",
+      "version": "0.0.12",
       "builtins": {
         "abs": "0.0.1",
         "and": "0.0.1",
@@ -149,7 +149,7 @@
       "id": "java",
       "label": "Java",
       "repo": "open-policy-agent/java-opa-sdk",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "builtins": {
         "abs": "0.1.0",
         "and": "0.1.0",
@@ -308,7 +308,9 @@
         "yaml.marshal": "0.4.0",
         "yaml.unmarshal": "0.4.0",
         "units.parse": "0.7.0",
-        "units.parse_bytes": "0.7.0"
+        "units.parse_bytes": "0.7.0",
+        "crypto.x509.parse_and_verify_certificates": "0.8.0",
+        "crypto.x509.parse_certificates": "0.8.0"
       }
     }
   ]
