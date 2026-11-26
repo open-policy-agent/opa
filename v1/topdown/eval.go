@@ -5007,6 +5007,9 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 		if len(savedQueries) == 0 {
 			return iter(e.e)
 		}
+		if slices.ContainsFunc(savedQueries, isTrueBody) { // the body always holds
+			return nil
+		}
 
 		q := make([]*ast.Expr, 0, len(savedQueries))
 		for i := range savedQueries {
@@ -5065,6 +5068,18 @@ func (e evalLogicalAnd) eval(iter evalIterator) error {
 }
 
 func (e evalLogicalAnd) evalPartial(iter evalIterator) error {
+	if !e.e.inliningControl.shallow {
+		var saved []*ast.Expr
+		for _, operand := range []ast.Body{e.and.Lhs, e.and.Rhs} {
+			queries, err := e.e.partialOperand(operand)
+			if err != nil || len(queries) == 0 {
+				return err // an operand that never holds fails the conjunction
+			}
+			saved = append(saved, operandExprs(queries)...)
+		}
+		return e.e.saveOperandExprs(saved, func() error { return iter(e.e) })
+	}
+
 	// Plug and save the expression to produce a valid, but non-optimized PE result
 	expr := e.e.query[e.e.index]
 
@@ -5124,6 +5139,21 @@ func (e evalLogicalOr) eval(iter evalIterator) error {
 }
 
 func (e evalLogicalOr) evalPartial(iter evalIterator) error {
+	if !e.e.inliningControl.shallow {
+		var queries []ast.Body
+		for _, operand := range []ast.Body{e.or.Lhs, e.or.Rhs} {
+			qs, err := e.e.partialOperand(operand)
+			if err != nil {
+				return err
+			}
+			queries = append(queries, qs...)
+		}
+		if len(queries) == 0 {
+			return nil
+		}
+		return e.e.saveOperandExprs(operandExprs(queries), func() error { return iter(e.e) })
+	}
+
 	// Plug and save the expression to produce a valid, but non-optimized PE result
 	expr := e.e.query[e.e.index]
 
@@ -5150,6 +5180,108 @@ func (e evalLogicalOr) plug(expr *ast.Expr) (*ast.Expr, error) {
 
 	cpy.Terms = or
 	return cpy, nil
+}
+
+// partialOperand partially evaluates body, an operand of `and` or `or`, as a
+// closed scope, into the queries it holds for (`true` if it always holds). It
+// doesn't propagate copies into nested refs or calls: the type check can't take those.
+func (e *eval) partialOperand(body ast.Body) ([]ast.Body, error) {
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+
+	e.closure(body, child)
+	cp := copypropagation.New(e.saveSet.Vars(e.caller.bindings)).WithEnsureNonEmptyBody(true).WithCompiler(e.compiler)
+
+	var queries []ast.Body
+	e.saveStack.PushQuery(nil)
+	err := child.eval(func(*eval) error {
+		plugged := e.saveStack.Peek().Plug(e.caller.bindings)
+		if e.compiler.PassesTypeCheck(plugged) {
+			if propagated := applyCopyPropagation(cp, e.instr, plugged.Copy()); !nestsRefOrCall(propagated) {
+				plugged = propagated
+			}
+			queries = append(queries, plugged)
+		}
+		return nil
+	})
+	e.saveStack.PopQuery()
+	return queries, err
+}
+
+// operandExprs returns the expressions that hold where one of queries does:
+// none if one holds without any condition, its expressions if it is the only
+// one, and their disjunction otherwise.
+func operandExprs(queries []ast.Body) []*ast.Expr {
+	if slices.ContainsFunc(queries, isTrueBody) {
+		return nil
+	}
+	if len(queries) == 1 {
+		return queries[0]
+	}
+	rhs := ast.NewBody(operandExprs(queries[1:])...)
+	or := ast.NewExpr(&ast.LogicalOr{Lhs: queries[0], Rhs: rhs, ExplicitLhs: explicitOperand(queries[0]), ExplicitRhs: explicitOperand(rhs)})
+	return []*ast.Expr{or}
+}
+
+// explicitOperand reports whether operand needs braces: for more than one
+// expression, and for its own variables, which an implicit body would expose to
+// the enclosing query.
+func explicitOperand(operand ast.Body) bool {
+	if len(operand) > 1 {
+		return true
+	}
+	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{SkipRefCallHead: true, SkipClosures: true})
+	vis.Walk(operand)
+	for v := range vis.Vars() {
+		if !ast.RootDocumentNames.Contains(ast.NewTerm(v)) {
+			return true
+		}
+	}
+	return false
+}
+
+// nestsRefOrCall reports whether an expression of b, at any depth, has a
+// nested ref or call in an operand.
+func nestsRefOrCall(b ast.Body) bool {
+	vis := newNestedCheckVisitor()
+	var found bool
+	ast.WalkExprs(b, func(expr *ast.Expr) bool {
+		found = found || slices.ContainsFunc(expr.Operands(), func(t *ast.Term) bool {
+			return containsNestedRefOrCallInTerm(vis, t)
+		})
+		return found
+	})
+	return found
+}
+
+func isTrueBody(b ast.Body) bool {
+	return len(b) == 1 && b[0].Equal(ast.NewExpr(ast.InternedTerm(true)))
+}
+
+// saveOperandExprs saves the expressions of a logical expression's operands,
+// with the `with` modifiers of the logical expression before their own: the
+// last one for a target wins, and inside the operand, the operand's do.
+func (e *eval) saveOperandExprs(exprs []*ast.Expr, iter unifyIterator) error {
+	outer := e.query[e.index].With
+	for _, x := range exprs {
+		if len(outer) > 0 {
+			x = x.Copy()
+			with := make([]*ast.With, 0, len(outer)+len(x.With))
+			for _, w := range outer {
+				cpy := w.Copy()
+				cpy.Value = e.bindings.PlugNamespaced(cpy.Value, e.caller.bindings)
+				with = append(with, cpy)
+			}
+			x.With = e.updateSavedMocks(append(with, x.With...))
+		}
+		e.saveStack.Push(x, nil, nil)
+		e.traceSave(x)
+	}
+	err := iter()
+	for range exprs {
+		e.saveStack.Pop()
+	}
+	return err
 }
 
 // evalLogicalOperand runs body as a closed scope that contributes at most one

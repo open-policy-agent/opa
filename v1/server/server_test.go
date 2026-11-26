@@ -1399,7 +1399,7 @@ func TestServerLogicalKeywords(t *testing.T) {
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input"],
 					"query": "data.test.allow = true"
-				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+				}`, 200, expQuery(`input.user = "alice" or { input.role = "admin"; input.verified }`)},
 			},
 		},
 		{
@@ -1409,21 +1409,19 @@ func TestServerLogicalKeywords(t *testing.T) {
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input"],
 					"query": "data.test.allow = true"
-				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+				}`, 200, expQuery(`input.user = "alice" or { input.role = "admin"; input.verified }`)},
 			},
 		},
 		{
-			// PE saves logical expressions whole, so the residual query
-			// still refers to input paths that were not declared unknown.
 			// Clients of the compile API need to expect that.
-			note: "compile does not narrow operands using known input",
+			note: "compile narrows operands using known input",
 			trs: []tr{
 				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input.role"],
 					"input": {"user": "bob", "verified": true},
 					"query": "data.test.allow = true"
-				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+				}`, 200, expQuery(`input.role = "admin"`)},
 			},
 		},
 		{
@@ -1469,7 +1467,7 @@ func TestServerLogicalKeywords(t *testing.T) {
 				{http.MethodPost, "/compile", `{
 					"unknowns": ["input"],
 					"query": "data.test.allow = true"
-				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+				}`, 200, expQuery(`input.user = "alice" or { input.role = "admin"; input.verified }`)},
 			},
 		},
 		{

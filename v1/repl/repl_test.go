@@ -3855,9 +3855,10 @@ func TestEvalLogicalKeywordsPartial(t *testing.T) {
 			actions: []replAction{
 				{line: "import future.keywords.and"},
 				{line: "unknown input"},
-				{line: "input.x == 1 and input.y == 2", expOutput: `┌─────────┬─────────────────────────────┐
-│ Query 1 │ input.x = 1 and input.y = 2 │
-└─────────┴─────────────────────────────┘
+				{line: "input.x == 1 and input.y == 2", expOutput: `┌─────────┬─────────────┐
+│ Query 1 │ input.x = 1 │
+│         │ input.y = 2 │
+└─────────┴─────────────┘
 `},
 			},
 		},
@@ -3870,9 +3871,10 @@ func TestEvalLogicalKeywordsPartial(t *testing.T) {
 					line:      "p if { input.a and input.b }",
 					expOutput: "Rule 'p' defined in package repl. Type 'show' to see rules.\n",
 				},
-				{line: "p", expOutput: `┌─────────┬─────────────────────┐
-│ Query 1 │ input.a and input.b │
-└─────────┴─────────────────────┘
+				{line: "p", expOutput: `┌─────────┬─────────┐
+│ Query 1 │ input.a │
+│         │ input.b │
+└─────────┴─────────┘
 `},
 			},
 		},
