@@ -1,0 +1,38 @@
+---
+cases:
+  - note: comprehensions/indexed object conflict
+    query: data.test.roles_by_team = x
+    modules:
+      - |
+        package test
+
+        users := [
+        	{"name": "alice", "team": "red", "role": "admin"},
+        	{"name": "alice", "team": "red", "role": "viewer"},
+        ]
+
+        roles_by_team[team] := roles if {
+        	some team in ["red"]
+        	roles := {u.name: u.role | some u in users; u.team == team}
+        }
+    want_error_code: eval_conflict_error
+  - note: comprehensions/indexed object conflict in another group
+    query: data.test.roles_by_team = x
+    modules:
+      - |
+        package test
+
+        users := [
+        	{"name": "alice", "team": "red", "role": "admin"},
+        	{"name": "alice", "team": "red", "role": "viewer"},
+        	{"name": "alice", "team": "blue", "role": "admin"},
+        ]
+
+        roles_by_team[team] := roles if {
+        	some team in ["blue"]
+        	roles := {u.name: u.role | some u in users; u.team == team}
+        }
+    want_result:
+      - x:
+          blue:
+            alice: admin

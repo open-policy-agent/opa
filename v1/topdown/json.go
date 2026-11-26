@@ -370,10 +370,24 @@ func builtinJSONPatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	return iter(patched)
 }
 
+// RFC 6901 says a JSON Pointer is a Unicode string. We do not check for valid UTF-8.
+// Invalid bytes pass through unchanged, as they do with replace.
+var jsonPointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")
+
+func builtinJSONPointerEscape(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.StringTerm(jsonPointerEscaper.Replace(string(s))))
+}
+
 func init() {
 	ast.InternStringTerm("op", "path", "from", "value", "add", "remove", "replace", "move", "copy", "test")
 
 	RegisterBuiltinFunc(ast.JSONFilter.Name, builtinJSONFilter)
 	RegisterBuiltinFunc(ast.JSONRemove.Name, builtinJSONRemove)
 	RegisterBuiltinFunc(ast.JSONPatch.Name, builtinJSONPatch)
+	RegisterBuiltinFunc(ast.JSONPointerEscape.Name, builtinJSONPointerEscape)
 }

@@ -631,10 +631,10 @@ opa_strings_indexof,opa_unicode_decode_utf8
 opa_strings_indexof,opa_abort
 opa_strings_replace,opa_value_type
 opa_strings_replace,opa_malloc
-opa_strings_replace,opa_strncmp
-opa_strings_replace,opa_realloc
 opa_strings_replace,memcpy
 opa_strings_replace,opa_string_allocated
+opa_strings_replace,opa_strncmp
+opa_strings_replace,opa_realloc
 opa_strings_replace_n,opa_value_type
 opa_strings_replace_n,opa_object_keys
 opa_strings_replace_n,opa_malloc

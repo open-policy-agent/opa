@@ -352,33 +352,33 @@ func TestCompileHappyPathE2E(t *testing.T) {
 			policy:  `include if startswith(input.fruits.name, "app")`,
 			expRows: []fruitRow{apple},
 			prisma:  true,
-			exclude: []DBType{SQLite},
+			exclude: []DBType{SQLite, MySQL},
 		},
 		{
 			name:    "simple contains",
 			policy:  `include if contains(input.fruits.name, "a")`,
 			expRows: []fruitRow{apple, banana, orange},
 			prisma:  true,
-			exclude: []DBType{SQLite},
+			exclude: []DBType{SQLite, MySQL},
 		},
 		{
 			name:    "startswith + escaping '_'",
 			policy:  `include if startswith(input.fruits.name, "ap_")`, // if "_" wasn't escaped properly, it would match "apple"
 			expRows: nil,
-			exclude: []DBType{SQLite},
+			exclude: []DBType{SQLite, MySQL},
 		},
 		{
 			name:    "startswith + escaping '%'",
 			policy:  `include if startswith(input.fruits.name, "%ppl")`, // if "%" wasn't escaped properly, it would match "apple"
 			expRows: nil,
-			exclude: []DBType{SQLite},
+			exclude: []DBType{SQLite, MySQL},
 		},
 		{
 			name:    "simple endswith",
 			policy:  `include if endswith(input.fruits.name, "le")`,
 			expRows: []fruitRow{apple},
 			prisma:  true,
-			exclude: []DBType{SQLite},
+			exclude: []DBType{SQLite, MySQL},
 		},
 		{
 			name:    "internal.member_2",

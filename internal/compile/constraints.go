@@ -74,9 +74,9 @@ func NewConstraints(typ, variant string) (*Constraint, error) {
 	switch typ {
 	case "sql":
 		switch v := strings.ToLower(variant); v {
-		case "sqlite":
-			c.Builtins = sqlSQLiteBuiltins
-		case "mysql", "postgresql", "sqlserver", "sqlite-internal":
+		case "sqlite", "mysql":
+			c.Builtins = sqlNoLikeBuiltins
+		case "postgresql", "sqlserver", "sqlite-internal":
 			c.Builtins = sqlBuiltins
 		default:
 			return nil, fmt.Errorf("unsupported variant for %s: %s", typ, variant)
@@ -206,8 +206,9 @@ func (cs *ConstraintSet) String() string {
 var (
 	sqlBuiltins = allBuiltins
 
-	// sqlite doesn't support startswith/endswith/contains
-	sqlSQLiteBuiltins = ucastBuiltins.Clone().Add("internal.member_2")
+	// LIKE is case-insensitive in SQLite and MySQL's default collations, so
+	// startswith/endswith/contains can't be translated to it.
+	sqlNoLikeBuiltins = ucastBuiltins.Clone().Add("internal.member_2")
 
 	ucastBuiltins = NewSet(
 		"eq",

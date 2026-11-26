@@ -473,6 +473,8 @@ type stepCont struct {
 	e       *eval
 	iter    evalIterator
 	fn      func() error
+	bareFn  func() error
+	rterm   *ast.Term // set for a bare term expression, which must not be false
 	advance bool
 }
 
@@ -480,8 +482,21 @@ func (c *stepCont) run() error {
 	return c.e.cont(c.iter, c.advance)
 }
 
+func (c *stepCont) runBare() error {
+	e := c.e
+	if e.saveSet != nil && e.saveSet.Contains(c.rterm, e.bindings) {
+		return e.saveExpr(ast.NewExpr(c.rterm), e.bindings, func() error {
+			return e.cont(c.iter, c.advance)
+		})
+	}
+	if e.bindings.Plug(c.rterm).Equal(ast.InternedTerm(false)) {
+		return nil
+	}
+	return e.cont(c.iter, c.advance)
+}
+
 func (c *stepCont) Reset() {
-	c.e, c.iter = nil, nil
+	c.e, c.iter, c.rterm = nil, nil, nil
 }
 
 // cont continues after a successful step: to the next expression if advance is
@@ -532,18 +547,15 @@ func (e *eval) evalStep(iter evalIterator, advance bool) (err error) {
 
 		stepContPool.Put(c)
 	case *ast.Term:
-		rterm := ast.VarTerm(e.fmtVar())
-		err = e.unify(terms, rterm, func() error {
-			if e.saveSet != nil && e.saveSet.Contains(rterm, e.bindings) {
-				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-					return e.cont(iter, advance)
-				})
-			}
-			if !e.bindings.Plug(rterm).Equal(ast.InternedTerm(false)) {
-				return e.cont(iter, advance)
-			}
-			return nil
-		})
+		c := stepContPool.Get()
+		c.e, c.iter, c.advance, c.rterm = e, iter, advance, ast.VarTerm(e.fmtVar())
+		if c.bareFn == nil {
+			c.bareFn = c.runBare
+		}
+
+		err = e.unify(terms, c.rterm, c.bareFn)
+
+		stepContPool.Put(c)
 	case *ast.Every:
 		eval := evalEvery{
 			e:     e,
@@ -1683,13 +1695,14 @@ func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
 	cache, ok := e.comprehensionCache.Elem(a)
 	if !ok {
 		var err error
+		var conflicts []*comprehensionCacheElem
 		switch x := a.Value.(type) {
 		case *ast.ArrayComprehension:
 			cache, err = e.buildComprehensionCacheArray(x, index.Keys)
 		case *ast.SetComprehension:
 			cache, err = e.buildComprehensionCacheSet(x, index.Keys)
 		case *ast.ObjectComprehension:
-			cache, err = e.buildComprehensionCacheObject(x, index.Keys)
+			cache, conflicts, err = e.buildComprehensionCacheObject(x, index.Keys)
 		default:
 			err = internalErr(e.query[e.index].Location, "illegal comprehension type")
 		}
@@ -1697,12 +1710,22 @@ func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
 			return nil, err
 		}
 		e.comprehensionCache.Set(a, cache)
+		for _, group := range conflicts {
+			e.comprehensionCache.SetConflict(group)
+		}
 		e.instr.counterIncr(evalOpComprehensionCacheBuild)
 	} else {
 		e.instr.counterIncr(evalOpComprehensionCacheHit)
 	}
 
-	return cache.Get(util.Map(index.Keys, e.bindings.Plug)), nil
+	group := cache.Find(util.Map(index.Keys, e.bindings.Plug))
+	if group == nil {
+		return nil, nil
+	}
+	if e.comprehensionCache.Conflict(group) {
+		return nil, objectDocKeyConflictErr(a.Value.(*ast.ObjectComprehension).Key.Location)
+	}
+	return group.value, nil
 }
 
 func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
@@ -1744,25 +1767,32 @@ func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.T
 	})
 }
 
-func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
+// buildComprehensionCacheObject also returns the groups that produced a key
+// twice with different values: looking one of those up is the conflict error.
+func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []*ast.Term) (*comprehensionCacheElem, []*comprehensionCacheElem, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
 	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
-	return node, child.Run(func(child *eval) error {
+	var conflicts []*comprehensionCacheElem
+	err := child.Run(func(child *eval) error {
 		values := util.Map(keys, child.bindings.Plug)
 		headKey := child.bindings.Plug(x.Key)
 		headValue := child.bindings.Plug(x.Value)
-		cached := node.Get(values)
-		if cached != nil {
-			obj := cached.Value.(ast.Object)
-			obj.Insert(headKey, headValue)
+		if group := node.Find(values); group != nil && group.value != nil {
+			obj := group.value.Value.(ast.Object)
+			if exist := obj.Get(headKey); exist == nil {
+				obj.Insert(headKey, headValue)
+			} else if !exist.Equal(headValue) && !slices.Contains(conflicts, group) {
+				conflicts = append(conflicts, group)
+			}
 		} else {
 			node.Put(values, ast.ObjectTerm(ast.Item(headKey, headValue)))
 		}
 		return nil
 	})
+	return node, conflicts, err
 }
 
 func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
@@ -3421,10 +3451,10 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	}
 
 	result := e.empty
-	var visitedRefs []ast.Ref
+	var leaves leafObjects
 
 	for _, rule := range e.ir.Rules {
-		result, err = e.evalOneRulePreUnify(iter, rule, result, unknown, &visitedRefs)
+		result, err = e.evalOneRulePreUnify(iter, rule, result, unknown, &leaves)
 		if err != nil {
 			return err
 		}
@@ -3468,7 +3498,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, error) {
 	result := e.empty
 
-	var visitedRefs []ast.Ref
+	var leaves leafObjects
 
 	child := evalPool.Get()
 	defer evalPool.Put(child)
@@ -3480,7 +3510,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 			child.traceExit(rule)
 			e.e.evaluated.Record(rule)
 
-			result, _, err = e.reduce(rule, child.bindings, result, &visitedRefs)
+			result, _, err = e.reduce(rule, child.bindings, result, &leaves)
 			if err == nil && child.traceEnabled {
 				child.traceRedo(rule)
 			}
@@ -3511,7 +3541,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(
 	rule *ast.Rule,
 	result *ast.Term,
 	unknown bool,
-	visitedRefs *[]ast.Ref,
+	leaves *leafObjects,
 ) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
@@ -3556,7 +3586,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(
 				err = e.evalTerm(iter, e.pos+1, term, termbindings)
 			} else {
 				var dup bool
-				result, dup, err = e.reduce(rule, child.bindings, result, visitedRefs)
+				result, dup, err = e.reduce(rule, child.bindings, result, leaves)
 				if err == nil && !unknown && dup && child.traceEnabled {
 					child.traceDuplicate(rule)
 				}
@@ -3956,16 +3986,16 @@ func (q vcKeyScope) empty() bool {
 	return len(q.Ref) == 0
 }
 
-func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Location) (*ast.Object, error) {
+func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, leaves leafObjects, l *ast.Location) (*ast.Object, error) {
 	current := rootObj
 	for _, term := range ref {
 		key := b.Plug(term)
 		if child := (*current).Get(key); child != nil {
-			if val, ok := child.Value.(ast.Object); ok {
-				current = &val
-			} else {
+			val, ok := child.Value.(ast.Object)
+			if _, leaf := leaves[child]; !ok || leaf {
 				return nil, objectDocKeyConflictErr(l)
 			}
+			current = &val
 		} else {
 			child := ast.NewObject()
 			(*current).Insert(key, ast.NewTerm(child))
@@ -3976,20 +4006,21 @@ func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Locat
 	return current, nil
 }
 
-func hasCollisions(path ast.Ref, visitedRefs *[]ast.Ref, b *bindings) bool {
-	collisionPath := ast.Ref(b.plugNamespacedTerms(path, nil))
+// leafObjects holds the object values rules which wrote into a partial object,
+// so that a rule writing to a child path conflicts and prevents writes.
+type leafObjects map[*ast.Term]struct{}
 
-	for _, c := range *visitedRefs {
-		if collisionPath.HasPrefix(c) && !collisionPath.Equal(c) {
-			return true
-		}
+func (l *leafObjects) add(t *ast.Term) {
+	if _, ok := t.Value.(ast.Object); !ok {
+		return
 	}
-	*visitedRefs = append(*visitedRefs, collisionPath)
-
-	return false
+	if *l == nil {
+		*l = make(leafObjects)
+	}
+	(*l)[t] = struct{}{}
 }
 
-func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term, visitedRefs *[]ast.Ref) (*ast.Term, bool, error) {
+func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term, leaves *leafObjects) (*ast.Term, bool, error) {
 	var exists bool
 	head := rule.Head
 
@@ -4007,15 +4038,10 @@ func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term
 		//          objPath
 		fullPath := rule.Ref()
 
-		collisionPath := fullPath[e.pos+1:]
-		if hasCollisions(collisionPath, visitedRefs, b) {
-			return nil, false, objectDocKeyConflictErr(head.Location)
-		}
-
 		objPath := fullPath[e.pos+1 : len(fullPath)-1] // the portion of the ref that generates nested objects
 		leafKey := b.Plug(fullPath[len(fullPath)-1])   // the portion of the ref that is the deepest nested key for the value
 
-		leafObj, err := getNestedObject(objPath, &v, b, head.Location)
+		leafObj, err := getNestedObject(objPath, &v, b, *leaves, head.Location)
 		if err != nil {
 			return nil, false, err
 		}
@@ -4031,6 +4057,7 @@ func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term
 				exists = true
 			} else {
 				(*leafObj).Insert(leafKey, val)
+				leaves.add(val)
 			}
 		} else {
 			// We're inserting into a set

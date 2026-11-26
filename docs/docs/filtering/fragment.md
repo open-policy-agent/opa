@@ -130,26 +130,10 @@ For SQL and UCAST/Prisma, it's valid to assert that a field exists by unifying i
 ```rego
 package filters
 
-include if input.fruits.price = _
+include if input.fruits.name = _
 ```
 
 SQL target: `WHERE name IS NOT NULL`
-
-A more common way to do this would be function definition shorthands, like
-
-```rego
-package filters
-
-include if {
-    some pat in data.filter.patterns
-    matches(pat, input.fruit.name)
-}
-
-matches("*", _) # "*" matches everything
-matches(x, x)   # exact match
-```
-
-Here, the first `matches` definition would yield an expression like `_ = input.fruit.name` in the partial evaluation results.
 :::
 
 ## Built-in Functions
@@ -162,6 +146,9 @@ Certain built-in functions can be translated with certain restrictions:
 - `k in ...` (not `k, v in ...`)
 
 These built-in functions can only be used with _unknowns_ on the left-hand side.
+
+`startswith`, `endswith` and `contains` are not supported for the SQLite and MySQL targets:
+their `LIKE` operator is case-insensitive by default, so it does not match Rego's semantics.
 
 :::tip OK
 
@@ -185,7 +172,7 @@ package filters
 include if {
     endswith("apple", input.fruits.name)        # RHS unknown
     1, input.fruits.colour in ["blue", "green"] # k, v in ...
-    regexp.match(input.fruits.name, '^b[an]+$') # unsupported builtin (for unknown values)
+    regex.match('^b[an]+$', input.fruits.name)  # unsupported builtin (for unknown values)
 }
 ```
 

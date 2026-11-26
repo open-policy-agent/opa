@@ -444,6 +444,42 @@ include if input.name != "apple"`,
 			},
 		},
 		{
+			note:   "invalid builtin: startswith (mysql)",
+			rego:   `include if startswith(input.fruits.name, "app")`,
+			target: "application/vnd.opa.sql.mysql+json",
+			errors: []Error{
+				{
+					Code:     "pe_fragment_error",
+					Location: ast.NewLocation(nil, "filters.rego", 3, 12),
+					Message:  "invalid builtin `startswith`: unsupported for SQL (mysql)",
+				},
+			},
+		},
+		{
+			note:   "invalid builtin: endswith (mysql)",
+			rego:   `include if endswith(input.fruits.name, "ple")`,
+			target: "application/vnd.opa.sql.mysql+json",
+			errors: []Error{
+				{
+					Code:     "pe_fragment_error",
+					Location: ast.NewLocation(nil, "filters.rego", 3, 12),
+					Message:  "invalid builtin `endswith`: unsupported for SQL (mysql)",
+				},
+			},
+		},
+		{
+			note:   "invalid builtin: contains (mysql)",
+			rego:   `include if contains(input.fruits.name, "pp")`,
+			target: "application/vnd.opa.sql.mysql+json",
+			errors: []Error{
+				{
+					Code:     "pe_fragment_error",
+					Location: ast.NewLocation(nil, "filters.rego", 3, 12),
+					Message:  "invalid builtin `contains`: unsupported for SQL (mysql)",
+				},
+			},
+		},
+		{
 			note: "invalid builtin",
 			rego: `include if object.get(input, ["fruits", "colour"], "grey") == input.colour`,
 			errors: []Error{

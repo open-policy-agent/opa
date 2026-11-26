@@ -125,6 +125,7 @@
       "json.filter",
       "json.match_schema",
       "json.patch",
+      "json.pointer_escape",
       "json.remove",
       "json.verify_schema",
       "object.filter",
@@ -17320,6 +17321,27 @@
       "description": "result obtained after consecutively applying all patch operations in `patches`",
       "name": "output",
       "type": "any"
+    },
+    "wasm": false
+  },
+  "json.pointer_escape": {
+    "args": [
+      {
+        "description": "the string to escape",
+        "name": "token",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Escapes a string so it can be used as one reference token of a JSON Pointer, as defined in RFC6901. The characters `~` and `/` are replaced with `~0` and `~1`. For example: `json.pointer_escape(\"a/b~c\")` results in `\"a~1b~0c\"`.",
+    "implementations": {},
+    "introduced": "edge",
+    "result": {
+      "description": "`token` with `~` and `/` escaped",
+      "name": "output",
+      "type": "string"
     },
     "wasm": false
   },
