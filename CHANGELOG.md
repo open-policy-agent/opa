@@ -5,6 +5,14 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.23.0
 
+This release contains a mix of new features, performance improvements and bug fixes. Notably:
+
+- Enforcement of bundle structure: now rooted at their `.manifest` file
+- Lucene (Solr) target for the Compile API
+- Hardening of the MySQL Compile API target: use of `startswith`, `endswith` and `contains` built-in functions is rejected
+- Improvements to the rule indexer
+- A new `json.pointer_escape` built-in function
+
 ### Bundles are rooted at their `.manifest` file ([#9459](https://github.com/open-policy-agent/opa/pull/9459))
 
 Breaking change: OPA now treats the directory containing a bundle's `.manifest` file as the bundle root, as the
