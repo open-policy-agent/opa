@@ -4552,7 +4552,6 @@ q if { input.x = 7 }`},
 		},
 
 		// and/or baseline (simple unknowns: save the whole expression)
-		// TODO: PE optimization in #8680
 
 		{
 			note:            "and: unknown lhs only",
@@ -4562,7 +4561,7 @@ q if { input.x = 7 }`},
 				p if {
 					input.x > 0 and true
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
+			wantQueries: []string{`gt(input.x, 0)`},
 		},
 		{
 			note:            "and: unknown rhs only",
@@ -4572,7 +4571,7 @@ q if { input.x = 7 }`},
 				p if {
 					true and input.y > 0
 				}`},
-			wantQueries: []string{`true and {__local0__1 = input.y; gt(__local0__1, 0)}`},
+			wantQueries: []string{`gt(input.y, 0)`},
 		},
 		{
 			note:            "and: unknowns in both",
@@ -4582,7 +4581,7 @@ q if { input.x = 7 }`},
 				p if {
 					input.x > 0 and input.y > 0
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and {__local1__1 = input.y; gt(__local1__1, 0)}`},
+			wantQueries: []string{`gt(input.x, 0); gt(input.y, 0)`},
 		},
 		{
 			note:            "or: unknown lhs only",
@@ -4592,7 +4591,7 @@ q if { input.x = 7 }`},
 				p if {
 					input.x > 0 or false
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or false`},
+			wantQueries: []string{`gt(input.x, 0)`},
 		},
 		{
 			note:            "or: unknown rhs only",
@@ -4602,7 +4601,50 @@ q if { input.x = 7 }`},
 				p if {
 					false or input.y > 0
 				}`},
-			wantQueries: []string{`false or {__local0__1 = input.y; gt(__local0__1, 0)}`},
+			wantQueries: []string{`gt(input.y, 0)`},
+		},
+		{
+			note:            "or: known operand true",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
+			modules: []string{`package test
+				on := true
+				p if {
+					on or input.x > 0
+				}`},
+			wantQueries: []string{``},
+		},
+		{
+			note:            "and: known operand false",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
+			modules: []string{`package test
+				off := false
+				p if {
+					input.x > 0 and off
+				}`},
+		},
+		{
+			note:            "or: known operand, unknown operand with locals",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
+			modules: []string{`package test
+				off := false
+				p if {
+					off or { y := input.y; y > 1 }
+				}`},
+			wantQueries: []string{`gt(input.y, 1)`},
+		},
+		{
+			note:            "and: with on the logical expression",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					(input.x > data.test.limit and input.y > 0) with data.test.limit as 3
+				}`},
+			// The with applies to every expression of the operands.
+			wantQueries: []string{`gt(input.x, 3) with data.test.limit as 3; gt(input.y, 0) with data.test.limit as 3`},
 		},
 		{
 			note:            "or: unknowns in both",
@@ -4612,28 +4654,28 @@ q if { input.x = 7 }`},
 				p if {
 					input.x > 0 or input.y > 0
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or {__local1__1 = input.y; gt(__local1__1, 0)}`},
+			wantQueries: []string{`gt(input.x, 0) or gt(input.y, 0)`},
 		},
 		// Baseline does NOT simplify even when one operand is statically true
 		{
-			note:            "or: unknown lhs, rhs known-true (no simplification at this layer)",
+			note:            "or: unknown lhs, rhs known-true",
 			logicalKeywords: true,
 			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 or true
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or true`},
+			wantQueries: []string{``},
 		},
 		{
-			note:            "and: unknown lhs, rhs known-true (no simplification at this layer)",
+			note:            "and: unknown lhs, rhs known-true",
 			logicalKeywords: true,
 			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 and true
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
+			wantQueries: []string{`gt(input.x, 0)`},
 		},
 
 		// nested chains, data-ref unknowns, multi-expr explicit bodies
@@ -4645,16 +4687,7 @@ q if { input.x = 7 }`},
 				p if {
 					input.a > 0 and input.b > 0 and input.c > 0
 				}`},
-			wantQueries: []string{`{
-					__local0__1 = input.a
-					gt(__local0__1, 0)
-				} and {
-					__local1__1 = input.b
-					gt(__local1__1, 0)
-				} and {
-					__local2__1 = input.c
-					gt(__local2__1, 0)
-				}`},
+			wantQueries: []string{`gt(input.a, 0); gt(input.b, 0); gt(input.c, 0)`},
 		},
 		{
 			note:            "or: nested left-leaning, all unknown",
@@ -4664,16 +4697,7 @@ q if { input.x = 7 }`},
 				p if {
 					input.a > 0 or input.b > 0 or input.c > 0
 				}`},
-			wantQueries: []string{`{
-					__local0__1 = input.a
-					gt(__local0__1, 0)
-				} or {
-					__local1__1 = input.b
-					gt(__local1__1, 0)
-				} or {
-					__local2__1 = input.c
-					gt(__local2__1, 0)
-				}`},
+			wantQueries: []string{`gt(input.a, 0) or gt(input.b, 0) or gt(input.c, 0)`},
 		},
 		{
 			note:            "and: mixed data and input unknowns",
@@ -4684,13 +4708,7 @@ q if { input.x = 7 }`},
 				p if {
 					data.foo.x > 0 and input.y > 0
 				}`},
-			wantQueries: []string{`{
-					__local0__1 = data.foo.x
-					gt(__local0__1, 0)
-				} and {
-					__local1__1 = input.y
-					gt(__local1__1, 0)
-				}`},
+			wantQueries: []string{`gt(data.foo.x, 0); gt(input.y, 0)`},
 		},
 		{
 			note:            "and: explicit body multi-expr, unknowns inside",
@@ -4700,7 +4718,7 @@ q if { input.x = 7 }`},
 				p if {
 					{ input.x > 0; input.x < 10 } and true
 				}`},
-			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0); __local1__1 = input.x; lt(__local1__1, 10)} and true`},
+			wantQueries: []string{`gt(input.x, 0); lt(input.x, 10)`},
 		},
 
 		{
@@ -4711,15 +4729,7 @@ q if { input.x = 7 }`},
 				p if {
 					{ x := input.x; every i in x { i in x; i < input.y } } and true 
 				}`},
-			wantQueries: []string{`{ 
-					__local0__1 = input.x
-					__local3__1 = __local0__1
-					every __local1__1, __local2__1 in __local3__1 {
-						internal.member_2(__local2__1, __local0__1)
-						__local4__1 = input.y
-						lt(__local2__1, __local4__1)
-					}
-				} and true`},
+			wantQueries: []string{`every __local1__1, __local2__1 in input.x { internal.member_2(__local2__1, input.x); __local4__1 = input.y; lt(__local2__1, __local4__1) }`},
 		},
 		{
 			note:            "or (every): unknown inside",
@@ -4729,15 +4739,7 @@ q if { input.x = 7 }`},
 				p if {
 					{ x := input.x; every i in x { i in x; i < input.y } } or true 
 				}`},
-			wantQueries: []string{`{ 
-					__local0__1 = input.x
-					__local3__1 = __local0__1
-					every __local1__1, __local2__1 in __local3__1 {
-						internal.member_2(__local2__1, __local0__1)
-						__local4__1 = input.y
-						lt(__local2__1, __local4__1)
-					}
-				} or true`},
+			wantQueries: []string{``},
 		},
 
 		// comprehensions inside and/or operand bodies
@@ -4750,15 +4752,7 @@ q if { input.x = 7 }`},
 					x := input.x
 					true and { y := input.y; {z | z := input.z; z < x; z > y} }
 				}`},
-			wantQueries: []string{`true and {
-					__local1__1 = input.y
-					{__local2__1 |
-						__local2__1 = input.z
-						lt(__local2__1, input.x)
-						gt(__local2__1, __local1__1)
-					}
-				}
-				__local0__1 = input.x`},
+			wantQueries: []string{`{__local2__1 | __local2__1 = input.z; lt(__local2__1, input.x); gt(__local2__1, input.y)} = x_term_3_11; x_term_3_11; __local1__1 = input.y; __local0__1 = input.x`},
 		},
 		{
 			note:            "and: lhs set comp, cross-scope vars",
@@ -4769,15 +4763,7 @@ q if { input.x = 7 }`},
 					x := input.x
 					{ y := input.y; {z | z := input.z; z < x; z > y} } and true
 				}`},
-			wantQueries: []string{`{
-					__local1__1 = input.y
-					{__local2__1 |
-						__local2__1 = input.z
-						lt(__local2__1, input.x)
-						gt(__local2__1, __local1__1)
-					}
-				} and true
-				__local0__1 = input.x`},
+			wantQueries: []string{`{__local2__1 | __local2__1 = input.z; lt(__local2__1, input.x); gt(__local2__1, input.y)} = x_term_2_11; x_term_2_11; __local1__1 = input.y; __local0__1 = input.x`},
 		},
 		{
 			note:            "or: rhs set comp, cross-scope vars",
@@ -4788,15 +4774,7 @@ q if { input.x = 7 }`},
 					x := input.x
 					false or { y := input.y; {z | z := input.z; z < x; z > y} }
 				}`},
-			wantQueries: []string{`false or {
-					__local1__1 = input.y
-					{__local2__1 |
-						__local2__1 = input.z
-						lt(__local2__1, input.x)
-						gt(__local2__1, __local1__1)
-					}
-				}
-				__local0__1 = input.x`},
+			wantQueries: []string{`{__local2__1 | __local2__1 = input.z; lt(__local2__1, input.x); gt(__local2__1, input.y)} = x_term_3_11; x_term_3_11; __local1__1 = input.y; __local0__1 = input.x`},
 		},
 		{
 			note:            "or: lhs set comp, cross-scope vars",
@@ -4807,15 +4785,7 @@ q if { input.x = 7 }`},
 					x := input.x
 					{ y := input.y; {z | z := input.z; z < x; z > y} } or false
 				}`},
-			wantQueries: []string{`{
-					__local1__1 = input.y
-					{__local2__1 |
-						__local2__1 = input.z
-						lt(__local2__1, input.x)
-						gt(__local2__1, __local1__1)
-					}
-				} or false
-				__local0__1 = input.x`},
+			wantQueries: []string{`{__local2__1 | __local2__1 = input.z; lt(__local2__1, input.x); gt(__local2__1, input.y)} = x_term_2_11; x_term_2_11; __local1__1 = input.y; __local0__1 = input.x`},
 		},
 		{
 			note:            "and: rhs array comp, cross-scope vars",
@@ -4826,15 +4796,7 @@ q if { input.x = 7 }`},
 					x := input.x
 					true and { y := input.y; [z | z := input.z; z < x; z > y] }
 				}`},
-			wantQueries: []string{`true and {
-					__local1__1 = input.y
-					[__local2__1 |
-						__local2__1 = input.z
-						lt(__local2__1, input.x)
-						gt(__local2__1, __local1__1)
-					]
-				}
-				__local0__1 = input.x`},
+			wantQueries: []string{`[__local2__1 | __local2__1 = input.z; lt(__local2__1, input.x); gt(__local2__1, input.y)] = x_term_3_11; x_term_3_11; __local1__1 = input.y; __local0__1 = input.x`},
 		},
 		{
 			note:            "or: lhs object comp, cross-scope vars",
@@ -4845,15 +4807,7 @@ q if { input.x = 7 }`},
 					x := input.x
 					{ y := input.y; {k: v | k := input.k; v := x; v != y} } or false
 				}`},
-			wantQueries: []string{`{
-					__local1__1 = input.y
-					{__local2__1: __local3__1 |
-						__local2__1 = input.k
-						__local3__1 = input.x
-						neq(__local3__1, __local1__1)
-					}
-				} or false
-				__local0__1 = input.x`},
+			wantQueries: []string{`{__local2__1: __local3__1 | __local2__1 = input.k; __local3__1 = input.x; neq(__local3__1, input.y)} = x_term_2_11; x_term_2_11; __local1__1 = input.y; __local0__1 = input.x`},
 		},
 
 		// and/or nested inside other outer constructs
@@ -4865,7 +4819,7 @@ q if { input.x = 7 }`},
 				p if {
 					every x in [1, 2, 3] { x > 0 and x > input }
 				}`},
-			wantQueries: []string{`gt(1, 0) and { __local3____e11 = input; gt(1, __local3____e11) }; gt(2, 0) and { __local3____e21 = input; gt(2, __local3____e21) }; gt(3, 0) and { __local3____e31 = input; gt(3, __local3____e31) }`},
+			wantQueries: []string{`gt(1, input); gt(2, input); gt(3, input)`},
 		},
 		{
 			note:            "array comprehension: body contains or with unknowns",
@@ -4908,7 +4862,7 @@ q if { input.x = 7 }`},
 			},
 			unknowns: []string{`data.y`},
 			wantQueries: []string{
-				`data.y[c1].z = 1 and {__local0__1 = data.y[c1].z; neq(__local0__1, 2)}; x1 = data.y[c1]`,
+				`data.y[c1].z = 1; neq(data.y[c1].z, 2)`,
 			},
 		},
 		{
@@ -4929,7 +4883,7 @@ q if { input.x = 7 }`},
 			// case above, both operands are plain `=` so there's no rewrite
 			// barrier — but still re-adds the binding at body level.
 			wantQueries: []string{
-				`data.y[c1].z = 1 or data.y[c1].z = 2; x1 = data.y[c1]`,
+				`{ data.y[c1].z = 1 } or { data.y[c1].z = 2 }`,
 			},
 		},
 		{
@@ -4947,7 +4901,7 @@ q if { input.x = 7 }`},
 			},
 			unknowns: []string{`input.y`},
 			wantQueries: []string{
-				`input.y[c1].z = 1 and {__local0__1 = input.y[c1].z; neq(__local0__1, 2)}; x1 = input.y[c1]`,
+				`input.y[c1].z = 1; neq(input.y[c1].z, 2)`,
 			},
 		},
 		{
@@ -7104,7 +7058,6 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		},
 
 		// inner and/or, with unknowns
-		// TODO: PE optimization in #8680
 
 		{
 			note:            "not (and): unknown inside",
@@ -7115,9 +7068,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				p if {
 					not { input.x > 0 and true }
 				}`},
-			wantQueries: []string{`not {
-					{ __local0__1 = input.x; gt(__local0__1, 0) } and true
-				}`},
+			wantQueries: []string{`not {gt(input.x, 0)}`},
 		},
 		{
 			note:            "not (or): unknowns in both operands",
@@ -7128,9 +7079,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				p if {
 					not { input.x > 0 or input.y > 0 }
 				}`},
-			wantQueries: []string{`not {
-					{ __local0__1 = input.x; gt(__local0__1, 0) } or { __local1__1 = input.y; gt(__local1__1, 0) }
-				}`},
+			wantQueries: []string{`not {gt(input.x, 0) or gt(input.y, 0)}`},
 		},
 		{
 			note:            "not (and): unknown lhs, rhs static false ",
@@ -7141,9 +7090,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				p if {
 					not { input.x > 0 and false }
 				}`},
-			wantQueries: []string{`not {
-					{__local0__1 = input.x; gt(__local0__1, 0)} and false
-				}`},
+			wantQueries: []string{``},
 		},
 		{
 			note:            "not (or): unknown rhs, lhs static true",
@@ -7153,9 +7100,6 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			modules: []string{`package test
 				p if {
 					not {true or input.y > 0}
-				}`},
-			wantQueries: []string{`not {
-					true or {__local0__1 = input.y; gt(__local0__1, 0)}
 				}`},
 		},
 		{
@@ -7167,7 +7111,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				p if {
 					{ x := input.x; not x > 0 } and true 
 				}`},
-			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } and true`},
+			wantQueries: []string{`not gt(input.x, 0)`},
 		},
 		{
 			note:            "or (not): unknown inside",
@@ -7178,7 +7122,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				p if {
 					{ x := input.x; not x > 0 } or true 
 				}`},
-			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } or true`},
+			wantQueries: []string{``},
 		},
 	}
 
@@ -7311,7 +7255,7 @@ func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	popts := ast.ParserOptions{
-		FutureKeywords: []string{"and", "or"},
+		FutureKeywords: []string{"and", "or", "not"},
 	}
 
 	cases := []struct {
@@ -7331,6 +7275,65 @@ func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
 				`{"x": 1, "y": -2}`,  // rhs false -> undefined
 				`{"x": -1, "y": -2}`, // both false -> undefined
 			},
+		},
+		{
+			note: "or: operand with a variable of its own, three queries",
+			module: `package test
+				p if {
+					{ some g in input.groups; input.c == g } or input.a > 1
+				}`,
+			inputs: []string{`{"groups": ["x", "y"], "c": "y"}`, `{"groups": ["x"], "c": "y", "a": 2}`, `{"groups": [], "c": "y"}`},
+		},
+		{
+			note: "or: not body with a builtin output, as an operand",
+			module: `package test
+				p if {
+					input.a > 1 or not { count(input.groups) > 1 }
+				}`,
+			inputs: []string{`{"a": 2, "groups": [1, 2]}`, `{"a": 0, "groups": [1]}`, `{"a": 0, "groups": [1, 2]}`, `{}`},
+		},
+		{
+			note: "and: with on an operand and on the and",
+			module: `package test
+				limit := 0
+				p if {
+					({ input.x > data.test.limit with data.test.limit as input.a } and true) with data.test.limit as 2
+				}`,
+			inputs: []string{`{"x": 3, "a": 5}`, `{"x": 3, "a": 1}`, `{"x": 1, "a": 0}`},
+		},
+		{
+			note: "or: known true operand",
+			module: `package test
+				on := true
+				p if {
+					on or input.x > 0
+				}`,
+			inputs: []string{`{"x": 1}`, `{"x": -1}`, `{}`},
+		},
+		{
+			note: "or: known undefined operand",
+			module: `package test
+				p if {
+					data.test.nope or input.x > 0
+				}`,
+			inputs: []string{`{"x": 1}`, `{"x": -1}`, `{}`},
+		},
+		{
+			note: "and: known true operand",
+			module: `package test
+				on := true
+				p if {
+					on and input.x > 0
+				}`,
+			inputs: []string{`{"x": 1}`, `{"x": -1}`, `{}`},
+		},
+		{
+			note: "and: known undefined operand",
+			module: `package test
+				p if {
+					input.x > 0 and data.test.nope
+				}`,
+			inputs: []string{`{"x": 1}`, `{"x": -1}`, `{}`},
 		},
 		{
 			note: "or: both unknowns",
