@@ -13,6 +13,9 @@ This release contains a mix of new features, performance improvements and bug fi
 - Improvements to the rule indexer
 - A new `json.pointer_escape` built-in function
 
+> [!NOTE]
+> Help us improve OPA, and fill out the [2026 OPA Community Survey](https://www.surveymonkey.com/r/7KHZWVL)!
+
 ### Bundles are rooted at their `.manifest` file ([#9459](https://github.com/open-policy-agent/opa/pull/9459))
 
 Breaking change: OPA now treats the directory containing a bundle's `.manifest` file as the bundle root, as the
