@@ -127,6 +127,14 @@ evaluation where every candidate is evaluated.
 
 See [Use indexed statements](https://www.openpolicyagent.org/docs/policy-performance#use-indexed-statements).
 
+- ast: Index a collection lookup keyed by an element of a collection ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
+- ast: Index collection lookups in `and`/`or` operands ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
+- ast: Index expressions over a local iterating a literal ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
+- ast: Keep a rule indexed as "anything" for `in` with a var member ([#9506](https://github.com/open-policy-agent/opa/issues/9506)) authored by @srenatus, reported by @kholia
+- rego: Compare indexed and unindexed evaluation for every index condition ([#9525](https://github.com/open-policy-agent/opa/pull/9525)) authored by @srenatus
+- topdown: Ask the index candidates whether a rule depends on unknowns ([#9570](https://github.com/open-policy-agent/opa/pull/9570)) authored by @srenatus
+- topdown: Report key conflicts in indexed object comprehensions ([#9613](https://github.com/open-policy-agent/opa/pull/9613)) authored by @srenatus
+
 Authored by @srenatus
 
 ### New `json.pointer_escape` built-in function ([#9591](https://github.com/open-policy-agent/opa/issues/9591))
@@ -152,7 +160,6 @@ Authored by @charlieegan3
 - plugins: Close the Wasm resolvers a bundle update replaces ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
 - rego: Close the Wasm engine after Rego.Eval ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
 - rego: Close the Wasm resolvers a prepared query loaded ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
-- rego: Compare indexed and unindexed evaluation for every index condition ([#9525](https://github.com/open-policy-agent/opa/pull/9525)) authored by @srenatus
 - rego: Drop the test that Close does nothing on the default target ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
 - rego: Exclude wasm compile time from context timeout test ([#9455](https://github.com/open-policy-agent/opa/pull/9455)) authored by @sspaink
 - rego: Test a Wasm resolver result not named "result" ([#9541](https://github.com/open-policy-agent/opa/pull/9541)) authored by @jbpros
@@ -181,10 +188,6 @@ Authored by @charlieegan3
 - ast: Fix negative number location text (for issue #9531) ([#9531](https://github.com/open-policy-agent/opa/issues/9531)) authored by @devjoshi2005, reported by @anderseknert
 - ast: Give a function without a body the location of its whole statement ([#9579](https://github.com/open-policy-agent/opa/pull/9579)) authored by @srenatus
 - ast: In lazyObj, check cache before digging up path ([#9460](https://github.com/open-policy-agent/opa/pull/9460)) authored by @srenatus
-- ast: Index a collection lookup keyed by an element of a collection ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
-- ast: Index collection lookups in `and`/`or` operands ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
-- ast: Index expressions over a local iterating a literal ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
-- ast: Keep a rule indexed as "anything" for `in` with a var member ([#9506](https://github.com/open-policy-agent/opa/issues/9506)) authored by @srenatus, reported by @kholia
 - ast: Parse modules without locations ([#9485](https://github.com/open-policy-agent/opa/pull/9485)) authored by @srenatus
 - ast: Parse not {..}[..] as a ref on a set literal under v2 ([#9540](https://github.com/open-policy-agent/opa/issues/9540)) authored by @sspaink, reported by @anderseknert
 - ast: Probe base data collections without converting them ([#9447](https://github.com/open-policy-agent/opa/pull/9447)) authored by @srenatus
@@ -210,7 +213,6 @@ Authored by @charlieegan3
 - topdown/walk: Alloc less when building walk paths ([#9554](https://github.com/open-policy-agent/opa/pull/9554)) authored by @charlieegan3
 - topdown: Add compliance cases for empty and undefined inputs ([#9499](https://github.com/open-policy-agent/opa/pull/9499)) authored by @srenatus
 - topdown: Allocate less in replace and replace_n ([#9590](https://github.com/open-policy-agent/opa/pull/9590)) authored by @charlieegan3
-- topdown: Ask the index candidates whether a rule depends on unknowns ([#9570](https://github.com/open-policy-agent/opa/pull/9570)) authored by @srenatus
 - topdown: Avoid compiling unused regexes in regex.template_match ([#9569](https://github.com/open-policy-agent/opa/pull/9569)) authored by @SayokoAkiike
 - topdown: Bound magnitude of units.parse/parse_bytes results ([#9404](https://github.com/open-policy-agent/opa/issues/9404)) reported and authored by @leandrocosta-git
 - topdown: Corpus cases ([#9564](https://github.com/open-policy-agent/opa/pull/9564)) authored by @kroekle
@@ -221,7 +223,6 @@ Authored by @charlieegan3
 - topdown: Lazily allocate comp. cache children ([#9573](https://github.com/open-policy-agent/opa/pull/9573)) authored by @charlieegan3
 - topdown: Make the partial object collision check linear ([#9612](https://github.com/open-policy-agent/opa/pull/9612)) authored by @srenatus
 - topdown: Remove stale comment re sync.Pool ([#9571](https://github.com/open-policy-agent/opa/pull/9571)) authored by @charlieegan3
-- topdown: Report key conflicts in indexed object comprehensions ([#9613](https://github.com/open-policy-agent/opa/pull/9613)) authored by @srenatus
 - topdown: Reuse pooled step continuation for bare terms ([#9614](https://github.com/open-policy-agent/opa/pull/9614)) authored by @charlieegan3
 - topdown: Use YAML cases for replace tests ([#9597](https://github.com/open-policy-agent/opa/pull/9597)) authored by @charlieegan3
 
