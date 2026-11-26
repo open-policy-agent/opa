@@ -529,6 +529,11 @@
       "Minor": 25,
       "Patch": 0
     },
+    "json.pointer_escape": {
+      "Major": 1,
+      "Minor": 23,
+      "Patch": 0
+    },
     "json.remove": {
       "Major": 0,
       "Minor": 18,

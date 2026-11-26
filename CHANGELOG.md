@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.23.0
+
+This release contains a mix of new features, performance improvements and bug fixes. Notably:
+
+- Enforcement of bundle structure: now rooted at their `.manifest` file
+- Lucene (Solr) target for the Compile API
+- Hardening of the MySQL Compile API target: use of `startswith`, `endswith` and `contains` built-in functions is rejected
+- Improvements to the rule indexer
+- A new `json.pointer_escape` built-in function
+
+> [!NOTE]
+> Help us improve OPA, and fill out the [2026 OPA Community Survey](https://www.surveymonkey.com/r/7KHZWVL)!
 
 ### Bundles are rooted at their `.manifest` file ([#9459](https://github.com/open-policy-agent/opa/pull/9459))
 
@@ -55,7 +66,7 @@ method. Custom loaders that wrap a directory loader should forward `RootOffset`.
 
 Authored by @philipaconrad
 
-### Lucene (Solr) target for the Compile API
+### Lucene (Solr) target for the Compile API ([#9376](https://github.com/open-policy-agent/opa/pull/9376))
 
 The Compile API can now translate a policy into a Lucene query for Solr's `fq` or `q`, with
 `Accept: application/vnd.opa.lucene.solr+json`. The one unknown is the document searched:
@@ -84,7 +95,7 @@ See [Lucene filters](https://www.openpolicyagent.org/docs/filtering/lucene).
 
 Authored by @srenatus
 
-### Compile API: no `startswith`, `endswith` or `contains` for MySQL
+### Compile API: no `startswith`, `endswith` or `contains` for MySQL ([#9624](https://github.com/open-policy-agent/opa/issues/9624))
 
 Breaking change: the MySQL target rejects `startswith`, `endswith` and `contains`, as the SQLite target
 already did. They were translated to `LIKE`, which is case- and accent-insensitive in MySQL's default
@@ -127,8 +138,148 @@ evaluation where every candidate is evaluated.
 
 See [Use indexed statements](https://www.openpolicyagent.org/docs/policy-performance#use-indexed-statements).
 
+- ast: Index a collection lookup keyed by an element of a collection ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
+- ast: Index collection lookups in `and`/`or` operands ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
+- ast: Index expressions over a local iterating a literal ([#9461](https://github.com/open-policy-agent/opa/pull/9461)) authored by @srenatus
+- ast: Keep a rule indexed as "anything" for `in` with a var member ([#9506](https://github.com/open-policy-agent/opa/issues/9506)) authored by @srenatus, reported by @kholia
+- rego: Compare indexed and unindexed evaluation for every index condition ([#9525](https://github.com/open-policy-agent/opa/pull/9525)) authored by @srenatus
+- topdown: Ask the index candidates whether a rule depends on unknowns ([#9570](https://github.com/open-policy-agent/opa/pull/9570)) authored by @srenatus
+- topdown: Report key conflicts in indexed object comprehensions ([#9613](https://github.com/open-policy-agent/opa/pull/9613)) authored by @srenatus
+
 Authored by @srenatus
 
+### New `json.pointer_escape` built-in function ([#9591](https://github.com/open-policy-agent/opa/issues/9591))
+
+Escapes a string so it can be used as one reference token of a JSON Pointer, as defined in RFC 6901.
+The characters `~` and `/` are replaced with `~0` and `~1`.
+For example: `json.pointer_escape(\"a/b~c\")` results in `\"a~1b~0c\"`.
+
+Authored by @charlieegan3
+
+### Runtime, SDK, Tooling
+
+- cmd(fmt): Honor `--drop-v0-imports` when formatting stdin ([#9619](https://github.com/open-policy-agent/opa/pull/9619)) authored by @FayezBast
+- cmd/inspect: Show labels metadata with -a ([#9504](https://github.com/open-policy-agent/opa/issues/9504)) authored by @srenatus, reported by @humbertoc-silva
+- cmd: Add --v2-compatible flag ([#9251](https://github.com/open-policy-agent/opa/issues/9251)) authored by @sspaink, reported by @johanfylling
+- cmd: Replace --v2-compatible with --compatible=<version> ([#9496](https://github.com/open-policy-agent/opa/pull/9496)) authored by @sspaink
+- compile: Compile without indices where nothing evaluates ([#9605](https://github.com/open-policy-agent/opa/pull/9605)) authored by @srenatus
+- compile: Release the checking compiler after a rego build ([#9604](https://github.com/open-policy-agent/opa/pull/9604)) authored by @srenatus
+- format: Preserve nested comparison grouping ([#9407](https://github.com/open-policy-agent/opa/issues/9407)) authored by @rudraa2005, reported by @alecthomas
+- plugins/bundle: Activate generated bundles incrementally ([#9359](https://github.com/open-policy-agent/opa/pull/9359)) authored by @srenatus
+- plugins/logs: Copy JSON-shaped values natively for console logs ([#9576](https://github.com/open-policy-agent/opa/pull/9576)) authored by @sspaink
+- plugins/logs: Split oversized chunks without decoding them ([#9577](https://github.com/open-policy-agent/opa/pull/9577)) authored by @sspaink
+- plugins: Close the Wasm resolvers a bundle update replaces ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- rego: Close the Wasm engine after Rego.Eval ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- rego: Close the Wasm resolvers a prepared query loaded ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- rego: Drop the test that Close does nothing on the default target ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- rego: Exclude wasm compile time from context timeout test ([#9455](https://github.com/open-policy-agent/opa/pull/9455)) authored by @sspaink
+- rego: Test a Wasm resolver result not named "result" ([#9541](https://github.com/open-policy-agent/opa/pull/9541)) authored by @jbpros
+- repl: Allow implicit function bodies ([#9539](https://github.com/open-policy-agent/opa/issues/9539)) authored by @devjoshi2005, reported by @anderseknert
+- server: Fix oversized request body status in v2-compatible mode ([#9497](https://github.com/open-policy-agent/opa/pull/9497)) authored by @darshpatel1052
+- storage/inmem: Speed up NonEmpty conflict checks ([#9545](https://github.com/open-policy-agent/opa/issues/9545)) reported and authored by @believetech-orw
+- tester: Add --strict-builtin-errors to opa test ([#6816](https://github.com/open-policy-agent/opa/issues/6816)) authored by @oleksii-udovychenko, reported by @selaux
+- tester: Close the Wasm engine after each test ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- tester: Close the Wasm engine of a benchmark ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- tester: Do not wait forever to evaluate a closed engine ([#9513](https://github.com/open-policy-agent/opa/pull/9513)) authored by @jbpros
+- wasm: Return an error when the result has no "result" key ([#9541](https://github.com/open-policy-agent/opa/pull/9541)) authored by @jbpros
+- wasm: Replace non-object values when upserting for with ([#6304](https://github.com/open-policy-agent/opa/issues/6304)) authored by @sspaink, reported by @srenatus
+
+### Compiler, Topdown and Rego
+
+- ast: Allocate each parser term cache entry once ([#9585](https://github.com/open-policy-agent/opa/pull/9585)) authored by @charlieegan3
+- ast: Allocate type tree children lazily ([#9572](https://github.com/open-policy-agent/opa/pull/9572)) authored by @charlieegan3
+- ast: Allow iterating empty collections in the type checker ([#9517](https://github.com/open-policy-agent/opa/issues/9517)) authored by @sspaink, reported by @kholia
+- ast: Allow keys of empty collections in rules replaced by `with` ([#9529](https://github.com/open-policy-agent/opa/pull/9529)) authored by @sspaink
+- ast: Allow mixed rule kinds on disjoint ref heads ([#7182](https://github.com/open-policy-agent/opa/issues/7182)) authored by @oleksii-udovychenko, reported by @anderseknert
+- ast: Compare numbers beyond float64 precision exactly ([#9508](https://github.com/open-policy-agent/opa/pull/9508)) authored by @srenatus
+- ast: Compiler tweaks to improve perf (-12% allocs) ([#9567](https://github.com/open-policy-agent/opa/pull/9567)) authored by @anderseknert
+- ast: Correct default rule location text ([#9516](https://github.com/open-policy-agent/opa/pull/9516)) authored by @charlieegan3
+- ast: Decode `every` expressions from JSON ([#9544](https://github.com/open-policy-agent/opa/pull/9544)) authored by @srenatus
+- ast: Decode `some` declarations from JSON ([#9544](https://github.com/open-policy-agent/opa/pull/9544)) authored by @srenatus
+- ast: Fix negative number location text (for issue #9531) ([#9531](https://github.com/open-policy-agent/opa/issues/9531)) authored by @devjoshi2005, reported by @anderseknert
+- ast: Give a function without a body the location of its whole statement ([#9579](https://github.com/open-policy-agent/opa/pull/9579)) authored by @srenatus
+- ast: In lazyObj, check cache before digging up path ([#9460](https://github.com/open-policy-agent/opa/pull/9460)) authored by @srenatus
+- ast: Parse modules without locations ([#9485](https://github.com/open-policy-agent/opa/pull/9485)) authored by @srenatus
+- ast: Parse not {..}[..] as a ref on a set literal under v2 ([#9540](https://github.com/open-policy-agent/opa/issues/9540)) authored by @sspaink, reported by @anderseknert
+- ast: Probe base data collections without converting them ([#9447](https://github.com/open-policy-agent/opa/pull/9447)) authored by @srenatus
+- ast: Reduce size of `Head` struct from 128 to 96 bytes ([#9607](https://github.com/open-policy-agent/opa/pull/9607)) authored by @anderseknert
+- ast: Report template string errors once ([#8243](https://github.com/open-policy-agent/opa/issues/8243)) authored by @sspaink, reported by @anderseknert
+- ast: Reuse compiled rules across compiles ([#9359](https://github.com/open-policy-agent/opa/pull/9359)) authored by @srenatus
+- ast: Say when an array index is out of bounds ([#9505](https://github.com/open-policy-agent/opa/issues/9505)) authored by @THEpranavsomalraju, reported by @anderseknert
+- ast: Set scan opts when needed to reduce allocs ([#9583](https://github.com/open-policy-agent/opa/pull/9583)) authored by @charlieegan3
+- ast: Skip per-rule recursion check when graph sorts ([#9582](https://github.com/open-policy-agent/opa/pull/9582)) authored by @charlieegan3
+- ast: Skip repeated rule names when resolving refs ([#9602](https://github.com/open-policy-agent/opa/pull/9602)) authored by @charlieegan3
+- ast: Value only built-in type env ([#9586](https://github.com/open-policy-agent/opa/pull/9586)) authored by @charlieegan3
+- ast: ast, bundle, plugins/bundle: remove rule reuse ([#9560](https://github.com/open-policy-agent/opa/pull/9560)) authored by @srenatus
+- ast: don't copy expressions before rewriting ([#9580](https://github.com/open-policy-agent/opa/pull/9580)) authored by @anderseknert
+- bundle: Let the reader leave out rules the compiler can reuse ([#9359](https://github.com/open-policy-agent/opa/pull/9359)) authored by @srenatus
+- bundle: Parse at most GOMAXPROCS modules at once ([#9484](https://github.com/open-policy-agent/opa/pull/9484)) authored by @srenatus
+- bundle: Read generated bundles without locations ([#9359](https://github.com/open-policy-agent/opa/pull/9359)) authored by @srenatus
+- eval: A few more fixes reducing allocations ([#9514](https://github.com/open-policy-agent/opa/pull/9514)) authored by @anderseknert
+- eval: Store and retrieve call operands from pool ([#9501](https://github.com/open-policy-agent/opa/pull/9501)) authored by @anderseknert
+- perf: Add sync pool for evalTermNext, improve hasCollisions ([#9550](https://github.com/open-policy-agent/opa/pull/9550)) authored by @anderseknert
+- perf: Allow iterate objects without allocations ([#9481](https://github.com/open-policy-agent/opa/pull/9481)) authored by @anderseknert
+- perf: Make sink writer perform on par with bytes.Buffer ([#9537](https://github.com/open-policy-agent/opa/pull/9537)) authored by @anderseknert
+- perf: Non-allocating out-of-bounds array.slice ([#9549](https://github.com/open-policy-agent/opa/pull/9549)) authored by @anderseknert
+- topdown/walk: Alloc less when building walk paths ([#9554](https://github.com/open-policy-agent/opa/pull/9554)) authored by @charlieegan3
+- topdown: Add compliance cases for empty and undefined inputs ([#9499](https://github.com/open-policy-agent/opa/pull/9499)) authored by @srenatus
+- topdown: Allocate less in replace and replace_n ([#9590](https://github.com/open-policy-agent/opa/pull/9590)) authored by @charlieegan3
+- topdown: Avoid compiling unused regexes in regex.template_match ([#9569](https://github.com/open-policy-agent/opa/pull/9569)) authored by @SayokoAkiike
+- topdown: Bound magnitude of units.parse/parse_bytes results ([#9404](https://github.com/open-policy-agent/opa/issues/9404)) reported and authored by @leandrocosta-git
+- topdown: Corpus cases ([#9564](https://github.com/open-policy-agent/opa/pull/9564)) authored by @kroekle
+- topdown: Cover the ordering of values of different types ([#9509](https://github.com/open-policy-agent/opa/pull/9509)) authored by @srenatus
+- topdown: Cover time.date, clock, weekday and diff with small timestamps ([#9498](https://github.com/open-policy-agent/opa/pull/9498)) authored by @srenatus
+- topdown: Fix ceil and floor of negative fractions above -1 ([#9562](https://github.com/open-policy-agent/opa/issues/9562)) reported by @kroekle
+- topdown: Fix net.cidr_merge panic on IPv4-mapped IPv6 CIDRs ([#9528](https://github.com/open-policy-agent/opa/issues/9528)) reported and authored by @nikpivkin
+- topdown: Lazily allocate comp. cache children ([#9573](https://github.com/open-policy-agent/opa/pull/9573)) authored by @charlieegan3
+- topdown: Make the partial object collision check linear ([#9612](https://github.com/open-policy-agent/opa/pull/9612)) authored by @srenatus
+- topdown: Remove stale comment re sync.Pool ([#9571](https://github.com/open-policy-agent/opa/pull/9571)) authored by @charlieegan3
+- topdown: Reuse pooled step continuation for bare terms ([#9614](https://github.com/open-policy-agent/opa/pull/9614)) authored by @charlieegan3
+- topdown: Use YAML cases for replace tests ([#9597](https://github.com/open-policy-agent/opa/pull/9597)) authored by @charlieegan3
+
+### Docs, Website, Ecosystem
+
+- docs: Add blog post on opa-java-wasm moving to the OPA org ([#9515](https://github.com/open-policy-agent/opa/pull/9515)) authored by @andreaTP
+- docs: Amend security reporting docs to cover scanners ([#9551](https://github.com/open-policy-agent/opa/pull/9551)) authored by @anderseknert
+- docs: Document number representation differences in Wasm ([#3298](https://github.com/open-policy-agent/opa/issues/3298)) authored by @ajaykr0905, reported by @srenatus
+- docs: Explain http_request_duration_seconds buckets ([#5195](https://github.com/open-policy-agent/opa/issues/5195)) authored by @sspaink, reported by @tsandall
+- docs: Fix broken links from link checker report ([#9463](https://github.com/open-policy-agent/opa/issues/9463)) authored by @sspaink, reported by @github-actions
+- docs: Fix the examples of the data filtering fragment ([#9630](https://github.com/open-policy-agent/opa/pull/9630)) authored by @srenatus
+- docs: Fix typos ([#9594](https://github.com/open-policy-agent/opa/pull/9594)) authored by @Adham-Kiwan
+- docs: Make a few index examples more clear ([#9482](https://github.com/open-policy-agent/opa/pull/9482)) authored by @charlieegan3
+- docs: ocp: document git source depth ([#9503](https://github.com/open-policy-agent/opa/pull/9503)) authored by @srenatus
+- ecosystem: Add formal.ai ([#9511](https://github.com/open-policy-agent/opa/pull/9511)) authored by @charlieegan3
+- website: Update security docs ([#9476](https://github.com/open-policy-agent/opa/pull/9476)) authored by @charlieegan3
+- website: Add redirect for wrong security.txt path ([#9477](https://github.com/open-policy-agent/opa/pull/9477)) authored by @charlieegan3
+- website: Show live code query, highlight output some more ([#9533](https://github.com/open-policy-agent/opa/pull/9533)) authored by @srenatus
+
+### Miscellaneous
+
+- types: Decode set types without an element type ([#9544](https://github.com/open-policy-agent/opa/pull/9544)) authored by @srenatus
+- types: Decode type JSON in linear time ([#9473](https://github.com/open-policy-agent/opa/pull/9473)) authored by @srenatus
+- util/test: don't panic in MakeTempFS when creating files fails ([#9578](https://github.com/open-policy-agent/opa/pull/9578)) authored by @sspaink
+- Dependency updates; notably:
+  - build(go): Bump to 1.27.4 ([#9543](https://github.com/open-policy-agent/opa/pull/9543)) authored by @srenatus
+  - build(deps): Bump github.com/agnivade/levenshtein from 1.2.1 to 1.2.2
+  - build(deps): Bump github.com/foxcpp/go-mockdns from 1.2.0 to 1.3.0
+  - build(deps): Bump github.com/gobwas/glob from 1.0.0 to 1.1.0
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.43.0 to 1.44.1
+  - build(deps): Bump github.com/klauspost/compress from 1.20.0 to 1.20.4
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.3.0 to 3.4.0
+  - build(deps): Bump github.com/prometheus/client_golang from 1.24.1 to 1.25.0
+  - build(deps): Bump github.com/sergi/go-diff from 1.4.0 to 1.4.5
+  - build(deps): Bump github.com/spf13/pflag from 1.0.10 to 1.1.0
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.58 to 2.5.64
+  - build(deps): bump go.opentelemetry.io deps from 1.46.0/0.71.0 to 1.47.0/0.72.0
+  - build(deps): Bump go.opentelemetry.io/proto/otlp from 1.11.0 to 1.11.1
+  - build(deps): Bump go.yaml.in/yaml/v3 from 3.0.5 to 3.0.6
+  - build(deps): Bump golang.org/x/sync from 0.23.0 to 0.25.0
+  - build(deps): Bump golang.org/x/term from 0.46.0 to 0.48.0
+  - build(deps): Bump golang.org/x/text from 0.42.0 to 0.44.0
+  - build(deps): Bump golang.org/x/net from v0.60.0 to v0.62.0 ([#9555](https://github.com/open-policy-agent/opa/pull/9555)) authored by @anderseknert
+  - build(deps): Bump google.golang.org/grpc from 1.84.0 to 1.85.0
+  - build(deps): Bump gopkg.in/ini.v1 from 1.67.3 to 1.68.0
+  - build(deps): Bump oras.land/oras-go/v2 from 2.6.2 to 2.7.0
 
 ## 1.22.4
 
