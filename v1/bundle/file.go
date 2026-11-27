@@ -385,7 +385,7 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 
 					match := false
 					for p := range t.skipDir {
-						if strings.HasPrefix(basePath, p) {
+						if p == "" || strings.HasPrefix(basePath, p+"/") {
 							match = true
 							break
 						}

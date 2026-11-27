@@ -230,10 +230,12 @@ func TestTarballLoaderWithFilterDir(t *testing.T) {
 		"/a/b/c/policy.rego":      "package bar\n q = 1",
 		"/a/b/c/policy_test.rego": "package bar\n test_q { q }",
 		"/a/.manifest":            `{"roots": ["a", "foo"]}`,
+		"/ab/policy.rego":         "package ab\n r = 1",
 	}
 
 	expectedFiles := map[string]string{
-		"/policy.rego": "package foo\n p = 1",
+		"/policy.rego":    "package foo\n p = 1",
+		"/ab/policy.rego": "package ab\n r = 1",
 	}
 
 	gzFileIn := map[string]string{
