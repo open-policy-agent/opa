@@ -1984,6 +1984,95 @@ x3 := {"foo": {
 	}
 }
 
+func TestFormatInOperatorWithEmbeddedComments(t *testing.T) {
+	cases := []struct {
+		note string
+		src  string
+	}{
+		{
+			note: "some k, v in object with embedded comments",
+			src: `package p
+
+import rego.v2
+
+test_foo if {
+	some name, snippet in {
+		# "declaration": "fn(x|) := x.y",
+		"declaration in array": "fn([x|, y]) := x[y]",
+		# "just after the declaration": "fn(x)| := x.y",
+		# "use in the head value": "fn(x) := x|.y",
+		# "use in the body": "fn(x) := y if y := x|.y",
+		# "use in the else branch": "fn(x) := 1 if false else := x|",
+	}
+
+	# trailing comment in rule body
+	name != ""
+}
+
+# trailing comment after rule
+`,
+		},
+		{
+			note: "some v in object with embedded comments",
+			src: `package p
+
+test_foo if {
+	some v in {
+		# commented out
+		"a": 1,
+	}
+	v == 1
+}
+`,
+		},
+		{
+			note: "object with embedded comments on lhs of in",
+			src: `package p
+
+test_foo if {
+	{
+		# commented out
+		"a": 1,
+	} in input.objs
+}
+`,
+		},
+		{
+			note: "some v in array with embedded comments",
+			src: `package p
+
+test_foo if {
+	some v in [
+		# commented out
+		"a",
+	]
+	v != ""
+}
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			formatted, err := Source("p.rego", []byte(tc.src))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if string(formatted) != tc.src {
+				t.Fatalf("expected:\n%s\ngot:\n%s", tc.src, string(formatted))
+			}
+
+			again, err := Source("p.rego", formatted)
+			if err != nil {
+				t.Fatalf("second format failed: %v", err)
+			}
+			if !bytes.Equal(again, formatted) {
+				t.Fatalf("not idempotent:\nfirst:\n%s\nsecond:\n%s", formatted, again)
+			}
+		})
+	}
+}
+
 func TestFormatFailFastFormattedSource(t *testing.T) {
 	cases := []struct {
 		dir  string
