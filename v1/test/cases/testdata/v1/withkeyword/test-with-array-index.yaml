@@ -1,0 +1,134 @@
+---
+cases:
+  - note: "withkeyword/array index: input array from previous with"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := modified if {
+        	my_input_array := ["foo", "bar", "baz"]
+
+        	modified := input with input as my_input_array
+        		with input[1] as "foo"
+        		with input[2] as "foo"
+        }
+    want_result:
+      - x: ["foo", "foo", "foo"]
+  - note: "withkeyword/array index: provided input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input.a[0] as 9
+        }
+    input_term: '{"a": [1, 2, 3]}'
+    want_result:
+      - x:
+          a: [9, 2, 3]
+  - note: "withkeyword/array index: provided input unchanged outside with"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [y, input] if {
+        	y := input with input.a[0] as 9
+        }
+    input_term: '{"a": [1, 2, 3]}'
+    want_result:
+      - x:
+          - a: [9, 2, 3]
+          - a: [1, 2, 3]
+  - note: "withkeyword/array index: object nested in array"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input.items[1].name as "replaced"
+        }
+    input_term: '{"items": [{"name": "a"}, {"name": "b", "id": 2}]}'
+    want_result:
+      - x:
+          items:
+            - name: a
+            - name: replaced
+              id: 2
+  - note: "withkeyword/array index: nested arrays"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input[1][0] as 9
+        }
+    input_term: '[[1, 2], [3, 4]]'
+    want_result:
+      - x: [[1, 2], [9, 4]]
+  - note: "withkeyword/array index: rule reading input"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        first := input.users[0]
+
+        p := y if {
+        	y := first with input.users[0] as "bob"
+        }
+    input_term: '{"users": ["alice", "carol"]}'
+    want_result:
+      - x: bob
+  - note: "withkeyword/array index: data array from previous with"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := data.arr with data.arr as [1, 2, 3]
+        		with data.arr[0] as 9
+        }
+    want_result:
+      - x: [9, 2, 3]
+  - note: "withkeyword/array index: out of bounds"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input[3] as 9
+        }
+    input_term: '[1, 2, 3]'
+    want_error_code: eval_conflict_error
+    want_error: "bad document path: array index must be an integer within the bounds of a known array"
+  - note: "withkeyword/array index: negative index"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input[-1] as 9
+        }
+    input_term: '[1, 2, 3]'
+    want_error_code: eval_conflict_error
+    want_error: "bad document path: array index must be an integer within the bounds of a known array"
+  - note: "withkeyword/array index: no known array"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y := input with input.a[0] as 9
+        }
+    input_term: '{"a": {"b": 1}}'
+    want_error_code: eval_conflict_error
+    want_error: "bad document path: number path elements may only index into a known array"

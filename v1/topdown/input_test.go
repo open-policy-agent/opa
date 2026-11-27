@@ -65,9 +65,79 @@ func TestMergeTermWithValues(t *testing.T) {
 			expected: `"b"`,
 		},
 		{
-			note:     "bad import path",
-			input:    [][2]string{{`input.a[1]`, `1`}},
+			note:     "bad path, var element",
+			input:    [][2]string{{`input.a[x]`, `1`}},
 			expected: errBadPath,
+		},
+		{
+			note:     "array index, no existing array",
+			input:    [][2]string{{`input.a[1]`, `1`}},
+			expected: errNumberNotArray,
+		},
+		{
+			note:     "array index, array from previous with",
+			input:    [][2]string{{"input", `["foo", "bar", "baz"]`}, {"input[1]", `"foo"`}, {"input[2]", `"foo"`}},
+			expected: `["foo", "foo", "foo"]`,
+		},
+		{
+			note:     "array index, existing array",
+			exist:    `{"a": [1, 2, 3]}`,
+			input:    [][2]string{{"input.a[0]", "9"}},
+			expected: `{"a": [9, 2, 3]}`,
+		},
+		{
+			note:     "array index, nested object in array",
+			exist:    `{"a": [{"b": 1, "c": 2}, {"b": 3}]}`,
+			input:    [][2]string{{"input.a[0].b", "9"}, {"input.a[1].d", "4"}},
+			expected: `{"a": [{"b": 9, "c": 2}, {"b": 3, "d": 4}]}`,
+		},
+		{
+			note:     "array index, nested arrays",
+			exist:    `[[1, 2], [3, 4]]`,
+			input:    [][2]string{{"input[1][0]", "9"}},
+			expected: `[[1, 2], [9, 4]]`,
+		},
+		{
+			note:     "array index, element replaced by object tree",
+			exist:    `[1, 2]`,
+			input:    [][2]string{{"input[0].x.y", "9"}},
+			expected: `[{"x": {"y": 9}}, 2]`,
+		},
+		{
+			note:     "array index, out of bounds",
+			exist:    `[1, 2, 3]`,
+			input:    [][2]string{{"input[3]", "9"}},
+			expected: errBadArrayIndex,
+		},
+		{
+			note:     "array index, negative",
+			exist:    `[1, 2, 3]`,
+			input:    [][2]string{{"input[-1]", "9"}},
+			expected: errBadArrayIndex,
+		},
+		{
+			note:     "array index, not an integer",
+			exist:    `[1, 2, 3]`,
+			input:    [][2]string{{"input[1.5]", "9"}},
+			expected: errBadArrayIndex,
+		},
+		{
+			note:     "array index on object",
+			exist:    `{"a": {"b": 1}}`,
+			input:    [][2]string{{"input.a[0]", "9"}},
+			expected: errNumberNotArray,
+		},
+		{
+			note:     "array index below missing key",
+			exist:    `{"a": 1}`,
+			input:    [][2]string{{"input.b[0]", "9"}},
+			expected: errNumberNotArray,
+		},
+		{
+			note:     "string key on array still replaces array",
+			exist:    `{"a": [1, 2]}`,
+			input:    [][2]string{{"input.a.b", "9"}},
+			expected: `{"a": {"b": 9}}`,
 		},
 		{
 			note:     "existing merge",
@@ -148,5 +218,34 @@ func TestMergeTermWithValuesInputsShouldBeImmutable(t *testing.T) {
 
 	if !initial.Equal(expInitial) {
 		t.Fatalf("expected input value to be unchanged but got %v (expected: %v)", initial, expInitial)
+	}
+}
+
+func TestMergeTermWithValuesArrayInputsShouldBeImmutable(t *testing.T) {
+	t.Parallel()
+
+	initial := ast.MustParseTerm(`["foo", "bar"]`)
+	expInitial := initial.Copy()
+	exist := ast.MustParseTerm(`{"a": [1, 2]}`)
+	expExist := exist.Copy()
+
+	result, err := mergeTermWithValues(exist, [][2]*ast.Term{
+		{ast.MustParseTerm("input.a[0]"), ast.MustParseTerm("9")},
+		{ast.MustParseTerm("input.b"), initial},
+		{ast.MustParseTerm("input.b[1]"), ast.MustParseTerm(`"foo"`)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := ast.MustParseTerm(`{"a": [9, 2], "b": ["foo", "foo"]}`)
+	if !result.Equal(exp) {
+		t.Fatalf("expected %v but got %v", exp, result)
+	}
+	if !initial.Equal(expInitial) {
+		t.Fatalf("expected with value to be unchanged but got %v (expected: %v)", initial, expInitial)
+	}
+	if !exist.Equal(expExist) {
+		t.Fatalf("expected existing document to be unchanged but got %v (expected: %v)", exist, expExist)
 	}
 }
