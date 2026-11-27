@@ -1783,6 +1783,86 @@ func TestPartialNamespace(t *testing.T) {
 	}
 }
 
+func TestPartialIllegalUnknowns(t *testing.T) {
+
+	module := `package test
+
+import rego.v1
+
+p if input.x[0].a == 1`
+
+	tests := []struct {
+		note     string
+		unknowns []string
+		expErr   string
+	}{
+		{
+			note:     "wildcard in ref position",
+			unknowns: []string{"input.x[_]"},
+			expErr:   "illegal unknown input.x[_]",
+		},
+		{
+			note:     "variable in ref position",
+			unknowns: []string{"input.x[i]"},
+			expErr:   "illegal unknown input.x[i]",
+		},
+		{
+			note:     "wildcard deep in ref",
+			unknowns: []string{"input.x[0].a[_].b"},
+			expErr:   "illegal unknown input.x[0].a[_].b",
+		},
+		{
+			note:     "string instead of ref",
+			unknowns: []string{`"x"`},
+			expErr:   `illegal unknown "x": expected var or ref`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := New(
+				Query("data.test.p = true"),
+				Module("test.rego", module),
+				Unknowns(tc.unknowns),
+			).Partial(t.Context())
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.expErr)
+			}
+			if !strings.Contains(err.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expErr, err)
+			}
+		})
+	}
+
+	t.Run("parsed unknowns validated too", func(t *testing.T) {
+		_, err := New(
+			Query("data.test.p = true"),
+			Module("test.rego", module),
+			ParsedUnknowns([]*ast.Term{ast.MustParseTerm("input.x[_]")}),
+		).Partial(t.Context())
+		if err == nil {
+			t.Fatal("expected error for non-ground parsed unknown, got nil")
+		}
+		if !strings.Contains(err.Error(), "illegal unknown input.x[_]") {
+			t.Fatalf("expected illegal unknown error, got: %v", err)
+		}
+	})
+
+	t.Run("vars and ground refs still accepted", func(t *testing.T) {
+		pq, err := New(
+			Query("data.test.p = true"),
+			Module("test.rego", module),
+			Unknowns([]string{"input", "input.x[0].a"}),
+		).Partial(t.Context())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(pq.Queries) == 0 {
+			t.Fatal("expected at least one residual query")
+		}
+	})
+}
+
 func TestPrepareAndCompile(t *testing.T) {
 	module := `
 	package test
