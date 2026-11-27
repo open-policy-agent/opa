@@ -1213,6 +1213,12 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 					indented = true
 				}
 				w.endLine()
+				// Write any comments preceding this `with` on their own lines
+				// before starting the line for the `with` itself, so the
+				// indentation isn't lost when a comment sits inside the chain.
+				if comments, err = w.insertComments(comments, with.Location); err != nil {
+					return comments, err
+				}
 				w.startLine()
 				lastRow = with.Location.Row
 			}
