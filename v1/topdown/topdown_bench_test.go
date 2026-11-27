@@ -711,9 +711,10 @@ func BenchmarkPartialObjectRule(b *testing.B) {
 	module := `package test
 
 	p[k] := v if { some k, v in data.items }
-	objects[k] := {"v": v} if { some k, v in data.items }`
+	objects[k] := {"v": v} if { some k, v in data.items }
+	sets[k] contains v if { some k, v in data.items }`
 
-	for _, rule := range []string{"p", "objects"} {
+	for _, rule := range []string{"p", "objects", "sets"} {
 		for _, n := range []int{100, 1000, 4000} {
 			b.Run(fmt.Sprintf("%s_%d", rule, n), func(b *testing.B) {
 				items := make(map[string]any, n)

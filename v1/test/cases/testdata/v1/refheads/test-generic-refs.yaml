@@ -126,6 +126,71 @@ cases:
 
         p.q.r.s.u := 42
     want_error_code: eval_conflict_error
+  - note: refheads/general, set leaf added to another rule's set value, conflict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p[k] := {1} if k := "a"
+
+        p.a contains 2
+    want_error_code: eval_conflict_error
+  - note: refheads/general, set leaf added to another rule's set value, key query, conflict
+    query: data.test.p.a = x
+    modules:
+      - |
+        package test
+
+        p[k] := {1} if k := "a"
+
+        p.a contains 2
+    want_error_code: eval_conflict_error
+  - note: refheads/general, equal set value written onto set leaf
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p.a := {2}
+
+        p[x] contains 2 if x := "a"
+    want_result:
+      - x:
+          a:
+            - 2
+  - note: refheads/general, set value with fewer elements than set leaf, conflict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p.a := {2}
+
+        p[x] contains 2 if x := "a"
+
+        p[x] contains 3 if x := "a"
+    want_error_code: eval_conflict_error
+  - note: refheads/general, set value with more elements than set leaf, conflict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p.a := {2, 3}
+
+        p[x] contains 2 if x := "a"
+    want_error_code: eval_conflict_error
+  - note: refheads/general, set leaf added to another rule's object, conflict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p[x] contains 1 if x := "a"
+
+        p.a.b := 1
+    want_error_code: eval_conflict_error
   - note: refheads/general, set leaf (shallow ref)
     query: data.test.p = x
     modules:

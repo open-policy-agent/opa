@@ -211,6 +211,11 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		if c := cmp.Compare(len(aRef), len(bRef)); c != 0 {
 			return -c
 		}
+		// Multi-value rules first: a single-value rule writing to a key they
+		// add to then compares with the complete set.
+		if c := cmp.Compare(kindRank(a), kindRank(b)); c != 0 {
+			return c
+		}
 		return aRef.Compare(bRef)
 	})
 
@@ -427,6 +432,9 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 					case ast.MultiValue:
 						if buildObject {
 							ref := rule.Ref()
+							// Rules with longer refs were planned before, and may have put an
+							// object where this rule's set goes.
+							checkSet := len(rules[0].Ref()) > len(ref)
 							// we drop the trailing set key from the ref
 							return p.planNestedObjects(fn.Return, ref[pieces:len(ref)-1], func(obj ir.Local) error {
 								// Last term on rule ref is the key an which the set is assigned in the deepest nested object
@@ -436,6 +444,9 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 										value := p.ltarget
 										factory := func(v ir.Local) ir.Stmt { return &ir.MakeSetStmt{Target: v} }
 										return p.planDotOr(obj, key, factory, func(set ir.Local) error {
+											if checkSet {
+												p.planConflictUnlessSet(set, key, obj)
+											}
 											p.appendStmt(&ir.SetAddStmt{
 												Set:   set,
 												Value: value,
@@ -526,6 +537,13 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	return fn.Name, nil
 }
 
+func kindRank(r *ast.Rule) int {
+	if r.Head.RuleKind() == ast.MultiValue {
+		return 0
+	}
+	return 1
+}
+
 func (p *Planner) planDotOr(obj ir.Local, key ir.Operand, or stmtFactory, iter planLocalIter) error {
 	// We're constructing the following plan:
 	//
@@ -580,6 +598,16 @@ func (p *Planner) planNestedObjects(obj ir.Local, ref ast.Ref, iter planLocalIte
 			return p.planNestedObjects(childObj, ref[1:], iter)
 		})
 	})
+}
+
+// planConflictUnlessSet raises the conflict for obj[key] if val, its value, is
+// not a set. Plans raise conflicts only through ObjectInsertOnceStmt, so this
+// inserts a different value.
+func (p *Planner) planConflictUnlessSet(val ir.Local, key ir.Operand, obj ir.Local) {
+	b := &ir.Block{}
+	p.appendStmtToBlock(&ir.NotStmt{Block: p.blockWithStmt(&ir.IsSetStmt{Source: op(val)})}, b)
+	p.appendStmtToBlock(&ir.ObjectInsertOnceStmt{Object: obj, Key: key, Value: op(ir.Bool(false))}, b)
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{b}})
 }
 
 func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter planiter) error {
