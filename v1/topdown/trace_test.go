@@ -77,9 +77,8 @@ func TestPrettyTrace(t *testing.T) {
 		WithTransaction(txn).
 		WithTracer(tracer)
 
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	expected := `Enter data.test.p = _
@@ -141,7 +140,7 @@ func TestPrettyTraceWithLocation(t *testing.T) {
 
 	_, err := query.Run(ctx)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	expected := `query:1     Enter data.test.p = _
@@ -212,9 +211,8 @@ func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 		WithTransaction(txn).
 		WithTracer(tracer)
 
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	expected := `query:1                                                              Enter data.test.p = _
@@ -333,9 +331,8 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
 		WithTracer(tracer)
 
-	_, _, err = query.PartialRun(ctx)
-	if err != nil {
-		panic(err)
+	if _, _, err = query.PartialRun(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	expected := `query:1                                                              Enter data.example_rbac.allow
@@ -449,9 +446,8 @@ func TestTraceDuplicate(t *testing.T) {
 		WithTransaction(txn).
 		WithTracer(tracer)
 
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	n := 0
@@ -490,7 +486,7 @@ func TestTraceNote(t *testing.T) {
 
 	_, err := query.Run(ctx)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	expected := `Enter data.test.p = _
@@ -557,7 +553,7 @@ func TestTraceNoteWithLocation(t *testing.T) {
 
 	_, err := query.Run(ctx)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	expected := `query:1     Enter data.test.p = _
@@ -656,9 +652,8 @@ func TestTraceRewrittenQueryVars(t *testing.T) {
 		WithTransaction(txn).
 		WithTracer(tracer)
 
-	_, err = query.Run(ctx)
-	if err != nil {
-		panic(err)
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	foundQueryVar := false
@@ -791,8 +786,8 @@ func TestTraceEveryEvaluation(t *testing.T) {
 			module: `package test
 			p if { every k, v in [] { k != v } }`,
 			exp: events(
-				`Enter every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
-				`Exit every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
+				`Enter every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=1, pqid=0)`,
+				`Exit every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=1, pqid=0)`,
 			),
 		},
 		{
@@ -839,48 +834,46 @@ func TestTraceEveryEvaluation(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
 
-		opts := ast.CompileOpts{ParserOptions: ast.ParserOptions{AllFutureKeywords: true}}
-		compiler, err := ast.CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
-		queryCompiler := compiler.QueryCompiler()
+			opts := ast.CompileOpts{ParserOptions: ast.ParserOptions{AllFutureKeywords: true}}
+			compiler := ast.MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, opts)
+			queryCompiler := compiler.QueryCompiler()
 
-		compiledQuery, err := queryCompiler.Compile(ast.MustParseBody(tc.query))
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+			compiledQuery, err := queryCompiler.Compile(ast.MustParseBody(tc.query))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
 
-		buf := NewBufferTracer()
-		query := NewQuery(compiledQuery).
-			WithQueryCompiler(queryCompiler).
-			WithCompiler(compiler).
-			WithStore(inmem.New()).
-			WithQueryTracer(buf)
+			buf := &noPlugTracer{BufferTracer: NewBufferTracer()}
 
-		if _, err := query.Run(ctx); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+			query := NewQuery(compiledQuery).
+				WithQueryCompiler(queryCompiler).
+				WithCompiler(compiler).
+				WithStore(inmem.New()).
+				WithQueryTracer(buf)
 
-		for _, exp := range tc.exp {
-			found := false
-			for _, act := range *buf {
-				act.Locals = nil
-				if act.String() == exp {
-					found = true
+			if _, err := query.Run(ctx); err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			for _, exp := range tc.exp {
+				found := false
+				for _, act := range *buf.BufferTracer {
+					found = found || act.String() == exp
+				}
+				if !found {
+					t.Errorf("expected event %v, found none", exp)
 				}
 			}
-			if !found {
-				t.Errorf("expected event %v, found none", exp)
+			if t.Failed() {
+				t.Log("captured events:")
+				for _, ev := range *buf.BufferTracer {
+					t.Log(ev.String())
+				}
 			}
-		}
-		if t.Failed() {
-			t.Log("captured events:")
-			for _, ev := range *buf {
-				t.Log(ev.String())
-			}
-		}
+		})
 	}
 }
 
@@ -1224,9 +1217,8 @@ chain_with_output_var if {
 		WithTransaction(txn).
 		WithTracer(tracer)
 
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	expected := `query:1      Enter data.test = _
@@ -1301,9 +1293,8 @@ func TestPrettyTraceWithUnifyOps(t *testing.T) {
 		WithTransaction(txn).
 		WithTracer(tracer)
 
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
 	}
 
 	expected := `query:1     Enter data.test.p
@@ -1370,9 +1361,8 @@ do_math(a, b) := c if {
 			WithTransaction(txn).
 			WithTracer(tracer)
 
-		_, err := query.Run(ctx)
-		if err != nil {
-			panic(err)
+		if _, err := query.Run(ctx); err != nil {
+			t.Fatal(err)
 		}
 
 		expected := `Enter data.test = _                                  {}
@@ -1456,9 +1446,8 @@ do_math(a, b) := c if {
 			WithTransaction(txn).
 			WithTracer(tracer)
 
-		_, err := query.Run(ctx)
-		if err != nil {
-			panic(err)
+		if _, err := query.Run(ctx); err != nil {
+			t.Fatal(err)
 		}
 
 		expected := `Enter data.test = _                                  {}
@@ -1521,12 +1510,8 @@ func TestPrettyTraceLogical(t *testing.T) {
 	}`
 
 	ctx := t.Context()
-	compiler, err := ast.CompileModulesWithOpt(
-		map[string]string{"test.rego": module},
-		ast.CompileOpts{ParserOptions: logicalParserOptions()})
-	if err != nil {
-		t.Fatal(err)
-	}
+	opt := ast.CompileOpts{ParserOptions: logicalParserOptions()}
+	compiler := ast.MustCompileModulesWithOpts(map[string]string{"test.rego": module}, opt)
 
 	tracer := NewBufferTracer()
 	query := NewQuery(ast.MustParseBody("data.test.p = _")).
@@ -1738,7 +1723,7 @@ func runTraceLogicalCases(t *testing.T, tests []traceLogicalCase) {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
-			buf := NewBufferTracer()
+			buf := &noPlugTracer{BufferTracer: NewBufferTracer()}
 			query := NewQuery(compiledQuery).
 				WithQueryCompiler(queryCompiler).
 				WithCompiler(compiler).
@@ -1749,12 +1734,7 @@ func runTraceLogicalCases(t *testing.T, tests []traceLogicalCase) {
 				t.Fatalf("unexpected query error: %s", err)
 			}
 
-			// Stub Locals=nil per TestTraceEveryEvaluation's convention.
-			actuals := make([]string, 0, len(*buf))
-			for _, ev := range *buf {
-				ev.Locals = nil
-				actuals = append(actuals, ev.String())
-			}
+			actuals := util.Map(*buf.BufferTracer, (*Event).String)
 
 			for _, want := range tc.exp {
 				if !slices.Contains(actuals, want) {
@@ -1790,4 +1770,10 @@ func runTraceLogicalCases(t *testing.T, tests []traceLogicalCase) {
 			}
 		})
 	}
+}
+
+type noPlugTracer struct{ *BufferTracer }
+
+func (*noPlugTracer) Config() TraceConfig {
+	return TraceConfig{PlugLocalVars: false}
 }
