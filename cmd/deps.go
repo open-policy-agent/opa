@@ -129,7 +129,9 @@ func deps(args []string, params depsCommandParams, w io.Writer) error {
 	}
 
 	if len(params.bundlePaths.v) > 0 {
-		modules = make(map[string]*ast.Module, len(params.bundlePaths.v))
+		if modules == nil {
+			modules = make(map[string]*ast.Module, len(params.bundlePaths.v))
+		}
 		for _, path := range params.bundlePaths.v {
 			b, err := loader.NewFileLoader().WithBundleLazyLoadingMode(bundle.HasExtension()).WithSkipBundleVerification(true).AsBundle(path)
 			if err != nil {
