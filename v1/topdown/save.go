@@ -135,6 +135,31 @@ func (ss *saveSet) Covers(path ast.Ref) bool {
 	return false
 }
 
+// Below reports whether an unknown sits strictly below path, whose vars are
+// resolved through b: with input.x.a unknown, input.x is partially unknown.
+func (ss *saveSet) Below(path ast.Ref, b *bindings) bool {
+	if ss == nil {
+		return false
+	}
+	for el := ss.l.Back(); el != nil; el = el.Prev() {
+		for _, ref := range el.Value.(*saveSetElem).refs {
+			if len(ref) > len(path) && refHasPluggedPrefix(ref, path, b) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func refHasPluggedPrefix(ref, prefix ast.Ref, b *bindings) bool {
+	for i := range prefix {
+		if !ref[i].Equal(b.Plug(prefix[i])) {
+			return false
+		}
+	}
+	return true
+}
+
 // Keys returns the ground keys unknowns contribute directly below prefix. With
 // input.x unknown and input = {"y": 2}, iterating input[k] must still produce a
 // branch for k = "x". A non-ground prefix matches no unknown, hence no keys.
