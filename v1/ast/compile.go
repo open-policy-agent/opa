@@ -172,6 +172,7 @@ type Compiler struct {
 	strict                     bool                          // enforce strict compilation checks
 	keepModules                bool                          // whether to keep the unprocessed, parse modules (below)
 	parsedModules              map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	compileInPlace             bool                          // whether Compile may mutate the modules it is given, instead of copying them
 	useTypeCheckAnnotations    bool                          // whether to provide annotated information (schemas) to the type checker
 	allowUndefinedFuncCalls    bool                          // don't error on calls to unknown functions.
 	evalMode                   CompilerEvalMode              //
@@ -639,6 +640,15 @@ func (c *Compiler) WithKeepModules(y bool) *Compiler {
 	return c
 }
 
+// WithCompileInPlace lets Compile mutate the modules it is given, instead of
+// copying them: the caller must not use them afterwards, and WithKeepModules
+// cannot retain their unprocessed form. For callers that parse only to
+// compile, this halves what compiling holds.
+func (c *Compiler) WithCompileInPlace(y bool) *Compiler {
+	c.compileInPlace = y
+	return c
+}
+
 // WithUseTypeCheckAnnotations use schema annotations during type checking
 func (c *Compiler) WithUseTypeCheckAnnotations(enabled bool) *Compiler {
 	c.useTypeCheckAnnotations = enabled
@@ -705,7 +715,11 @@ func (c *Compiler) compileModules(modules map[string]*Module) {
 	}
 
 	for k, v := range modules {
-		c.Modules[k] = v.Copy()
+		if c.compileInPlace {
+			c.Modules[k] = v
+		} else {
+			c.Modules[k] = v.Copy()
+		}
 		if c.parsedModules != nil {
 			c.parsedModules[k] = v
 		}

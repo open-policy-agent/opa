@@ -42,20 +42,26 @@ deny contains msg if {
 `, i))
 			}
 
-			for b.Loop() {
-				// Compile rewrites modules in place, so every iteration needs
-				// its own copies. Copying is not what we're measuring.
-				b.StopTimer()
-				modules := make(map[string]*Module, len(base))
-				for name, module := range base {
-					modules[name] = module.Copy()
-				}
-				b.StartTimer()
+			for _, mode := range []struct {
+				name  string
+				setup func() *Compiler
+			}{{"copy", NewCompiler},
+				{"in-place", func() *Compiler { return NewCompiler().WithCompileInPlace(true) }}} {
+				b.Run(mode.name, func(b *testing.B) {
+					for b.Loop() {
+						b.StopTimer()
+						modules := make(map[string]*Module, len(base))
+						for name, module := range base {
+							modules[name] = module.Copy()
+						}
+						b.StartTimer()
 
-				c := NewCompiler()
-				if c.Compile(modules); c.Failed() {
-					b.Fatal(c.Errors)
-				}
+						c := mode.setup()
+						if c.Compile(modules); c.Failed() {
+							b.Fatal(c.Errors)
+						}
+					}
+				})
 			}
 		})
 	}
