@@ -2177,15 +2177,15 @@ func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*
 			w.write("(")
 			defer w.write(")")
 		}
-		comments, err = w.writeTermParens(true, operands[0], comments)
-		if err != nil {
+		comments, err = w.writeTermWithParens(true, operands[0], comments)
+		if err != nil && !isUnexpectedCommentError(err) {
 			return nil, err
 		}
 		w.write(" ")
 		w.write(kw)
 		w.write(" ")
-		comments, err = w.writeTermParens(true, operands[1], comments)
-		if err != nil {
+		comments, err = w.writeTermWithParens(true, operands[1], comments)
+		if err != nil && !isUnexpectedCommentError(err) {
 			return nil, err
 		}
 	case 3:
@@ -2193,20 +2193,20 @@ func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*
 			w.write("(")
 			defer w.write(")")
 		}
-		comments, err = w.writeTermParens(true, operands[0], comments)
-		if err != nil {
+		comments, err = w.writeTermWithParens(true, operands[0], comments)
+		if err != nil && !isUnexpectedCommentError(err) {
 			return nil, err
 		}
 		w.write(", ")
-		comments, err = w.writeTermParens(true, operands[1], comments)
-		if err != nil {
+		comments, err = w.writeTermWithParens(true, operands[1], comments)
+		if err != nil && !isUnexpectedCommentError(err) {
 			return nil, err
 		}
 		w.write(" ")
 		w.write(kw)
 		w.write(" ")
-		comments, err = w.writeTermParens(true, operands[2], comments)
-		if err != nil {
+		comments, err = w.writeTermWithParens(true, operands[2], comments)
+		if err != nil && !isUnexpectedCommentError(err) {
 			return nil, err
 		}
 	}
