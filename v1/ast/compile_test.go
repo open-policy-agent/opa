@@ -18506,3 +18506,37 @@ func TestCompilerRecompileHoistedImplicitBodies(t *testing.T) {
 		})
 	}
 }
+
+func TestCompilerWithCompileInPlace(t *testing.T) {
+	src := "package test\n\np if {\n\tx := input.a\n\tx == 1\n}\n"
+
+	// By default, Compile copies: the modules it is given stay as they were.
+	kept := MustParseModule(src)
+	c := NewCompiler()
+	if c.Compile(map[string]*Module{"test.rego": kept}); c.Failed() {
+		t.Fatal(c.Errors)
+	}
+	if c.Modules["test.rego"] == kept {
+		t.Fatal("expected Compile to copy the module")
+	}
+	if !kept.Equal(MustParseModule(src)) {
+		t.Error("expected the module Compile was given to stay as it was")
+	}
+
+	// With CompileInPlace, it doesn't: the module it is given is the one it
+	// compiled, rewritten.
+	mutated := MustParseModule(src)
+	c2 := NewCompiler().WithCompileInPlace(true)
+	if c2.Compile(map[string]*Module{"test.rego": mutated}); c2.Failed() {
+		t.Fatal(c2.Errors)
+	}
+	if c2.Modules["test.rego"] != mutated {
+		t.Fatal("expected Compile to use the module it was given")
+	}
+	if mutated.Equal(MustParseModule(src)) {
+		t.Error("expected the module Compile was given to be compiled in place")
+	}
+	if !c2.Modules["test.rego"].Equal(c.Modules["test.rego"]) {
+		t.Error("expected compiling in place to give the module compiling a copy gives")
+	}
+}
