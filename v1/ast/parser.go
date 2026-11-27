@@ -1148,7 +1148,6 @@ func (p *Parser) parseElse(head *Head) *Rule {
 			return nil
 		}
 		rule.Body.Append(expr)
-		setLocRecursiveBody(rule.Body, rule.Location)
 	} else {
 		p.illegal("rule body expected")
 		return nil
@@ -3612,13 +3611,6 @@ func setLocRecursive(x any, loc *location.Location) {
 		n.SetLoc(loc)
 		return false
 	})
-}
-
-// avoid allocating body -> any boxing
-func setLocRecursiveBody(body Body, loc *location.Location) {
-	for _, expr := range body {
-		setLocRecursive(expr, loc)
-	}
 }
 
 func (p *Parser) setLoc(term *Term, loc *location.Location, offset, end int) *Term {
