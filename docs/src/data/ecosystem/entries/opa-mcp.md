@@ -11,9 +11,8 @@ code:
 - https://www.npmjs.com/package/@orygn/opa-mcp
 - https://hub.docker.com/r/orygn/opa-mcp
 videos:
-- https://youtu.be/ByHocQDkB8M
-blogs:
-- https://www.linkedin.com/pulse/llms-bad-writing-rego-policies-heres-why-what-i-built-daniel-okwor-fjnzc/
+- https://youtu.be/GhuMid9tNl0
+- https://youtu.be/trr0vwYJtjw
 docs_features:
   learning-rego:
     note: |
