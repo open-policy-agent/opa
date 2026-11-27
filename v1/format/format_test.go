@@ -2281,3 +2281,64 @@ func BenchmarkFormatLargePolicySource(b *testing.B) {
 		}
 	}
 }
+
+func TestFormatComprehensionTermWithInfixCall(t *testing.T) {
+	cases := []struct {
+		note   string
+		policy string
+		want   string
+	}{
+		{
+			note:   "array comprehension",
+			policy: "r := [plus(x, 1) | x := [1, 2, 3][_]]\n",
+			want:   "r := [(x + 1) | x := [1, 2, 3][_]]\n",
+		},
+		{
+			note:   "set comprehension",
+			policy: "r := {mul(x, 2) | x := [1, 2, 3][_]}\n",
+			want:   "r := {(x * 2) | x := [1, 2, 3][_]}\n",
+		},
+		{
+			note:   "object comprehension key",
+			policy: "r := {minus(x, 1): x | x := [1, 2, 3][_]}\n",
+			want:   "r := {(x - 1): x | x := [1, 2, 3][_]}\n",
+		},
+		{
+			note:   "object comprehension value",
+			policy: "r := {x: rem(x, 2) | x := [1, 2, 3][_]}\n",
+			want:   "r := {x: (x % 2) | x := [1, 2, 3][_]}\n",
+		},
+		{
+			note:   "comparison",
+			policy: "r := [equal(x, 1) | x := [1, 2, 3][_]]\n",
+			want:   "r := [(x == 1) | x := [1, 2, 3][_]]\n",
+		},
+		{
+			note:   "parens in source are kept",
+			policy: "r := [(x + 1) | x := [1, 2, 3][_]]\n",
+			want:   "r := [(x + 1) | x := [1, 2, 3][_]]\n",
+		},
+		{
+			note:   "non-infix call is left alone",
+			policy: "r := [abs(x) | x := [1, 2, 3][_]]\n",
+			want:   "r := [abs(x) | x := [1, 2, 3][_]]\n",
+		},
+		{
+			note:   "infix call in body is left alone",
+			policy: "r := [y | x := [1, 2, 3][_]; y := x + 1]\n",
+			want:   "r := [y | x := [1, 2, 3][_]; y := x + 1]\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			formatted, err := SourceWithOpts("p.rego", []byte("package p\n\n"+tc.policy), Opts{RegoVersion: ast.RegoV1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := string(formatted), "package p\n\n"+tc.want; got != want {
+				t.Fatalf("expected:\n%s\ngot:\n%s", want, got)
+			}
+		})
+	}
+}
