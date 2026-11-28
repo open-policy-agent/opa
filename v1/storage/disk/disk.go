@@ -502,6 +502,13 @@ func (db *Store) Commit(ctx context.Context, txn storage.Transaction) error {
 		db.rmu.Lock() // blocks until all readers are done
 		event, err := underlying.Commit(ctx)
 		if err != nil {
+			// Treat the transaction as aborted: undo what Truncate already
+			// committed and release the locks.
+			defer db.wmu.Unlock()
+			defer db.rmu.Unlock()
+			if db.backupDB != nil {
+				db.restoreBackup()
+			}
 			return err
 		}
 		write := false // read only txn
@@ -540,34 +547,37 @@ func (db *Store) Abort(ctx context.Context, txn storage.Transaction) {
 
 		if db.backupDB != nil {
 			db.rmu.Lock()
-
-			// update symlink to point to the backup db
-			symlink := filepath.Join(path.Dir(db.backupDB.Opts().Dir), symlinkKey)
-			// "active" -> "backupXXXX" is what we want, not
-			// "active" -> "DIR/backupXXX", since that won't work when using a relative directory
-			target := filepath.Base(db.backupDB.Opts().Dir)
-
-			err = createSymlink(target, symlink)
-			if err != nil {
-				panic(err)
-			}
-
-			// swap db
-			oldDb := db.db
-			db.db = db.backupDB
-			db.backupDB = nil
-
-			// cleanup existing db
-			if err := db.cleanup(oldDb); err != nil {
-				panic(err)
-			}
-
+			db.restoreBackup()
 			db.rmu.Unlock()
 		}
 
 		db.wmu.Unlock()
 	} else {
 		db.rmu.RUnlock()
+	}
+}
+
+// restoreBackup swaps the database saved by Truncate back in. The caller must
+// hold rmu for writing, and db.backupDB must not be nil.
+func (db *Store) restoreBackup() {
+	// update symlink to point to the backup db
+	symlink := filepath.Join(path.Dir(db.backupDB.Opts().Dir), symlinkKey)
+	// "active" -> "backupXXXX" is what we want, not
+	// "active" -> "DIR/backupXXX", since that won't work when using a relative directory
+	target := filepath.Base(db.backupDB.Opts().Dir)
+
+	if err := createSymlink(target, symlink); err != nil {
+		panic(err)
+	}
+
+	// swap db
+	oldDb := db.db
+	db.db = db.backupDB
+	db.backupDB = nil
+
+	// cleanup existing db
+	if err := db.cleanup(oldDb); err != nil {
+		panic(err)
 	}
 }
 

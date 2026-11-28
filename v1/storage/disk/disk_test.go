@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 
@@ -551,6 +553,123 @@ type erroringIterator struct {
 }
 
 func (it erroringIterator) Next() (*storage.Update, error) { return nil, it.err }
+
+func TestCommitFailureReleasesLocks(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+
+	path := storage.MustParsePath("/foo")
+	txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+	if err := s.Write(ctx, txn, storage.AddOp, path, "lost"); err != nil {
+		t.Fatal(err)
+	}
+	failCommit(t, s, txn)
+
+	// The read blocks if Commit kept rmu, and the write if it kept wmu.
+	mustNotBlock(t, func() error {
+		if _, err := storage.ReadOne(ctx, s, path); !storage.IsNotFound(err) {
+			return fmt.Errorf("expected not found, got %v", err)
+		}
+		return storage.WriteOne(ctx, s, storage.AddOp, path, "kept")
+	})
+}
+
+func TestCommitFailureAfterTruncateRestoresData(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	opts := Options{Dir: t.TempDir()}
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { s.Close(ctx) }()
+
+	path := storage.MustParsePath("/foo")
+	if err := storage.WriteOne(ctx, s, storage.AddOp, path, "old"); err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+	it := &sliceIterator{{Path: path, Value: []byte(`"new"`)}}
+	if err := s.Truncate(ctx, txn, params, it); err != nil {
+		t.Fatal(err)
+	}
+	// Commit only reaches Badger's checks if there is a pending write.
+	if err := s.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/bar"), "x"); err != nil {
+		t.Fatal(err)
+	}
+	failCommit(t, s, txn)
+
+	expectOld := func() error {
+		act, err := storage.ReadOne(ctx, s, path)
+		if err == nil && act != "old" {
+			err = fmt.Errorf("expected old, got %v", act)
+		}
+		return err
+	}
+	mustNotBlock(t, expectOld)
+	if s.backupDB != nil {
+		t.Fatal("expected the backup to be consumed")
+	}
+
+	// The restored database is also the one opened next time.
+	if err := s.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s, err = New(ctx, logging.NewNoOpLogger(), nil, opts); err != nil {
+		t.Fatal(err)
+	}
+	mustNotBlock(t, expectOld)
+}
+
+// failCommit discards the Badger transaction behind txn, so that Commit gets an
+// error from it.
+func failCommit(t *testing.T, s *Store, txn storage.Transaction) {
+	t.Helper()
+	underlying, err := s.underlying(txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	underlying.underlying.Discard()
+	if err := s.Commit(t.Context(), txn); err == nil {
+		t.Fatal("expected Commit to fail")
+	}
+}
+
+// mustNotBlock runs f and fails the test instead of hanging if a lock was kept.
+func mustNotBlock(t *testing.T, f func() error) {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- f() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("store is still locked")
+	}
+}
+
+type sliceIterator []*storage.Update
+
+func (it *sliceIterator) Next() (*storage.Update, error) {
+	if len(*it) == 0 {
+		return nil, io.EOF
+	}
+	u := (*it)[0]
+	*it = (*it)[1:]
+	return u, nil
+}
 
 func TestTruncateNonObjectInPartition(t *testing.T) {
 	t.Parallel()
