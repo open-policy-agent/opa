@@ -4734,8 +4734,15 @@ func (e evalEvery) eval(iter unifyIterator) error {
 			e.e.traceFail(e.expr)
 			return nil
 		}
+		if pd.Value.(interface{ Len() int }).Len() == 0 {
+			// Early (and successful) exit on empty collection in domain
+			if e.e.traceEnabled {
+				e.e.traceEnter(e.expr)
+				defer e.e.traceExit(e.expr)
+			}
+			return iter()
+		}
 	}
-
 	domain := evalPool.Get()
 	defer evalPool.Put(domain)
 
